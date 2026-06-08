@@ -159,32 +159,19 @@ export function computeCableCanvasSides(
 }
 
 /**
- * Bentley often reuses the same cable name for in/out legs at a mid-span case.
- * Mirror pattern: appears as To in Left --- and From in Right --- only → two legs.
- * Drop pattern: From in Left --- and To in Right --- only → one leg on the left.
+ * Section-agnostic leg rule (D1/D2): combined From/To presence across all sections.
+ * from only → one leg; to only → one leg; both → two legs (mid-span splice).
  */
 export function csvColumnsForCable(counts: {
   left: { from: number; to: number };
   right: { from: number; to: number };
 }): CsvColumnRole[] {
-  const leftFrom = counts.left.from > 0;
-  const leftTo = counts.left.to > 0;
-  const rightFrom = counts.right.from > 0;
-  const rightTo = counts.right.to > 0;
+  const fromTotal = counts.left.from + counts.right.from;
+  const toTotal = counts.left.to + counts.right.to;
 
-  if (leftTo && !leftFrom && rightFrom && !rightTo) {
-    return ["from", "to"];
-  }
-  if (leftFrom && !leftTo && rightTo && !rightFrom) {
-    return ["from"];
-  }
-  if (leftFrom && leftTo) {
-    return ["from", "to"];
-  }
-  if (leftFrom) return ["from"];
-  if (leftTo) return ["to"];
-  if (rightFrom) return ["from"];
-  if (rightTo) return ["to"];
+  if (fromTotal > 0 && toTotal > 0) return ["from", "to"];
+  if (fromTotal > 0) return ["from"];
+  if (toTotal > 0) return ["to"];
   return [];
 }
 

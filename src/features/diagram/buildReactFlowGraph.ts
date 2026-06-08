@@ -51,6 +51,8 @@ import {
   routingLaneDataFromLane,
   spliceTubeBundleKey,
 } from "@/features/canvas/edges/spliceEdgeRouting";
+import { augmentNodesEngineGraph } from "@/features/diagram/buildNodesEngineGraph";
+import { useNodesRoutingEngine } from "@/features/diagram/routingEngine";
 import {
   buildVisualCablesForLayout,
   endpointOnVisualSide,
@@ -401,6 +403,22 @@ export function buildReactFlowGraph(
     placement,
     effectiveWidth,
   );
+
+  if (useNodesRoutingEngine()) {
+    const augmented = augmentNodesEngineGraph(
+      nodes,
+      edges,
+      visualCables,
+      centerX,
+    );
+    return {
+      nodes: augmented.nodes,
+      edges: augmented.edges,
+      layout,
+      xBounds,
+      autoLayoutY,
+    };
+  }
 
   const importHandleEntries = buildSpliceHandleEntries(nodes, edges, visualCables);
   const importRouting = assignSpliceRoutingLanesFromHandleEntries(

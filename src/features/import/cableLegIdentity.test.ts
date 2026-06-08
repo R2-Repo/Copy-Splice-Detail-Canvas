@@ -17,12 +17,30 @@ describe("csvColumnsForCable", () => {
     expect(columns).toEqual(["from", "to"]);
   });
 
-  it("single drop leg: From in Left, To in Right mirror only", () => {
+  it("both From and To present across sections → two legs (D1)", () => {
     const columns = csvColumnsForCable({
       left: { from: 4, to: 0 },
       right: { from: 0, to: 4 },
     });
-    expect(columns).toEqual(["from"]);
+    expect(columns).toEqual(["from", "to"]);
+  });
+
+  it("from only → single from leg", () => {
+    expect(
+      csvColumnsForCable({
+        left: { from: 4, to: 0 },
+        right: { from: 0, to: 0 },
+      }),
+    ).toEqual(["from"]);
+  });
+
+  it("to only → single to leg", () => {
+    expect(
+      csvColumnsForCable({
+        left: { from: 0, to: 3 },
+        right: { from: 0, to: 0 },
+      }),
+    ).toEqual(["to"]);
   });
 });
 

@@ -1,5 +1,8 @@
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
-import { csvColumnsForCable } from "@/features/import/cableLegIdentity";
+import { deriveFibersPerTube } from "@/features/diagram/fibersPerTube";
+import { cableNameKey, csvColumnsForCable } from "@/features/import/cableLegIdentity";
+import { logicalEndpointKey } from "@/features/import/parseBentleyCsv";
+import type { FiberEndpoint, SplicePair } from "@/types/splice";
 import {
   PARSE_REASON_LABELS,
   type ParseRowFailureReason,
@@ -51,6 +54,87 @@ function legSummary(
   return csvColumnsForCable(app).map(
     (c) => `${c} (${c === "from" ? "diagram left" : "diagram right"})`,
   );
+}
+
+function endpointsForLeg(
+  legId: string,
+  pairs: SplicePair[],
+): FiberEndpoint[] {
+  const out: FiberEndpoint[] = [];
+  for (const pair of pairs) {
+    for (const ep of [pair.endpointA, pair.endpointB]) {
+      if (`${cableNameKey(ep.cable)}::${ep.csvColumn}` === legId) {
+        out.push(ep);
+      }
+    }
+  }
+  return out;
+}
+
+function fiberRange(endpoints: FiberEndpoint[]): [number, number] | null {
+  const nums = endpoints
+    .map((ep) => ep.fiberNumber)
+    .filter((n) => Number.isFinite(n));
+  if (nums.length === 0) return null;
+  return [Math.min(...nums), Math.max(...nums)];
+}
+
+function rangesDisjoint(
+  a: [number, number] | null,
+  b: [number, number] | null,
+): boolean {
+  if (!a || !b) return false;
+  return a[1] < b[0] || b[1] < a[0];
+}
+
+/** Warn when duplicate cable names look like distinct physical cables (A3). */
+function distinctCableLegWarnings(
+  pairs: SplicePair[],
+  appearances: import("@/types/splice").CableAppearanceSummary[],
+): string[] {
+  const warnings: string[] = [];
+
+  for (const app of appearances) {
+    const columns = csvColumnsForCable(app);
+    if (columns.length < 2) continue;
+
+    const legIds = columns.map((c) => `${cableNameKey(app.cable)}::${c}`);
+    const ranges = legIds.map((id) => fiberRange(endpointsForLeg(id, pairs)));
+    const counts = legIds.map((id) =>
+      deriveFibersPerTube(endpointsForLeg(id, pairs), app.cable),
+    );
+
+    if (rangesDisjoint(ranges[0] ?? null, ranges[1] ?? null)) {
+      warnings.push(
+        `Cable "${app.cable}" has two legs with disjoint fiber ranges — name may not be unique.`,
+      );
+    }
+    if (counts[0] !== counts[1]) {
+      warnings.push(
+        `Cable "${app.cable}" has two legs with different derived fibers-per-tube (${counts[0]} vs ${counts[1]}) — name may not be unique.`,
+      );
+    }
+
+    const fibersByLeg = legIds.map((id) => {
+      const set = new Set(
+        endpointsForLeg(id, pairs).map((ep) => logicalEndpointKey(ep)),
+      );
+      return set;
+    });
+    if (
+      fibersByLeg[0] &&
+      fibersByLeg[1] &&
+      [...fibersByLeg[0]].every((k) => !fibersByLeg[1]!.has(k)) &&
+      fibersByLeg[0].size > 0 &&
+      fibersByLeg[1].size > 0
+    ) {
+      warnings.push(
+        `Cable "${app.cable}" has two legs with no shared fibers — verify this is one spliced cable (D1).`,
+      );
+    }
+  }
+
+  return warnings;
 }
 
 function buildFailureBreakdown(
@@ -112,6 +196,8 @@ export function inspectBentleyCsv(csvText: string): CsvInspectReport {
   if (inferred > 0) {
     warnings.push(`${inferred} row(s) used inferred fiber numbers.`);
   }
+
+  warnings.push(...distinctCableLegWarnings(report.pairs, report.cableAppearances));
 
   return {
     header: report.header,

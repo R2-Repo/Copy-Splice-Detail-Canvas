@@ -285,3 +285,37 @@
 .splice-edge__square {
   pointer-events: none;
 }
+
+.fiber-anchor-node,
+.splice-point-node,
+.tube-anchor-node {
+  width: 6px;
+  height: 6px;
+  position: relative;
+}
+
+.fiber-anchor-node__dot,
+.splice-point-node__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #171717;
+}
+
+.splice-point-node__square {
+  width: 8px;
+  height: 8px;
+  background: #000;
+}
+
+.splice-point-node {
+  width: 8px;
+  height: 8px;
+}
+
+.fiber-anchor-node .react-flow__handle,
+.splice-point-node .react-flow__handle {
+  opacity: 0;
+  width: 4px !important;
+  height: 4px !important;
+}

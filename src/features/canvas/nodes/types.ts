@@ -17,6 +17,8 @@ export type CableNodeData = {
   spliceNumber?: string;
   /** Buffer tube colors hidden when full-butt-splice collapse is on. */
   collapsedTubes?: string[];
+  /** Sheath + label only — fibers live on `fiberAnchor` nodes (nodes routing engine). */
+  slim?: boolean;
 };
 
 export type BufferTubeNodeData = {
@@ -31,4 +33,30 @@ export type FiberStrandNodeData = {
   color: string;
   label: string;
   side: "left" | "right";
+};
+
+export type TubeAnchorNodeData = {
+  tubeColor: string;
+  color: string;
+  striped: boolean;
+  label: string;
+  side: "left" | "right";
+  visualCableId: string;
+};
+
+export type FiberAnchorNodeData = {
+  connectionId: string;
+  fiberColor: string;
+  fiberNumber: number;
+  tubeColor: string;
+  side: "left" | "right";
+  visualCableId: string;
+  circuitName?: string;
+};
+
+export type SplicePointNodeData = {
+  connectionId: string;
+  sourceColor: string;
+  targetColor: string;
+  fullButtSplice?: boolean;
 };

@@ -1,9 +1,11 @@
-import { BufferTubeNode } from "@/features/canvas/nodes/BufferTubeNode";
 import { CableNode } from "@/features/canvas/nodes/CableNode";
-import { FiberStrandNode } from "@/features/canvas/nodes/FiberStrandNode";
+import { FiberAnchorNode } from "@/features/canvas/nodes/FiberAnchorNode";
+import { SplicePointNode } from "@/features/canvas/nodes/SplicePointNode";
+import { TubeAnchorNode } from "@/features/canvas/nodes/TubeAnchorNode";
 
 export const spliceNodeTypes = {
   cable: CableNode,
-  bufferTube: BufferTubeNode,
-  fiberStrand: FiberStrandNode,
+  fiberAnchor: FiberAnchorNode,
+  splicePoint: SplicePointNode,
+  tubeAnchor: TubeAnchorNode,
 };

@@ -36,6 +36,13 @@ type SpliceEdgeData = {
   routingJogX?: number;
   routingSourceHorizY?: number;
   routingTargetHorizY?: number;
+  routingSourceBendX?: number;
+  routingTargetBendX?: number;
+  routingPrecomputed?: boolean;
+  leftPath?: string;
+  rightPath?: string;
+  spliceX?: number;
+  spliceY?: number;
 };
 
 function SpliceLeg({
@@ -96,8 +103,14 @@ export function SpliceEdge({
   const sourceTagWidth = formattedCircuitTagWidth(d.circuitName);
   const targetTagWidth = sourceTagWidth;
 
-  const { midX, jogX, sourceHorizY, targetHorizY, sourceBendX, targetBendX } =
-    useRoutingLaneIndex(
+  const precomputed =
+    d.routingPrecomputed === true &&
+    d.leftPath &&
+    d.rightPath &&
+    d.spliceX !== undefined &&
+    d.spliceY !== undefined;
+
+  const liveRouting = useRoutingLaneIndex(
     id,
     source,
     target,
@@ -119,40 +132,43 @@ export function SpliceEdge({
   );
 
   const sideSpans = d.sideCircuitSpan ?? defaultSideCircuitLabelSpan();
-  const pathArgs = {
-    sourceX,
-    sourceY,
-    targetX,
-    targetY,
-    midX,
-    sideSpans,
-    diagramCenterX: d.diagramCenterX,
-  };
-  const { leftPath, rightPath, spliceX, spliceY } = d.fullButtSplice
-    ? buildButtSplicePath(
-        pathArgs.sourceX,
-        pathArgs.sourceY,
-        pathArgs.targetX,
-        pathArgs.targetY,
-        pathArgs.midX,
-        pathArgs.sideSpans,
-        pathArgs.diagramCenterX,
-        fallbackLane,
-        laneCount,
-      )
-    : buildSplicePath(
-        sourceX,
-        sourceY,
-        targetX,
-        targetY,
-        midX,
-        jogX,
-        { sourceHorizY, targetHorizY, sourceBendX, targetBendX },
-        sideSpans,
-        d.diagramCenterX,
-        sourceTagWidth,
-        targetTagWidth,
-      );
+  const { leftPath, rightPath, spliceX, spliceY } = precomputed
+    ? {
+        leftPath: d.leftPath!,
+        rightPath: d.rightPath!,
+        spliceX: d.spliceX!,
+        spliceY: d.spliceY!,
+      }
+    : d.fullButtSplice
+      ? buildButtSplicePath(
+          sourceX,
+          sourceY,
+          targetX,
+          targetY,
+          liveRouting.midX,
+          sideSpans,
+          d.diagramCenterX,
+          fallbackLane,
+          laneCount,
+        )
+      : buildSplicePath(
+          sourceX,
+          sourceY,
+          targetX,
+          targetY,
+          liveRouting.midX,
+          liveRouting.jogX,
+          {
+            sourceHorizY: liveRouting.sourceHorizY,
+            targetHorizY: liveRouting.targetHorizY,
+            sourceBendX: liveRouting.sourceBendX,
+            targetBendX: liveRouting.targetBendX,
+          },
+          sideSpans,
+          d.diagramCenterX,
+          sourceTagWidth,
+          targetTagWidth,
+        );
 
   const fallback = d.color ?? "#e2e8f0";
   const sourceStroke = d.existing ? "#94a3b8" : (d.sourceColor ?? fallback);

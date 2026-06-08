@@ -1,4 +1,10 @@
-import { isFiberColorAbbrev, parseTubeColorCode, fiberNumberFromTubeAndColor, fibersPerBufferTubeFromCableName } from "@/features/diagram/colorCode";
+import {
+  isFiberColorAbbrev,
+  parseTubeColorCode,
+  fiberNumberFromTubeAndColor,
+  fibersPerBufferTubeFromCableName,
+} from "@/features/diagram/colorCode";
+import { fibersPerTubeByCable } from "@/features/diagram/fibersPerTube";
 import {
   cableNameKey,
   recordCableAppearance,
@@ -231,12 +237,15 @@ function parseToSide(
 function fillMissingFiberNumber(
   ep: FiberEndpoint,
   peer: FiberEndpoint,
+  fibersPerTubeByCableName?: Map<string, 6 | 12>,
 ): FiberEndpoint {
   if (Number.isFinite(ep.fiberNumber)) {
     return { ...ep, fiberNumberSource: ep.fiberNumberSource ?? "csv" };
   }
 
-  const fibersPerTube = fibersPerBufferTubeFromCableName(ep.cable);
+  const fibersPerTube =
+    fibersPerTubeByCableName?.get(ep.cable) ??
+    fibersPerBufferTubeFromCableName(ep.cable);
 
   // Same-tube blank fiber#: Bentley crossover rows keep peer index (Example #1).
   if (ep.tubeColor === peer.tubeColor && Number.isFinite(peer.fiberNumber)) {
@@ -270,9 +279,10 @@ function fillMissingFiberNumber(
 function normalizePairEndpoints(
   a: FiberEndpoint,
   b: FiberEndpoint,
+  fibersPerTubeMap?: Map<string, 6 | 12>,
 ): { endpointA: FiberEndpoint; endpointB: FiberEndpoint } | null {
-  let endpointA = fillMissingFiberNumber(a, b);
-  let endpointB = fillMissingFiberNumber(b, a);
+  let endpointA = fillMissingFiberNumber(a, b, fibersPerTubeMap);
+  let endpointB = fillMissingFiberNumber(b, a, fibersPerTubeMap);
   if (!Number.isFinite(endpointA.fiberNumber) || !Number.isFinite(endpointB.fiberNumber)) {
     return null;
   }
@@ -291,6 +301,7 @@ export function parseDataRowWithResult(
   line: string,
   lineNumber: number,
   csvSection: "left" | "right",
+  fibersPerTubeMap?: Map<string, 6 | 12>,
 ): ParseRowResult {
   const row = tokenizeBentleyRow(line, lineNumber, csvSection);
   if (!row) {
@@ -312,6 +323,7 @@ export function parseDataRowWithResult(
   const normalized = normalizePairEndpoints(
     fromResult.endpoint,
     toResult.endpoint,
+    fibersPerTubeMap,
   );
   if (!normalized) {
     return failRow(
@@ -387,16 +399,27 @@ function dedupePairs(pairs: SplicePair[]): SplicePair[] {
 }
 
 export function parseLeftSectionRows(csvText: string): ParseRowResult[] {
-  return parseSectionRows(csvText, "left");
+  const raw = parseSectionRowsRaw(csvText, "left");
+  const okPairs = raw
+    .filter((r): r is Extract<ParseRowResult, { ok: true }> => r.ok)
+    .map((r) => r.pair);
+  const fibersPerTubeMap = fibersPerTubeByCable(okPairs);
+  return refinePairsWithFibersPerTube(raw, fibersPerTubeMap);
 }
 
 export function parseRightSectionRows(csvText: string): ParseRowResult[] {
-  return parseSectionRows(csvText, "right");
+  const raw = parseSectionRowsRaw(csvText, "right");
+  const okPairs = raw
+    .filter((r): r is Extract<ParseRowResult, { ok: true }> => r.ok)
+    .map((r) => r.pair);
+  const fibersPerTubeMap = fibersPerTubeByCable(okPairs);
+  return refinePairsWithFibersPerTube(raw, fibersPerTubeMap);
 }
 
 function parseSectionRows(
   csvText: string,
   target: "left" | "right",
+  fibersPerTubeMap?: Map<string, 6 | 12>,
 ): ParseRowResult[] {
   const results: ParseRowResult[] = [];
   let section: "left" | "right" | null = null;
@@ -413,14 +436,53 @@ function parseSectionRows(
     }
     if (section !== target || !line.includes("<->")) continue;
 
-    results.push(parseDataRowWithResult(line, lineNumber, target));
+    results.push(parseDataRowWithResult(line, lineNumber, target, fibersPerTubeMap));
   }
 
   return results;
 }
 
+/** First pass: parse endpoints without inferring blank fiber numbers. */
+function parseSectionRowsRaw(
+  csvText: string,
+  target: "left" | "right",
+): ParseRowResult[] {
+  return parseSectionRows(csvText, target);
+}
+
+function refinePairsWithFibersPerTube(
+  results: ParseRowResult[],
+  fibersPerTubeMap: Map<string, 6 | 12>,
+): ParseRowResult[] {
+  return results.map((row) => {
+    if (!row.ok) return row;
+    const normalized = normalizePairEndpoints(
+      row.pair.endpointA,
+      row.pair.endpointB,
+      fibersPerTubeMap,
+    );
+    if (!normalized) {
+      return failRow(
+        row.line,
+        row.lineNumber,
+        "MISSING_FIBER_NUMBER",
+        "Fiber number missing on both sides",
+      );
+    }
+    return {
+      ...row,
+      pair: {
+        ...row.pair,
+        endpointA: normalized.endpointA,
+        endpointB: normalized.endpointB,
+      },
+    };
+  });
+}
+
 function scanCableAppearances(
   lines: string[],
+  fibersPerTubeMap: Map<string, 6 | 12>,
 ): Map<string, CableAppearanceSummary> {
   const map = new Map<string, CableAppearanceSummary>();
   let section: "left" | "right" | null = null;
@@ -437,7 +499,7 @@ function scanCableAppearances(
     }
     if (!line.includes("<->") || section === null) continue;
 
-    const result = parseDataRowWithResult(line, lineNumber, section);
+    const result = parseDataRowWithResult(line, lineNumber, section, fibersPerTubeMap);
     if (!result.ok) continue;
     recordCableAppearance(map, result.pair.endpointA, "from", section);
     recordCableAppearance(map, result.pair.endpointB, "to", section);
@@ -449,8 +511,14 @@ function scanCableAppearances(
 export function parseBentleyCsv(csvText: string): SpliceReport {
   const lines = csvText.split(/\r?\n/);
   const header = parseHeader(lines.slice(0, 12));
-  const leftResults = parseLeftSectionRows(csvText);
-  const rightResults = parseRightSectionRows(csvText);
+  const leftRaw = parseSectionRowsRaw(csvText, "left");
+  const rightRaw = parseSectionRowsRaw(csvText, "right");
+  const draftPairs = [...leftRaw, ...rightRaw]
+    .filter((r): r is Extract<ParseRowResult, { ok: true }> => r.ok)
+    .map((r) => r.pair);
+  const fibersPerTubeMap = fibersPerTubeByCable(draftPairs);
+  const leftResults = refinePairsWithFibersPerTube(leftRaw, fibersPerTubeMap);
+  const rightResults = refinePairsWithFibersPerTube(rightRaw, fibersPerTubeMap);
 
   const pairs = dedupePairs(
     [...leftResults, ...rightResults]
@@ -458,7 +526,7 @@ export function parseBentleyCsv(csvText: string): SpliceReport {
       .map((r) => r.pair),
   );
 
-  const cableAppearances = scanCableAppearances(lines);
+  const cableAppearances = scanCableAppearances(lines, fibersPerTubeMap);
 
   return {
     header,

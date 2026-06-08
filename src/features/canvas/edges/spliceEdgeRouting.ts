@@ -221,38 +221,7 @@ export function assignSpliceRoutingLanesFromHandleEntries(
     targetTagWidth: entry.targetTagWidth,
   }));
 
-  const lanes = assignSpliceRoutingLanes(candidates, sideSpans);
-
-  // #region agent log
-  {
-    const roundedMidXs = [...lanes.values()].map((lane) => Math.round(lane.midX));
-    const uniqueMidXCount = new Set(roundedMidXs).size;
-    fetch("http://127.0.0.1:7727/ingest/3e400e45-f78e-432b-aa58-25cbace8ef56", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "ca41b3",
-      },
-      body: JSON.stringify({
-        sessionId: "ca41b3",
-        runId: "user-repro",
-        hypothesisId: "H2-lane-collapse-on-import",
-        location: "spliceEdgeRouting.ts:assignSpliceRoutingLanesFromHandleEntries",
-        message: "Lane packing summary from handle entries",
-        data: {
-          entriesCount: entries.length,
-          lanesCount: lanes.size,
-          uniqueMidXCount,
-          duplicateMidXCount: Math.max(0, lanes.size - uniqueMidXCount),
-          sampleMidXs: roundedMidXs.slice(0, 8),
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-  }
-  // #endregion
-
-  return lanes;
+  return assignSpliceRoutingLanes(candidates, sideSpans);
 }
 
 /** Re-rank row offsets from live handle Y, then pack lanes (drag / live handles). */

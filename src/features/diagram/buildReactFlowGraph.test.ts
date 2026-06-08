@@ -117,8 +117,18 @@ describe("buildReactFlowGraph", () => {
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const { nodes, edges } = buildReactFlowGraph(graph);
 
-    expect(nodes.every((n) => n.type === "cable")).toBe(true);
-    expect(edges.filter((e) => e.type === "splice")).toHaveLength(28);
+    expect(nodes.some((n) => n.type === "cable")).toBe(true);
+    expect(nodes.some((n) => n.type === "fiberAnchor")).toBe(true);
+    expect(nodes.some((n) => n.type === "splicePoint")).toBe(true);
+    const spliceEdges = edges.filter((e) => e.type === "splice");
+    expect(spliceEdges).toHaveLength(28);
+    expect(
+      spliceEdges.every(
+        (e) =>
+          (e.data as { routingPrecomputed?: boolean }).routingPrecomputed ===
+          true,
+      ),
+    ).toBe(true);
   });
 
   it("Example #2: wide layout keeps strands fanning toward center", () => {

@@ -36,6 +36,7 @@ import {
   routingLaneDataFromLane,
   setActiveDragCableNodeId,
 } from "@/features/canvas/edges/spliceEdgeRouting";
+import { useNodesRoutingEngine } from "@/features/diagram/routingEngine";
 import {
   CABLE_LAYOUT,
   resolveCableDragStopX,
@@ -140,8 +141,59 @@ function WorkflowCanvasInner() {
 
   collapseRef.current = collapseFullButtSplices;
 
+  const rebuildNodesEngineLayout = useCallback(
+    (draggedNode: Node, patch?: Record<string, { x: number; y: number }>) => {
+      const graph = graphRef.current;
+      const reportKey = reportKeyRef.current;
+      if (!graph || !reportKey || draggedNode.type !== "cable") return;
+
+      const existing = loadLayoutOverrides(reportKey);
+      const positions = {
+        ...(existing?.positions ?? {}),
+        ...positionsFromNodes(getNodes().filter((n) => n.type === "cable")),
+        ...patch,
+      };
+
+      const { nodes: nextNodes, edges: nextEdges, autoLayoutY } =
+        buildReactFlowGraph(
+          graph,
+          {
+            reportKey,
+            collapseFullButtSplices: collapseRef.current,
+            positions,
+            existingEdgeIds: existing?.existingEdgeIds,
+            cableSides: existing?.cableSides,
+            layoutWidth: layoutWidthRef.current,
+          },
+          layoutWidthRef.current,
+        );
+
+      setNodes(nextNodes);
+      setEdges(nextEdges);
+      saveLayoutOverrides(
+        mergeLayoutOverrides(reportKey, {
+          positions: positionsFromNodes(
+            nextNodes.filter((n) => n.type === "cable"),
+          ),
+          autoLayoutY,
+          existingEdgeIds: existingIdsFromEdges(nextEdges),
+          collapseFullButtSplices: collapseRef.current,
+          layoutWidth: layoutWidthRef.current,
+          cableSides: existing?.cableSides,
+        }),
+      );
+    },
+    [getNodes, setEdges, setNodes],
+  );
+
   const refreshDragRouting = useCallback(
     (draggedNode: Node) => {
+      if (useNodesRoutingEngine()) {
+        rebuildNodesEngineLayout(draggedNode, {
+          [draggedNode.id]: draggedNode.position,
+        });
+        return;
+      }
       const graph = graphRef.current;
       if (!graph || draggedNode.type !== "cable") return;
       const allNodes = getNodes().map((n) =>
@@ -156,7 +208,7 @@ function WorkflowCanvasInner() {
       );
       publishDragRoutingSnapshot(handleEntries, layoutWidthRef.current / 2);
     },
-    [getEdges, getNodes],
+    [getEdges, getNodes, rebuildNodesEngineLayout],
   );
 
   const stageWidthForLayout = useCallback((): number => {
@@ -419,10 +471,11 @@ function WorkflowCanvasInner() {
 
   const onNodeDragStart: OnNodeDrag<Node> = useCallback(
     (_, node) => {
-      if (node.type === "cable") {
+      if (node.type !== "cable") return;
+      if (!useNodesRoutingEngine()) {
         setActiveDragCableNodeId(node.id);
-        refreshDragRouting(node);
       }
+      refreshDragRouting(node);
     },
     [refreshDragRouting],
   );
@@ -468,6 +521,49 @@ function WorkflowCanvasInner() {
 
       const finalX = resolveCableDragStopX(node.position.x, newSide, bounds);
       const finalY = node.position.y;
+
+      if (useNodesRoutingEngine() && graph && reportKeyRef.current) {
+        const existing = loadLayoutOverrides(reportKeyRef.current);
+        const cableSides = {
+          ...(existing?.cableSides ?? {}),
+          ...(sideChanged ? { [visualId]: newSide } : {}),
+        };
+        const { nodes: nextNodes, edges: nextEdges, autoLayoutY } =
+          buildReactFlowGraph(
+            graph,
+            {
+              reportKey: reportKeyRef.current,
+              collapseFullButtSplices: collapseRef.current,
+              positions: {
+                ...(existing?.positions ?? {}),
+                [node.id]: { x: finalX, y: finalY },
+              },
+              existingEdgeIds: existing?.existingEdgeIds,
+              cableSides,
+              layoutWidth,
+            },
+            layoutWidth,
+          );
+        setNodes(nextNodes);
+        setEdges(nextEdges);
+        saveLayoutOverrides(
+          mergeLayoutOverrides(reportKeyRef.current, {
+            positions: positionsFromNodes(
+              nextNodes.filter((n) => n.type === "cable"),
+            ),
+            autoLayoutY,
+            existingEdgeIds: existingIdsFromEdges(nextEdges),
+            collapseFullButtSplices: collapseRef.current,
+            layoutWidth,
+            cableSides,
+          }),
+        );
+        layoutWidthRef.current = layoutWidth;
+        if (sideChanged) {
+          requestAnimationFrame(() => updateNodeInternals(node.id));
+        }
+        return;
+      }
 
       setNodes((current) => {
         const nextNodes = current.map((n) =>

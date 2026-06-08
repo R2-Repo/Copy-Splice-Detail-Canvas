@@ -88,6 +88,10 @@ export type CableLeg = {
   csvColumn: CsvColumnRole;
   /** Visual side after layout. */
   side: "left" | "right";
+  /** Empirically derived buffer-tube strand count (D3). */
+  fibersPerTube: 6 | 12;
+  /** Distribution vs stub — affects anchoring/order, not correctness. */
+  role: "through" | "drop";
 };
 
 export type TubeEndpointKey = string;

@@ -109,6 +109,7 @@ export function CableNode({ id, data }: NodeProps) {
         </div>
       </div>
 
+      {!d.slim ? (
       <svg
         className="cable-node__breakout-svg"
         width={geo.viewWidth}
@@ -161,8 +162,9 @@ export function CableNode({ id, data }: NodeProps) {
           );
         })}
       </svg>
+      ) : null}
 
-      {geo.tubes.map((tube) => {
+      {!d.slim ? geo.tubes.map((tube) => {
         if (isTubeCollapsed(tube.tubeColor)) return null;
         return (
           <span
@@ -178,8 +180,9 @@ export function CableNode({ id, data }: NodeProps) {
             {tube.tubeColor}
           </span>
         );
-      })}
+      }) : null}
 
+      {!d.slim ? (
       <div className="cable-node__fiber-rows">
         {allFibers.map(({ tube, fiber }) => {
           if (isTubeCollapsed(tube.tubeColor)) return null;
@@ -263,6 +266,7 @@ export function CableNode({ id, data }: NodeProps) {
           );
         })}
       </div>
+      ) : null}
     </div>
   );
 }
