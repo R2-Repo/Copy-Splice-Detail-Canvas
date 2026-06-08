@@ -1,0 +1,13 @@
+---
+description: React and UI conventions
+globs: "**/*.{tsx,ts}"
+alwaysApply: false
+---
+
+# React / UI
+
+- Functional components; explicit prop `type`s.
+- Feature code lives in `src/features/<feature>/`.
+- Shared layout/primitives in `src/components/`.
+- Global styles in `src/styles/`; avoid inline styles unless dynamic.
+- Canvas nodes: add under `src/features/canvas/nodes/` and register `nodeTypes` on React Flow.

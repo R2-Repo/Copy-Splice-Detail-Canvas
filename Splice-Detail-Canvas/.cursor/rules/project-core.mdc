@@ -1,0 +1,34 @@
+---
+description: Core project standards and agent workflow
+alwaysApply: true
+---
+
+# Splice Detail Canvas
+
+Read `AGENTS.md`, then `docs/agent/SCOPE.md`, `RULE_PRIORITY.md`, `CONTEXT.md`, and `HANDOFF.md` before coding. For diagram/canvas layout work, also read `docs/agent/LAYOUT_RULES.md`. Use `docs/reference/` when the user cites files there.
+
+- `CONTEXT.md` is current-only; do not treat `CHANGELOG.md` as active requirements.
+- Read `RULE_PRIORITY.md` before changing routing or layout.
+
+## Stack
+
+React 19 + Vite + TypeScript + `@xyflow/react`. Frontend PWA only.
+
+## Rules
+
+- Short bullet responses; user can type **expand** for detail.
+- No new npm deps without user approval.
+- No invented APIs or backends.
+- Use `@/` imports; keep features under `src/features/`.
+- End sessions by updating CONTEXT + HANDOFF.
+
+## Quality (non-optional)
+
+Before finishing substantive work:
+
+1. `npm run test:layout` — **layout contract** (Examples #1–#3; cable/tube/fiber invariants)
+2. `npm run check`
+3. `npm run test:ci`
+4. `npm run build`
+
+If `test:layout` fails, fix regressions before ending the session. See `docs/agent/LAYOUT_RULES.md`.
