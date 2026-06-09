@@ -47,6 +47,11 @@ import type { CablePlacement } from "@/features/diagram/canvasPlacement";
 import {
   assignSpliceMidXLanes,
   assignSpliceRoutingLanes,
+  spliceRoutingZoneKey,
+  type MidXLaneCandidate,
+  type SpliceRoutingLane,
+} from "@/features/diagram/spliceCenterLanes";
+import {
   buildButtSplicePath,
   buildSplicePath,
   fiberHandlePosition,
@@ -58,7 +63,6 @@ import {
   parseTubeHandleId,
   routingLaneFromData,
   tubeHandlePosition,
-  type MidXLaneCandidate,
   parallelSpliceSegmentsOverlap,
   pickSpliceRouteTemplate,
   resolveSpliceMidX,
@@ -67,10 +71,8 @@ import {
   spliceMidOrderInverts,
   splicePathsAvoidHandleColumnVertical,
   spliceRouteSegments,
-  type SpliceRoutingLane,
   type SpliceRoutingLaneData,
   SPLICE_PATH_EPS,
-  spliceRoutingZoneKey,
   templateUsesMidXLanes,
 } from "@/features/canvas/edges/spliceEdgeRouting";
 import { orderedFiberConnections } from "@/features/diagram/buildConnectionGraph";
@@ -81,6 +83,36 @@ import {
   crossSideTubePairsAligned,
   type TubeRowShiftOptions,
 } from "@/features/diagram/tubeRowShift";
+
+/** Composite splice edge or nodes-engine left leg for one connection. */
+function spliceEdgeForConnection(
+  edges: Edge[],
+  connectionId: string,
+): Edge | undefined {
+  return (
+    edges.find((e) => e.id === `splice-left-${connectionId}`) ??
+    edges.find((e) => e.id === `splice-${connectionId}`)
+  );
+}
+
+/** One edge per fiber splice (excludes right legs and butt splices). */
+function routingSpliceEdges(edges: Edge[]): Edge[] {
+  const seen = new Set<string>();
+  const routed: Edge[] = [];
+  for (const edge of edges) {
+    if (edge.type !== "splice") continue;
+    if (edge.id.startsWith("splice-right-") || edge.id.startsWith("butt-")) {
+      continue;
+    }
+    const connectionId = edge.id
+      .replace(/^splice-left-/, "")
+      .replace(/^splice-/, "");
+    if (seen.has(connectionId)) continue;
+    seen.add(connectionId);
+    routed.push(edge);
+  }
+  return routed;
+}
 
 /** Stable rule IDs — must match docs/agent/LAYOUT_RULES.md */
 export const LAYOUT_RULE_IDS = [
@@ -516,7 +548,7 @@ function dominantPairOk(ctx: LayoutRuleContext): boolean {
 }
 
 function distinctEdgeLanes(edges: Edge[]): boolean {
-  const spliceEdges = edges.filter((e) => e.type === "splice");
+  const spliceEdges = routingSpliceEdges(edges);
   if (spliceEdges.length === 0) return true;
   const lanes = spliceEdges.map((e) => (e.data as { laneIndex?: number }).laneIndex);
   return new Set(lanes).size === spliceEdges.length;
@@ -594,7 +626,7 @@ function spliceHandleEndpoints(
     targetVc = leftVc;
   }
 
-  const edge = ctx.reactFlow.edges.find((e) => e.id === `splice-${conn.id}`);
+  const edge = spliceEdgeForConnection(ctx.reactFlow.edges, conn.id);
   const rowOffset = (edge?.data as { rowOffset?: number })?.rowOffset ?? 0;
   const sourceFiber = sourceVc.tubes
     .flatMap((tube) => tube.fibers)
@@ -704,7 +736,7 @@ function buildMidXLaneCandidates(ctx: LayoutRuleContext): MidXLaneCandidate[] {
       continue;
     }
 
-    const edge = ctx.reactFlow.edges.find((e) => e.id === `splice-${conn.id}`);
+    const edge = spliceEdgeForConnection(ctx.reactFlow.edges, conn.id);
     const tubeBundleKey = (edge?.data as { tubeBundleKey?: string })
       ?.tubeBundleKey;
 
@@ -882,7 +914,7 @@ function centerLanesPreserveTubeGrouping(ctx: LayoutRuleContext): boolean {
       continue;
     }
 
-    const edge = ctx.reactFlow.edges.find((e) => e.id === `splice-${conn.id}`);
+    const edge = spliceEdgeForConnection(ctx.reactFlow.edges, conn.id);
     const tubeBundleKey = (edge?.data as { tubeBundleKey?: string })
       ?.tubeBundleKey;
 
@@ -977,7 +1009,7 @@ function tubeBundleRoutesAreSpaced(ctx: LayoutRuleContext): boolean {
 
   for (const conn of orderedFiberConnections(ctx.graph)) {
     if (conn.kind !== "fiber") continue;
-    const edge = ctx.reactFlow.edges.find((e) => e.id === `splice-${conn.id}`);
+    const edge = spliceEdgeForConnection(ctx.reactFlow.edges, conn.id);
     const tubeBundleKey = (edge?.data as { tubeBundleKey?: string })
       ?.tubeBundleKey;
     if (!tubeBundleKey) continue;
@@ -1104,7 +1136,7 @@ export function findSpliceOverlapPair(ctx: LayoutRuleContext): string | null {
     );
     if (template === "straight") continue;
 
-    const edge = ctx.reactFlow.edges.find((e) => e.id === `splice-${conn.id}`);
+    const edge = spliceEdgeForConnection(ctx.reactFlow.edges, conn.id);
     const tubeBundleKey = (edge?.data as { tubeBundleKey?: string })
       ?.tubeBundleKey;
     const lane = packed.get(conn.id);
@@ -1226,7 +1258,7 @@ function spliceCenterPathsDoNotCross(ctx: LayoutRuleContext): boolean {
     ) {
       continue;
     }
-    const edge = ctx.reactFlow.edges.find((e) => e.id === `splice-${conn.id}`);
+    const edge = spliceEdgeForConnection(ctx.reactFlow.edges, conn.id);
     const tubeBundleKey = (edge?.data as { tubeBundleKey?: string })
       ?.tubeBundleKey;
     const lane = resolveCtxSpliceRouting(ctx, conn.id, endpoints, packed);

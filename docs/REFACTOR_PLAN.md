@@ -250,6 +250,21 @@ B4 cleanup                      <- checkpoint: parity + goldens, report
 ```
 Flag keeps `main` renderable throughout. Report at each checkpoint.
 
+### 7.1 Build progress notes (partial B2/B3)
+
+| Item | Status |
+|------|--------|
+| `ROUTING_ENGINE` | `"nodes"` (default) |
+| `centerRouter.routeCenterSplices` | Delegates to `spliceCenterLanes.assignCenterLanes` (legacy packer); oracle helpers in `centerRouter.ts` |
+| `spliceCenterLanes.ts` | **~1.9k lines** — `assignSpliceRoutingLanes`, `assignSpliceMidXLanes`, `packMidXLanes`, horiz/vert lane tracks; `spliceEdgeRouting.ts` re-exports + path/render code only (~2.2k lines) |
+| `SpliceEdge` | Split into `PrecomputedSpliceEdge` (no drag registry) vs `LiveSpliceEdge` |
+| §4.4 pure router | **Not done** — lane packing still in `spliceEdgeRouting.ts` (~4k lines) |
+| B3 edge model | **Phase 2 done:** fiber splices are `fiberAnchor → splicePoint → fiberAnchor` (two precomputed `SpliceEdge` legs); full butt splices stay `cable → cable` |
+| B0 goldens | Still lock per-connection `laneIndex` + `routingMidX` via left-leg edges; **STATE_OFFICE / SPI-215 encode legacy duplicate `routingMidX`** (5 and 8 dupes) until F2-by-construction router lands |
+| `useRoutingLaneIndex` | Still in `SpliceEdge` for legacy render path; ignored when `routingPrecomputed` |
+| `CableLeg.role` | Layout scoring still uses `isThroughCableName()` to preserve B0 |
+| Debug `fetch` ingest blocks | Removed from `spliceEdgeRouting.ts` |
+
 ---
 
 ## 8. Risks & mitigations
@@ -270,6 +285,7 @@ Flag keeps `main` renderable throughout. Report at each checkpoint.
 New:
 - `src/features/diagram/computeSpliceLayout.ts`
 - `src/features/diagram/centerRouter.ts`
+- `src/features/diagram/spliceCenterLanes.ts` (lane assignment extracted from `spliceEdgeRouting.ts`)
 - `src/features/diagram/fibersPerTube.ts`
 - `src/features/canvas/nodes/SplicePointNode.tsx`, `TubeAnchorNode.tsx`, `FiberAnchorNode.tsx`
 - golden tests under `src/features/diagram/`

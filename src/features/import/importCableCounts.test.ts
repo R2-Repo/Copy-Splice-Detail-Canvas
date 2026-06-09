@@ -79,9 +79,10 @@ describe("import cable counts (one canvas node per physical cable name)", () => 
     const bk = vc.tubes.find((t) => t.tubeColor === "BK")!;
     expect(bk.fibers).toHaveLength(12);
 
-    const cableNodeId = `cable-${vc.id}`;
+    const anchorPrefix = `fiberAnchor-${vc.id}::`;
     const touching = edges.filter(
-      (e) => e.source === cableNodeId || e.target === cableNodeId,
+      (e) =>
+        e.source.startsWith(anchorPrefix) || e.target.startsWith(anchorPrefix),
     );
     expect(touching.length).toBeGreaterThan(0);
   });

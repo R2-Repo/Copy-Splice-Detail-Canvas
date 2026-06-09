@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildConnectionGraph } from "./buildConnectionGraph";
 import { buildReactFlowGraph } from "./buildReactFlowGraph";
+import { fiberSpliceRoutingEdges } from "./buildNodesEngineGraph";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
 
 const examples = join(process.cwd(), "docs/reference/examples");
@@ -28,15 +29,18 @@ describe("buildReactFlowGraph", () => {
     );
     expect(left).toHaveLength(1);
     expect(right).toHaveLength(2);
-    expect(edges.filter((e) => e.type === "splice")).toHaveLength(4);
+    expect(fiberSpliceRoutingEdges(edges)).toHaveLength(4);
+    expect(edges.filter((e) => e.type === "splice")).toHaveLength(8);
 
     const drop = left[0]!.data as { tubes: { fibers: unknown[] }[] };
     expect(drop.tubes[0]!.fibers).toHaveLength(4);
 
-    const laneData = edges.map((e) => e.data as { laneIndex: number });
+    const laneData = fiberSpliceRoutingEdges(edges).map(
+      (e) => e.data as { laneIndex: number },
+    );
     expect(new Set(laneData.map((d) => d.laneIndex)).size).toBe(4);
 
-    const first = edges[0]!.data as {
+    const first = fiberSpliceRoutingEdges(edges)[0]!.data as {
       sourceColor: string;
       targetColor: string;
     };
@@ -54,7 +58,8 @@ describe("buildReactFlowGraph", () => {
     const { nodes, edges } = buildReactFlowGraph(graph);
 
     expect(nodes.filter((n) => n.type === "cable")).toHaveLength(4);
-    expect(edges.filter((e) => e.type === "splice")).toHaveLength(6);
+    expect(fiberSpliceRoutingEdges(edges)).toHaveLength(6);
+    expect(edges.filter((e) => e.type === "splice")).toHaveLength(12);
   });
 
   it("display side follows saved position when cableSides override disagrees", () => {
@@ -109,7 +114,7 @@ describe("buildReactFlowGraph", () => {
     expect((mirrored.data as { side: string }).side).toBe("right");
   });
 
-  it("Example #3: composite cables only, 28 splices", () => {
+  it("Example #3: slim cables, anchors, 28 connections × 2 leg edges", () => {
     const csv = readFileSync(
       join(examples, "CSV Splice Detail Example #3.csv"),
       "utf8",
@@ -120,8 +125,9 @@ describe("buildReactFlowGraph", () => {
     expect(nodes.some((n) => n.type === "cable")).toBe(true);
     expect(nodes.some((n) => n.type === "fiberAnchor")).toBe(true);
     expect(nodes.some((n) => n.type === "splicePoint")).toBe(true);
+    expect(fiberSpliceRoutingEdges(edges)).toHaveLength(28);
     const spliceEdges = edges.filter((e) => e.type === "splice");
-    expect(spliceEdges).toHaveLength(28);
+    expect(spliceEdges).toHaveLength(56);
     expect(
       spliceEdges.every(
         (e) =>
@@ -165,8 +171,8 @@ describe("buildReactFlowGraph", () => {
       collapseFullButtSplices: true,
     });
 
-    expect(expanded.edges.filter((e) => e.type === "splice")).toHaveLength(6);
-    expect(collapsed.edges.filter((e) => e.type === "splice")).toHaveLength(6);
+    expect(fiberSpliceRoutingEdges(expanded.edges)).toHaveLength(6);
+    expect(fiberSpliceRoutingEdges(collapsed.edges)).toHaveLength(6);
     expect(
       collapsed.edges.some(
         (e) => (e.data as { fullButtSplice?: boolean }).fullButtSplice,

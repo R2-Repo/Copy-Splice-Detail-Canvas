@@ -1,10 +1,12 @@
 import type { Edge, Node } from "@xyflow/react";
 
-import {
-  fiberHandlePosition,
-} from "@/features/canvas/edges/spliceEdgeRouting";
+import { fiberHandlePosition } from "@/features/canvas/edges/spliceEdgeRouting";
 import { colorHex } from "@/features/diagram/colorCode";
-import { computeSpliceEdgeLayout } from "@/features/diagram/computeSpliceLayout";
+import {
+  computeSpliceEdgeLayout,
+  type PrecomputedSpliceEdgeData,
+} from "@/features/diagram/computeSpliceLayout";
+import type { SpliceHandleEntry } from "@/features/diagram/centerRouter";
 import type { VisualCable } from "@/features/diagram/visualCables";
 import type { FiberColorAbbrev } from "@/types/splice";
 
@@ -15,6 +17,98 @@ import type {
 
 const ANCHOR_DOT = 6;
 const SPLICE_DOT = 8;
+
+function connectionIdFromSpliceEdgeId(edgeId: string): string {
+  if (edgeId.startsWith("splice-left-")) {
+    return edgeId.slice("splice-left-".length);
+  }
+  if (edgeId.startsWith("splice-right-")) {
+    return edgeId.slice("splice-right-".length);
+  }
+  return edgeId.replace(/^splice-/, "").replace(/^butt-/, "");
+}
+
+function fiberAnchorId(cableNodeId: string, connectionId: string): string {
+  const visualCableId = cableNodeId.replace(/^cable-/, "");
+  return `fiberAnchor-${visualCableId}::${connectionId}`;
+}
+
+/** Left leg or legacy composite edge — one per fiber connection. */
+export function fiberSpliceRoutingEdges(edges: Edge[]): Edge[] {
+  const seen = new Set<string>();
+  const routed: Edge[] = [];
+  for (const edge of edges) {
+    if (edge.type !== "splice") continue;
+    if (edge.id.startsWith("splice-right-") || edge.id.startsWith("butt-")) {
+      continue;
+    }
+    const connectionId = connectionIdFromSpliceEdgeId(edge.id);
+    if (seen.has(connectionId)) continue;
+    seen.add(connectionId);
+    routed.push(edge);
+  }
+  return routed;
+}
+
+/** Plan §3.1: fiberAnchor → splicePoint → fiberAnchor with precomputed leg paths. */
+export function wireSplitSpliceEdges(
+  routedEdges: Edge[],
+  handleEntries: SpliceHandleEntry[],
+): Edge[] {
+  const entryById = new Map(handleEntries.map((e) => [e.id, e]));
+  const wired: Edge[] = [];
+
+  for (const edge of routedEdges) {
+    if (edge.type !== "splice") {
+      wired.push(edge);
+      continue;
+    }
+
+    const data = (edge.data ?? {}) as PrecomputedSpliceEdgeData & {
+      fullButtSplice?: boolean;
+    };
+    const entry = entryById.get(edge.id);
+
+    if (
+      !entry ||
+      data.fullButtSplice === true ||
+      edge.id.startsWith("butt-") ||
+      data.routingPrecomputed !== true ||
+      !data.leftPath ||
+      !data.rightPath
+    ) {
+      wired.push(edge);
+      continue;
+    }
+
+    const connectionId = connectionIdFromSpliceEdgeId(edge.id);
+    const spliceId = `splicePoint-${connectionId}`;
+    const sourceAnchor = fiberAnchorId(entry.sourceNodeId, connectionId);
+    const targetAnchor = fiberAnchorId(entry.targetNodeId, connectionId);
+    const shared = { ...data };
+
+    wired.push({
+      id: `splice-left-${connectionId}`,
+      source: sourceAnchor,
+      target: spliceId,
+      sourceHandle: "out",
+      targetHandle: "in",
+      type: "splice",
+      data: { ...shared, splitLeg: "left" as const },
+    });
+    wired.push({
+      id: `splice-right-${connectionId}`,
+      source: spliceId,
+      target: targetAnchor,
+      sourceHandle: "out",
+      targetHandle: "in",
+      type: "splice",
+      data: { ...shared, splitLeg: "right" as const },
+    });
+  }
+
+  return wired;
+}
 
 export function augmentNodesEngineGraph(
   cableNodes: Node[],
@@ -129,7 +223,7 @@ export function augmentNodesEngineGraph(
 
   return {
     nodes: [...slimCables, ...anchorNodes, ...spliceNodes],
-    edges: routedEdges,
+    edges: wireSplitSpliceEdges(routedEdges, handleEntries),
   };
 }
 

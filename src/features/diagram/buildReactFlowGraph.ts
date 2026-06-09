@@ -47,10 +47,10 @@ import {
 } from "@/features/diagram/tubeRowShift";
 import {
   buildSpliceHandleEntries,
-  assignSpliceRoutingLanesFromHandleEntries,
   routingLaneDataFromLane,
   spliceTubeBundleKey,
 } from "@/features/canvas/edges/spliceEdgeRouting";
+import { routeCenterSplices } from "@/features/diagram/centerRouter";
 import { augmentNodesEngineGraph } from "@/features/diagram/buildNodesEngineGraph";
 import { useNodesRoutingEngine } from "@/features/diagram/routingEngine";
 import {
@@ -421,10 +421,7 @@ export function buildReactFlowGraph(
   }
 
   const importHandleEntries = buildSpliceHandleEntries(nodes, edges, visualCables);
-  const importRouting = assignSpliceRoutingLanesFromHandleEntries(
-    importHandleEntries,
-    centerX,
-  );
+  const importRouting = routeCenterSplices(importHandleEntries, centerX);
   const routedEdges = edges.map((edge) => {
     const lane = importRouting.get(edge.id);
     if (!lane) return edge;

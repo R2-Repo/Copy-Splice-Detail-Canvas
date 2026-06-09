@@ -1,11 +1,12 @@
+import { SPLICE_LANE_SEP } from "@/features/diagram/cableLayoutMetrics";
 import {
-  assignSpliceRoutingLanesFromHandleEntries,
+  assignCenterLanes,
   type SpliceHandleEntry,
   type SpliceRoutingLane,
-} from "@/features/canvas/edges/spliceEdgeRouting";
-import { SPLICE_LANE_SEP } from "@/features/diagram/cableLayoutMetrics";
+} from "@/features/diagram/spliceCenterLanes";
 
 export type { SpliceHandleEntry, SpliceRoutingLane };
+export { handleEntriesToCandidates } from "@/features/diagram/spliceCenterLanes";
 
 /** Isotropic intra-bundle / min lane pitch (plan 4.2, D11). */
 export const INTRA_BUNDLE_ISOTROPIC_PITCH = SPLICE_LANE_SEP;
@@ -20,11 +21,15 @@ export type OrthogonalSegment = {
   end: number;
 };
 
+/**
+ * Center lane assignment — delegates to legacy packer until §4.4 rewrite lands.
+ * Callers should import from here, not spliceEdgeRouting.
+ */
 export function routeCenterSplices(
   entries: SpliceHandleEntry[],
   diagramCenterX: number,
 ): Map<string, SpliceRoutingLane> {
-  return assignSpliceRoutingLanesFromHandleEntries(entries, diagramCenterX);
+  return assignCenterLanes(entries, diagramCenterX);
 }
 
 /** Decompose an H–V–H splice into axis-aligned segments for oracle checks. */

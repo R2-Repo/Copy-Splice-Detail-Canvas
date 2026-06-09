@@ -6,10 +6,12 @@ import {
   buildSpliceHandleEntries,
   defaultSideCircuitLabelSpan,
   routingLaneDataFromLane,
+} from "@/features/canvas/edges/spliceEdgeRouting";
+import {
+  routeCenterSplices,
   type SpliceHandleEntry,
   type SpliceRoutingLane,
-} from "@/features/canvas/edges/spliceEdgeRouting";
-import { routeCenterSplices } from "@/features/diagram/centerRouter";
+} from "@/features/diagram/centerRouter";
 import type { VisualCable } from "@/features/diagram/visualCables";
 
 export type PrecomputedSpliceEdgeData = {

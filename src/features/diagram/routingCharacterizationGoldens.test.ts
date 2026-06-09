@@ -44,15 +44,20 @@ function characterize(file: string) {
     .sort((a, b) => a.id.localeCompare(b.id));
 
   const routing = edges
-    .filter(
-      (e) =>
-        e.type === "splice" &&
-        !(e.data as { fullButtSplice?: boolean }).fullButtSplice,
-    )
+    .filter((e) => {
+      if (e.type !== "splice") return false;
+      if ((e.data as { fullButtSplice?: boolean }).fullButtSplice) return false;
+      if (e.id.startsWith("splice-right-") || e.id.startsWith("butt-")) {
+        return false;
+      }
+      return e.id.startsWith("splice-left-") || e.id.startsWith("splice-");
+    })
     .map((e) => {
       const d = e.data as { laneIndex: number; routingMidX?: number };
       return {
-        connectionId: e.id.replace(/^splice-/, ""),
+        connectionId: e.id
+          .replace(/^splice-left-/, "")
+          .replace(/^splice-/, ""),
         laneIndex: d.laneIndex,
         routingMidX: Math.round(d.routingMidX ?? 0),
       };
