@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   boundsFromFlowNodes,
+  stageInnerWidth,
+  viewportAtUnitZoom,
+  viewportAtUnitZoomFocused,
   viewportForFitWidth,
 } from "@/features/canvas/diagramViewport";
 
@@ -21,6 +24,26 @@ describe("diagramViewport", () => {
 
     expect(vp.zoom).toBeLessThan(1);
     expect(vp.zoom).toBeCloseTo(960 / 8000, 3);
+  });
+
+  it("stageInnerWidth matches fit padding band", () => {
+    expect(stageInnerWidth(1920)).toBeCloseTo(1920 * 0.84, 1);
+  });
+
+  it("viewportAtUnitZoom keeps zoom at 1", () => {
+    const bounds = { x: 24, y: 100, width: 1600, height: 4000 };
+    const vp = viewportAtUnitZoom(bounds, 1920, 900);
+    expect(vp.zoom).toBe(1);
+    expect(vp.x).toBeCloseTo(1920 * 0.08 - 24, 1);
+  });
+
+  it("viewportAtUnitZoomFocused centers diagram X at zoom 1", () => {
+    const bounds = { x: 24, y: 100, width: 2800, height: 4000 };
+    const focusX = 1436.8;
+    const vp = viewportAtUnitZoomFocused(bounds, 1920, 900, focusX);
+    expect(vp.zoom).toBe(1);
+    expect(vp.x).toBeCloseTo(1920 / 2 - focusX, 1);
+    expect(vp.y).toBeCloseTo(900 * 0.08 - 100, 1);
   });
 
   it("boundsFromFlowNodes uses measured dimensions", () => {
