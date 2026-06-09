@@ -47,12 +47,14 @@ import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
 import { detectFullButtSpliceTubes } from "@/features/diagram/fullButtSplice";
 import {
   boundsFromFlowNodes,
+  viewportAtUnitZoomFocused,
   viewportForFitWidth,
 } from "@/features/canvas/diagramViewport";
 import {
   importLayoutWidthForGraph,
-  layoutWidthForViewport,
   reportStorageKey,
+  resolveLayoutWidthForStage,
+  stageLayoutWidthForGraph,
 } from "@/features/diagram/layoutSpliceDiagram";
 import { estimatedCableNodeWidth } from "@/features/diagram/spliceRowLayout";
 import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
@@ -109,6 +111,9 @@ function WorkflowCanvasInner() {
   const updateNodeInternals = useUpdateNodeInternals();
   const fitViewRequestRef = useRef(0);
   const fitViewHandledRef = useRef(0);
+  const fitViewUnitZoomRef = useRef(false);
+  /** Set when the user drags a cable column outward beyond the viewport fill. */
+  const userExpandedLayoutRef = useRef(false);
   const [nodes, setNodes, onNodesChange] = useNodesState(emptyNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(emptyEdges);
   const reportKeyRef = useRef<string | null>(null);
@@ -128,6 +133,7 @@ function WorkflowCanvasInner() {
       collapse: boolean,
       options?: {
         fitView?: boolean;
+        fitAtUnitZoom?: boolean;
         cableSidesPatch?: Record<string, "left" | "right">;
         layoutWidth?: number;
         refreshLayout?: boolean;
@@ -248,12 +254,21 @@ function WorkflowCanvasInner() {
     fitViewHandledRef.current = requestId;
     const stageWidth = stage.clientWidth;
     const stageHeight = stage.clientHeight;
-    const viewport = viewportForFitWidth(
-      bounds,
-      stageWidth,
-      stageHeight,
-      FIT_WIDTH_OPTIONS,
-    );
+    const unitZoom = fitViewUnitZoomRef.current;
+    const viewport = unitZoom
+      ? viewportAtUnitZoomFocused(
+          bounds,
+          stageWidth,
+          stageHeight,
+          layoutWidthRef.current / 2,
+        )
+      : viewportForFitWidth(
+          bounds,
+          stageWidth,
+          stageHeight,
+          FIT_WIDTH_OPTIONS,
+        );
+
     void setViewport(viewport, { duration: 200 });
   }, [nodesInitialized, nodes, getNodesBounds, setViewport]);
 
@@ -264,6 +279,8 @@ function WorkflowCanvasInner() {
     refreshLayout?: boolean;
     refreshColumnX?: boolean;
     refreshRowLayout?: boolean;
+    /** Size layout to stage inner width and show at zoom 1 (import default). */
+    fitAtUnitZoom?: boolean;
   };
 
   const persistLayout = useCallback(
@@ -299,8 +316,26 @@ function WorkflowCanvasInner() {
         collapseFullButtSplices: collapse,
         cableSides: options?.cableSidesPatch,
       });
+      const stageWidth = stageWidthForLayout();
+      const viewportLayoutWidth =
+        stageWidth > 0
+          ? options?.fitAtUnitZoom
+            ? stageLayoutWidthForGraph(graph, stageWidth, {
+                userExpandedLayoutWidth: userExpandedLayoutRef.current
+                  ? layoutWidthRef.current
+                  : undefined,
+              })
+            : resolveLayoutWidthForStage(
+                graph,
+                stageWidth,
+                existing?.layoutWidth,
+              )
+          : undefined;
       const layoutWidthArg =
         options?.layoutWidth ??
+        (options?.refreshColumnX && viewportLayoutWidth !== undefined
+          ? viewportLayoutWidth
+          : undefined) ??
         existing?.layoutWidth ??
         layoutWidthRef.current;
       layoutWidthRef.current = layoutWidthArg;
@@ -346,6 +381,7 @@ function WorkflowCanvasInner() {
         );
       }
       if (options?.fitView) {
+        fitViewUnitZoomRef.current = options.fitAtUnitZoom === true;
         fitViewRequestRef.current += 1;
       }
       requestAnimationFrame(() => {
@@ -355,7 +391,7 @@ function WorkflowCanvasInner() {
       });
       void layout;
     },
-    [setNodes, setEdges, updateNodeInternals],
+    [setNodes, setEdges, updateNodeInternals, stageWidthForLayout],
   );
 
   applyGraphRef.current = applyGraph;
@@ -377,11 +413,11 @@ function WorkflowCanvasInner() {
       const reportKey = reportKeyRef.current;
       if (!graph || !reportKey) return;
 
-      const nextWidth = layoutWidthForViewport(
-        graph,
-        width,
-        layoutWidthRef.current,
-      );
+      const nextWidth = stageLayoutWidthForGraph(graph, width, {
+        userExpandedLayoutWidth: userExpandedLayoutRef.current
+          ? layoutWidthRef.current
+          : undefined,
+      });
       if (Math.abs(nextWidth - layoutWidthRef.current) < 1) return;
 
       cancelAnimationFrame(raf);
@@ -389,6 +425,8 @@ function WorkflowCanvasInner() {
         applyGraphRef.current(graph, reportKey, collapseRef.current, {
           layoutWidth: nextWidth,
           refreshColumnX: true,
+          fitView: true,
+          fitAtUnitZoom: true,
         });
       });
     });
@@ -401,6 +439,32 @@ function WorkflowCanvasInner() {
       observer.disconnect();
     };
   }, []);
+
+  /** Correct layout when import ran before the stage had width, or stale saved width. */
+  useEffect(() => {
+    if (!nodesInitialized) return;
+    const graph = graphRef.current;
+    const reportKey = reportKeyRef.current;
+    if (!graph || !reportKey) return;
+
+    const stageWidth = stageRef.current?.clientWidth ?? stageWidthRef.current;
+    if (stageWidth <= 0) return;
+
+    const target = stageLayoutWidthForGraph(graph, stageWidth, {
+      userExpandedLayoutWidth: userExpandedLayoutRef.current
+        ? layoutWidthRef.current
+        : undefined,
+    });
+    if (Math.abs(target - layoutWidthRef.current) < STAGE_WIDTH_DELTA_PX) return;
+
+    applyGraphRef.current(graph, reportKey, collapseRef.current, {
+      layoutWidth: target,
+      refreshColumnX: true,
+      refreshRowLayout: true,
+      fitView: true,
+      fitAtUnitZoom: true,
+    });
+  }, [nodesInitialized]);
 
   const loadFromCsv = useCallback(
     (text: string, fileName: string) => {
@@ -415,22 +479,40 @@ function WorkflowCanvasInner() {
       const collapsed =
         saved?.collapseFullButtSplices ?? detected.length > 0;
       setCollapseFullButtSplices(collapsed);
-      stageWidthRef.current = stageWidthForLayout();
-      const width = importLayoutWidthForGraph(graph, {
-        stageWidth: stageWidthRef.current,
-      });
-      applyGraph(graph, reportKey, collapsed, {
-        fitView: true,
-        layoutWidth: width,
-        refreshColumnX: true,
-      });
-      const title =
-        report.header.spliceNumber ?? report.header.name ?? fileName;
-      setMeta(
-        `${title} — ${report.pairs.length} pair(s), ${graph.connections.length} connection(s)`,
-      );
+      userExpandedLayoutRef.current = false;
+
+      const importWhenStageReady = (attempt = 0) => {
+        const measured = stageRef.current?.clientWidth ?? 0;
+        const stageWidth =
+          measured > 0 ? measured : stageWidthRef.current;
+        if (stageWidth <= 0 && attempt < 120) {
+          requestAnimationFrame(() => importWhenStageReady(attempt + 1));
+          return;
+        }
+        if (stageWidth > 0) {
+          stageWidthRef.current = stageWidth;
+        }
+        const width =
+          stageWidth > 0
+            ? stageLayoutWidthForGraph(graph, stageWidth)
+            : CABLE_LAYOUT.width;
+        applyGraph(graph, reportKey, collapsed, {
+          fitView: true,
+          fitAtUnitZoom: true,
+          layoutWidth: width,
+          refreshLayout: true,
+          refreshColumnX: true,
+          refreshRowLayout: true,
+        });
+        const title =
+          report.header.spliceNumber ?? report.header.name ?? fileName;
+        setMeta(
+          `${title} — ${report.pairs.length} pair(s), ${graph.connections.length} connection(s)`,
+        );
+      };
+      importWhenStageReady();
     },
-    [applyGraph, resolveLayoutWidth, stageWidthForLayout],
+    [applyGraph, stageWidthForLayout],
   );
 
   /** Dev-only: `?fixture=example-2` auto-imports from `public/fixtures/`. */
@@ -516,8 +598,19 @@ function WorkflowCanvasInner() {
         bounds,
         nodeWidth,
       ));
+      const prevLayoutWidth = layoutWidthRef.current;
       layoutWidthRef.current = layoutWidth;
       xBoundsRef.current = bounds;
+
+      const stageWidth = stageRef.current?.clientWidth ?? stageWidthRef.current;
+      if (graph && stageWidth > 0) {
+        const viewportFill = importLayoutWidthForGraph(graph, { stageWidth });
+        if (layoutWidth > viewportFill + STAGE_WIDTH_DELTA_PX) {
+          userExpandedLayoutRef.current = true;
+        }
+      } else if (layoutWidth > prevLayoutWidth + STAGE_WIDTH_DELTA_PX) {
+        userExpandedLayoutRef.current = true;
+      }
 
       const finalX = resolveCableDragStopX(node.position.x, newSide, bounds);
       const finalY = node.position.y;

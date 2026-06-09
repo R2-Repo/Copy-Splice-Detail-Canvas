@@ -18,6 +18,17 @@ export type ViewportFitOptions = {
   minZoom?: number;
 };
 
+/** Horizontal padding on each side when fitting the diagram to the stage. */
+export const VIEWPORT_EDGE_PADDING_RATIO = 0.08;
+
+/** Usable diagram width at React Flow zoom = 1 inside the stage. */
+export function stageInnerWidth(
+  stageWidth: number,
+  paddingRatio = VIEWPORT_EDGE_PADDING_RATIO,
+): number {
+  return Math.max(1, stageWidth * (1 - 2 * paddingRatio));
+}
+
 export function boundsFromFlowNodes(
   nodes: FlowNodeBoundsInput[],
 ): DiagramBounds | null {
@@ -81,4 +92,43 @@ export function viewportForFitWidth(
   const y = padY - bounds.y * zoom;
 
   return { x, y, zoom };
+}
+
+/**
+ * Place the diagram at zoom 1 so canvas pixels map 1:1 to screen pixels.
+ * Use when layout width is sized to `stageInnerWidth` — avoids zooming out a
+ * wide canvas until cables look unchanged on screen.
+ */
+export function viewportAtUnitZoom(
+  bounds: DiagramBounds,
+  stageWidth: number,
+  stageHeight: number,
+  paddingRatio = VIEWPORT_EDGE_PADDING_RATIO,
+): { x: number; y: number; zoom: number } {
+  const padX = stageWidth * paddingRatio;
+  const padY = stageHeight * paddingRatio;
+  return {
+    x: padX - bounds.x,
+    y: padY - bounds.y,
+    zoom: 1,
+  };
+}
+
+/**
+ * Zoom 1 with a canvas X coordinate centered on the stage. Spreads the center
+ * routing gap across the viewport instead of shrinking the whole diagram to fit.
+ */
+export function viewportAtUnitZoomFocused(
+  bounds: DiagramBounds,
+  stageWidth: number,
+  stageHeight: number,
+  focusCenterX: number,
+  paddingRatio = VIEWPORT_EDGE_PADDING_RATIO,
+): { x: number; y: number; zoom: number } {
+  const padY = stageHeight * paddingRatio;
+  return {
+    x: stageWidth / 2 - focusCenterX,
+    y: padY - bounds.y,
+    zoom: 1,
+  };
 }

@@ -17,6 +17,7 @@ import {
 } from "@/features/diagram/spliceRowLayout";
 import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import type { VisualCable } from "@/features/diagram/visualCables";
+import { stageInnerWidth } from "@/features/canvas/diagramViewport";
 import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
 
 export const LAYOUT = {
@@ -99,9 +100,22 @@ export function importLayoutWidthForGraph(
   const stageWidth = options?.stageWidth ?? 0;
 
   if (stageWidth > 0) {
-    return Math.max(stageWidth, columnSpan);
+    return Math.max(stageInnerWidth(stageWidth), columnSpan);
   }
   return Math.max(CABLE_LAYOUT.width, columnSpan);
+}
+
+/** Layout width for import / column refresh — fills viewport when stage is known. */
+export function resolveLayoutWidthForStage(
+  graph: ConnectionGraph,
+  stageWidth: number,
+  savedLayoutWidth?: number,
+): number {
+  const viewportWidth = importLayoutWidthForGraph(graph, { stageWidth });
+  if (savedLayoutWidth !== undefined && savedLayoutWidth > viewportWidth + 1) {
+    return savedLayoutWidth;
+  }
+  return viewportWidth;
 }
 
 /**
@@ -112,13 +126,29 @@ export function layoutWidthForViewport(
   graph: ConnectionGraph,
   stageWidth: number,
   currentLayoutWidth?: number,
+  preserveUserExpansion = true,
+): number {
+  return stageLayoutWidthForGraph(graph, stageWidth, {
+    userExpandedLayoutWidth: preserveUserExpansion
+      ? currentLayoutWidth
+      : undefined,
+  });
+}
+
+/**
+ * Canvas width for the current stage. Uses the content routing minimum (never
+ * narrower than center-gap needs). Preserves user outward drag expansion only
+ * when explicitly flagged via `userExpandedLayoutWidth`.
+ */
+export function stageLayoutWidthForGraph(
+  graph: ConnectionGraph,
+  stageWidth: number,
+  options?: { userExpandedLayoutWidth?: number },
 ): number {
   const viewportWidth = importLayoutWidthForGraph(graph, { stageWidth });
-  if (
-    currentLayoutWidth !== undefined &&
-    currentLayoutWidth > viewportWidth + 1
-  ) {
-    return currentLayoutWidth;
+  const userWidth = options?.userExpandedLayoutWidth;
+  if (userWidth !== undefined && userWidth > viewportWidth + 1) {
+    return userWidth;
   }
   return viewportWidth;
 }

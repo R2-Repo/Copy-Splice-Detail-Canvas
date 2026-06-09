@@ -1772,13 +1772,6 @@ export function assignSideHorizLaneYs(
     string,
     Pick<SpliceRoutingLane, "sourceHorizY" | "targetHorizY">
   >();
-  const debugStats = {
-    assignedOffsetCount: 0,
-    fallbackCount: 0,
-    skippedLoopBundleCount: 0,
-    skippedLoopBundleIds: [] as string[],
-    fallbackIds: [] as string[],
-  };
   if (candidates.length === 0) return result;
 
   const resolvedCenterX =
@@ -1807,8 +1800,6 @@ export function assignSideHorizLaneYs(
     return minA - minB;
   })) {
     if (sameSideLoopBundleSkipsJogX(bundle)) {
-      debugStats.skippedLoopBundleCount += bundle.length;
-      debugStats.skippedLoopBundleIds.push(...bundle.map((m) => m.id));
       continue;
     }
     assignHorizLanesForTubeBundle(
@@ -1869,7 +1860,6 @@ export function assignSideHorizLaneYs(
           offsets.targetHorizY !== undefined
         ) {
           result.set(candidate.id, offsets);
-          debugStats.assignedOffsetCount += 1;
         }
         break;
       }
@@ -1913,8 +1903,6 @@ export function assignSideHorizLaneYs(
     }
 
     if (attempts > 64) {
-      debugStats.fallbackCount += 1;
-      debugStats.fallbackIds.push(candidate.id);
       occupied.push(
         ...horizontalSegmentsForLane(
           candidate,
@@ -1927,29 +1915,6 @@ export function assignSideHorizLaneYs(
       );
     }
   }
-
-  // #region agent log
-  fetch("http://127.0.0.1:7276/ingest/954dc9e2-dc29-44e2-8638-93624e140b86", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "71ce82",
-    },
-    body: JSON.stringify({
-      sessionId: "71ce82",
-      runId: "post-fix-3",
-      hypothesisId: "H6-H8",
-      location: "spliceCenterLanes.ts:assignSideHorizLaneYs",
-      message: "horizontal lane assignment summary",
-      data: {
-        ...debugStats,
-        diagramCenterX: resolvedCenterX,
-        globalCenterX: globalDiagramCenterX(candidates),
-      },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
 
   return result;
 }
