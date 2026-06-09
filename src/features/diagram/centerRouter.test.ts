@@ -97,25 +97,21 @@ describe("centerRouter oracle", () => {
     }
   });
 
-  it("STATE_OFFICE + SPI-215: documents legacy F2 debt (duplicate midX in goldens)", () => {
-    for (const file of ["Left-STATE_OFFICE.csv", "Left-SPI-215_I-80.csv"] as const) {
+  for (const file of ["Left-STATE_OFFICE.csv", "Left-SPI-215_I-80.csv"] as const) {
+    it(`${file}: R3/F2 — large diagram vertical lanes ≥ pitch (§4.4)`, () => {
       const verticals = verticalSegmentsForFile(file);
-      let violations = 0;
       for (let i = 0; i < verticals.length; i++) {
         for (let j = i + 1; j < verticals.length; j++) {
-          if (
+          expect(
             segmentsViolateLaneSeparation(
               [verticals[i]!, verticals[j]!],
               INTRA_BUNDLE_ISOTROPIC_PITCH,
-            )
-          ) {
-            violations += 1;
-          }
+            ),
+          ).toBe(false);
         }
       }
-      expect(violations).toBeGreaterThan(0);
-    }
-  });
+    });
+  }
 
   for (const file of REFERENCE_FILES) {
     it(`${file}: R3 — center lanes are spread (unique midX ratio)`, () => {

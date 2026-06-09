@@ -10,6 +10,9 @@ import { inspectBentleyCsv } from "@/features/import/inspectBentleyCsv";
 
 import goldens from "./__goldens__/routingCharacterization.json";
 
+// Goldens refreshed after §4.4 F2-by-construction router (STATE_OFFICE / SPI-215) and
+// CableLeg.role-based row layout (minor SP-3254.5 routingMidX shifts where row order unchanged).
+
 const examplesDir = join(process.cwd(), "docs/reference/examples");
 
 type RoutingGolden = {
@@ -78,7 +81,7 @@ function characterize(file: string) {
 
 describe("routing characterization goldens (B0)", () => {
   for (const [file, expected] of Object.entries(goldens) as [string, RoutingGolden][]) {
-    it(`${file} matches locked legacy routing output`, () => {
+    it(`${file} matches routing characterization golden`, () => {
       const actual = characterize(file);
       expect(actual.leftRows).toBe(expected.leftRows);
       expect(actual.pairs).toBe(expected.pairs);

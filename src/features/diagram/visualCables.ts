@@ -15,7 +15,7 @@ import {
 } from "@/features/diagram/connectionRowOrder";
 import type { DominantCablePair } from "@/features/diagram/dominantCablePair";
 import { findDominantCablePair } from "@/features/diagram/dominantCablePair";
-import { isThroughCableName } from "@/features/diagram/throughCable";
+import { isThroughCable } from "@/features/diagram/throughCable";
 import type {
   CableLegId,
   ConnectionGraph,
@@ -154,7 +154,7 @@ function instanceCountForGroup(
   fibers: LegFiberRef[],
   graph: ConnectionGraph,
 ): number {
-  if (!isThroughCableName(cable)) return 1;
+  if (!isThroughCable(cable, graph)) return 1;
   if (fibers.length <= 2) return 1;
   const opposing = opposingLegIdsForFibers(graph, fibers);
   if (opposing.size !== 1) return 1;

@@ -18,6 +18,7 @@ import {
   type SideCircuitLabelSpan,
 } from "@/features/diagram/cableLabels";
 import { computeCableBreakout } from "@/features/diagram/cableBreakoutGeometry";
+import { useNodesRoutingEngine } from "@/features/diagram/routingEngine";
 import type { VisualCable } from "@/features/diagram/visualCables";
 import type { CableLegId, TubeColorCode } from "@/types/splice";
 
@@ -1647,6 +1648,7 @@ export function publishDragRoutingSnapshot(
   entries: SpliceHandleEntry[],
   diagramCenterX?: number,
 ): void {
+  if (useNodesRoutingEngine()) return;
   if (activeDragCableNodeId === null) return;
   dragRoutingSnapshot = assignSpliceRoutingLanesFromLiveHandles(
     entries,
@@ -1665,6 +1667,7 @@ function clearDragRoutingSnapshot(): void {
 
 /** Limit live lane registry to one cable while the user drags it. */
 export function setActiveDragCableNodeId(nodeId: string | null): void {
+  if (useNodesRoutingEngine()) return;
   activeDragCableNodeId = nodeId;
   if (nodeId === null) {
     clearDragRoutingSnapshot();
@@ -1832,6 +1835,44 @@ export function useRoutingLaneIndex(
   sourceBendX?: number;
   targetBendX?: number;
 } {
+  const sideSpans = sideCircuitSpan ?? defaultSideCircuitLabelSpan();
+  const maxRowOffset = Math.max(0, rowOffset ?? 0);
+  const resolvedCenterX =
+    diagramCenterX ?? (sourceX + targetX) / 2;
+
+  if (useNodesRoutingEngine()) {
+    const midX =
+      storedLane?.midX ??
+      routingMidXForRender(
+        resolveSpliceMidX(sourceX, sourceY, targetX, targetY, {
+          rowOffset,
+          maxRowOffset,
+          routingLane: fallbackLane,
+          laneCount: Math.max(1, laneCountHint),
+          diagramCenterX: resolvedCenterX,
+          sideCircuitSpan: sideSpans,
+        }),
+        sourceX,
+        targetX,
+        resolvedCenterX,
+        sideSpans,
+        sourceTagWidth,
+        targetTagWidth,
+      );
+    return {
+      routingLane: fallbackLane,
+      activeLaneCount: Math.max(1, laneCountHint),
+      maxRowOffset,
+      ...renderLaneGeometry(
+        storedLane,
+        midX,
+        sourceX,
+        resolvedCenterX,
+        fullButtSplice,
+      ),
+    };
+  }
+
   const [, bump] = useReducer((n: number) => n + 1, 0);
   const dragCableNodeId = activeDragCableNodeId;
   const isDragAffected =
@@ -1863,11 +1904,6 @@ export function useRoutingLaneIndex(
     if (useLiveRegistry) return;
     removeEntry(edgeId);
   }, [edgeId, useLiveRegistry]);
-
-  const sideSpans = sideCircuitSpan ?? defaultSideCircuitLabelSpan();
-  const maxRowOffset = Math.max(0, rowOffset ?? 0);
-  const resolvedCenterX =
-    diagramCenterX ?? (sourceX + targetX) / 2;
 
   if (!enabled) {
     const midX = routingMidXForRender(

@@ -16,7 +16,7 @@ import {
 } from "@/features/diagram/dominantCablePair";
 import {
   canonicalLayoutEndpoint,
-  isThroughCableName,
+  isThroughCable,
 } from "@/features/diagram/throughCable";
 import type {
   ConnectionGraph,
@@ -27,11 +27,12 @@ import type {
 function layoutSortKey(
   left: FiberEndpoint,
   right: FiberEndpoint,
+  graph: ConnectionGraph,
 ): [number, number, string] {
-  const ep = canonicalLayoutEndpoint(left, right);
-  const throughRank = isThroughCableName(ep.cable) ? 0 : 1;
+  const ep = canonicalLayoutEndpoint(left, right, graph);
+  const throughRank = isThroughCable(ep.cable, graph) ? 0 : 1;
   const fiberKey =
-    isThroughCableName(left.cable) || isThroughCableName(right.cable)
+    isThroughCable(left.cable, graph) || isThroughCable(right.cable, graph)
       ? ep.fiberNumber
       : Math.max(left.fiberNumber, right.fiberNumber);
   return [throughRank, fiberKey, ep.tubeColor];
@@ -68,8 +69,8 @@ export function connectionsInRowLayoutOrder(
 
     const aEnds = pairEndpointsForSide(a.pair, graph);
     const bEnds = pairEndpointsForSide(b.pair, graph);
-    const aKey = layoutSortKey(aEnds.left, aEnds.right);
-    const bKey = layoutSortKey(bEnds.left, bEnds.right);
+    const aKey = layoutSortKey(aEnds.left, aEnds.right, graph);
+    const bKey = layoutSortKey(bEnds.left, bEnds.right, graph);
     return (
       aKey[0] - bKey[0] ||
       aKey[1] - bKey[1] ||

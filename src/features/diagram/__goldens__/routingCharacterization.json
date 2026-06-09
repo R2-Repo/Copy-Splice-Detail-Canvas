@@ -66,12 +66,12 @@
       {
         "connectionId": "144-SMF I-15 DIST: 4800 S - MP 259.46|29|GR|SL::72-SMF 4800 S DIST: MAIN ST - I-15|7|BL|RD",
         "laneIndex": 2,
-        "routingMidX": 656
+        "routingMidX": 541
       },
       {
         "connectionId": "144-SMF I-15 DIST: 4800 S - MP 259.46|30|GR|WH::72-SMF 4800 S DIST: MAIN ST - I-15|8|BL|BK",
         "laneIndex": 3,
-        "routingMidX": 680
+        "routingMidX": 565
       },
       {
         "connectionId": "144-SMF I-15 DIST: MP 258.96 - 4800 S|117|VI|YL::72-SMF 4800 S DIST: MAIN ST - I-15|1|BL|BL",
@@ -96,22 +96,22 @@
       {
         "connectionId": "6 DROP (TSC): I-15 NB & 1600 S|3|BL|GR::72-SMF 4800 S DIST: MAIN ST - I-15|3|BL|SL",
         "laneIndex": 6,
-        "routingMidX": 936
+        "routingMidX": 882
       },
       {
         "connectionId": "6 DROP (TSC): I-15 NB & 1600 S|4|BL|BR::72-SMF 4800 S DIST: MAIN ST - I-15|4|BL|WH",
         "laneIndex": 7,
-        "routingMidX": 960
+        "routingMidX": 906
       },
       {
         "connectionId": "6 DROP (TSC): I-15 NB & 1600 S|5|BL|GR::72-SMF 4800 S DIST: MAIN ST - I-15|5|BL|SL",
         "laneIndex": 8,
-        "routingMidX": 984
+        "routingMidX": 930
       },
       {
         "connectionId": "6 DROP (TSC): I-15 NB & 1600 S|6|BL|BR::72-SMF 4800 S DIST: MAIN ST - I-15|6|BL|WH",
         "laneIndex": 9,
-        "routingMidX": 1008
+        "routingMidX": 954
       }
     ]
   },
@@ -202,37 +202,37 @@
       {
         "connectionId": "144-SMF: TSOB - I-215|13|OR|BL::288-SMF DIST I-215: COMPLEX - STATE OFFICE|277|AQ-BK|BL",
         "laneIndex": 44,
-        "routingMidX": 671
+        "routingMidX": -97
       },
       {
         "connectionId": "144-SMF: TSOB - I-215|14|OR|OR::288-SMF DIST I-215: COMPLEX - STATE OFFICE|278|AQ-BK|OR",
         "laneIndex": 45,
-        "routingMidX": 695
+        "routingMidX": -73
       },
       {
         "connectionId": "144-SMF: TSOB - I-215|15|OR|GR::288-SMF DIST I-215: COMPLEX - STATE OFFICE|279|AQ-BK|GR",
         "laneIndex": 46,
-        "routingMidX": 719
+        "routingMidX": -49
       },
       {
         "connectionId": "144-SMF: TSOB - I-215|16|OR|BR::288-SMF DIST I-215: COMPLEX - STATE OFFICE|280|AQ-BK|BR",
         "laneIndex": 47,
-        "routingMidX": 743
+        "routingMidX": -25
       },
       {
         "connectionId": "144-SMF: TSOB - I-215|17|OR|SL::288-SMF DIST I-215: COMPLEX - STATE OFFICE|281|AQ-BK|SL",
         "laneIndex": 48,
-        "routingMidX": 767
+        "routingMidX": -1
       },
       {
         "connectionId": "144-SMF: TSOB - I-215|18|OR|WH::288-SMF DIST I-215: COMPLEX - STATE OFFICE|282|AQ-BK|WH",
         "laneIndex": 49,
-        "routingMidX": 791
+        "routingMidX": 23
       },
       {
         "connectionId": "144-SMF: TSOB - I-215|19|OR|RD::288-SMF DIST I-215: COMPLEX - STATE OFFICE|283|AQ-BK|RD",
         "laneIndex": 50,
-        "routingMidX": 815
+        "routingMidX": 47
       },
       {
         "connectionId": "144-SMF: TSOB - I-215|2|BL|OR::288-SMF DIST I-215: STATE OFFICE - 4240 S|278|AQ-BK|OR",
@@ -242,27 +242,27 @@
       {
         "connectionId": "144-SMF: TSOB - I-215|20|OR|BK::288-SMF DIST I-215: COMPLEX - STATE OFFICE|284|AQ-BK|BK",
         "laneIndex": 51,
-        "routingMidX": 839
+        "routingMidX": 71
       },
       {
         "connectionId": "144-SMF: TSOB - I-215|21|OR|YL::288-SMF DIST I-215: COMPLEX - STATE OFFICE|285|AQ-BK|YL",
         "laneIndex": 52,
-        "routingMidX": 863
+        "routingMidX": 95
       },
       {
         "connectionId": "144-SMF: TSOB - I-215|22|OR|VI::288-SMF DIST I-215: COMPLEX - STATE OFFICE|286|AQ-BK|VI",
         "laneIndex": 53,
-        "routingMidX": 887
+        "routingMidX": 119
       },
       {
         "connectionId": "144-SMF: TSOB - I-215|23|OR|RO::288-SMF DIST I-215: COMPLEX - STATE OFFICE|287|AQ-BK|RO",
         "laneIndex": 54,
-        "routingMidX": 911
+        "routingMidX": 143
       },
       {
         "connectionId": "144-SMF: TSOB - I-215|24|OR|AQ::288-SMF DIST I-215: COMPLEX - STATE OFFICE|288|AQ-BK|AQ",
         "laneIndex": 55,
-        "routingMidX": 935
+        "routingMidX": 167
       },
       {
         "connectionId": "144-SMF: TSOB - I-215|3|BL|GR::288-SMF DIST I-215: STATE OFFICE - 4240 S|279|AQ-BK|GR",
@@ -302,7 +302,7 @@
       {
         "connectionId": "288-SMF DIST I-215: COMPLEX - STATE OFFICE|1|BL|SL::6 DROP: I-215 SB MP 16.10|1|BL|BL",
         "laneIndex": 14,
-        "routingMidX": 592
+        "routingMidX": 112
       },
       {
         "connectionId": "288-SMF DIST I-215: COMPLEX - STATE OFFICE|100|YL|BR::UDOT 24-SMF|16|OR|BR",
@@ -352,17 +352,17 @@
       {
         "connectionId": "288-SMF DIST I-215: COMPLEX - STATE OFFICE|2|BL|WH::6 DROP: I-215 SB MP 16.10|2|BL|OR",
         "laneIndex": 17,
-        "routingMidX": 616
+        "routingMidX": 136
       },
       {
         "connectionId": "288-SMF DIST I-215: COMPLEX - STATE OFFICE|5|BL|SL::6 DROP: I-215 SB MP 16.10|5|BL|BL",
         "laneIndex": 24,
-        "routingMidX": 640
+        "routingMidX": 160
       },
       {
         "connectionId": "288-SMF DIST I-215: COMPLEX - STATE OFFICE|6|BL|WH::6 DROP: I-215 SB MP 16.10|6|BL|OR",
         "laneIndex": 28,
-        "routingMidX": 664
+        "routingMidX": 184
       },
       {
         "connectionId": "288-SMF DIST I-215: COMPLEX - STATE OFFICE|97|YL|BL::UDOT 24-SMF|13|OR|BL",
@@ -382,47 +382,47 @@
       {
         "connectionId": "288-SMF DIST I-215: STATE OFFICE - 4240 S|100|YL|BR::UDOT 24-SMF|4|BL|BR",
         "laneIndex": 21,
-        "routingMidX": 718
+        "routingMidX": 406
       },
       {
         "connectionId": "288-SMF DIST I-215: STATE OFFICE - 4240 S|101|YL|SL::UDOT 24-SMF|5|BL|SL",
         "laneIndex": 25,
-        "routingMidX": 694
+        "routingMidX": 382
       },
       {
         "connectionId": "288-SMF DIST I-215: STATE OFFICE - 4240 S|102|YL|WH::UDOT 24-SMF|6|BL|WH",
         "laneIndex": 29,
-        "routingMidX": 670
+        "routingMidX": 358
       },
       {
         "connectionId": "288-SMF DIST I-215: STATE OFFICE - 4240 S|103|YL|RD::UDOT 24-SMF|7|BL|RD",
         "laneIndex": 32,
-        "routingMidX": 646
+        "routingMidX": 334
       },
       {
         "connectionId": "288-SMF DIST I-215: STATE OFFICE - 4240 S|104|YL|BK::UDOT 24-SMF|8|BL|BK",
         "laneIndex": 34,
-        "routingMidX": 622
+        "routingMidX": 310
       },
       {
         "connectionId": "288-SMF DIST I-215: STATE OFFICE - 4240 S|105|YL|YL::UDOT 24-SMF|9|BL|YL",
         "laneIndex": 36,
-        "routingMidX": 598
+        "routingMidX": 286
       },
       {
         "connectionId": "288-SMF DIST I-215: STATE OFFICE - 4240 S|106|YL|VI::UDOT 24-SMF|10|BL|VI",
         "laneIndex": 38,
-        "routingMidX": 574
+        "routingMidX": 262
       },
       {
         "connectionId": "288-SMF DIST I-215: STATE OFFICE - 4240 S|107|YL|RO::UDOT 24-SMF|11|BL|RO",
         "laneIndex": 40,
-        "routingMidX": 550
+        "routingMidX": 238
       },
       {
         "connectionId": "288-SMF DIST I-215: STATE OFFICE - 4240 S|108|YL|AQ::UDOT 24-SMF|12|BL|AQ",
         "laneIndex": 42,
-        "routingMidX": 526
+        "routingMidX": 214
       },
       {
         "connectionId": "288-SMF DIST I-215: STATE OFFICE - 4240 S|3|BL|SL::6 DROP: I-215 SB MP 16.10|3|BL|GR",
@@ -447,17 +447,17 @@
       {
         "connectionId": "288-SMF DIST I-215: STATE OFFICE - 4240 S|97|YL|BL::UDOT 24-SMF|1|BL|BL",
         "laneIndex": 12,
-        "routingMidX": 790
+        "routingMidX": 478
       },
       {
         "connectionId": "288-SMF DIST I-215: STATE OFFICE - 4240 S|98|YL|OR::UDOT 24-SMF|2|BL|OR",
         "laneIndex": 15,
-        "routingMidX": 766
+        "routingMidX": 454
       },
       {
         "connectionId": "288-SMF DIST I-215: STATE OFFICE - 4240 S|99|YL|GR::UDOT 24-SMF|3|BL|GR",
         "laneIndex": 18,
-        "routingMidX": 742
+        "routingMidX": 430
       }
     ]
   },
@@ -558,42 +558,42 @@
       {
         "connectionId": "12-SMF UDOT/CONNEXT TIE|1|BL|BL::48-SMF I-80 DIST: I-215 - REDWOOD RD|1|BL|RD",
         "laneIndex": 20,
-        "routingMidX": 490
+        "routingMidX": 610
       },
       {
         "connectionId": "12-SMF UDOT/CONNEXT TIE|10|BL|BR::48-SMF I-80 DIST: I-215 - REDWOOD RD|10|BL|VI",
         "laneIndex": 37,
-        "routingMidX": 658
+        "routingMidX": 778
       },
       {
         "connectionId": "12-SMF UDOT/CONNEXT TIE|2|BL|OR::48-SMF I-80 DIST: I-215 - REDWOOD RD|2|BL|BK",
         "laneIndex": 23,
-        "routingMidX": 514
+        "routingMidX": 634
       },
       {
         "connectionId": "12-SMF UDOT/CONNEXT TIE|3|BL|GR::48-SMF I-80 DIST: I-215 - REDWOOD RD|3|BL|YL",
         "laneIndex": 26,
-        "routingMidX": 538
+        "routingMidX": 658
       },
       {
         "connectionId": "12-SMF UDOT/CONNEXT TIE|4|BL|BR::48-SMF I-80 DIST: I-215 - REDWOOD RD|4|BL|VI",
         "laneIndex": 29,
-        "routingMidX": 562
+        "routingMidX": 682
       },
       {
         "connectionId": "12-SMF UDOT/CONNEXT TIE|7|BL|BL::48-SMF I-80 DIST: I-215 - REDWOOD RD|7|BL|RD",
         "laneIndex": 33,
-        "routingMidX": 586
+        "routingMidX": 706
       },
       {
         "connectionId": "12-SMF UDOT/CONNEXT TIE|8|BL|OR::48-SMF I-80 DIST: I-215 - REDWOOD RD|8|BL|BK",
         "laneIndex": 35,
-        "routingMidX": 610
+        "routingMidX": 730
       },
       {
         "connectionId": "12-SMF UDOT/CONNEXT TIE|9|BL|GR::48-SMF I-80 DIST: I-215 - REDWOOD RD|9|BL|YL",
         "laneIndex": 36,
-        "routingMidX": 634
+        "routingMidX": 754
       },
       {
         "connectionId": "18 DROP (CCTV): I-215 NB & I-80 (NE CORNER)|1|BL|BL::48-SMF I-80 DIST: I-215 - REDWOOD RD|1|BL|BL",
@@ -668,12 +668,12 @@
       {
         "connectionId": "24-SMF I-215 DIST: I-80 EB - INTERSECTION|17|OR|SL::48-SMF I-80 DIST: I-215 - REDWOOD RD|17|OR|RO",
         "laneIndex": 51,
-        "routingMidX": 793
+        "routingMidX": 961
       },
       {
         "connectionId": "24-SMF I-215 DIST: I-80 EB - INTERSECTION|18|OR|WH::48-SMF I-80 DIST: I-215 - REDWOOD RD|18|OR|AQ",
         "laneIndex": 54,
-        "routingMidX": 817
+        "routingMidX": 985
       },
       {
         "connectionId": "24-SMF I-215 DIST: I-80 EB - INTERSECTION|19|OR|RD::288-SMF I-215 DIST: 500 S - I-80|41|BR|SL",
@@ -693,32 +693,32 @@
       {
         "connectionId": "24-SMF I-215 DIST: I-80 EB - INTERSECTION|21|OR|YL::48-SMF I-80 DIST: I-215 - REDWOOD RD|41|BR|SL",
         "laneIndex": 77,
-        "routingMidX": 398
+        "routingMidX": -107
       },
       {
         "connectionId": "24-SMF I-215 DIST: I-80 EB - INTERSECTION|22|OR|VI::48-SMF I-80 DIST: I-215 - REDWOOD RD|42|BR|WH",
         "laneIndex": 78,
-        "routingMidX": 422
+        "routingMidX": -83
       },
       {
         "connectionId": "24-SMF I-215 DIST: I-80 EB - INTERSECTION|23|OR|RO::48-SMF I-80 DIST: I-215 - REDWOOD RD|43|BR|RD",
         "laneIndex": 80,
-        "routingMidX": 446
+        "routingMidX": -59
       },
       {
         "connectionId": "24-SMF I-215 DIST: I-80 EB - INTERSECTION|23|OR|SL::48-SMF I-80 DIST: I-215 - REDWOOD RD|23|OR|RO",
         "laneIndex": 63,
-        "routingMidX": 841
+        "routingMidX": 1009
       },
       {
         "connectionId": "24-SMF I-215 DIST: I-80 EB - INTERSECTION|24|OR|AQ::48-SMF I-80 DIST: I-215 - REDWOOD RD|44|BR|BK",
         "laneIndex": 82,
-        "routingMidX": 470
+        "routingMidX": -35
       },
       {
         "connectionId": "24-SMF I-215 DIST: I-80 EB - INTERSECTION|24|OR|WH::48-SMF I-80 DIST: I-215 - REDWOOD RD|24|OR|AQ",
         "laneIndex": 66,
-        "routingMidX": 865
+        "routingMidX": 1033
       },
       {
         "connectionId": "24-SMF I-215 DIST: I-80 EB - INTERSECTION|3|BL|GR::288-SMF I-215 DIST: 500 S - I-80|3|BL|GR",
@@ -758,72 +758,72 @@
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|13|OR|AQ::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|13|OR|BL",
         "laneIndex": 42,
-        "routingMidX": 854
+        "routingMidX": 326
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|13|OR|BL::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|13|OR|YL",
         "laneIndex": 40,
-        "routingMidX": 878
+        "routingMidX": 350
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|14|OR|OR::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|14|OR|VI",
         "laneIndex": 43,
-        "routingMidX": 830
+        "routingMidX": 302
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|15|OR|GR::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|15|OR|RO",
         "laneIndex": 45,
-        "routingMidX": 806
+        "routingMidX": 278
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|16|OR|BR::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|16|OR|AQ",
         "laneIndex": 47,
-        "routingMidX": 782
+        "routingMidX": 254
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|17|OR|SL::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|25|GR|BL",
         "laneIndex": 49,
-        "routingMidX": 758
+        "routingMidX": 230
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|18|OR|WH::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|26|GR|OR",
         "laneIndex": 52,
-        "routingMidX": 734
+        "routingMidX": 206
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|19|OR|RD::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|19|OR|RD",
         "laneIndex": 55,
-        "routingMidX": 710
+        "routingMidX": 182
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|20|OR|BK::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|20|OR|BK",
         "laneIndex": 57,
-        "routingMidX": 686
+        "routingMidX": 158
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|21|OR|BL::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|21|OR|YL",
         "laneIndex": 60,
-        "routingMidX": 662
+        "routingMidX": 134
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|22|OR|OR::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|22|OR|VI",
         "laneIndex": 62,
-        "routingMidX": 638
+        "routingMidX": 110
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|23|OR|GR::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|23|OR|RO",
         "laneIndex": 64,
-        "routingMidX": 614
+        "routingMidX": 86
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|24|OR|AQ::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|24|OR|BL",
         "laneIndex": 65,
-        "routingMidX": 590
+        "routingMidX": 62
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|24|OR|BR::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|24|OR|AQ",
         "laneIndex": 67,
-        "routingMidX": 566
+        "routingMidX": 38
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|25|GR|BL::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|15|OR|GR",
@@ -833,162 +833,162 @@
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|39|BR|GR::48-SMF I-80 DIST: I-215 - REDWOOD RD|25|GR|BL",
         "laneIndex": 73,
-        "routingMidX": 704
+        "routingMidX": 1304
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|39|BR|RO::48-SMF I-80 DIST: I-215 - REDWOOD RD|39|BR|GR",
         "laneIndex": 74,
-        "routingMidX": 292
+        "routingMidX": 1352
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|40|BR|AQ::48-SMF I-80 DIST: I-215 - REDWOOD RD|40|BR|BR",
         "laneIndex": 76,
-        "routingMidX": 316
+        "routingMidX": 1328
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|40|BR|BR::48-SMF I-80 DIST: I-215 - REDWOOD RD|26|GR|OR",
         "laneIndex": 75,
-        "routingMidX": 680
+        "routingMidX": 1280
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|43|BR|RD::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|31|GR|RD",
         "laneIndex": 79,
-        "routingMidX": 803
+        "routingMidX": -133
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|44|BR|BK::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|32|GR|BK",
         "laneIndex": 81,
-        "routingMidX": 779
+        "routingMidX": -157
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|47|BR|RO::48-SMF I-80 DIST: I-215 - REDWOOD RD|47|BR|GR",
         "laneIndex": 85,
-        "routingMidX": 656
+        "routingMidX": 1256
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|48|BR|AQ::48-SMF I-80 DIST: I-215 - REDWOOD RD|48|BR|BR",
         "laneIndex": 87,
-        "routingMidX": 632
+        "routingMidX": 1232
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|5|BL|RD::48-SMF I-80 DIST: I-215 - REDWOOD RD|5|BL|SL",
         "laneIndex": 30,
-        "routingMidX": 556
+        "routingMidX": 844
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|6|BL|BK::48-SMF I-80 DIST: I-215 - REDWOOD RD|6|BL|WH",
         "laneIndex": 31,
-        "routingMidX": 580
+        "routingMidX": 868
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|7|BL|RD::48-SMF I-80 DIST: I-215 - REDWOOD RD|7|BL|SL",
         "laneIndex": 32,
-        "routingMidX": 628
+        "routingMidX": 916
       },
       {
         "connectionId": "288-SMF I-215 DIST: 500 S - I-80|8|BL|BK::48-SMF I-80 DIST: I-215 - REDWOOD RD|8|BL|WH",
         "laneIndex": 34,
-        "routingMidX": 604
+        "routingMidX": 892
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|11|BL|GR::48-SMF I-80 DIST: I-215 - REDWOOD RD|11|BL|RO",
         "laneIndex": 38,
-        "routingMidX": 673
+        "routingMidX": 433
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|12|BL|BR::48-SMF I-80 DIST: I-215 - REDWOOD RD|12|BL|AQ",
         "laneIndex": 39,
-        "routingMidX": 697
+        "routingMidX": 457
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|27|GR|GR::48-SMF I-80 DIST: I-215 - REDWOOD RD|15|OR|GR",
         "laneIndex": 46,
-        "routingMidX": 627
+        "routingMidX": 51
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|28|GR|BR::48-SMF I-80 DIST: I-215 - REDWOOD RD|16|OR|BR",
         "laneIndex": 48,
-        "routingMidX": 651
+        "routingMidX": 75
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|3|BL|GR::48-SMF I-80 DIST: I-215 - REDWOOD RD|3|BL|RO",
         "laneIndex": 25,
-        "routingMidX": 625
+        "routingMidX": 385
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|35|GR|RO::48-SMF I-80 DIST: I-215 - REDWOOD RD|45|BR|YL",
         "laneIndex": 83,
-        "routingMidX": 925
+        "routingMidX": 1117
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|36|GR|AQ::48-SMF I-80 DIST: I-215 - REDWOOD RD|46|BR|VI",
         "laneIndex": 84,
-        "routingMidX": 949
+        "routingMidX": 1141
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|37|BR|BL::48-SMF I-80 DIST: I-215 - REDWOOD RD|37|BR|RO",
         "laneIndex": 70,
-        "routingMidX": 877
+        "routingMidX": 1069
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|38|BR|OR::48-SMF I-80 DIST: I-215 - REDWOOD RD|38|BR|AQ",
         "laneIndex": 72,
-        "routingMidX": 901
+        "routingMidX": 1093
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|4|BL|BR::48-SMF I-80 DIST: I-215 - REDWOOD RD|4|BL|AQ",
         "laneIndex": 28,
-        "routingMidX": 649
+        "routingMidX": 409
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|43|BR|RD::48-SMF I-80 DIST: I-215 - REDWOOD RD|17|OR|SL",
         "laneIndex": 50,
-        "routingMidX": 675
+        "routingMidX": 99
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|44|BR|BK::48-SMF I-80 DIST: I-215 - REDWOOD RD|18|OR|WH",
         "laneIndex": 53,
-        "routingMidX": 699
+        "routingMidX": 123
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|45|BR|YL::48-SMF I-80 DIST: I-215 - REDWOOD RD|19|OR|RD",
         "laneIndex": 56,
-        "routingMidX": 723
+        "routingMidX": 147
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|46|BR|VI::48-SMF I-80 DIST: I-215 - REDWOOD RD|20|OR|BK",
         "laneIndex": 58,
-        "routingMidX": 747
+        "routingMidX": 171
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|47|BR|BL::48-SMF I-80 DIST: I-215 - REDWOOD RD|47|BR|RO",
         "laneIndex": 86,
-        "routingMidX": 973
+        "routingMidX": 1165
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|47|BR|RO::48-SMF I-80 DIST: I-215 - REDWOOD RD|21|OR|YL",
         "laneIndex": 59,
-        "routingMidX": 771
+        "routingMidX": 195
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|48|BR|AQ::48-SMF I-80 DIST: I-215 - REDWOOD RD|22|OR|VI",
         "laneIndex": 61,
-        "routingMidX": 795
+        "routingMidX": 219
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|48|BR|OR::48-SMF I-80 DIST: I-215 - REDWOOD RD|48|BR|AQ",
         "laneIndex": 88,
-        "routingMidX": 997
+        "routingMidX": 1189
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|5|BL|SL::48-SMF I-80 DIST: I-215 - REDWOOD RD|13|OR|BL",
         "laneIndex": 41,
-        "routingMidX": 579
+        "routingMidX": 3
       },
       {
         "connectionId": "288-SMF I-215 DIST: SR-201 - N TEMPLE NB|6|BL|WH::48-SMF I-80 DIST: I-215 - REDWOOD RD|14|OR|OR",
         "laneIndex": 44,
-        "routingMidX": 603
+        "routingMidX": 27
       }
     ]
   }

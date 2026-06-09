@@ -42,7 +42,8 @@ export function recordCableAppearance(
   map.set(key, entry);
 }
 
-const MAX_EXHAUSTIVE_CABLES = 14;
+/** Exhaustive side scorer — fixtures peak at 7 unique cables; raise if imports grow. */
+const MAX_EXHAUSTIVE_CABLES = 16;
 
 function cloneSideMap(
   sides: Map<string, "left" | "right">,

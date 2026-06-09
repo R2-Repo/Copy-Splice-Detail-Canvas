@@ -250,20 +250,23 @@ B4 cleanup                      <- checkpoint: parity + goldens, report
 ```
 Flag keeps `main` renderable throughout. Report at each checkpoint.
 
-### 7.1 Build progress notes (partial B2/B3)
+### 7.1 Build progress notes — **refactor complete** (2026-06-08)
 
 | Item | Status |
 |------|--------|
 | `ROUTING_ENGINE` | `"nodes"` (default) |
-| `centerRouter.routeCenterSplices` | Delegates to `spliceCenterLanes.assignCenterLanes` (legacy packer); oracle helpers in `centerRouter.ts` |
-| `spliceCenterLanes.ts` | **~1.9k lines** — `assignSpliceRoutingLanes`, `assignSpliceMidXLanes`, `packMidXLanes`, horiz/vert lane tracks; `spliceEdgeRouting.ts` re-exports + path/render code only (~2.2k lines) |
-| `SpliceEdge` | Split into `PrecomputedSpliceEdge` (no drag registry) vs `LiveSpliceEdge` |
-| §4.4 pure router | **Not done** — lane packing still in `spliceEdgeRouting.ts` (~4k lines) |
-| B3 edge model | **Phase 2 done:** fiber splices are `fiberAnchor → splicePoint → fiberAnchor` (two precomputed `SpliceEdge` legs); full butt splices stay `cable → cable` |
-| B0 goldens | Still lock per-connection `laneIndex` + `routingMidX` via left-leg edges; **STATE_OFFICE / SPI-215 encode legacy duplicate `routingMidX`** (5 and 8 dupes) until F2-by-construction router lands |
-| `useRoutingLaneIndex` | Still in `SpliceEdge` for legacy render path; ignored when `routingPrecomputed` |
-| `CableLeg.role` | Layout scoring still uses `isThroughCableName()` to preserve B0 |
-| Debug `fetch` ingest blocks | Removed from `spliceEdgeRouting.ts` |
+| `centerRouter.routeCenterSplices` | `spliceCenterLanes.assignCenterLanes` — §4.4 zone pack + global F2 vertical ledger; oracle helpers in `centerRouter.ts` |
+| `spliceCenterLanes.ts` | Lane assignment + horiz/gap tracks; `assignCenterLanes` replaces legacy `assignSpliceMidXLanes` + `assignSideVertLaneXs` on the nodes path |
+| `spliceEdgeRouting.ts` | Path builders + handle positions + legacy drag registry (gated no-op when `ROUTING_ENGINE === "nodes"`) |
+| `SpliceEdge` | `PrecomputedSpliceEdge` (nodes default); `LiveSpliceEdge` retained for `legacy` flag only |
+| §4.4 pure router | **Done** — `assignCenterMidXLanes` + `assignGlobalF2VertLaneMidXs` (F2-by-construction; prefers unclamped midX when inset clamp would stack lanes) |
+| B3 edge model | Fiber splices: `fiberAnchor → splicePoint → fiberAnchor`; butt splices: `cable → cable`; drag rebuilds via `buildReactFlowGraph` |
+| B0 goldens | Updated for §4.4 F2 parity (STATE_OFFICE / SPI-215); minor SP-3254.5 `routingMidX` shifts after `CableLeg.role` row layout |
+| `useRoutingLaneIndex` | No-op registry path when nodes engine; precomputed edges skip hook entirely |
+| `CableLeg.role` | `connectionRowOrder`, `dominantCablePair`, `visualCables` use `isThroughCable(cable, graph)` |
+| Manual D4 | **Still required** — visual compare `Left-*.csv` against `docs/reference/routing-examples/` in running app |
+
+**Remaining (non-blocking):** further shrink `spliceEdgeRouting.ts` (extract `splicePathGeometry.ts`); raise `MAX_EXHAUSTIVE_CABLES` if real imports exceed 14 unique cables.
 
 ---
 

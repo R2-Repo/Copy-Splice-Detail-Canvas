@@ -1886,13 +1886,479 @@ export function handleEntriesToCandidates(
   }));
 }
 
+function verticalYSpanForCandidate(
+  candidate: MidXLaneCandidate,
+  sourceHorizY?: number,
+  targetHorizY?: number,
+): { y0: number; y1: number } {
+  const srcHY = sourceHorizY ?? candidate.sourceY;
+  const tgtHY = targetHorizY ?? candidate.targetY;
+  const spliceY = (candidate.sourceY + candidate.targetY) / 2;
+  return {
+    y0: Math.min(srcHY, spliceY, tgtHY, candidate.sourceY, candidate.targetY),
+    y1: Math.max(srcHY, spliceY, tgtHY, candidate.sourceY, candidate.targetY),
+  };
+}
+
+function globalCenterMidXBounds(
+  candidates: MidXLaneCandidate[],
+  diagramCenterX: number,
+  sideSpans: SideCircuitLabelSpan,
+): { lo: number; hi: number } {
+  let lo = Number.POSITIVE_INFINITY;
+  let hi = Number.NEGATIVE_INFINITY;
+  for (const candidate of candidates) {
+    const routing = spliceRoutingBounds(candidate.sourceX, candidate.targetX);
+    const inset = spliceMidXInsetBounds(
+      candidate.sourceX,
+      candidate.targetX,
+      diagramCenterX,
+      sideSpans,
+    );
+    const effectiveLo = Math.max(routing.lo, inset.lo);
+    const effectiveHi = Math.min(
+      routing.hi,
+      inset.hi <= inset.lo ? routing.hi : inset.hi,
+    );
+    lo = Math.min(lo, effectiveLo);
+    hi = Math.max(hi, effectiveHi);
+  }
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) {
+    return { lo: diagramCenterX - SPLICE_LANE_SEP, hi: diagramCenterX + SPLICE_LANE_SEP };
+  }
+  return { lo, hi };
+}
+
+function vertLaneConflictsOccupied(
+  x: number,
+  y0: number,
+  y1: number,
+  occupied: Array<{ x: number; y0: number; y1: number }>,
+): boolean {
+  return occupied.some((existing) =>
+    vertLanePairConflicts(x, y0, y1, existing.x, existing.y0, existing.y1),
+  );
+}
+
+function vertLanePairConflicts(
+  xA: number,
+  y0A: number,
+  y1A: number,
+  xB: number,
+  y0B: number,
+  y1B: number,
+): boolean {
+  return (
+    Math.abs(xA - xB) < SPLICE_LANE_SEP - SPLICE_PATH_EPS &&
+    verticalSpanOverlaps(y0A, y1A, y0B, y1B)
+  );
+}
+
+function findF2VertLaneX(
+  candidate: MidXLaneCandidate,
+  idealMidX: number,
+  ySpan: { y0: number; y1: number },
+  diagramCenterX: number,
+  sideSpans: SideCircuitLabelSpan,
+  globalBounds: { lo: number; hi: number },
+  occupied: Array<{ x: number; y0: number; y1: number }>,
+): number {
+  const columnX = (candidate.sourceX + candidate.targetX) / 2;
+  const inward =
+    inwardSignForColumn(columnX, diagramCenterX) > 0 ? 1 : -1;
+  const zoneBounds = vertLanePackBounds(
+    candidate.sourceX,
+    candidate.targetX,
+    diagramCenterX,
+    sideSpans,
+  );
+  const searchLo = Math.min(globalBounds.lo, zoneBounds.lo);
+  const searchHi = Math.max(globalBounds.hi, zoneBounds.hi);
+
+  for (let ring = 0; ring <= 96; ring++) {
+    const offsets =
+      ring === 0
+        ? [0]
+        : Array.from({ length: ring }, (_, i) => (i + 1) * SPLICE_LANE_SEP).flatMap(
+            (delta) => [inward * delta, -inward * delta],
+          );
+    for (const offset of offsets) {
+      const x = idealMidX + offset;
+      if (x < searchLo - SPLICE_PATH_EPS || x > searchHi + SPLICE_PATH_EPS) {
+        continue;
+      }
+      if (!vertLaneConflictsOccupied(x, ySpan.y0, ySpan.y1, occupied)) {
+        return x;
+      }
+    }
+  }
+
+  for (
+    let x = searchLo;
+    x <= searchHi + SPLICE_PATH_EPS;
+    x += SPLICE_LANE_SEP
+  ) {
+    if (!vertLaneConflictsOccupied(x, ySpan.y0, ySpan.y1, occupied)) {
+      return x;
+    }
+  }
+
+  return idealMidX + inward * occupied.length * SPLICE_LANE_SEP;
+}
+
+function pickF2ClearMidX(
+  candidate: MidXLaneCandidate,
+  tryRaw: number,
+  ySpan: { y0: number; y1: number },
+  diagramCenterX: number,
+  sideSpans: SideCircuitLabelSpan,
+  occupied: Array<{ x: number; y0: number; y1: number }>,
+): number | null {
+  const clamped = clampMidXForCandidate(
+    tryRaw,
+    candidate,
+    diagramCenterX,
+    sideSpans,
+  );
+  if (!vertLaneConflictsOccupied(clamped, ySpan.y0, ySpan.y1, occupied)) {
+    return clamped;
+  }
+  if (!vertLaneConflictsOccupied(tryRaw, ySpan.y0, ySpan.y1, occupied)) {
+    return tryRaw;
+  }
+  return null;
+}
+
+function placeF2MidXIfNeeded(
+  candidate: MidXLaneCandidate,
+  idealMidX: number,
+  midXMap: Map<string, number>,
+  diagramCenterX: number,
+  sideSpans: SideCircuitLabelSpan,
+  globalBounds: { lo: number; hi: number },
+  occupied: Array<{ x: number; y0: number; y1: number }>,
+): void {
+  const ySpan = verticalYSpanForCandidate(candidate);
+  const columnX = (candidate.sourceX + candidate.targetX) / 2;
+  const inward =
+    inwardSignForColumn(columnX, diagramCenterX) > 0 ? 1 : -1;
+
+  let midX: number | null = null;
+  for (let attempt = 0; attempt <= 128; attempt++) {
+    const tryRaw =
+      attempt === 0
+        ? idealMidX
+        : idealMidX + inward * attempt * SPLICE_LANE_SEP;
+    midX = pickF2ClearMidX(
+      candidate,
+      tryRaw,
+      ySpan,
+      diagramCenterX,
+      sideSpans,
+      occupied,
+    );
+    if (midX !== null) break;
+  }
+
+  if (midX === null) {
+    midX = findF2VertLaneX(
+      candidate,
+      idealMidX,
+      ySpan,
+      diagramCenterX,
+      sideSpans,
+      globalBounds,
+      occupied,
+    );
+    midX =
+      pickF2ClearMidX(
+        candidate,
+        midX,
+        ySpan,
+        diagramCenterX,
+        sideSpans,
+        occupied,
+      ) ?? midX;
+  }
+
+  midXMap.set(candidate.id, midX);
+  occupied.push({ x: midX, y0: ySpan.y0, y1: ySpan.y1 });
+}
+
+function assignGlobalF2BundleVertLaneMidXs(
+  members: MidXLaneCandidate[],
+  midXMap: Map<string, number>,
+  diagramCenterX: number,
+  sideSpans: SideCircuitLabelSpan,
+  globalBounds: { lo: number; hi: number },
+  occupied: Array<{ x: number; y0: number; y1: number }>,
+): void {
+  const sorted = sortCandidatesByRowOrder(members);
+  if (sorted.length === 0) return;
+
+  const columnX = (sorted[0]!.sourceX + sorted[0]!.targetX) / 2;
+  const inward =
+    inwardSignForColumn(columnX, diagramCenterX) > 0 ? 1 : -1;
+
+  for (let bundleShift = 0; bundleShift <= 96; bundleShift++) {
+    const placements: Array<{
+      candidate: MidXLaneCandidate;
+      x: number;
+      y0: number;
+      y1: number;
+    }> = [];
+    let allClear = true;
+
+    for (const candidate of sorted) {
+      const idealMidX = midXMap.get(candidate.id);
+      if (idealMidX === undefined) {
+        allClear = false;
+        break;
+      }
+      const tryX = idealMidX + inward * bundleShift * SPLICE_LANE_SEP;
+      const ySpan = verticalYSpanForCandidate(candidate);
+      if (
+        vertLaneConflictsOccupied(tryX, ySpan.y0, ySpan.y1, occupied) ||
+        placements.some((planned) =>
+          vertLanePairConflicts(
+            tryX,
+            ySpan.y0,
+            ySpan.y1,
+            planned.x,
+            planned.y0,
+            planned.y1,
+          ),
+        )
+      ) {
+        allClear = false;
+        break;
+      }
+      placements.push({ candidate, x: tryX, y0: ySpan.y0, y1: ySpan.y1 });
+    }
+
+    if (allClear) {
+      for (const placement of placements) {
+        const placed =
+          pickF2ClearMidX(
+            placement.candidate,
+            placement.x,
+            { y0: placement.y0, y1: placement.y1 },
+            diagramCenterX,
+            sideSpans,
+            occupied,
+          ) ?? placement.x;
+        midXMap.set(placement.candidate.id, placed);
+        occupied.push({ x: placed, y0: placement.y0, y1: placement.y1 });
+      }
+      return;
+    }
+  }
+
+  for (const candidate of sorted) {
+    const idealMidX = midXMap.get(candidate.id) ?? diagramCenterX;
+    placeF2MidXIfNeeded(
+      candidate,
+      idealMidX,
+      midXMap,
+      diagramCenterX,
+      sideSpans,
+      globalBounds,
+      occupied,
+    );
+  }
+}
+
+function assignGlobalF2VertLaneMidXs(
+  candidates: MidXLaneCandidate[],
+  midXMap: Map<string, number>,
+  diagramCenterX: number,
+  sideSpans: SideCircuitLabelSpan,
+): void {
+  const globalBounds = globalCenterMidXBounds(
+    candidates,
+    diagramCenterX,
+    sideSpans,
+  );
+  const occupied: Array<{ x: number; y0: number; y1: number }> = [];
+  const processed = new Set<string>();
+
+  const bundleGroups = groupCandidatesByTubeBundle(
+    candidates.filter((c) => c.tubeBundleKey && !c.fullButtSplice),
+  ).filter((bundle) => bundle.length > 1);
+
+  for (const bundle of bundleGroups.sort((a, b) => {
+    const minA = Math.min(...a.map((m) => m.rowOffset));
+    const minB = Math.min(...b.map((m) => m.rowOffset));
+    return minA - minB;
+  })) {
+    assignGlobalF2BundleVertLaneMidXs(
+      bundle,
+      midXMap,
+      diagramCenterX,
+      sideSpans,
+      globalBounds,
+      occupied,
+    );
+    for (const member of bundle) {
+      processed.add(member.id);
+    }
+  }
+
+  const singles = sortCandidatesByRowOrder(
+    candidates.filter((c) => !processed.has(c.id) && !c.fullButtSplice),
+  );
+
+  for (const candidate of singles) {
+    const idealMidX = midXMap.get(candidate.id);
+    if (idealMidX === undefined) continue;
+    placeF2MidXIfNeeded(
+      candidate,
+      idealMidX,
+      midXMap,
+      diagramCenterX,
+      sideSpans,
+      globalBounds,
+      occupied,
+    );
+  }
+}
+
 /**
- * Center lane assignment entry point for the nodes routing engine.
- * §4.4 rewrite target: `assignSpliceMidXLanes` + `assignSideVertLaneXs` (F2-by-construction).
+ * §4.4 steps 4–5: zone-packed midX plus global F2-by-construction vertical lanes.
+ * Replaces legacy `assignSpliceMidXLanes` + `assignSideVertLaneXs` for the center router.
+ */
+function assignCenterMidXLanes(
+  candidates: MidXLaneCandidate[],
+  diagramCenterX: number,
+  sideSpans: SideCircuitLabelSpan,
+): Map<string, number> {
+  const midXMap = assignSpliceMidXLanes(candidates, sideSpans);
+  for (const candidate of candidates) {
+    const raw = midXMap.get(candidate.id);
+    if (raw === undefined) continue;
+    midXMap.set(
+      candidate.id,
+      clampMidXForCandidate(raw, candidate, diagramCenterX, sideSpans),
+    );
+  }
+  assignGlobalF2VertLaneMidXs(candidates, midXMap, diagramCenterX, sideSpans);
+  return midXMap;
+}
+
+function assignSpliceRoutingLanesFromMidXMap(
+  candidates: MidXLaneCandidate[],
+  midXMap: Map<string, number>,
+  sideSpans: SideCircuitLabelSpan,
+): Map<string, SpliceRoutingLane> {
+  const diagramCenterX = globalDiagramCenterX(candidates);
+  const result = new Map<string, SpliceRoutingLane>();
+  const candidateById = new Map(candidates.map((c) => [c.id, c]));
+
+  for (const candidate of candidates) {
+    const midX = midXMap.get(candidate.id);
+    if (midX === undefined) continue;
+    result.set(candidate.id, { midX });
+  }
+
+  const byBundle = new Map<
+    string,
+    Array<{ id: string; midX: number; sourceX: number }>
+  >();
+
+  for (const candidate of candidates) {
+    const lane = result.get(candidate.id);
+    if (!lane || !Number.isFinite(lane.midX)) continue;
+    const key = candidate.tubeBundleKey?.trim()
+      ? bundleKeyForCandidate(candidate)
+      : `${spliceRoutingZoneKey(candidate.sourceX, candidate.targetX)}::${candidate.id}`;
+    const list = byBundle.get(key) ?? [];
+    list.push({ id: candidate.id, midX: lane.midX, sourceX: candidate.sourceX });
+    byBundle.set(key, list);
+  }
+
+  for (const members of byBundle.values()) {
+    if (members.length <= 1) continue;
+    const fullMembers = members
+      .map((member) => candidateById.get(member.id))
+      .filter((member): member is MidXLaneCandidate => member !== undefined);
+    const jogX = sameSideLoopBundleSkipsJogX(fullMembers)
+      ? undefined
+      : bundleJogXForMembers(members, diagramCenterX);
+    for (const member of members) {
+      const lane = result.get(member.id);
+      if (!lane) continue;
+      const laneJogX =
+        jogX !== undefined &&
+        Number.isFinite(jogX) &&
+        Math.abs(lane.midX - jogX) > SPLICE_PATH_EPS
+          ? jogX
+          : undefined;
+      result.set(member.id, { ...lane, jogX: laneJogX });
+    }
+  }
+
+  for (const candidate of candidates) {
+    if (result.has(candidate.id)) continue;
+    const midX = midXMap.get(candidate.id);
+    if (midX !== undefined) result.set(candidate.id, { midX });
+  }
+
+  const buttByZone = new Map<string, MidXLaneCandidate[]>();
+  for (const candidate of candidates) {
+    if (!candidate.fullButtSplice) continue;
+    const key = spliceRoutingZoneKey(candidate.sourceX, candidate.targetX);
+    const list = buttByZone.get(key) ?? [];
+    list.push(candidate);
+    buttByZone.set(key, list);
+  }
+  for (const group of buttByZone.values()) {
+    const sorted = sortCandidatesByRowOrder(group);
+    for (let laneIndex = 0; laneIndex < sorted.length; laneIndex++) {
+      const candidate = sorted[laneIndex]!;
+      if (!result.has(candidate.id)) continue;
+      result.set(candidate.id, {
+        midX: resolveButtSpliceMidX(
+          candidate.sourceX,
+          candidate.targetX,
+          diagramCenterX,
+          sideSpans,
+          laneIndex,
+          sorted.length,
+        ),
+      });
+    }
+  }
+
+  const horizOffsets = assignSideHorizLaneYs(
+    candidates,
+    result,
+    sideSpans,
+    diagramCenterX,
+  );
+  for (const [id, offsets] of horizOffsets) {
+    const lane = result.get(id);
+    if (!lane) continue;
+    result.set(id, { ...lane, ...offsets });
+  }
+
+  assignGapBendLaneXs(candidates, result, sideSpans, diagramCenterX);
+
+  return result;
+}
+
+/**
+ * Center lane assignment entry point for the nodes routing engine (plan §4.4).
  */
 export function assignCenterLanes(
   entries: SpliceHandleEntry[],
   diagramCenterX: number,
 ): Map<string, SpliceRoutingLane> {
-  return assignSpliceRoutingLanesFromHandleEntries(entries, diagramCenterX);
+  if (entries.length === 0) return new Map();
+
+  const sideSpans =
+    entries.find((entry) => entry.sideCircuitSpan)?.sideCircuitSpan ??
+    defaultSideCircuitLabelSpan();
+  const candidates = handleEntriesToCandidates(entries);
+  const midXMap = assignCenterMidXLanes(candidates, diagramCenterX, sideSpans);
+  return assignSpliceRoutingLanesFromMidXMap(candidates, midXMap, sideSpans);
 }

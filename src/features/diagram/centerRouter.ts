@@ -21,10 +21,7 @@ export type OrthogonalSegment = {
   end: number;
 };
 
-/**
- * Center lane assignment — delegates to legacy packer until §4.4 rewrite lands.
- * Callers should import from here, not spliceEdgeRouting.
- */
+/** Center lane assignment (plan §4.4). Callers should import from here, not spliceEdgeRouting. */
 export function routeCenterSplices(
   entries: SpliceHandleEntry[],
   diagramCenterX: number,

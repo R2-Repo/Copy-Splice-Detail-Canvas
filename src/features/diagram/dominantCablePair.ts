@@ -4,7 +4,7 @@ import {
 } from "@/features/diagram/buildConnectionGraph";
 import {
   canonicalLayoutEndpoint,
-  isThroughCableName,
+  isThroughCable,
 } from "@/features/diagram/throughCable";
 import type { ConnectionGraph, FiberConnection } from "@/types/splice";
 
@@ -68,7 +68,7 @@ export function findDominantCablePair(
   let bestScore: [number, number, number] | null = null;
 
   for (const entry of counts.values()) {
-    const score = scoreDominantPair(entry, visualCables);
+    const score = scoreDominantPair(entry, visualCables, graph);
     if (
       !best ||
       !bestScore ||
@@ -106,12 +106,13 @@ function fiberCountForGroup(
 function scoreDominantPair(
   entry: DominantCablePair,
   visualCables: VisualCableGroupRef[],
+  graph: ConnectionGraph,
 ): [number, number, number] {
   const leftName = cableNameFromGroupKey(entry.leftGroupKey);
   const rightName = cableNameFromGroupKey(entry.rightGroupKey);
   const throughScore =
-    (isThroughCableName(leftName) ? 1 : 0) +
-    (isThroughCableName(rightName) ? 1 : 0);
+    (isThroughCable(leftName, graph) ? 1 : 0) +
+    (isThroughCable(rightName, graph) ? 1 : 0);
   const fiberTotal =
     fiberCountForGroup(visualCables, entry.leftGroupKey, "left") +
     fiberCountForGroup(visualCables, entry.rightGroupKey, "right");
@@ -137,7 +138,7 @@ export function dominantPairFiberSortKey(
   graph: ConnectionGraph,
 ): number {
   const { left, right } = pairEndpointsForSide(conn.pair, graph);
-  return canonicalLayoutEndpoint(left, right).fiberNumber;
+  return canonicalLayoutEndpoint(left, right, graph).fiberNumber;
 }
 
 export function minRowIndexForVisualCable(
