@@ -109,7 +109,6 @@ export function CableNode({ id, data }: NodeProps) {
         </div>
       </div>
 
-      {!d.slim ? (
       <svg
         className="cable-node__breakout-svg"
         width={geo.viewWidth}
@@ -162,27 +161,25 @@ export function CableNode({ id, data }: NodeProps) {
           );
         })}
       </svg>
-      ) : null}
 
-      {!d.slim ? geo.tubes.map((tube) => {
+      {geo.tubes.map((tube) => {
         if (isTubeCollapsed(tube.tubeColor)) return null;
         return (
           <span
             key={`label-${tube.tubeColor}`}
             className="cable-node__tube-label"
             style={{
-              top: tube.end.y - 8,
-              left: d.side === "left" ? tube.end.x + 4 : undefined,
+              top: tube.end.y - 16,
+              left: d.side === "right" ? tube.end.x + 6 : undefined,
               right:
-                d.side === "right" ? geo.viewWidth - tube.end.x + 4 : undefined,
+                d.side === "left" ? geo.viewWidth - tube.end.x + 6 : undefined,
             }}
           >
             {tube.tubeColor}
           </span>
         );
-      }) : null}
+      })}
 
-      {!d.slim ? (
       <div className="cable-node__fiber-rows">
         {allFibers.map(({ tube, fiber }) => {
           if (isTubeCollapsed(tube.tubeColor)) return null;
@@ -204,18 +201,22 @@ export function CableNode({ id, data }: NodeProps) {
                   d.side === "right" ? geo.viewWidth - geo.stemX : undefined,
               }}
             >
-              <Handle
-                type="source"
-                position={handlePos}
-                id={`${fiber.handleId}-out`}
-                className="cable-node__handle"
-              />
-              <Handle
-                type="target"
-                position={handlePos}
-                id={`${fiber.handleId}-in`}
-                className="cable-node__handle"
-              />
+              {!d.slim ? (
+                <>
+                  <Handle
+                    type="source"
+                    position={handlePos}
+                    id={`${fiber.handleId}-out`}
+                    className="cable-node__handle"
+                  />
+                  <Handle
+                    type="target"
+                    position={handlePos}
+                    id={`${fiber.handleId}-in`}
+                    className="cable-node__handle"
+                  />
+                </>
+              ) : null}
               <span
                 className="cable-node__fiber-swatch"
                 style={{
@@ -233,7 +234,7 @@ export function CableNode({ id, data }: NodeProps) {
           );
         })}
 
-        {geo.tubes.map((tube) => {
+        {!d.slim ? geo.tubes.map((tube) => {
           if (!isTubeCollapsed(tube.tubeColor)) return null;
           const handleBase = tubeHandleId(d.legId, tube.tubeColor);
           const sourceTube = d.tubes.find((t) => t.tubeColor === tube.tubeColor);
@@ -264,9 +265,8 @@ export function CableNode({ id, data }: NodeProps) {
               />
             </div>
           );
-        })}
+        }) : null}
       </div>
-      ) : null}
     </div>
   );
 }

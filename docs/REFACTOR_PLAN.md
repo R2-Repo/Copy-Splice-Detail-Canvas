@@ -257,16 +257,18 @@ Flag keeps `main` renderable throughout. Report at each checkpoint.
 | `ROUTING_ENGINE` | `"nodes"` (default) |
 | `centerRouter.routeCenterSplices` | `spliceCenterLanes.assignCenterLanes` — §4.4 zone pack + global F2 vertical ledger; oracle helpers in `centerRouter.ts` |
 | `spliceCenterLanes.ts` | Lane assignment + horiz/gap tracks; `assignCenterLanes` replaces legacy `assignSpliceMidXLanes` + `assignSideVertLaneXs` on the nodes path |
-| `spliceEdgeRouting.ts` | Path builders + handle positions + legacy drag registry (gated no-op when `ROUTING_ENGINE === "nodes"`) |
-| `SpliceEdge` | `PrecomputedSpliceEdge` (nodes default); `LiveSpliceEdge` retained for `legacy` flag only |
-| §4.4 pure router | **Done** — `assignCenterMidXLanes` + `assignGlobalF2VertLaneMidXs` (F2-by-construction; prefers unclamped midX when inset clamp would stack lanes) |
+| `splicePathGeometry.ts` | Pure path geometry + handle positions (~1.5k lines) |
+| `spliceHandleEntries.ts` | `buildSpliceHandleEntries` + `SpliceHandleEntry` |
+| `spliceEdgeRouting.ts` | Thin re-export barrel (~115 lines); legacy drag stubs are no-ops |
+| `SpliceEdge` | `PrecomputedSpliceEdge` (nodes default); `StoredLaneSpliceEdge` fallback from frozen lane data (no drag registry) |
+| §4.4 pure router | **Done** — `assignCenterMidXLanes` + `assignGlobalF2VertLaneMidXs` (F2-by-construction; clamped midX preferred, unclamped only when inset-safe and F2-clear) |
 | B3 edge model | Fiber splices: `fiberAnchor → splicePoint → fiberAnchor`; butt splices: `cable → cable`; drag rebuilds via `buildReactFlowGraph` |
 | B0 goldens | Updated for §4.4 F2 parity (STATE_OFFICE / SPI-215); minor SP-3254.5 `routingMidX` shifts after `CableLeg.role` row layout |
 | `useRoutingLaneIndex` | No-op registry path when nodes engine; precomputed edges skip hook entirely |
 | `CableLeg.role` | `connectionRowOrder`, `dominantCablePair`, `visualCables` use `isThroughCable(cable, graph)` |
 | Manual D4 | **Still required** — visual compare `Left-*.csv` against `docs/reference/routing-examples/` in running app |
 
-**Remaining (non-blocking):** further shrink `spliceEdgeRouting.ts` (extract `splicePathGeometry.ts`); raise `MAX_EXHAUSTIVE_CABLES` if real imports exceed 14 unique cables.
+**Remaining:** manual D4 visual parity only.
 
 ---
 

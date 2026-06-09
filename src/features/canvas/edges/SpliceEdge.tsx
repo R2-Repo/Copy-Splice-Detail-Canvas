@@ -4,8 +4,9 @@ import {
   buildButtSplicePath,
   buildSplicePath,
   defaultSideCircuitLabelSpan,
+  resolveSpliceMidX,
   routingLaneFromData,
-  useRoutingLaneIndex,
+  routingMidXForRender,
 } from "@/features/canvas/edges/spliceEdgeRouting";
 import { formattedCircuitTagWidth } from "@/features/diagram/cableLabels";
 import type { SideCircuitLabelSpan } from "@/features/diagram/cableLabels";
@@ -185,11 +186,9 @@ function PrecomputedSpliceEdge({
   );
 }
 
-/** Legacy engine: resolve lanes from stored data, drag snapshot, or live registry. */
-function LiveSpliceEdge({
+/** Fallback when edge data has stored lanes but paths were not precomputed. */
+function StoredLaneSpliceEdge({
   id,
-  source,
-  target,
   sourceX,
   sourceY,
   targetX,
@@ -199,42 +198,39 @@ function LiveSpliceEdge({
   const d = data;
   const fallbackLane = d.laneOverride ?? d.laneIndex ?? 0;
   const laneCount = Math.max(1, d.laneCount ?? 1);
-  const useDynamicLanes = laneCount > 1;
-  const storedLane = routingLaneFromData(d);
+  const sideSpans = d.sideCircuitSpan ?? defaultSideCircuitLabelSpan();
+  const diagramCenterX = d.diagramCenterX ?? (sourceX + targetX) / 2;
   const sourceTagWidth = formattedCircuitTagWidth(d.circuitName);
   const targetTagWidth = sourceTagWidth;
-
-  const liveRouting = useRoutingLaneIndex(
-    id,
-    source,
-    target,
+  const storedLane = routingLaneFromData(d);
+  const resolvedMidX = routingMidXForRender(
+    storedLane?.midX ??
+      resolveSpliceMidX(sourceX, sourceY, targetX, targetY, {
+        rowOffset: d.rowOffset,
+        maxRowOffset: Math.max(0, d.rowOffset ?? 0),
+        routingLane: fallbackLane,
+        laneCount,
+        diagramCenterX,
+        sideCircuitSpan: sideSpans,
+      }),
     sourceX,
-    sourceY,
     targetX,
-    targetY,
-    fallbackLane,
-    useDynamicLanes,
-    laneCount,
-    d.rowOffset,
-    d.sideCircuitSpan ?? defaultSideCircuitLabelSpan(),
-    d.tubeBundleKey,
-    storedLane,
+    diagramCenterX,
+    sideSpans,
     sourceTagWidth,
     targetTagWidth,
-    d.diagramCenterX,
-    d.fullButtSplice === true,
   );
+  const lane = storedLane ?? { midX: resolvedMidX };
 
-  const sideSpans = d.sideCircuitSpan ?? defaultSideCircuitLabelSpan();
   const { leftPath, rightPath, spliceX, spliceY } = d.fullButtSplice
     ? buildButtSplicePath(
         sourceX,
         sourceY,
         targetX,
         targetY,
-        liveRouting.midX,
+        resolvedMidX,
         sideSpans,
-        d.diagramCenterX,
+        diagramCenterX,
         fallbackLane,
         laneCount,
       )
@@ -243,16 +239,16 @@ function LiveSpliceEdge({
         sourceY,
         targetX,
         targetY,
-        liveRouting.midX,
-        liveRouting.jogX,
+        resolvedMidX,
+        lane.jogX,
         {
-          sourceHorizY: liveRouting.sourceHorizY,
-          targetHorizY: liveRouting.targetHorizY,
-          sourceBendX: liveRouting.sourceBendX,
-          targetBendX: liveRouting.targetBendX,
+          sourceHorizY: lane.sourceHorizY,
+          targetHorizY: lane.targetHorizY,
+          sourceBendX: lane.sourceBendX,
+          targetBendX: lane.targetBendX,
         },
         sideSpans,
-        d.diagramCenterX,
+        diagramCenterX,
         sourceTagWidth,
         targetTagWidth,
       );
@@ -284,5 +280,5 @@ export function SpliceEdge(props: EdgeProps) {
   if (isPrecomputedSpliceData(d)) {
     return <PrecomputedSpliceEdge id={props.id} data={d} />;
   }
-  return <LiveSpliceEdge {...props} data={d} />;
+  return <StoredLaneSpliceEdge {...props} data={d} />;
 }

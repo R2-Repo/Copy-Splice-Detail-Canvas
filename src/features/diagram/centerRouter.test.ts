@@ -3,10 +3,17 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Edge } from "@xyflow/react";
 
-import { buildSpliceHandleEntries } from "@/features/canvas/edges/spliceEdgeRouting";
+import {
+  buildSpliceHandleEntries,
+  parallelSpliceSegmentsOverlap,
+  parseOrthogonalPathPoints,
+  SPLICE_PATH_EPS,
+} from "@/features/canvas/edges/spliceEdgeRouting";
 import type { FiberAnchorNodeData } from "@/features/canvas/nodes/types";
+import { augmentNodesEngineGraph } from "./buildNodesEngineGraph";
 import { buildConnectionGraph } from "./buildConnectionGraph";
 import { buildReactFlowGraph } from "./buildReactFlowGraph";
+import { computeSpliceEdgeLayout } from "./computeSpliceLayout";
 import {
   centerRoutingExtentX,
   hvSegmentsFromRoute,
@@ -133,5 +140,110 @@ describe("centerRouter oracle", () => {
 
   it("4.2 — isotropic pitch constant is 24px on both axes", () => {
     expect(INTRA_BUNDLE_ISOTROPIC_PITCH).toBe(24);
+  });
+
+  it("Left-STATE_OFFICE.csv: computeSpliceEdgeLayout horizontals do not stack", () => {
+    const csv = readFileSync(
+      join(examplesDir, "Left-STATE_OFFICE.csv"),
+      "utf8",
+    );
+    const graph = buildConnectionGraph(parseBentleyCsv(csv));
+    const { nodes, edges } = buildReactFlowGraph(graph, undefined, LAYOUT_WIDTH);
+    const { visualCables } = buildVisualCablesForLayout(graph);
+    const cableNodes = nodes.filter((n) => n.type === "cable");
+    const composite = edges.filter(
+      (e) => e.type === "splice" && !e.id.startsWith("splice-left-"),
+    );
+    const { edges: routed } = computeSpliceEdgeLayout(
+      cableNodes,
+      composite,
+      visualCables,
+      LAYOUT_WIDTH / 2,
+    );
+
+    type HorizSeg = { kind: "h"; y: number; x0: number; x1: number };
+    const paths = routed
+      .filter((edge) => edge.type === "splice")
+      .map((edge) => {
+        const data = edge.data as { leftPath?: string; rightPath?: string };
+        const segments: HorizSeg[] = [];
+        for (const path of [data.leftPath ?? "", data.rightPath ?? ""]) {
+          const pts = parseOrthogonalPathPoints(path);
+          for (let i = 1; i < pts.length; i++) {
+            const a = pts[i - 1]!;
+            const b = pts[i]!;
+            if (
+              Math.abs(a.y - b.y) <= SPLICE_PATH_EPS &&
+              Math.abs(a.x - b.x) > SPLICE_PATH_EPS
+            ) {
+              segments.push({ kind: "h", y: a.y, x0: a.x, x1: b.x });
+            }
+          }
+        }
+        return { id: edge.id, segments };
+      })
+      .filter((entry) => entry.segments.length > 0);
+
+    for (let i = 0; i < paths.length; i++) {
+      for (let j = i + 1; j < paths.length; j++) {
+        const a = paths[i]!;
+        const b = paths[j]!;
+        for (const segA of a.segments) {
+          for (const segB of b.segments) {
+            expect(
+              parallelSpliceSegmentsOverlap(segA, segB),
+              `${a.id} vs ${b.id} at y=${segA.y}`,
+            ).toBe(false);
+          }
+        }
+      }
+    }
+  });
+
+  it("Left-STATE_OFFICE.csv: EDGE-011 rendered horizontals do not stack", () => {
+    const csv = readFileSync(
+      join(examplesDir, "Left-STATE_OFFICE.csv"),
+      "utf8",
+    );
+    const graph = buildConnectionGraph(parseBentleyCsv(csv));
+    const { edges } = buildReactFlowGraph(graph, undefined, LAYOUT_WIDTH);
+
+    type HorizSeg = { kind: "h"; y: number; x0: number; x1: number };
+    const routed = edges
+      .filter((edge) => edge.id.startsWith("splice-left-"))
+      .map((edge) => {
+        const data = edge.data as { leftPath?: string; rightPath?: string };
+        const segments: HorizSeg[] = [];
+        for (const path of [data.leftPath ?? "", data.rightPath ?? ""]) {
+          const pts = parseOrthogonalPathPoints(path);
+          for (let i = 1; i < pts.length; i++) {
+            const a = pts[i - 1]!;
+            const b = pts[i]!;
+            if (
+              Math.abs(a.y - b.y) <= SPLICE_PATH_EPS &&
+              Math.abs(a.x - b.x) > SPLICE_PATH_EPS
+            ) {
+              segments.push({ kind: "h", y: a.y, x0: a.x, x1: b.x });
+            }
+          }
+        }
+        return { id: edge.id, segments };
+      })
+      .filter((entry) => entry.segments.length > 0);
+
+    for (let i = 0; i < routed.length; i++) {
+      for (let j = i + 1; j < routed.length; j++) {
+        const a = routed[i]!;
+        const b = routed[j]!;
+        for (const segA of a.segments) {
+          for (const segB of b.segments) {
+            expect(
+              parallelSpliceSegmentsOverlap(segA, segB),
+              `${a.id} vs ${b.id} at y=${segA.y}`,
+            ).toBe(false);
+          }
+        }
+      }
+    }
   });
 });

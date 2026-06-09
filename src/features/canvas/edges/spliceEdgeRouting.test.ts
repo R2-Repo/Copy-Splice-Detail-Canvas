@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { FIBER_ROW_PITCH, MIN_HORIZONTAL_INSET_FLOOR, MIN_SPLICE_HORIZONTAL_INSET, SPLICE_ROUTING_END_MARGIN, fiberRowPrefixWidth, CABLE_LAYOUT } from "@/features/diagram/cableLayoutMetrics";
 import { formattedCircuitTagWidth } from "@/features/diagram/cableLabels";
@@ -31,35 +30,29 @@ import {
   hvDemarcatedPathsCross,
   isCenterVerticalCrossingHandleRowLeadIn,
   inwardClearXBeforeVertical,
+  targetClearXBeforeVertical,
   MAX_SPLICE_BENDS,
   minClearMidXForHandle,
   packMidXLanes,
   parseTubeHandleId,
   pickSpliceRouteTemplate,
   resolveButtSpliceMidX,
-  resetSpliceRouteRegistryForTests,
   routingLaneFromData,
   routingLaneFromEntries,
   reconcileBundleJogXForRender,
   routingMidXForRender,
   splicePathsAvoidHandleColumnVertical,
   spliceRouteSegments,
-  setActiveDragCableNodeId,
   sortSpliceRouteEntries,
   sourceHorizontalLeg,
   spliceMidX,
   spliceMidXFromRowOffset,
   spliceMidXInsetBounds,
   tubeHandlePosition,
-  useRoutingLaneIndex,
 } from "./spliceEdgeRouting";
 import { SPLICE_LANE_SEP } from "@/features/diagram/cableLayoutMetrics";
 
 describe("spliceEdgeRouting", () => {
-  afterEach(() => {
-    resetSpliceRouteRegistryForTests();
-  });
-
   it("assigns distinct import routing lanes for a pair of edges", () => {
     const lanes = assignSpliceRoutingLanesFromHandleEntries([
       {
@@ -86,89 +79,6 @@ describe("spliceEdgeRouting", () => {
     const top = lanes.get("top")!;
     const bottom = lanes.get("bottom")!;
     expect(top.midX).not.toBe(bottom.midX);
-  });
-
-  it("live-reroutes only edges on the dragged cable; others use stored lanes", () => {
-    setActiveDragCableNodeId("cable-left");
-    const sideSpans = defaultSideCircuitLabelSpan();
-    const storedMidX = minClearMidXForHandle(100, 300, sideSpans) + 24;
-    const storedOther = {
-      midX: storedMidX,
-      jogX: 0,
-      sourceHorizY: 50,
-      targetHorizY: 60,
-      routingLane: 0,
-    };
-
-    function usePair() {
-      const dragged = useRoutingLaneIndex(
-        "edge-a",
-        "cable-left",
-        "cable-right",
-        100,
-        100,
-        500,
-        400,
-        0,
-        true,
-        2,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-      );
-      const other = useRoutingLaneIndex(
-        "edge-b",
-        "cable-other-left",
-        "cable-other-right",
-        100,
-        100,
-        500,
-        400,
-        0,
-        true,
-        2,
-        undefined,
-        sideSpans,
-        undefined,
-        storedOther,
-      );
-      return { dragged, other };
-    }
-
-    const { result } = renderHook(() => usePair());
-    expect(result.current.other.midX).toBe(storedMidX);
-    expect(result.current.other.sourceHorizY).toBe(50);
-    expect(result.current.dragged.midX).not.toBe(storedMidX);
-  });
-
-  it("re-enforces stored midX at render when it falls inside the label column", () => {
-    setActiveDragCableNodeId(null);
-    const sideSpans = defaultSideCircuitLabelSpan();
-    const storedLane = {
-      midX: 420,
-    };
-    const { result } = renderHook(() =>
-      useRoutingLaneIndex(
-        "edge-b",
-        "cable-left",
-        "cable-right",
-        250,
-        100,
-        600,
-        400,
-        0,
-        true,
-        2,
-        undefined,
-        sideSpans,
-        undefined,
-        storedLane,
-        0,
-        0,
-      ),
-    );
-    expect(result.current.midX).toBe(420);
   });
 
   it("inverts lanes when target is below source (right cable lower)", () => {
@@ -311,7 +221,7 @@ describe("spliceEdgeRouting", () => {
     expect(spliceY).toBe(125);
   });
 
-  it("ignores sourceHorizY offset to preserve EDGE-004 two-bend limit", () => {
+  it("routes source-side gap horizontals on sourceHorizY offset track", () => {
     const sourceX = 250;
     const sourceY = 100;
     const midX = 420;
@@ -334,8 +244,9 @@ describe("spliceEdgeRouting", () => {
       sideSpans,
     );
     expect(leftPath).toMatch(new RegExp(`^M ${sourceX},${sourceY} L ${clearX},${sourceY}`));
-    expect(leftPath).toContain(`L ${midX},${sourceY}`);
-    expect(leftPath).not.toContain(",124");
+    expect(leftPath).toContain(`,124`);
+    expect(leftPath).toContain(`L ${midX},124`);
+    expect(leftPath).not.toContain(`L ${midX},${sourceY}`);
   });
 
   it("uses OS span for clearX when side labels are wide", () => {
@@ -361,7 +272,7 @@ describe("spliceEdgeRouting", () => {
     expect(clearX).toBeLessThanOrEqual(midX + 0.01);
   });
 
-  it("keeps target leg on handle row (ignores targetHorizY offset)", () => {
+  it("routes target-side gap horizontals on targetHorizY offset track", () => {
     const targetX = 900;
     const targetY = 400;
     const midX = 420;
@@ -377,8 +288,11 @@ describe("spliceEdgeRouting", () => {
       sideSpans,
       550,
     );
-    expect(rightPath).toBe(`M ${midX},250 L ${midX},${targetY} L ${targetX},${targetY}`);
-    expect(rightPath).not.toContain(",376");
+    const clearX = targetClearXBeforeVertical(targetX, midX, 550, sideSpans);
+    expect(rightPath).toContain(`L ${midX},376`);
+    expect(rightPath).toContain(`L ${clearX},376`);
+    expect(rightPath).toContain(`L ${targetX},${targetY}`);
+    expect(rightPath).not.toContain(`L ${midX},${targetY}`);
   });
 
   it("routingMidXForRender keeps distinct packed lanes inside the inset band", () => {
@@ -1450,10 +1364,6 @@ function syntheticFullButtSpliceGraph() {
 }
 
 describe("collapsed full butt splice tube routing", () => {
-  afterEach(() => {
-    resetSpliceRouteRegistryForTests();
-  });
-
   it("parseTubeHandleId parses striped tube handles", () => {
     expect(parseTubeHandleId("tube-CABLE-A::from|BL-BK-out")).toEqual({
       legId: "CABLE-A::from",

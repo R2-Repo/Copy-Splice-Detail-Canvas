@@ -247,15 +247,9 @@ function fillMissingFiberNumber(
     fibersPerTubeByCableName?.get(ep.cable) ??
     fibersPerBufferTubeFromCableName(ep.cable);
 
-  // Same-tube blank fiber#: Bentley crossover rows keep peer index (Example #1).
-  if (ep.tubeColor === peer.tubeColor && Number.isFinite(peer.fiberNumber)) {
-    return {
-      ...ep,
-      fiberNumber: peer.fiberNumber,
-      fiberNumberSource: "peer-copy",
-    };
-  }
-
+  // A fiber's number is fixed by its own tube + fiber color (TIA). Infer from
+  // those first so a blank To fiber# never inherits a number that disagrees
+  // with its color (which corrupts tube grouping and collides fiber numbers).
   const inferred = fiberNumberFromTubeAndColor(
     ep.tubeColor,
     ep.fiberColor,
@@ -263,6 +257,20 @@ function fillMissingFiberNumber(
   );
   if (Number.isFinite(inferred)) {
     return { ...ep, fiberNumber: inferred, fiberNumberSource: "inferred" };
+  }
+
+  // Same physical fiber across the splice (same tube AND fiber color): the peer
+  // index is the same fiber number — safe to copy when inference can't resolve.
+  if (
+    ep.tubeColor === peer.tubeColor &&
+    ep.fiberColor === peer.fiberColor &&
+    Number.isFinite(peer.fiberNumber)
+  ) {
+    return {
+      ...ep,
+      fiberNumber: peer.fiberNumber,
+      fiberNumberSource: "peer-copy",
+    };
   }
 
   if (Number.isFinite(peer.fiberNumber)) {
