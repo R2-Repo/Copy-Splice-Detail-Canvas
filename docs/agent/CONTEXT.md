@@ -86,6 +86,8 @@ See [`RULE_PRIORITY.md`](./RULE_PRIORITY.md). EDGE-004 strict ≤2 bends; widen 
 
 4. Callout text does not auto-update when toggling existing splices (re-click button)
 
+5. Glossary screenshot crops (`docs/reference/images/glossary/00`–`03`) not in repo — capture from `?fixture=example-2` + `scripts/crop-glossary-shots.ps1`
+
 
 
 ## Blockers

@@ -14,14 +14,16 @@ Frontend-only React PWA: node/workflow canvas (React Flow). No backend unless th
 | `docs/agent/LAYOUT_RULES.md` | **Must-keep** cable/tube/fiber layout invariants + test contract |
 | `.cursor/rules/frozen-routing.mdc` | **Frozen** splice routing symbols — user approval required |
 | `docs/agent/RULE_DICTIONARY.md` | Plain-English rule IDs for chat (`Rule ID: TUB-001`) |
-| `docs/agent/CANVAS_GLOSSARY.md` | Diagram component names + app screenshots |
+| `docs/agent/SIMPLE_TERMS.md` | **User simple names** (canonical chat vocabulary) — one-line diagram + simple ↔ official dictionary |
+| `docs/agent/CANVAS_GLOSSARY.md` | Expanded diagram part names + screenshots |
 | `docs/agent/CHANGELOG.md` | Archived session history (not active requirements) |
 | `docs/reference/` | User-provided examples, images, resources (when cited) |
 
 ## Workflow
 
 1. Read SCOPE → RULE_PRIORITY → CONTEXT + HANDOFF before coding (add LAYOUT_RULES for layout work).
-2. Plan in bullets; ask if requirements are unclear.
+2. When the user describes the diagram in simple terms, read **SIMPLE_TERMS.md** first and map to official/code names.
+3. Plan in bullets; ask if requirements are unclear.
 3. Implement in `src/` using existing patterns.
 4. Run **`npm run test:layout`** (layout contract — **required every session** with code changes).
 5. Run `npm run check`, `npm run test:ci`, `npm run build`.

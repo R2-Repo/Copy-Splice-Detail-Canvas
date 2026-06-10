@@ -1,7 +1,8 @@
 # Rule dictionary — plain English
 
 > **Use this when talking to agents.** Say `Rule ID: TUB-001` and both sides mean the same thing.  
-> Full spec: [`LAYOUT_RULES.md`](./LAYOUT_RULES.md) · Conflicts: [`RULE_PRIORITY.md`](./RULE_PRIORITY.md)
+> Full spec: [`LAYOUT_RULES.md`](./LAYOUT_RULES.md) · Conflicts: [`RULE_PRIORITY.md`](./RULE_PRIORITY.md)  
+> **Simple part names (user chat):** [`SIMPLE_TERMS.md`](./SIMPLE_TERMS.md) · **Expanded names:** [`CANVAS_GLOSSARY.md`](./CANVAS_GLOSSARY.md)
 
 ## How to use
 
