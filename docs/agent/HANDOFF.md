@@ -4,11 +4,13 @@
 
 ## Last updated
 
-2026-06-10 — Label anchor at code column + wider/black labels + shorter fan stub.
+2026-06-10 — Leg segment drag: vertical center lanes ↔ only; fan-out smooth drag.
 
 ## Done
 
-- **Labels at code column** — fan horizontal ends at `labelEndX` (code side); labels right-align into BL/OR column and grow left for long names; max width 128px; black text.
+- **Leg segment drag** — vertical center-lane segments only (↔); horizontal legs not draggable; Y via fan-out; pointer move/up wired; `shiftVerticalLane` keeps corners connected.
+- **Fan-out drag** — live preview, ±96px, single-tube sheath moves with tube; snap on release only.
+- **Manual adjust leg overlay** — panel-local coords; invisible hit strips on draggable segments only.
 - **Shorter fan horizontal** — `fiberFanStub` 8px; label runway 16px (was 36).
 - **Code beside handle (4px)** — `CableNode` absolute layout from `fiberRowLayoutXs`; fiber anchors mirrored to handle X.
 - **Dynamic fan fill** — fiber codes + handles in fixed columns; circuit labels right-align to codes; fan strand length varies per label (`fiberRowLayoutXs`).
@@ -20,8 +22,8 @@
 
 ## Next
 
-- Visual re-test Example #2: Manual adjust → fan-out vertical drag → segment handles → multi-select group drag.
-- `test:ci` CSV path cleanup when touching import tests.
+- **Group drag** (#6) — multi-select rows, drag together with constraints.
+- Leg override persistence spot-check on refresh.
 
 ## Commands verified
 

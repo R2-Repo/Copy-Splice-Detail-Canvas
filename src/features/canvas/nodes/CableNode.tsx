@@ -4,7 +4,9 @@ import {
   useUpdateNodeInternals,
   type NodeProps,
 } from "@xyflow/react";
-import { useEffect, type CSSProperties } from "react";
+import { useEffect, useMemo, type CSSProperties } from "react";
+
+import { useManualLayout } from "@/features/canvas/ManualLayoutContext";
 
 import {
   CABLE_LAYOUT,
@@ -31,6 +33,7 @@ import {
   formatCircuitTag,
 } from "@/features/diagram/cableLabels";
 import { tubeHandleId } from "@/features/diagram/tubeId";
+import { tubeKeyFor } from "@/features/diagram/tubeRowShift";
 import type { FiberColorAbbrev, TubeColorCode } from "@/types/splice";
 
 import type { CableNodeData } from "./types";
@@ -48,15 +51,38 @@ function tubeStroke(
 
 export function CableNode({ id, data }: NodeProps) {
   const d = data as CableNodeData;
+  const manual = useManualLayout();
   const { isFiberHighlighted } = useCircuitHighlight();
   const handlePos = d.side === "left" ? Position.Right : Position.Left;
   const pitch = d.fiberPitch ?? CABLE_LAYOUT.fiberRowH;
   const scale = d.diagramScale ?? 1;
   const updateNodeInternals = useUpdateNodeInternals();
   const collapsedTubes = new Set(d.collapsedTubes ?? []);
+  const visualCableId = id.replace(/^cable-/, "");
+
+  const tubesForRender = useMemo(() => {
+    const preview = manual?.tubePreview;
+    if (!preview?.size) return d.tubes;
+    return d.tubes.map((tube) => {
+      const key = tubeKeyFor(visualCableId, tube.tubeColor);
+      const patch = preview.get(key);
+      if (patch?.visualShiftY === undefined && patch?.stemReachX === undefined) {
+        return tube;
+      }
+      return {
+        ...tube,
+        ...(patch?.visualShiftY !== undefined
+          ? { visualShiftY: patch.visualShiftY }
+          : {}),
+        ...(patch?.stemReachX !== undefined
+          ? { stemReachX: patch.stemReachX }
+          : {}),
+      };
+    });
+  }, [d.tubes, manual?.tubePreview, visualCableId]);
 
   const geo = computeCableBreakout(
-    d.tubes,
+    tubesForRender,
     d.side,
     pitch,
     CABLE_LAYOUT.headerH,
@@ -70,7 +96,7 @@ export function CableNode({ id, data }: NodeProps) {
   }, [
     id,
     d.side,
-    d.tubes,
+    tubesForRender,
     d.collapsedTubes,
     geo.viewWidth,
     geo.viewHeight,
@@ -83,7 +109,7 @@ export function CableNode({ id, data }: NodeProps) {
     ),
   );
 
-  const allFibers = d.tubes
+  const allFibers = tubesForRender
     .flatMap((tube) => tube.fibers.map((fiber) => ({ tube, fiber })))
     .sort(
       (a, b) =>
@@ -94,7 +120,6 @@ export function CableNode({ id, data }: NodeProps) {
   const isTubeCollapsed = (tubeColor: TubeColorCode): boolean =>
     collapsedTubes.has(tubeColor);
 
-  const visualCableId = id.replace(/^cable-/, "");
   const defaultTubeLength =
     geo.tubes[0] != null
       ? Math.abs(geo.tubes[0].end.x - geo.tubes[0].origin.x)
@@ -373,7 +398,7 @@ export function CableNode({ id, data }: NodeProps) {
         <TubeManualHandles
           visualCableId={visualCableId}
           side={d.side}
-          tubes={d.tubes}
+          tubes={tubesForRender}
           tubeGeoms={geo.tubes}
           collapsedTubes={collapsedTubes}
           tubeFaceX={tubeFaceX}

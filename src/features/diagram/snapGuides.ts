@@ -36,20 +36,16 @@ export function snapToNearestTarget(
   return best;
 }
 
-/** Snap stem reach X to side alignment line when within tolerance. */
+/** Snap stem reach X to zero extension only (manual mode — no auto-reach pull). */
 export function snapStemReachX(
   reachX: number,
-  alignedStemX: number | undefined,
-  tubeFaceX: number,
-  defaultTubeLength: number,
+  _alignedStemX: number | undefined,
+  _tubeFaceX: number,
+  _defaultTubeLength: number,
   tolerance = SNAP_TOLERANCE,
 ): number {
-  if (alignedStemX === undefined) return reachX;
-  const autoReach = alignedStemX - BREAKOUT_GAP - tubeFaceX - defaultTubeLength;
-  return snapToNearestTarget(reachX, [autoReach, 0], tolerance);
+  return snapToNearestTarget(reachX, [0], tolerance);
 }
-
-const BREAKOUT_GAP = 18;
 
 /** Collect unique snap targets for tube tip absolute Y. */
 export function tubeTipSnapTargets(
@@ -75,6 +71,52 @@ export function snapTubeTipShiftY(
     return pitched + (snappedAbs - absoluteTipY);
   }
   return pitched;
+}
+
+/** Manual drag release: snap to 24px pitch grid + peer layout lines (not auto-reach). */
+export function snapManualAbsoluteY(
+  absoluteY: number,
+  layoutLineYs: number[],
+  rowAnchorY: number,
+  tolerance = SNAP_TOLERANCE,
+): number {
+  const pitchTargets: number[] = [];
+  for (let step = -4; step <= 4; step++) {
+    pitchTargets.push(rowAnchorY + step * FIBER_ROW_PITCH);
+  }
+  const targets = [...new Set([...layoutLineYs, ...pitchTargets])];
+  return snapToNearestTarget(absoluteY, targets, tolerance);
+}
+
+/** Manual fan-out release: keep shiftY but snap absolute tip to pitch + peers. */
+export function snapManualShiftYOnRelease(
+  shiftY: number,
+  rowAnchorY: number,
+  layoutLineYs: number[],
+  tolerance = SNAP_TOLERANCE,
+): number {
+  const absolute = rowAnchorY + shiftY;
+  const snapped = snapManualAbsoluteY(
+    absolute,
+    layoutLineYs,
+    rowAnchorY,
+    tolerance,
+  );
+  return snapped - rowAnchorY;
+}
+
+/** Manual drag release: snap to layout lines only (no pitch quantize). */
+export function snapTubeTipShiftYOnRelease(
+  shiftY: number,
+  absoluteTipY: number,
+  snapTargets: number[],
+  tolerance = SNAP_TOLERANCE,
+): number {
+  const snappedAbs = snapToNearestTarget(absoluteTipY, snapTargets, tolerance);
+  if (snappedAbs !== absoluteTipY) {
+    return shiftY + (snappedAbs - absoluteTipY);
+  }
+  return shiftY;
 }
 
 /** Absolute canvas Y targets for tube-tip snapping across the diagram. */

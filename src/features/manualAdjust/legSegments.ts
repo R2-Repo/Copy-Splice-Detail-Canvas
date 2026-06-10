@@ -77,32 +77,29 @@ export function allowedSegmentAxes(
   segment: LegSegment,
   segmentCount: number,
 ): SegmentDragAxis[] {
-  const idx = segment.index;
+  // Manual leg adjust: shift center vertical lanes ↔ only (Y via fan-out drag).
+  if (segment.kind !== "v") return [];
 
-  if (template === "straight") {
-    return idx === 1 && segment.kind === "h" ? ["horizontal"] : [];
-  }
+  const run = segment.y1 - segment.y0;
+  if (run < 8) return [];
 
   if (template === "same_side") {
-    if (segment.kind === "v" && idx === 2) return ["horizontal"];
-    if (segment.kind === "h" && (idx === 1 || idx === segmentCount)) {
-      return ["vertical"];
-    }
-    return [];
+    return segment.index === 2 ? ["horizontal"] : [];
   }
 
-  // hv_demarcated
-  if (side === "left") {
-    if (segment.kind === "h" && idx === 1) return ["horizontal", "vertical"];
-    if (segment.kind === "v") return ["horizontal"];
-    return [];
-  }
-
-  if (segment.kind === "h" && idx === 1) return ["horizontal", "vertical"];
-  if (segment.kind === "v" && idx === 2 && segmentCount >= 3) {
+  // hv_demarcated — vertical run on a 90° bend toward/from center
+  if (template === "hv_demarcated") {
+    if (side === "left") return ["horizontal"];
     return ["horizontal"];
   }
-  if (segment.kind === "h" && idx === segmentCount) return ["vertical"];
+
+  // Same-row splices still get stacked vertical lanes on the right leg (routingMidX / jogX).
+  if (template === "straight") {
+    return side === "right" ? ["horizontal"] : [];
+  }
+
+  if (segment.index === 2) return ["horizontal"];
+  if (segmentCount === 2 && segment.index === 1) return ["horizontal"];
   return [];
 }
 
@@ -120,6 +117,43 @@ export function segmentsToPath(
     }
   }
   return parts.join(" ");
+}
+
+function shiftVerticalLane(
+  segments: LegSegment[],
+  verticalIndex: number,
+  delta: number,
+): LegSegment[] {
+  const vert = segments.find((s) => s.index === verticalIndex);
+  if (!vert || vert.kind !== "v") return segments;
+  const laneX = vert.x;
+
+  return segments.map((s) => {
+    if (s.kind === "v" && Math.abs(s.x - laneX) <= SPLICE_PATH_EPS + 1) {
+      return { ...s, x: s.x + delta };
+    }
+    if (s.kind === "h") {
+      const touchesTop =
+        Math.abs(s.y - vert.y0) <= SPLICE_PATH_EPS + 1 &&
+        Math.abs(s.x1 - laneX) <= SPLICE_PATH_EPS + 1;
+      const touchesBottom =
+        Math.abs(s.y - vert.y1) <= SPLICE_PATH_EPS + 1 &&
+        Math.abs(s.x0 - laneX) <= SPLICE_PATH_EPS + 1;
+      if (touchesTop) {
+        return { ...s, x1: s.x1 + delta };
+      }
+      if (touchesBottom) {
+        return { ...s, x0: s.x0 + delta };
+      }
+      if (Math.abs(s.x0 - laneX) <= SPLICE_PATH_EPS + 1) {
+        return { ...s, x0: s.x0 + delta };
+      }
+      if (Math.abs(s.x1 - laneX) <= SPLICE_PATH_EPS + 1) {
+        return { ...s, x1: s.x1 + delta };
+      }
+    }
+    return s;
+  });
 }
 
 function resizeNeighborVertical(
@@ -161,35 +195,30 @@ export function applySegmentDelta(
   const axes = allowedSegmentAxes(template, side, seg, segments.length);
   if (!axes.includes(axis)) return segments;
 
+  if (axis === "horizontal" && seg.kind === "v") {
+    if (template === "same_side") {
+      return segments.map((s) => {
+        if (s.kind === "h" && s.index === 1) {
+          return { ...s, x1: s.x1 + delta };
+        }
+        if (s.kind === "h" && s.index === segments.length) {
+          return { ...s, x0: s.x0 + delta };
+        }
+        if (s.index === segmentIndex && s.kind === "v") {
+          return { ...s, x: s.x + delta };
+        }
+        return s;
+      });
+    }
+    return shiftVerticalLane(segments, segmentIndex, delta);
+  }
+
   if (axis === "vertical" && seg.kind === "h") {
     return resizeNeighborVertical(segments, segmentIndex, delta);
   }
 
-  if (template === "same_side" && axis === "horizontal" && seg.kind === "v") {
-    return segments.map((s) => {
-      if (s.kind === "h" && s.index === 1) {
-        return { ...s, x1: s.x1 + delta };
-      }
-      if (s.kind === "h" && s.index === segments.length) {
-        return { ...s, x0: s.x0 + delta };
-      }
-      if (s.index === segmentIndex && s.kind === "v") {
-        return { ...s, x: s.x + delta };
-      }
-      return s;
-    });
-  }
-
   return segments.map((s) => {
     if (s.index !== segmentIndex) return s;
-    if (axis === "horizontal" && s.kind === "h") {
-      return segmentIndex === segments.length
-        ? { ...s, x0: s.x0 + delta, x1: s.x1 + delta }
-        : { ...s, x1: s.x1 + delta };
-    }
-    if (axis === "horizontal" && s.kind === "v") {
-      return { ...s, x: s.x + delta };
-    }
     if (axis === "vertical" && s.kind === "v") {
       return { ...s, y1: s.y1 + delta };
     }

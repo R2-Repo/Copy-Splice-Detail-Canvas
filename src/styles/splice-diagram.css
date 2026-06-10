@@ -847,25 +847,26 @@
 .manual-adjust-overlay {
   position: absolute;
   inset: 0;
-  pointer-events: all;
+  pointer-events: none;
   z-index: 6;
 }
 
 .manual-adjust-segment {
   position: absolute;
-  width: 10px;
-  height: 10px;
+  border: none;
   border-radius: 2px;
-  border: 1px solid #64748b;
-  background: rgba(148, 163, 184, 0.35);
+  background: transparent;
   pointer-events: all;
-  cursor: grab;
   padding: 0;
 }
 
+.manual-adjust-segment:hover,
+.manual-adjust-segment:active {
+  background: rgba(37, 99, 235, 0.12);
+}
+
 .manual-adjust-segment--selected {
-  border-color: #2563eb;
-  background: rgba(37, 99, 235, 0.45);
+  background: rgba(37, 99, 235, 0.18);
 }
 
 .manual-adjust-selection-ring {

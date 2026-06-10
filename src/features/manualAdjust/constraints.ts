@@ -5,6 +5,8 @@ import {
   SPLICE_PATH_EPS,
 } from "@/features/canvas/edges/splicePathGeometry";
 
+import { MAX_MANUAL_FANOUT_SHIFT_Y } from "@/features/diagram/tubeRowShift";
+
 import type { LegSegment } from "./legSegments";
 import { pathToLegSegments } from "./legSegments";
 
@@ -110,6 +112,9 @@ export function pathsWithinBendBudget(leftPath: string, rightPath: string): bool
   return countOrthogonalBends(leftPath, rightPath) <= MAX_SPLICE_BENDS;
 }
 
-export function clampFanoutShiftY(shiftY: number, maxShift = 48): number {
+export function clampFanoutShiftY(
+  shiftY: number,
+  maxShift = MAX_MANUAL_FANOUT_SHIFT_Y,
+): number {
   return Math.max(-maxShift, Math.min(maxShift, shiftY));
 }

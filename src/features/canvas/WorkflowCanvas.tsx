@@ -77,6 +77,7 @@ import {
   manualLayoutWarningsForEdges,
 } from "@/features/diagram/manualLayoutWarnings";
 import { ManualAdjustOverlay } from "@/features/manualAdjust/ManualAdjustOverlay";
+import { applyAllLegOverrides } from "@/features/manualAdjust/applyManualAdjust";
 import { useManualAdjustEngine } from "@/features/manualAdjust/useManualAdjustEngine";
 import {
   collectGlobalTubeTipSnapTargets,
@@ -225,6 +226,9 @@ function WorkflowCanvasInner() {
   const [activeGuides, setActiveGuides] = useState<ManualLayoutGuideLine[]>(
     [],
   );
+  const [tubePreview, setTubePreviewState] = useState<
+    Map<TubeOverrideKey, TubeManualOverride>
+  >(() => new Map());
   const autoAdjustRef = useRef(true);
 
   collapseRef.current = collapseFullButtSplices;
@@ -774,53 +778,25 @@ function WorkflowCanvasInner() {
       if (!graph || !reportKey) return;
 
       const existing = loadLayoutOverrides(reportKey);
-      const positions = positionsFromNodes(
-        getNodes().filter((n) => n.type === "cable"),
-      );
-      const { nodes: nextNodes, edges: nextEdges, autoLayoutY } =
-        buildReactFlowGraph(
-          graph,
-          {
-            reportKey,
-            collapseFullButtSplices: collapseRef.current,
-            positions,
-            existingEdgeIds: existing?.existingEdgeIds,
-            cableSides: existing?.cableSides,
-            layoutWidth: layoutWidthRef.current,
-            autoAdjustEnabled: false,
-            tubeOverrides: existing?.tubeOverrides,
-            fanoutOverrides: existing?.fanoutOverrides,
-            legOverrides,
-          },
-          layoutWidthRef.current,
-          { skipTubeAutoAlign: true },
-        );
-      const mergedNodes = attachStoredCallouts(nextNodes, reportKey, positions);
-      setNodes(mergedNodes);
+      const nextEdges = applyAllLegOverrides(edges, {
+        legOverrides,
+      } as LayoutOverrides);
       setEdges(nextEdges);
       saveLayoutOverrides(
         mergeLayoutOverrides(reportKey, {
-          positions: positionsFromNodes(mergedNodes),
-          autoLayoutY,
-          existingEdgeIds: existingIdsFromEdges(nextEdges),
-          collapseFullButtSplices: collapseRef.current,
-          layoutWidth: layoutWidthRef.current,
-          cableSides: existing?.cableSides,
-          callouts: existing?.callouts,
-          autoAdjustEnabled: false,
-          tubeOverrides: existing?.tubeOverrides,
-          fanoutOverrides: existing?.fanoutOverrides,
+          ...existing,
           legOverrides,
+          autoAdjustEnabled: false,
         }),
       );
       updateManualWarnings(
         graph,
-        mergedNodes,
+        nodes,
         nextEdges,
         new Set(Object.keys(legOverrides ?? {}).map((id) => `splice-${id}`)),
       );
     },
-    [getNodes, setEdges, setNodes, updateManualWarnings],
+    [edges, nodes, setEdges, updateManualWarnings],
   );
 
   const legOverridesForEngine = useMemo(() => {
@@ -1197,6 +1173,21 @@ function WorkflowCanvasInner() {
     [manualAdjustEngine, refreshDragRouting, setNodes],
   );
 
+  const setTubePreview = useCallback(
+    (tubeKey: TubeOverrideKey, patch: TubeManualOverride | null) => {
+      setTubePreviewState((prev) => {
+        const next = new Map(prev);
+        if (patch === null) {
+          next.delete(tubeKey);
+        } else {
+          next.set(tubeKey, patch);
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
   const snapTipTargets = useMemo(() => {
     const graph = graphRef.current;
     if (!graph || autoAdjustEnabled) return [];
@@ -1216,6 +1207,8 @@ function WorkflowCanvasInner() {
       manualAdjustEnabled: !autoAdjustEnabled,
       onFiberAnchorClick: manualAdjustEngine.onFiberAnchorClick,
       snapTipTargets,
+      tubePreview,
+      setTubePreview,
       onTubeOverrideCommit: handleTubeOverrideCommit,
       activeGuides,
       setActiveGuides,
@@ -1224,6 +1217,8 @@ function WorkflowCanvasInner() {
       autoAdjustEnabled,
       manualAdjustEngine.onFiberAnchorClick,
       snapTipTargets,
+      tubePreview,
+      setTubePreview,
       handleTubeOverrideCommit,
       activeGuides,
     ],
@@ -1433,7 +1428,7 @@ function WorkflowCanvasInner() {
         <span className="workflow-canvas__hint">
           {autoAdjustEnabled
             ? "Drag cables to reposition; click edge for protect-in-place"
-            : "Manual mode: drag fan-out tips, leg segments, or shift+click handles; box-select supported"}
+            : "Manual mode: drag fan-out tips vertically; drag center vertical legs ↔; shift+click handles; box-select on canvas"}
         </span>
         {manualWarningBanner ? (
           <span className="workflow-canvas__manual-warning" role="status">

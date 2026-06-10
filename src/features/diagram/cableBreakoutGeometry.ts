@@ -435,6 +435,14 @@ export function computeCableBreakout(
     };
   });
 
+  // Single-tube cables: fan-out drag moves sheath + tube + fan as one unit (TUB/manual).
+  if (sortedTubes.length === 1) {
+    const shiftY = sortedTubes[0]!.visualShiftY ?? 0;
+    if (Math.abs(shiftY) > Y_TOLERANCE) {
+      sheath.y += shiftY;
+    }
+  }
+
   if (side === "right") {
     sheath.x = viewWidth - sheathSize.width;
     for (const tube of tubeGeoms) {

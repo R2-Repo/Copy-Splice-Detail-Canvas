@@ -14,6 +14,9 @@ export const MAX_TUBE_ROW_SHIFT = FIBER_ROW_PITCH / 2;
 /** Max tube-tip shift when the tube is collapsed (full butt splice). */
 export const MAX_TUBE_ROW_SHIFT_COLLAPSED = FIBER_ROW_PITCH;
 
+/** Manual fan-out drag limit (±px). Auto tube-row align keeps the tighter budget above. */
+export const MAX_MANUAL_FANOUT_SHIFT_Y = FIBER_ROW_PITCH * 4;
+
 const Y_TOLERANCE = 0.5;
 
 export type TubeKey = `${string}|${TubeColorCode}`;

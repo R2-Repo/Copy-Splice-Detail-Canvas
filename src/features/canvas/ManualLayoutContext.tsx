@@ -16,6 +16,12 @@ export type ManualLayoutContextValue = {
     event: { shiftKey: boolean },
   ) => void;
   snapTipTargets: number[];
+  /** Live fan-out drag preview (cleared on commit). */
+  tubePreview: ReadonlyMap<TubeOverrideKey, TubeManualOverride>;
+  setTubePreview: (
+    tubeKey: TubeOverrideKey,
+    patch: TubeManualOverride | null,
+  ) => void;
   onTubeOverrideCommit: (
     tubeKey: TubeOverrideKey,
     patch: TubeManualOverride,

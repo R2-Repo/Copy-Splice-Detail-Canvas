@@ -1,14 +1,9 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 
 import { useManualLayout } from "@/features/canvas/ManualLayoutContext";
-import {
-  snapStemReachX,
-  snapTubeTipShiftY,
-} from "@/features/diagram/snapGuides";
-import {
-  MAX_TUBE_ROW_SHIFT,
-  tubeKeyFor,
-} from "@/features/diagram/tubeRowShift";
+import { snapManualShiftYOnRelease } from "@/features/diagram/snapGuides";
+import { clampFanoutShiftY } from "@/features/manualAdjust/constraints";
+import { tubeKeyFor } from "@/features/diagram/tubeRowShift";
 import type { VisualTube } from "@/features/diagram/visualCables";
 import type { TubeColorCode } from "@/types/splice";
 
@@ -35,14 +30,11 @@ export function TubeManualHandles({
   tubes,
   tubeGeoms,
   collapsedTubes,
-  tubeFaceX,
-  defaultTubeLength,
+  tubeFaceX: _tubeFaceX,
+  defaultTubeLength: _defaultTubeLength,
   alignedStemX,
 }: Props) {
   const manual = useManualLayout();
-  const [preview, setPreview] = useState<
-    Map<TubeColorCode, { visualShiftY?: number; stemReachX?: number }>
-  >(new Map());
   const dragRef = useRef<{
     tubeColor: TubeColorCode;
     axis: "y" | "x";
@@ -55,15 +47,18 @@ export function TubeManualHandles({
   const tubeState = useCallback(
     (tubeColor: TubeColorCode) => {
       const source = tubes.find((t) => t.tubeColor === tubeColor);
-      const p = preview.get(tubeColor);
+      const preview = manual?.tubePreview.get(
+        tubeKeyFor(visualCableId, tubeColor),
+      );
       return {
-        visualShiftY: p?.visualShiftY ?? source?.visualShiftY ?? 0,
-        stemReachX: p?.stemReachX ?? source?.stemReachX ?? 0,
+        visualShiftY:
+          preview?.visualShiftY ?? source?.visualShiftY ?? 0,
+        stemReachX: preview?.stemReachX ?? source?.stemReachX ?? 0,
         savedShiftY: source?.visualShiftY ?? 0,
         savedReachX: source?.stemReachX ?? 0,
       };
     },
-    [preview, tubes],
+    [manual?.tubePreview, tubes, visualCableId],
   );
 
   if (!manual?.manualAdjustEnabled) return null;
@@ -93,23 +88,12 @@ export function TubeManualHandles({
     if (!drag || !manual) return;
     event.stopPropagation();
 
+    const tubeKey = tubeKeyFor(visualCableId, drag.tubeColor);
+
     if (drag.axis === "y") {
       const delta = event.clientY - drag.startPointer;
-      let next = drag.startShiftY + delta;
-      next = Math.max(-MAX_TUBE_ROW_SHIFT, Math.min(MAX_TUBE_ROW_SHIFT, next));
-      next = snapTubeTipShiftY(
-        next,
-        drag.baseTipY + next,
-        manual.snapTipTargets,
-      );
-      setPreview((prev) => {
-        const nextMap = new Map(prev);
-        nextMap.set(drag.tubeColor, {
-          ...nextMap.get(drag.tubeColor),
-          visualShiftY: next,
-        });
-        return nextMap;
-      });
+      const next = clampFanoutShiftY(drag.startShiftY + delta);
+      manual.setTubePreview(tubeKey, { visualShiftY: next });
       manual.setActiveGuides([
         {
           id: `tip-${drag.tubeColor}`,
@@ -123,20 +107,7 @@ export function TubeManualHandles({
         (side === "left"
           ? event.clientX - drag.startPointer
           : drag.startPointer - event.clientX);
-      const next = snapStemReachX(
-        raw,
-        alignedStemX,
-        tubeFaceX,
-        defaultTubeLength,
-      );
-      setPreview((prev) => {
-        const nextMap = new Map(prev);
-        nextMap.set(drag.tubeColor, {
-          ...nextMap.get(drag.tubeColor),
-          stemReachX: next,
-        });
-        return nextMap;
-      });
+      manual.setTubePreview(tubeKey, { stemReachX: raw });
       if (alignedStemX !== undefined) {
         manual.setActiveGuides([
           {
@@ -155,24 +126,46 @@ export function TubeManualHandles({
     dragRef.current = null;
     manual.setActiveGuides([]);
 
-    const state = tubeState(drag.tubeColor);
     const tubeKey = tubeKeyFor(visualCableId, drag.tubeColor);
+    const state = tubeState(drag.tubeColor);
     const patch: { visualShiftY?: number; stemReachX?: number } = {};
 
     if (drag.axis === "y") {
+      const before = state.visualShiftY;
+      let finalShift = clampFanoutShiftY(state.visualShiftY);
+      finalShift = snapManualShiftYOnRelease(
+        finalShift,
+        drag.baseTipY,
+        manual.snapTipTargets,
+      );
+      // #region agent log
+      if (Math.abs(finalShift - before) > 0.01) {
+        fetch("http://127.0.0.1:7276/ingest/954dc9e2-dc29-44e2-8638-93624e140b86", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "ab59ca",
+          },
+          body: JSON.stringify({
+            sessionId: "ab59ca",
+            location: "TubeManualHandles.tsx:finishDrag",
+            message: "fan-out snap on release",
+            data: { before, after: finalShift, rowAnchorY: drag.baseTipY },
+            timestamp: Date.now(),
+            hypothesisId: "S1",
+            runId: "snap-fix",
+          }),
+        }).catch(() => {});
+      }
+      // #endregion
       patch.visualShiftY =
-        Math.abs(state.visualShiftY) < 0.5 ? undefined : state.visualShiftY;
+        Math.abs(finalShift) < 0.5 ? undefined : finalShift;
     } else {
       patch.stemReachX =
         Math.abs(state.stemReachX) < 0.5 ? undefined : state.stemReachX;
     }
 
-    setPreview((prev) => {
-      const nextMap = new Map(prev);
-      nextMap.delete(drag.tubeColor);
-      return nextMap;
-    });
-
+    manual.setTubePreview(tubeKey, null);
     manual.onTubeOverrideCommit(tubeKey, patch);
   };
 

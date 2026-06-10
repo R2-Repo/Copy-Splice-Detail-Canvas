@@ -244,6 +244,48 @@ describe("computeCableBreakout", () => {
       10,
       5,
     );
+    expect(shifted.sheath.y - base.sheath.y).toBeCloseTo(10, 5);
+    expect(tube.origin.y).toBeCloseTo(
+      shifted.sheath.y + shifted.sheath.height / 2,
+      5,
+    );
+  });
+
+  it("single-tube visualShiftY keeps tube origin on sheath face; multi-tube sheath stays put", () => {
+    const single = [
+      {
+        ...mockTube("BL", [
+          { rowIndex: 0, rowYOffset: 0, handleId: "f0", fiberColor: "BL" },
+        ]),
+        visualShiftY: 12,
+      },
+    ];
+    const singleGeo = computeCableBreakout(single, "left", 40, 56, 18);
+    expect(singleGeo.tubes[0]!.origin.y).toBeCloseTo(
+      singleGeo.sheath.y + singleGeo.sheath.height / 2,
+      5,
+    );
+
+    const multi = [
+      {
+        ...mockTube("BL", [
+          { rowIndex: 0, rowYOffset: 0, handleId: "f0", fiberColor: "BL" },
+        ]),
+        visualShiftY: 12,
+      },
+      mockTube("OR", [
+        { rowIndex: 1, rowYOffset: 40, handleId: "f1", fiberColor: "OR" },
+      ]),
+    ];
+    const multiBase = computeCableBreakout(
+      multi.map((t) => ({ ...t, visualShiftY: undefined })),
+      "left",
+      40,
+      56,
+      18,
+    );
+    const multiShift = computeCableBreakout(multi, "left", 40, 56, 18);
+    expect(multiShift.sheath.y).toBeCloseTo(multiBase.sheath.y, 5);
   });
 
   it("shortens tube stem and uses smooth curved fan legs", () => {

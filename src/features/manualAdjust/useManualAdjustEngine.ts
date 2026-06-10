@@ -17,6 +17,10 @@ import {
   type SegmentDragAxis,
 } from "./legSegments";
 import {
+  collectLegLaneSnapTargetsXs,
+  snapManualX,
+} from "./snapTargets";
+import {
   connectionsInMarquee,
   emptySelection,
   setConnectionSelection,
@@ -31,6 +35,7 @@ type SegmentDragState = {
   axis: SegmentDragAxis;
   startPointer: number;
   accumulatedDelta: number;
+  startLaneX?: number;
   baseOverrides: NonNullable<LayoutOverrides["legOverrides"]>;
 };
 
@@ -136,7 +141,7 @@ export function useManualAdjustEngine({
 
   const resolveSegmentAxis = useCallback(
     (
-      event: React.PointerEvent,
+      _event: React.PointerEvent,
       side: LegSide,
       segmentIndex: number,
       connectionId: string,
@@ -152,9 +157,8 @@ export function useManualAdjustEngine({
       );
       const segments = side === "left" ? left : right;
       const seg = segments.find((s) => s.index === segmentIndex);
-      if (!seg) return "horizontal";
-      if (seg.kind === "v") return "horizontal";
-      return event.shiftKey ? "vertical" : "horizontal";
+      if (!seg || seg.kind !== "v") return "horizontal";
+      return "horizontal";
     },
     [edges],
   );
@@ -173,6 +177,21 @@ export function useManualAdjustEngine({
       const ids = selection.connectionIds.has(connectionId)
         ? [...selection.connectionIds]
         : [connectionId];
+      let startLaneX: number | undefined;
+      if (axis === "horizontal") {
+        const leftEdge = edges.find((e) => e.id === `splice-left-${connectionId}`);
+        const data = (leftEdge?.data ?? {}) as {
+          leftPath?: string;
+          rightPath?: string;
+        };
+        const paths = legSegmentsFromPaths(
+          String(data.leftPath ?? ""),
+          String(data.rightPath ?? ""),
+        );
+        const segments = side === "left" ? paths.left : paths.right;
+        const seg = segments.find((s) => s.index === segmentIndex);
+        if (seg?.kind === "v") startLaneX = seg.x;
+      }
       segmentDragRef.current = {
         connectionIds: ids,
         side,
@@ -180,11 +199,12 @@ export function useManualAdjustEngine({
         axis,
         startPointer: axis === "horizontal" ? event.clientX : event.clientY,
         accumulatedDelta: 0,
+        startLaneX,
         baseOverrides: { ...(legOverrides ?? {}) },
       };
       (event.target as HTMLElement).setPointerCapture(event.pointerId);
     },
-    [enabled, legOverrides, resolveSegmentAxis, selection.connectionIds],
+    [enabled, edges, legOverrides, resolveSegmentAxis, selection.connectionIds],
   );
 
   const onSegmentPointerMove = useCallback(
@@ -210,6 +230,49 @@ export function useManualAdjustEngine({
       segmentDragRef.current = null;
       if (Math.abs(drag.accumulatedDelta) < 0.5) return;
 
+      let finalDelta = drag.accumulatedDelta;
+      if (
+        drag.axis === "horizontal" &&
+        drag.startLaneX !== undefined
+      ) {
+        const targets = collectLegLaneSnapTargetsXs(
+          edges,
+          drag.connectionIds[0],
+        );
+        const snappedX = snapManualX(drag.startLaneX + finalDelta, targets);
+        finalDelta = snappedX - drag.startLaneX;
+      }
+
+      const correction = finalDelta - drag.accumulatedDelta;
+      if (Math.abs(correction) > 0.01) {
+        setEdges((current) => previewSegmentDrag(current, drag, correction));
+      }
+
+      // #region agent log
+      if (Math.abs(finalDelta - drag.accumulatedDelta) > 0.01) {
+        fetch("http://127.0.0.1:7276/ingest/954dc9e2-dc29-44e2-8638-93624e140b86", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "ab59ca",
+          },
+          body: JSON.stringify({
+            sessionId: "ab59ca",
+            location: "useManualAdjustEngine.ts:onSegmentPointerUp",
+            message: "leg lane snap on release",
+            data: {
+              rawDelta: drag.accumulatedDelta,
+              finalDelta,
+              startLaneX: drag.startLaneX,
+            },
+            timestamp: Date.now(),
+            hypothesisId: "S2",
+            runId: "snap-fix",
+          }),
+        }).catch(() => {});
+      }
+      // #endregion
+
       const nextOverrides = { ...drag.baseOverrides };
       for (const connectionId of drag.connectionIds) {
         nextOverrides[connectionId] = accumulateLegOverride(
@@ -217,12 +280,12 @@ export function useManualAdjustEngine({
           drag.side,
           drag.segmentIndex,
           drag.axis,
-          drag.accumulatedDelta,
+          finalDelta,
         );
       }
       onLegOverridesCommit(nextOverrides);
     },
-    [enabled, onLegOverridesCommit],
+    [enabled, edges, onLegOverridesCommit, setEdges],
   );
 
   const onNodeDrag: OnNodeDrag<Node> = useCallback((_, node) => {

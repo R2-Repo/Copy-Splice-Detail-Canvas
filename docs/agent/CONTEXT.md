@@ -14,7 +14,7 @@
 ## In scope NOW
 
 - **Auto-mode cable drag** — live drag uses `dragSync` (routing only); stack collision on drag stop
-- **Manual adjust** — `LayoutOverrides` v13; fixed **handle column**; fan-out/labels vertical drag; leg segment overlay; shift+click + box marquee multi-select; DOT-003 (48px corner clearance)
+- **Manual adjust** — `LayoutOverrides` v13; fixed **handle column**; fan-out/labels vertical drag; **direct leg segment drag** (invisible hit strips + axis cursor); shift+click + box marquee multi-select; DOT-003 (48px corner clearance)
 - **Cable callouts** — toolbar button; red editable labels per cable node
 - Visual re-test: import Example #2 → Manual adjust → fan-out drag, segment handles, multi-select
 - `test:ci` CSV path cleanup (`docs/reference/examples/old csv examples/`)
@@ -36,7 +36,7 @@ See [`RULE_PRIORITY.md`](./RULE_PRIORITY.md). EDGE-004 strict ≤2 bends; widen 
 | Manual adjust | **Engine module** | `src/features/manualAdjust/`; `useManualAdjustEngine` + `ManualAdjustOverlay` |
 | Handle column | **Fixed at max label width** | ~154px from stem; labels grow inward from handle; routing tag width = 0 at handle |
 | Fan-out drag | **Vertical per tube** | `fanoutOverrides` + `visualShiftY`; buffer tube stretches; horizontal reach handle removed |
-| Leg segments | **Numbered at corners** | `legOverrides` v13; Rules 3–4 constraints in `constraints.ts` |
+| Leg segments | **Direct drag on leg** | `legOverrides` v13; invisible hit strips + axis cursor; Rules 3–4 in `constraints.ts` |
 | Multi-select | **Shift+click + box marquee** | Fiber anchor nodes; group drag with per-splice constraints |
 | Auto cable drag | **`dragSync` during pointer move** | Skips collision until drag stop; `syncNodesEngineDragLayout` |
 | Tube overrides | **`vcId\|tubeColor` keys** | `visualShiftY` (fan-out shift); locked tubes skip auto TUB-008 |
