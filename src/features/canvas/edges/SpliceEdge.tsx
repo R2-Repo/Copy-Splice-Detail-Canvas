@@ -1,5 +1,6 @@
 import { BaseEdge, type EdgeProps } from "@xyflow/react";
 
+import { useCircuitHighlight } from "@/features/canvas/CircuitHighlightContext";
 import {
   buildButtSplicePath,
   buildSplicePath,
@@ -22,6 +23,8 @@ type SpliceEdgeData = {
   targetColor?: string;
   existing?: boolean;
   fullButtSplice?: boolean;
+  /** Full-butt tube edge — underlying fiber pair ids for circuit highlight. */
+  pairIds?: string[];
   laneIndex?: number;
   laneCount?: number;
   laneOverride?: number;
@@ -105,6 +108,7 @@ function SpliceEdgeBody({
   rightPath,
   spliceX,
   spliceY,
+  highlighted = false,
 }: {
   id: string;
   d: SpliceEdgeData;
@@ -112,6 +116,7 @@ function SpliceEdgeBody({
   rightPath: string;
   spliceX: number;
   spliceY: number;
+  highlighted?: boolean;
 }) {
   const { sourceStroke, targetStroke, dash, tubeStroke, edgeOpacity } =
     spliceEdgeStrokes(d);
@@ -119,9 +124,10 @@ function SpliceEdgeBody({
   const showLeft = splitLeg !== "right";
   const showRight = splitLeg !== "left";
   const showFusionDot = splitLeg === undefined;
+  const highlightClass = highlighted ? " splice-edge--highlighted" : "";
 
   return (
-    <>
+    <g className={`splice-edge${highlightClass}`}>
       {showLeft ? (
         <SpliceLeg
           id={`${id}-left`}
@@ -162,7 +168,7 @@ function SpliceEdgeBody({
           />
         )
       ) : null}
-    </>
+    </g>
   );
 }
 
@@ -170,9 +176,11 @@ function SpliceEdgeBody({
 function PrecomputedSpliceEdge({
   id,
   data,
+  highlighted,
 }: {
   id: string;
   data: SpliceEdgeData;
+  highlighted: boolean;
 }) {
   return (
     <SpliceEdgeBody
@@ -182,6 +190,7 @@ function PrecomputedSpliceEdge({
       rightPath={data.rightPath!}
       spliceX={data.spliceX!}
       spliceY={data.spliceY!}
+      highlighted={highlighted}
     />
   );
 }
@@ -194,7 +203,8 @@ function StoredLaneSpliceEdge({
   targetX,
   targetY,
   data,
-}: EdgeProps & { data: SpliceEdgeData }) {
+  highlighted,
+}: EdgeProps & { data: SpliceEdgeData; highlighted: boolean }) {
   const d = data;
   const fallbackLane = d.laneOverride ?? d.laneIndex ?? 0;
   const laneCount = Math.max(1, d.laneCount ?? 1);
@@ -261,6 +271,7 @@ function StoredLaneSpliceEdge({
       rightPath={rightPath}
       spliceX={spliceX}
       spliceY={spliceY}
+      highlighted={highlighted}
     />
   );
 }
@@ -277,8 +288,12 @@ function isPrecomputedSpliceData(d: SpliceEdgeData): boolean {
 
 export function SpliceEdge(props: EdgeProps) {
   const d = (props.data ?? {}) as SpliceEdgeData;
+  const { isEdgeHighlighted } = useCircuitHighlight();
+  const highlighted = isEdgeHighlighted(props.id, d.pairIds);
   if (isPrecomputedSpliceData(d)) {
-    return <PrecomputedSpliceEdge id={props.id} data={d} />;
+    return (
+      <PrecomputedSpliceEdge id={props.id} data={d} highlighted={highlighted} />
+    );
   }
-  return <StoredLaneSpliceEdge {...props} data={d} />;
+  return <StoredLaneSpliceEdge {...props} data={d} highlighted={highlighted} />;
 }

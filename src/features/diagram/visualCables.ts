@@ -48,6 +48,8 @@ export type VisualTube = {
   fibers: VisualFiber[];
   /** Bounded Y shift for tube tip/handle only — fibers stay on row pitch. */
   visualShiftY?: number;
+  /** Extra horizontal tube length toward center (manual fan-out reach). */
+  stemReachX?: number;
 };
 
 export type VisualCable = {

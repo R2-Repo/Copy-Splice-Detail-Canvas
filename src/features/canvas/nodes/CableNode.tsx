@@ -7,7 +7,9 @@ import {
 import { useEffect, type CSSProperties } from "react";
 
 import { CABLE_LAYOUT } from "@/features/diagram/cableLayoutMetrics";
+import { collapsedTubeHandleLocalX } from "@/features/canvas/edges/splicePathGeometry";
 import { computeCableBreakout } from "@/features/diagram/cableBreakoutGeometry";
+import { useCircuitHighlight } from "@/features/canvas/CircuitHighlightContext";
 import {
   colorHex,
   colorName,
@@ -15,6 +17,7 @@ import {
   needsFiberContrastOutline,
 } from "@/features/diagram/colorCode";
 import { ContrastSvgLine } from "@/features/canvas/nodes/ContrastSvgLine";
+import { TubeManualHandles } from "@/features/canvas/nodes/TubeManualHandles";
 import { formatCircuitTag } from "@/features/diagram/cableLabels";
 import { tubeHandleId } from "@/features/diagram/tubeId";
 import type { FiberColorAbbrev, TubeColorCode } from "@/types/splice";
@@ -34,6 +37,7 @@ function tubeStroke(
 
 export function CableNode({ id, data }: NodeProps) {
   const d = data as CableNodeData;
+  const { isFiberHighlighted } = useCircuitHighlight();
   const handlePos = d.side === "left" ? Position.Right : Position.Left;
   const pitch = d.fiberPitch ?? CABLE_LAYOUT.fiberRowH;
   const scale = d.diagramScale ?? 1;
@@ -79,9 +83,16 @@ export function CableNode({ id, data }: NodeProps) {
   const isTubeCollapsed = (tubeColor: TubeColorCode): boolean =>
     collapsedTubes.has(tubeColor);
 
+  const visualCableId = id.replace(/^cable-/, "");
+  const defaultTubeLength =
+    geo.tubes[0] != null
+      ? Math.abs(geo.tubes[0].end.x - geo.tubes[0].origin.x)
+      : 52;
+  const tubeFaceX = d.side === "left" ? geo.sheath.width : geo.viewWidth - geo.sheath.width;
+
   return (
     <div
-      className={`splice-node cable-node cable-node--composite cable-node--${d.side}`}
+      className={`splice-node cable-node cable-node--composite cable-node--${d.side}${d.manualAdjustEnabled ? " cable-node--manual-adjust" : ""}`}
       style={
         {
           minHeight: d.nodeHeight,
@@ -121,12 +132,23 @@ export function CableNode({ id, data }: NodeProps) {
           const stroke = tubeStroke(tube.tubeColor, striped);
           const tubeBase = tube.tubeColor.split("-")[0] as FiberColorAbbrev;
           const sourceTube = d.tubes.find((t) => t.tubeColor === tube.tubeColor);
-          const collapsedShiftY = sourceTube?.visualShiftY ?? 0;
-          const collapsedHandleY = tube.end.y + collapsedShiftY;
+          const collapsedHandleY = tube.end.y;
           const lineStart = tube.origin;
           const lineEnd = collapsed
-            ? { x: geo.stemX, y: collapsedHandleY }
+            ? {
+                x: collapsedTubeHandleLocalX(d.side, geo.stemX),
+                y: collapsedHandleY,
+              }
             : tube.end;
+          const tubeHighlighted =
+            collapsed &&
+            (sourceTube?.fibers.some((fiber) =>
+              isFiberHighlighted(
+                fiber.connectionId,
+                fiber.spliceConnectionIds,
+              ),
+            ) ??
+              false);
           return (
             <g key={tube.tubeColor}>
               <ContrastSvgLine
@@ -139,23 +161,42 @@ export function CableNode({ id, data }: NodeProps) {
                 strokeLinecap="round"
                 strokeDasharray={stroke.strokeDasharray}
                 contrastOutline={needsFiberContrastOutline(tubeBase)}
+                className={
+                  tubeHighlighted ? "circuit-highlight-target circuit-highlight-target--tube" : undefined
+                }
               />
               {!collapsed
-                ? tube.fibers.map((fiber) => (
-                    <ContrastSvgLine
-                      key={fiber.handleId}
-                      x1={fiber.fanFrom.x}
-                      y1={fiber.fanFrom.y}
-                      x2={fiber.fanTo.x}
-                      y2={fiber.fanTo.y}
-                      stroke={colorHex(fiber.fiberColor)}
-                      strokeWidth={3}
-                      strokeLinecap="round"
-                      contrastOutline={needsFiberContrastOutline(
-                        fiber.fiberColor,
-                      )}
-                    />
-                  ))
+                ? tube.fibers.map((fiberGeom) => {
+                    const sourceFiber = sourceTube?.fibers.find(
+                      (f) => f.handleId === fiberGeom.handleId,
+                    );
+                    const fiberHighlighted = sourceFiber
+                      ? isFiberHighlighted(
+                          sourceFiber.connectionId,
+                          sourceFiber.spliceConnectionIds,
+                        )
+                      : false;
+                    return (
+                      <ContrastSvgLine
+                        key={fiberGeom.handleId}
+                        x1={fiberGeom.fanFrom.x}
+                        y1={fiberGeom.fanFrom.y}
+                        x2={fiberGeom.fanTo.x}
+                        y2={fiberGeom.fanTo.y}
+                        stroke={colorHex(fiberGeom.fiberColor)}
+                        strokeWidth={3}
+                        strokeLinecap="round"
+                        contrastOutline={needsFiberContrastOutline(
+                          fiberGeom.fiberColor,
+                        )}
+                        className={
+                          fiberHighlighted
+                            ? "circuit-highlight-target"
+                            : undefined
+                        }
+                      />
+                    );
+                  })
                 : null}
             </g>
           );
@@ -190,10 +231,14 @@ export function CableNode({ id, data }: NodeProps) {
             fiber.circuitName,
             fiber.fiberColor,
           );
+          const fiberHighlighted = isFiberHighlighted(
+            fiber.connectionId,
+            fiber.spliceConnectionIds,
+          );
           return (
             <div
               key={fiber.handleId}
-              className="cable-node__fiber-row"
+              className={`cable-node__fiber-row${fiberHighlighted ? " cable-node__fiber-row--highlighted" : ""}`}
               style={{
                 top: rowY,
                 left: d.side === "left" ? geo.stemX : undefined,
@@ -234,12 +279,11 @@ export function CableNode({ id, data }: NodeProps) {
           );
         })}
 
-        {!d.slim ? geo.tubes.map((tube) => {
+        {geo.tubes.map((tube) => {
           if (!isTubeCollapsed(tube.tubeColor)) return null;
           const handleBase = tubeHandleId(d.legId, tube.tubeColor);
           const sourceTube = d.tubes.find((t) => t.tubeColor === tube.tubeColor);
-          const collapsedHandleY =
-            tube.end.y + (sourceTube?.visualShiftY ?? 0);
+          const collapsedHandleY = tube.end.y;
           return (
             <div
               key={handleBase}
@@ -265,8 +309,20 @@ export function CableNode({ id, data }: NodeProps) {
               />
             </div>
           );
-        }) : null}
+        })}
       </div>
+
+      {d.manualAdjustEnabled ? (
+        <TubeManualHandles
+          visualCableId={visualCableId}
+          side={d.side}
+          tubes={d.tubes}
+          tubeGeoms={geo.tubes}
+          collapsedTubes={collapsedTubes}
+          tubeFaceX={tubeFaceX}
+          defaultTubeLength={defaultTubeLength}
+        />
+      ) : null}
     </div>
   );
 }

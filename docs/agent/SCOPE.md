@@ -73,7 +73,7 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for folder layout.
 
 1. **Import** — upload/drop Bentley CSV splice report
 2. **Auto-generate** — parse pairs, build graph, run layout (~95%)
-3. **Review & adjust** — drag elements; toggle dashed “existing” lines; fix spacing
+3. **Review & adjust** — drag cables; **Manual adjust** mode for per-tube tip/reach handles; toggle dashed “existing” lines; fix spacing
 4. **Export PDF** — visual layout parity with reference screenshots
 
 ---

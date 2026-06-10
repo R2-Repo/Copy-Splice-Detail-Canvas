@@ -90,7 +90,7 @@
 | ID | Short name | Plain English | Priority | Say this when… |
 |----|------------|---------------|----------|----------------|
 | **EDGE-001** | Distinct lanes | Each splice gets its own routing lane on import (no shared mid-X). | P2 | Two splices share the same center path on import. |
-| **EDGE-002** | Orthogonal H–V–H | Center paths use right-angle horizontal and vertical segments with a fusion dot. | — | Diagonal splices or missing splice dot. |
+| **EDGE-002** | Orthogonal H–V–H | Center paths use right-angle horizontal and vertical segments; fusion dot sits on the horizontal fiber run before center vertical fan-out (DOT-001). | — | Diagonal splices or missing splice dot. |
 | **EDGE-003** | Lanes on mount | Lanes separate on first render — no drag needed to unstack. | — | Strands overlap until you drag a cable. |
 | **EDGE-004** | ≤2 bends | Each splice uses **at most 2 bends** total; prefer straight when rows align within 12px. Deconflict with distinct `midX` only — **no extra Y-tracks**. | **P1** | Too many elbows; zig-zag gap routing; extra horizontal tracks. |
 | **EDGE-005** | Tube order in center | Center lane order follows fiber row order (top rows bend farther on downward splices). | — | Center lanes out of color/row order. |
@@ -104,11 +104,32 @@
 
 ---
 
+## DOT — Fusion splice dots
+
+| ID | Short name | Plain English | Say this when… |
+|----|------------|---------------|----------------|
+| **DOT-001** | Dot on horizontal | Fusion dot sits on a **horizontal** strand segment, not a vertical center leg. | Dots appear mid-way up a vertical lane. |
+| **DOT-002** | Tube dot column | Same **source buffer tube** splices share one dot **X**; dots **stack vertically** on each fiber row (24px). | Tube fibers’ dots scatter at different X values. |
+| **DOT-003** | Dot overlap *(TBD)* | Reserved — dot/strand conflict avoidance; not enforced yet. | — |
+
+---
+
 ## STR — Strand direction
 
 | ID | Short name | Plain English | Say this when… |
 |----|------------|---------------|----------------|
 | **STR-001** | Fan toward center | Fiber lines always point **inward** toward the splice center (left cables fan right, right fan left). | Fiber stub points outward away from center. |
+
+---
+
+## Manual adjust (UI — not a layout rule ID)
+
+| Term | Plain English |
+|------|----------------|
+| **Manual adjust** | Toolbar toggle (`autoAdjustEnabled: false`). Cable drag skips auto row/tube relayout; buffer-tube tip (Y) and fan-out reach (X) handles appear on cables. |
+| **Tube override** | Persisted per `visualCableId\|tubeColor`: `visualShiftY` shifts tube tip + fan origin; `stemReachX` extends tube toward center. Locked tubes skip auto TUB-008 alignment. |
+| **Soft snap** | 24px pitch + layout-line guides during handle drag; EDGE-004/012 violations show advisory banner only. |
+| **Reset to auto layout** | Clears `tubeOverrides` and re-runs import layout. |
 
 ---
 

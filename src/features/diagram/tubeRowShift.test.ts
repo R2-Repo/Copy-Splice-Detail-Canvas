@@ -141,6 +141,31 @@ describe("applyTubeRowAlignmentShifts", () => {
     );
   });
 
+  it("skips auto visualShiftY for locked manual tube overrides", () => {
+    const graph = syntheticFullButtSpliceGraph();
+    const { visualCables } = buildVisualCablesForLayout(graph);
+    const leftVc = visualCables.find((vc) => vc.side === "left")!;
+    const tube = leftVc.tubes[0]!;
+    tube.visualShiftY = 8;
+
+    const { nodes } = buildReactFlowGraph(graph, {
+      reportKey: "test",
+      positions: {},
+      collapseFullButtSplices: true,
+      autoAdjustEnabled: false,
+      tubeOverrides: {
+        [`${leftVc.id}|${tube.tubeColor}`]: { visualShiftY: 8 },
+      },
+    });
+
+    const builtCables = visualCablesFromNodes(nodes);
+    const rebuiltLeft = builtCables.find((vc) => vc.id === leftVc.id)!;
+    const rebuiltTube = rebuiltLeft.tubes.find(
+      (t) => t.tubeColor === tube.tubeColor,
+    )!;
+    expect(rebuiltTube.visualShiftY).toBe(8);
+  });
+
   it("tubeCenterRowOffset matches default tube tip before shift", () => {
     const graph = syntheticFullButtSpliceGraph();
     const { visualCables } = buildVisualCablesForLayout(graph);

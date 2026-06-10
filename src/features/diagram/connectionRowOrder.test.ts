@@ -15,12 +15,13 @@ import { buildVisualCables } from "./visualCables";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
 
 const examples = join(process.cwd(), "docs/reference/examples");
+const legacyExamples = join(examples, "old csv examples");
 
 describe("connectionRowOffsets", () => {
   it("uses equal pitch within a buffer tube", () => {
     const graph = buildConnectionGraph(
       parseBentleyCsv(
-        readFileSync(join(examples, "CSV Splice Detail Example #1.csv"), "utf8"),
+        readFileSync(join(legacyExamples, "CSV Splice Detail Example #1.csv"), "utf8"),
       ),
     );
     const offsets = connectionRowOffsets(graph);
@@ -31,7 +32,7 @@ describe("connectionRowOffsets", () => {
   it("places Example #3 crossover RD/BK in BL tube slot 7–8 on 24 DIST", () => {
     const graph = buildConnectionGraph(
       parseBentleyCsv(
-        readFileSync(join(examples, "CSV Splice Detail Example #3.csv"), "utf8"),
+        readFileSync(join(legacyExamples, "CSV Splice Detail Example #3.csv"), "utf8"),
       ),
     );
     const rowIdx = connectionRowIndexMap(graph);
@@ -51,7 +52,7 @@ describe("connectionRowOffsets", () => {
   it("adds extra gap at buffer-tube boundaries on Example #3", () => {
     const graph = buildConnectionGraph(
       parseBentleyCsv(
-        readFileSync(join(examples, "CSV Splice Detail Example #3.csv"), "utf8"),
+        readFileSync(join(legacyExamples, "CSV Splice Detail Example #3.csv"), "utf8"),
       ),
     );
     const offsets = connectionRowOffsets(graph);
@@ -68,7 +69,7 @@ describe("connectionRowOffsets", () => {
   it("adds split-instance gap for Example #1 ring-cut 144 pair", () => {
     const graph = buildConnectionGraph(
       parseBentleyCsv(
-        readFileSync(join(examples, "CSV Splice Detail Example #1.csv"), "utf8"),
+        readFileSync(join(legacyExamples, "CSV Splice Detail Example #1.csv"), "utf8"),
       ),
     );
     const visual = buildVisualCables(graph);

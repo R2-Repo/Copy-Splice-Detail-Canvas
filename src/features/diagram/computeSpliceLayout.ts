@@ -5,6 +5,7 @@ import {
   buildSplicePath,
   buildSpliceHandleEntries,
   defaultSideCircuitLabelSpan,
+  reconcileBufferTubeDotColumns,
   routingLaneDataFromLane,
 } from "@/features/canvas/edges/spliceEdgeRouting";
 import {
@@ -46,7 +47,18 @@ export function computeSpliceEdgeLayout(
 ): SpliceLayoutPassResult {
   const handleEntries = buildSpliceHandleEntries(nodes, edges, visualCables);
   const lanes = routeCenterSplices(handleEntries, diagramCenterX);
-  const routedEdges = attachPrecomputedPaths(edges, handleEntries, lanes, diagramCenterX);
+  const tubeDotColumns = reconcileBufferTubeDotColumns(
+    handleEntries,
+    lanes,
+    diagramCenterX,
+  );
+  const routedEdges = attachPrecomputedPaths(
+    edges,
+    handleEntries,
+    lanes,
+    diagramCenterX,
+    tubeDotColumns,
+  );
   return { handleEntries, lanes, edges: routedEdges };
 }
 
@@ -55,6 +67,7 @@ export function attachPrecomputedPaths(
   entries: SpliceHandleEntry[],
   lanes: Map<string, SpliceRoutingLane>,
   diagramCenterX: number,
+  tubeDotColumns: Map<string, number> = new Map(),
 ): Edge[] {
   const byId = new Map(entries.map((e) => [e.id, e]));
 
@@ -100,6 +113,9 @@ export function attachPrecomputedPaths(
           diagramCenterX,
           entry.sourceTagWidth ?? 0,
           entry.targetTagWidth ?? 0,
+          {
+            tubeDotColumnX: tubeDotColumns.get(edge.id),
+          },
         );
 
     const precomputed: PrecomputedSpliceEdgeData = {
@@ -111,12 +127,15 @@ export function attachPrecomputedPaths(
       ...routingLaneDataFromLane(lane),
     };
 
+    const tubeDotColumnX = tubeDotColumns.get(edge.id);
+
     return {
       ...edge,
       data: {
         ...data,
         ...precomputed,
         diagramCenterX,
+        ...(tubeDotColumnX !== undefined ? { tubeDotColumnX } : {}),
       },
     };
   });

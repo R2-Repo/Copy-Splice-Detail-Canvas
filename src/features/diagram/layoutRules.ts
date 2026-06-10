@@ -32,6 +32,14 @@ import {
 import { computeSideCircuitLabelSpans, formattedCircuitTagWidth } from "@/features/diagram/cableLabels";
 import { importLayoutWidthForGraph } from "@/features/diagram/layoutSpliceDiagram";
 import {
+  DEFAULT_LAYOUT_EXPANSION,
+  getLayoutExpansion,
+  layoutExpansionForIteration,
+  MAX_LAYOUT_FEASIBILITY_ITERATIONS,
+  runWithLayoutExpansion,
+  type LayoutExpansion,
+} from "@/features/diagram/layoutExpansion";
+import {
   cableFiberTopToBottomOk,
   compactTubeFiberLayoutOk,
   tubesInTiaOrderOk,
@@ -55,6 +63,7 @@ import {
   buildButtSplicePath,
   buildSplicePath,
   fiberHandlePosition,
+  fusionDotLiesOnHorizontal,
   hvDemarcatedPathsCross,
   horizontalInsetOkFromHandle,
   MAX_SPLICE_BENDS,
@@ -150,6 +159,8 @@ export const LAYOUT_RULE_IDS = [
   "EDGE-010",
   "EDGE-011",
   "EDGE-012",
+  "DOT-001",
+  "DOT-002",
   "STR-001",
 ] as const;
 
@@ -158,7 +169,7 @@ export type LayoutRuleId = (typeof LAYOUT_RULE_IDS)[number];
 export type LayoutRuleMeta = {
   id: LayoutRuleId;
   title: string;
-  category: "fiber" | "tube" | "cable" | "row" | "dominant" | "edge" | "strand";
+  category: "fiber" | "tube" | "cable" | "row" | "dominant" | "edge" | "dot" | "strand";
 };
 
 export const LAYOUT_RULES: LayoutRuleMeta[] = [
@@ -240,6 +251,16 @@ export const LAYOUT_RULES: LayoutRuleMeta[] = [
     title: "Overlapping vertical center legs use distinct midX lanes",
     category: "edge",
   },
+  {
+    id: "DOT-001",
+    title: "Fusion splice dots lie on horizontal path segments",
+    category: "dot",
+  },
+  {
+    id: "DOT-002",
+    title: "Source buffer tube dots share one column X and stack vertically",
+    category: "dot",
+  },
   { id: "STR-001", title: "Fiber strands fan toward canvas center", category: "strand" },
 ];
 
@@ -251,6 +272,7 @@ export type LayoutRuleContext = {
   layout: AlignedDiagramLayout;
   reactFlow: { nodes: Node[]; edges: Edge[] };
   layoutWidth: number;
+  layoutExpansion: LayoutExpansion;
 };
 
 export type LayoutRuleResult = {
@@ -484,12 +506,20 @@ function globalRowStepsOk(ctx: LayoutRuleContext): {
   const values = [...offsets.values()].sort((a, b) => a - b);
   const steps = values.slice(1).map((y, i) => y - values[i]!);
 
-  const withinTube = steps.some((s) => s === FIBER_ROW_PITCH) || values.length <= 1;
+  const expansion = getLayoutExpansion();
+  const tubeBoundaryStep =
+    FIBER_ROW_PITCH + TUBE_GROUP_GAP + expansion.tubeGroupGapExtra;
+
+  const withinTube =
+    steps.some((s) => s === FIBER_ROW_PITCH) ||
+    values.length <= 1 ||
+    (steps.some((s) => s > tubeBoundaryStep) &&
+      compactTubeFiberLayoutOk(ctx.visualCables));
   const tubeBoundary =
-    steps.some((s) => s === FIBER_ROW_PITCH + TUBE_GROUP_GAP) || values.length <= 1;
+    steps.some((s) => s === tubeBoundaryStep) || values.length <= 1;
   const splitGap =
-    steps.some((s) => s > FIBER_ROW_PITCH + TUBE_GROUP_GAP) ||
-    steps.some((s) => s >= FIBER_ROW_PITCH * 2) ||
+    steps.some((s) => s > tubeBoundaryStep) ||
+    steps.some((s) => s >= FIBER_ROW_PITCH * 2 + expansion.tubeGroupGapExtra) ||
     values.length <= 1;
 
   return { withinTube, tubeBoundary, splitGap };
@@ -754,11 +784,36 @@ function buildMidXLaneCandidates(ctx: LayoutRuleContext): MidXLaneCandidate[] {
   return candidates;
 }
 
+function routingLanesFromReactFlow(ctx: LayoutRuleContext): Map<string, SpliceRoutingLane> {
+  const map = new Map<string, SpliceRoutingLane>();
+  for (const edge of ctx.reactFlow.edges) {
+    if (edge.type !== "splice") continue;
+    if (edge.id.startsWith("splice-right-")) continue;
+    const lane = routingLaneFromData(edge.data as SpliceRoutingLaneData);
+    if (!lane || !Number.isFinite(lane.midX)) continue;
+    let connId = edge.id;
+    if (connId.startsWith("splice-left-")) {
+      connId = connId.slice("splice-left-".length);
+    } else if (connId.startsWith("splice-")) {
+      connId = connId.slice("splice-".length);
+    }
+    map.set(connId, lane);
+  }
+  return map;
+}
+
 function buildPackedRoutingMap(ctx: LayoutRuleContext): Map<string, SpliceRoutingLane> {
   return assignSpliceRoutingLanes(
     buildMidXLaneCandidates(ctx),
     sideCircuitSpanFromCtx(ctx),
   );
+}
+
+/** Lanes stored on import / precomputed edges — matches canvas render. */
+function buildRenderRoutingMap(ctx: LayoutRuleContext): Map<string, SpliceRoutingLane> {
+  const stored = routingLanesFromReactFlow(ctx);
+  if (stored.size > 0) return stored;
+  return buildPackedRoutingMap(ctx);
 }
 
 function buildPackedMidXMap(ctx: LayoutRuleContext): Map<string, number> {
@@ -833,7 +888,7 @@ function resolveCtxSpliceMidX(
 }
 
 function splicePathsWithinBendLimit(ctx: LayoutRuleContext): boolean {
-  const packed = buildPackedRoutingMap(ctx);
+  const packed = buildRenderRoutingMap(ctx);
   const sideSpans = sideCircuitSpanFromCtx(ctx);
 
   for (const conn of orderedFiberConnections(ctx.graph)) {
@@ -1003,6 +1058,134 @@ function centerLanesKeepMinSpacing(ctx: LayoutRuleContext): boolean {
   return true;
 }
 
+function fusionDotsOnHorizontalSegments(ctx: LayoutRuleContext): boolean {
+  const packed = buildRenderRoutingMap(ctx);
+  const sideSpans = sideCircuitSpanFromCtx(ctx);
+
+  for (const conn of orderedFiberConnections(ctx.graph)) {
+    if (conn.kind !== "fiber") continue;
+    const edge = spliceEdgeForConnection(ctx.reactFlow.edges, conn.id);
+    if (!edge) continue;
+    const edgeData = edge.data as {
+      fullButtSplice?: boolean;
+      spliceX?: number;
+      spliceY?: number;
+      routingPrecomputed?: boolean;
+    };
+    if (edgeData.fullButtSplice) continue;
+
+    const endpoints = spliceHandleEndpoints(ctx, conn);
+    if (!endpoints) continue;
+    const { sourceX, sourceY, targetX, targetY } = endpoints;
+    const lane = resolveCtxSpliceRouting(ctx, conn.id, endpoints, packed);
+    const tubeDotColumnX = (edge.data as { tubeDotColumnX?: number })
+      .tubeDotColumnX;
+    const built = buildSplicePath(
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+      lane.midX,
+      lane.jogX,
+      {
+        sourceHorizY: lane.sourceHorizY,
+        targetHorizY: lane.targetHorizY,
+        sourceBendX: lane.sourceBendX,
+        targetBendX: lane.targetBendX,
+      },
+      sideSpans,
+      ctx.layoutWidth / 2,
+      endpoints.sourceTagWidth ?? 0,
+      endpoints.targetTagWidth ?? 0,
+      tubeDotColumnX !== undefined ? { tubeDotColumnX } : undefined,
+    );
+    const spliceX = edgeData.spliceX ?? built.spliceX;
+    const spliceY = edgeData.spliceY ?? built.spliceY;
+    const segments = spliceRouteSegments(
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+      lane.midX,
+      lane.jogX,
+      {
+        sourceHorizY: lane.sourceHorizY,
+        targetHorizY: lane.targetHorizY,
+        sourceBendX: lane.sourceBendX,
+        targetBendX: lane.targetBendX,
+      },
+      sideSpans,
+      ctx.layoutWidth / 2,
+      endpoints.sourceTagWidth ?? 0,
+      endpoints.targetTagWidth ?? 0,
+    );
+    if (!fusionDotLiesOnHorizontal(spliceX, spliceY, segments)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function findBufferTubeDotViolation(
+  ctx: LayoutRuleContext,
+): string | undefined {
+  const byGroup = new Map<
+    string,
+    Array<{ spliceX: number; sourceY: number; rowOffset: number; id: string }>
+  >();
+
+  for (const conn of orderedFiberConnections(ctx.graph)) {
+    if (conn.kind !== "fiber") continue;
+    const edge = spliceEdgeForConnection(ctx.reactFlow.edges, conn.id);
+    if (!edge) continue;
+    const edgeData = edge.data as {
+      sourceTubeDotGroupKey?: string;
+      spliceX?: number;
+      rowOffset?: number;
+      fullButtSplice?: boolean;
+    };
+    if (edgeData.fullButtSplice) continue;
+    const groupKey = edgeData.sourceTubeDotGroupKey;
+    if (!groupKey) continue;
+    if (edgeData.spliceX === undefined) continue;
+    const endpoints = spliceHandleEndpoints(ctx, conn);
+    if (!endpoints) continue;
+    const list = byGroup.get(groupKey) ?? [];
+    list.push({
+      spliceX: edgeData.spliceX,
+      sourceY: endpoints.sourceY,
+      rowOffset: edgeData.rowOffset ?? 0,
+      id: conn.id,
+    });
+    byGroup.set(groupKey, list);
+  }
+
+  for (const [groupKey, members] of byGroup) {
+    if (members.length < 2) continue;
+    const anchorX = members[0]!.spliceX;
+    const xMismatch = members.find((m) => Math.abs(m.spliceX - anchorX) > 2);
+    if (xMismatch) {
+      return `${groupKey}: spliceX mismatch (${members.map((m) => `${m.id}@${m.spliceX}`).join(", ")})`;
+    }
+    const sorted = [...members].sort((a, b) => a.sourceY - b.sourceY);
+    for (let i = 1; i < sorted.length; i++) {
+      const yStep = sorted[i]!.sourceY - sorted[i - 1]!.sourceY;
+      if (yStep < FIBER_ROW_PITCH - 2) {
+        return `${groupKey}: sourceY collapsed for ${sorted[i]!.id}`;
+      }
+      const pitchMultiple = Math.round(yStep / FIBER_ROW_PITCH);
+      if (Math.abs(yStep - pitchMultiple * FIBER_ROW_PITCH) > 2) {
+        return `${groupKey}: sourceY step ${yStep}px is not a 24px multiple between ${sorted[i - 1]!.id} and ${sorted[i]!.id}`;
+      }
+    }
+  }
+  return undefined;
+}
+
+function bufferTubeDotsStackVertically(ctx: LayoutRuleContext): boolean {
+  return findBufferTubeDotViolation(ctx) === undefined;
+}
+
 function tubeBundleRoutesAreSpaced(ctx: LayoutRuleContext): boolean {
   const packed = buildPackedRoutingMap(ctx);
   const byBundle = new Map<string, Array<{ midX: number; jogX?: number }>>();
@@ -1059,7 +1242,7 @@ function tubeBundleRoutesAreSpaced(ctx: LayoutRuleContext): boolean {
 }
 
 function verticalCenterLegsSpaced(ctx: LayoutRuleContext): boolean {
-  const packed = buildPackedRoutingMap(ctx);
+  const packed = buildRenderRoutingMap(ctx);
   const byZone = new Map<
     string,
     Array<{ midX: number; y0: number; y1: number; id: string }>
@@ -1106,7 +1289,7 @@ function splicePathsDoNotOverlap(ctx: LayoutRuleContext): boolean {
 
 /** @internal test helper — first overlapping strand pair, if any. */
 export function findSpliceOverlapPair(ctx: LayoutRuleContext): string | null {
-  const packed = buildPackedRoutingMap(ctx);
+  const packed = buildRenderRoutingMap(ctx);
   const routed: Array<{
     id: string;
     sourceX: number;
@@ -1544,8 +1727,52 @@ export function buildLayoutRuleContext(
   graph: ConnectionGraph,
   layoutWidth?: number,
   overrides?: Pick<LayoutOverrides, "collapseFullButtSplices">,
+  options?: { stageWidth?: number; skipFeasibility?: boolean },
 ): LayoutRuleContext {
-  const width = layoutWidth ?? importLayoutWidthForGraph(graph);
+  const baseWidth =
+    layoutWidth ??
+    importLayoutWidthForGraph(graph, { stageWidth: options?.stageWidth ?? 0 });
+
+  if (options?.skipFeasibility) {
+    return buildLayoutRuleContextWithExpansion(
+      graph,
+      baseWidth,
+      DEFAULT_LAYOUT_EXPANSION,
+      overrides,
+    );
+  }
+
+  let lastWidth = baseWidth;
+  let lastExpansion = DEFAULT_LAYOUT_EXPANSION;
+
+  for (let iteration = 0; iteration <= MAX_LAYOUT_FEASIBILITY_ITERATIONS; iteration++) {
+    const expansion = layoutExpansionForIteration(iteration);
+    const width = baseWidth + expansion.centerGapPadding;
+    const ctx = runWithLayoutExpansion(expansion, () =>
+      buildLayoutRuleContextWithExpansion(graph, width, expansion, overrides),
+    );
+    lastWidth = width;
+    lastExpansion = expansion;
+    if (
+      checkLayoutRule("EDGE-004", ctx).ok &&
+      checkLayoutRule("EDGE-011", ctx).ok &&
+      checkLayoutRule("EDGE-012", ctx).ok
+    ) {
+      return ctx;
+    }
+  }
+
+  return runWithLayoutExpansion(lastExpansion, () =>
+    buildLayoutRuleContextWithExpansion(graph, lastWidth, lastExpansion, overrides),
+  );
+}
+
+function buildLayoutRuleContextWithExpansion(
+  graph: ConnectionGraph,
+  width: number,
+  expansion: LayoutExpansion,
+  overrides?: Pick<LayoutOverrides, "collapseFullButtSplices">,
+): LayoutRuleContext {
   const { visualCables, dominant } = buildVisualCablesForLayout(graph);
   const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
   const placement = computeCanvasPlacement(graph, visualCables, dominant, rowIndex);
@@ -1560,6 +1787,7 @@ export function buildLayoutRuleContext(
         }
       : undefined,
     width,
+    { skipFeasibility: true },
   );
   return {
     graph,
@@ -1569,7 +1797,28 @@ export function buildLayoutRuleContext(
     layout,
     reactFlow: { nodes, edges },
     layoutWidth: width,
+    layoutExpansion: expansion,
   };
+}
+
+/** Resolved import width + expansion after feasibility loop (EDGE-004/011/012). */
+export function resolveFeasibleImportLayout(
+  graph: ConnectionGraph,
+  options?: {
+    stageWidth?: number;
+    layoutWidth?: number;
+    collapseFullButtSplices?: boolean;
+  },
+): { layoutWidth: number; expansion: LayoutExpansion } {
+  const ctx = buildLayoutRuleContext(
+    graph,
+    options?.layoutWidth,
+    options?.collapseFullButtSplices
+      ? { collapseFullButtSplices: true }
+      : undefined,
+    { stageWidth: options?.stageWidth },
+  );
+  return { layoutWidth: ctx.layoutWidth, expansion: ctx.layoutExpansion };
 }
 
 export function checkLayoutRule(
@@ -1793,6 +2042,20 @@ export function checkLayoutRule(
         id,
         ok: verticalCenterLegsSpaced(ctx),
         detail: "Overlapping vertical center legs share the same midX lane",
+      };
+    case "DOT-001":
+      return {
+        id,
+        ok: fusionDotsOnHorizontalSegments(ctx),
+        detail: "Fusion splice dot is not on a horizontal path segment",
+      };
+    case "DOT-002":
+      return {
+        id,
+        ok: bufferTubeDotsStackVertically(ctx),
+        detail:
+          findBufferTubeDotViolation(ctx) ??
+          "Source buffer tube fusion dots do not share one column X or 24px vertical pitch",
       };
     case "STR-001":
       return {

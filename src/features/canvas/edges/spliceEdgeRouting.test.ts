@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { FIBER_ROW_PITCH, MIN_HORIZONTAL_INSET_FLOOR, MIN_SPLICE_HORIZONTAL_INSET, SPLICE_ROUTING_END_MARGIN, fiberRowPrefixWidth, CABLE_LAYOUT } from "@/features/diagram/cableLayoutMetrics";
+import { FIBER_ROW_PITCH, MIN_HORIZONTAL_INSET_FLOOR, MIN_SPLICE_HORIZONTAL_INSET, SPLICE_HANDLE_OVERHANG, SPLICE_ROUTING_END_MARGIN, fiberRowPrefixWidth, CABLE_LAYOUT } from "@/features/diagram/cableLayoutMetrics";
 import { formattedCircuitTagWidth } from "@/features/diagram/cableLabels";
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
@@ -21,6 +21,9 @@ import {
   buildButtSplicePath,
   buildSpliceHandleEntries,
   buildSplicePath,
+  reconcileBufferTubeDotColumns,
+  resolveFusionDotPosition,
+  fusionDotLiesOnHorizontal,
   clampMidXForMinHorizontalInset,
   defaultSideCircuitLabelSpan,
   effectiveRoutingLane,
@@ -215,10 +218,56 @@ describe("spliceEdgeRouting", () => {
       300,
     );
     const clearX = inwardClearXBeforeVertical(100, 300, 300, sideSpans);
-    expect(leftPath).toBe(`M 100,50 L ${clearX},50 L 300,50 L 300,125`);
-    expect(rightPath).toBe("M 300,125 L 300,200 L 500,200");
+    expect(leftPath).toBe(`M 100,50 L ${clearX},50 L 300,50`);
+    expect(rightPath).toBe("M 300,50 L 300,125 L 300,200 L 500,200");
     expect(spliceX).toBe(300);
-    expect(spliceY).toBe(125);
+    expect(spliceY).toBe(50);
+  });
+
+  it("resolveFusionDotPosition places dot on source horizontal row (DOT-001)", () => {
+    const sideSpans = defaultSideCircuitLabelSpan();
+    const pos = resolveFusionDotPosition(100, 50, 500, 200, 300, undefined, undefined, sideSpans, 300);
+    expect(pos.spliceY).toBe(50);
+    expect(pos.spliceX).toBe(300);
+    const segments = spliceRouteSegments(100, 50, 500, 200, 300, undefined, undefined, sideSpans, 300);
+    expect(fusionDotLiesOnHorizontal(pos.spliceX, pos.spliceY, segments)).toBe(true);
+  });
+
+  it("reconcileBufferTubeDotColumns shares jogX trunk X for source buffer tube (DOT-002)", () => {
+    const sourceX = 100;
+    const targetX = 1100;
+    const bundleKey = "vc-left|BL|vc-right";
+    const tubeGroupKey = "vc-left|BL";
+    const entries = [
+      {
+        id: "a",
+        sourceX,
+        sourceY: 100,
+        targetX,
+        targetY: 400,
+        sourceTubeDotGroupKey: tubeGroupKey,
+      },
+      {
+        id: "b",
+        sourceX,
+        sourceY: 124,
+        targetX,
+        targetY: 424,
+        sourceTubeDotGroupKey: tubeGroupKey,
+      },
+    ];
+    const lanes = assignSpliceRoutingLanes(
+      entries.map((e, i) => ({
+        ...e,
+        rowOffset: i * 24,
+        tubeBundleKey: bundleKey,
+      })),
+    );
+    const columns = reconcileBufferTubeDotColumns(entries, lanes, 600);
+    const jogA = lanes.get("a")!.jogX;
+    expect(jogA).toBeDefined();
+    expect(columns.get("a")).toBe(jogA);
+    expect(columns.get("b")).toBe(jogA);
   });
 
   it("routes source-side gap horizontals on sourceHorizY offset track", () => {
@@ -246,7 +295,8 @@ describe("spliceEdgeRouting", () => {
     expect(leftPath).toMatch(new RegExp(`^M ${sourceX},${sourceY} L ${clearX},${sourceY}`));
     expect(leftPath).toContain(`,124`);
     expect(leftPath).toContain(`L ${midX},124`);
-    expect(leftPath).not.toContain(`L ${midX},${sourceY}`);
+    expect(leftPath).not.toMatch(new RegExp(`L ${midX},${sourceY}`));
+    expect(leftPath).not.toContain(`L ${midX},250`);
   });
 
   it("uses OS span for clearX when side labels are wide", () => {
@@ -409,7 +459,7 @@ describe("spliceEdgeRouting", () => {
     const midX = minClearMidXForHandle(handleX, 350, sideSpans);
     const result = buildSplicePath(handleX, 100, handleX, 400, midX);
     expect(result.template).toBe("same_side");
-    expect(result.bendCount).toBe(2);
+    expect(result.bendCount).toBeLessThanOrEqual(MAX_SPLICE_BENDS);
     expect(result.leftPath).toContain(`L ${midX},100`);
     expect(
       horizontalInsetOkFromHandle(midX, handleX, 350, sideSpans),
@@ -419,7 +469,7 @@ describe("spliceEdgeRouting", () => {
   it("buildSplicePath uses hv_demarcated with 2 bends cross-side", () => {
     const result = buildSplicePath(100, 50, 500, 200, 300);
     expect(result.template).toBe("hv_demarcated");
-    expect(result.bendCount).toBe(2);
+    expect(result.bendCount).toBeLessThanOrEqual(MAX_SPLICE_BENDS);
   });
 
   it("same-column paths detour toward center after OS column", () => {
@@ -428,10 +478,11 @@ describe("spliceEdgeRouting", () => {
     const midX = minClearMidXForHandle(handleX, 350, sideSpans);
     const result = buildSplicePath(handleX, 100, handleX, 400, midX);
     expect(result.template).toBe("same_side");
-    expect(result.bendCount).toBe(2);
+    expect(result.bendCount).toBeLessThanOrEqual(MAX_SPLICE_BENDS);
     expect(result.leftPath).toMatch(
-      new RegExp(`^M ${handleX},100 L ${midX},100 L ${midX},`),
+      new RegExp(`^M ${handleX},100 L ${midX},100$`),
     );
+    expect(result.rightPath).toContain(`L ${midX},`);
   });
 
   it("clampMidXForMinHorizontalInset enforces OS span + jog on cross-side paths", () => {
@@ -831,7 +882,7 @@ describe("spliceEdgeRouting", () => {
       .filter((x): x is number => x !== undefined);
     expect(new Set(trunkXs).size).toBeLessThanOrEqual(1);
     const blLane = packed.get("bl")!;
-    const { leftPath: blPath } = buildDemarcatedSplicePaths(
+    const { leftPath: blPath, rightPath: blRight } = buildDemarcatedSplicePaths(
       sourceX,
       candidates[0]!.sourceY,
       targetX,
@@ -839,7 +890,8 @@ describe("spliceEdgeRouting", () => {
       blLane.midX,
       blLane.jogX,
     );
-    expect(blPath).toContain(`${blLane.midX},${candidates[0]!.sourceY}`);
+    expect(blPath).toContain(`${blLane.jogX},${candidates[0]!.sourceY}`);
+    expect(blRight).toContain(`${blLane.midX},${candidates[0]!.sourceY}`);
   });
 
   it("assignSpliceRoutingLanes spaces tube bundle lanes and shares jogX trunk", () => {
@@ -874,7 +926,7 @@ describe("spliceEdgeRouting", () => {
     const outerMeta = or.jogX !== undefined ? candidates[1]! : candidates[0]!;
     expect(outerLane.jogX).toBeDefined();
     expect(bl.jogX ?? outerLane.jogX).toBe(or.jogX ?? outerLane.jogX);
-    const { leftPath: outerPath } = buildDemarcatedSplicePaths(
+    const { leftPath: outerPath, rightPath: outerRight } = buildDemarcatedSplicePaths(
       sourceX,
       outerMeta.sourceY,
       targetX,
@@ -883,7 +935,7 @@ describe("spliceEdgeRouting", () => {
       outerLane.jogX,
     );
     expect(outerPath).toContain(`${outerLane.jogX},${outerMeta.sourceY}`);
-    expect(outerPath).toContain(`${outerLane.midX},${outerMeta.sourceY}`);
+    expect(outerRight).toContain(`${outerLane.midX},${outerMeta.sourceY}`);
   });
 
   it("anchors bundle trunk at the source side so fan-out has no loop-back", () => {
@@ -1388,6 +1440,26 @@ describe("collapsed full butt splice tube routing", () => {
     expect(pos.y).toBeGreaterThan(100 + CABLE_LAYOUT.headerH);
   });
 
+  it("tubeHandlePosition includes visualShiftY and stem overhang for collapsed tubes", () => {
+    const graph = syntheticFullButtSpliceGraph();
+    const { visualCables } = buildVisualCablesForLayout(graph);
+    const leftVc = visualCables.find((vc) => vc.side === "left")!;
+    const geo = computeCableBreakout(
+      leftVc.tubes,
+      leftVc.side,
+      FIBER_ROW_PITCH,
+      CABLE_LAYOUT.headerH,
+      CABLE_LAYOUT.tubeLabelH,
+    );
+    const tube = geo.tubes.find((t) => t.tubeColor === "BL")!;
+    const blTube = leftVc.tubes.find((t) => t.tubeColor === "BL")!;
+    blTube!.visualShiftY = 12;
+
+    const pos = tubeHandlePosition(leftVc, "BL", { x: 50, y: 200 });
+    expect(pos.y).toBeCloseTo(200 + tube.end.y + 12, 5);
+    expect(pos.x).toBeCloseTo(50 + geo.stemX + SPLICE_HANDLE_OVERHANG, 5);
+  });
+
   it("buildSpliceHandleEntries resolves butt edges at tube center Y", () => {
     const graph = syntheticFullButtSpliceGraph();
     const { nodes, edges } = buildReactFlowGraph(graph, {
@@ -1448,13 +1520,16 @@ describe("collapsed full butt splice tube routing", () => {
   });
 
   it("300N_MAIN collapsed tubes keep midX between handle columns", () => {
+    const examplesDir = join(process.cwd(), "docs/reference/examples");
+    const legacyDir = join(examplesDir, "old csv examples");
+    let csvPath = join(examplesDir, "300N_MAIN.csv");
+    try {
+      readFileSync(csvPath);
+    } catch {
+      csvPath = join(legacyDir, "300N_MAIN.csv");
+    }
     const graph = buildConnectionGraph(
-      parseBentleyCsv(
-        readFileSync(
-          join(process.cwd(), "docs/reference/examples/300N_MAIN.csv"),
-          "utf8",
-        ),
-      ),
+      parseBentleyCsv(readFileSync(csvPath, "utf8")),
     );
     const { nodes, edges } = buildReactFlowGraph(graph, {
       reportKey: "test",

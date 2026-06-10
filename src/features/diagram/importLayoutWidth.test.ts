@@ -37,13 +37,30 @@ import {
   spliceMidXFromRowOffset,
   spliceRoutingSpan,
 } from "@/features/canvas/edges/spliceEdgeRouting";
+import {
+  buildLayoutRuleContext,
+  checkLayoutRule,
+  resolveFeasibleImportLayout,
+} from "@/features/diagram/layoutRules";
+import { runWithLayoutExpansion } from "@/features/diagram/layoutExpansion";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
 
 const examples = join(process.cwd(), "docs/reference/examples");
+const legacyExamples = join(examples, "old csv examples");
+
+function productionCsvPath(file: string): string {
+  const legacy = join(legacyExamples, file);
+  try {
+    readFileSync(legacy);
+    return legacy;
+  } catch {
+    return join(examples, file);
+  }
+}
 
 describe("importLayoutWidthForGraph", () => {
   it("11400S: lane-driven width exceeds row-only floor and supports 24px stride", () => {
-    const csv = readFileSync(join(examples, "SP-I-15_11400S.csv"), "utf8");
+    const csv = readFileSync(productionCsvPath("SP-I-15_11400S.csv"), "utf8");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const expandedLanes = activeSpliceLaneCount(graph, false);
     const collapsedLanes = activeSpliceLaneCount(graph, true);
@@ -103,7 +120,7 @@ describe("importLayoutWidthForGraph", () => {
 
   it("re-import refreshColumnX replaces stale narrow X with wide column placement", () => {
     const csv = readFileSync(
-      join(examples, "CSV Splice Detail Example #2.csv"),
+      join(legacyExamples, "CSV Splice Detail Example #2.csv"),
       "utf8",
     );
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
@@ -142,7 +159,7 @@ describe("importLayoutWidthForGraph", () => {
   });
 
   it("11400S: width is identical with collapse on/off (toggle is width-stable)", () => {
-    const csv = readFileSync(join(examples, "SP-I-15_11400S.csv"), "utf8");
+    const csv = readFileSync(productionCsvPath("SP-I-15_11400S.csv"), "utf8");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const expanded = importLayoutWidthForGraph(graph, { collapse: false });
     const collapsed = importLayoutWidthForGraph(graph, { collapse: true });
@@ -151,7 +168,7 @@ describe("importLayoutWidthForGraph", () => {
 
   it("fills viewport width when stage is wider than content minimum", () => {
     const csv = readFileSync(
-      join(examples, "CSV Splice Detail Example #2.csv"),
+      join(legacyExamples, "CSV Splice Detail Example #2.csv"),
       "utf8",
     );
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
@@ -163,7 +180,7 @@ describe("importLayoutWidthForGraph", () => {
 
   it("content minimum wins when stage is narrower than routing needs", () => {
     const csv = readFileSync(
-      join(examples, "CSV Splice Detail Example #2.csv"),
+      join(legacyExamples, "CSV Splice Detail Example #2.csv"),
       "utf8",
     );
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
@@ -176,7 +193,7 @@ describe("importLayoutWidthForGraph", () => {
 
   it("layoutWidthForViewport preserves user outward drag expansion", () => {
     const csv = readFileSync(
-      join(examples, "CSV Splice Detail Example #2.csv"),
+      join(legacyExamples, "CSV Splice Detail Example #2.csv"),
       "utf8",
     );
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
@@ -210,5 +227,24 @@ describe("importLayoutWidthForGraph", () => {
     );
     expect(merged["cable-a"]).toEqual({ x: 24, y: 150 });
     expect(merged["cable-b"]).toEqual({ x: 9000, y: 250 });
+  });
+
+  it("resolveFeasibleImportLayout widens busy SPI-215 until strict EDGE rules pass", () => {
+    const csv = readFileSync(join(examples, "Left-SPI-215_I-80.csv"), "utf8");
+    const graph = buildConnectionGraph(parseBentleyCsv(csv));
+    const baseWidth = importLayoutWidthForGraph(graph, { stageWidth: 1920 });
+    const resolved = resolveFeasibleImportLayout(graph, { stageWidth: 1920 });
+    expect(resolved.layoutWidth).toBeGreaterThanOrEqual(baseWidth);
+
+    const ctx = runWithLayoutExpansion(resolved.expansion, () =>
+      buildLayoutRuleContext(graph, resolved.layoutWidth, undefined, {
+        skipFeasibility: true,
+        stageWidth: 1920,
+      }),
+    );
+    for (const id of ["EDGE-004", "EDGE-011", "EDGE-012"] as const) {
+      const result = checkLayoutRule(id, ctx);
+      expect(result.ok, result.detail).toBe(true);
+    }
   });
 });

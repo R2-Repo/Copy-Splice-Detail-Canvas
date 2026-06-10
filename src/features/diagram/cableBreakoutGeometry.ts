@@ -206,13 +206,15 @@ export function computeCableBreakout(
   const tubeGeoms: TubeBreakoutGeom[] = sortedTubes.map((tube) => {
     const tubeCenterY = tubeFiberCenterY(tube, bodyTop, pitch);
     const tubeY = tubeCenterY;
+    const shiftY = tube.visualShiftY ?? 0;
     const sheathTop = sheath.y;
     const sheathBottom = sheath.y + sheath.height;
     const tubeCenterOnSheathFace =
       tubeY >= sheathTop - Y_TOLERANCE && tubeY <= sheathBottom + Y_TOLERANCE;
     // Horizontal when the fiber group center meets the sheath face; otherwise
     // fan from cable center (multi-tube cables span taller than the sheath box).
-    const originY = tubeCenterOnSheathFace ? tubeY : cableCenterY;
+    const originY =
+      (tubeCenterOnSheathFace ? tubeY : cableCenterY) + shiftY;
     const origin = { x: tubeFaceX, y: originY };
     const perTubeLength = Math.max(
       defaultTubeLength,
@@ -222,8 +224,9 @@ export function computeCableBreakout(
       perTubeLength,
       stemXAbsolute - BREAKOUT.fiberStemGap - tubeFaceX,
     );
-    const endX = tubeFaceX + tubeLength;
-    const endY = tubeY;
+    const reachDelta = tube.stemReachX ?? 0;
+    const endX = tubeFaceX + tubeLength + reachDelta;
+    const endY = tubeY + shiftY;
     const angleDeg =
       Math.abs(endY - originY) <= Y_TOLERANCE
         ? 0

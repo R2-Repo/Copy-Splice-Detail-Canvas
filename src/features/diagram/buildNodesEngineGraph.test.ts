@@ -63,6 +63,69 @@ describe("wireSplitSpliceEdges", () => {
     expect(d.routingMidX).toBeGreaterThan(0);
   });
 
+  it("collapsed full butt splices omit hidden fiber anchors and butt splice points", () => {
+    const csv = readFileSync(
+      join(process.cwd(), "public/fixtures/example-3.csv"),
+      "utf8",
+    );
+    const graph = buildConnectionGraph(parseBentleyCsv(csv));
+    const expanded = buildReactFlowGraph(graph, {
+      reportKey: "ex3",
+      positions: {},
+      collapseFullButtSplices: false,
+    });
+    const collapsed = buildReactFlowGraph(graph, {
+      reportKey: "ex3",
+      positions: {},
+      collapseFullButtSplices: true,
+    });
+
+    const expandedAnchors = expanded.nodes.filter(
+      (n) => n.type === "fiberAnchor",
+    ).length;
+    const collapsedAnchors = collapsed.nodes.filter(
+      (n) => n.type === "fiberAnchor",
+    ).length;
+    expect(collapsedAnchors).toBeLessThan(expandedAnchors);
+
+    const activeFiberConnIds = new Set(
+      collapsed.edges
+        .filter(
+          (e) =>
+            e.type === "splice" &&
+            !e.id.startsWith("butt-") &&
+            (e.id.startsWith("splice-left-") ||
+              e.id.startsWith("splice-right-") ||
+              e.id.startsWith("splice-")),
+        )
+        .map((e) =>
+          e.id
+            .replace(/^splice-left-/, "")
+            .replace(/^splice-right-/, "")
+            .replace(/^splice-/, ""),
+        ),
+    );
+    for (const anchor of collapsed.nodes.filter((n) => n.type === "fiberAnchor")) {
+      const connId = (anchor.data as { connectionId: string }).connectionId;
+      expect(activeFiberConnIds.has(connId)).toBe(true);
+    }
+
+    expect(
+      collapsed.nodes.some(
+        (n) =>
+          n.type === "splicePoint" &&
+          (n.data as { fullButtSplice?: boolean }).fullButtSplice === true,
+      ),
+    ).toBe(false);
+
+    expect(collapsed.edges.some((e) => e.id.startsWith("butt-"))).toBe(true);
+    for (const butt of collapsed.edges.filter((e) => e.id.startsWith("butt-"))) {
+      expect(
+        (butt.data as { routingPrecomputed?: boolean }).routingPrecomputed,
+      ).toBe(true);
+    }
+  });
+
   it("does not split composite edges missing precomputed paths", () => {
     const composite = [
       {

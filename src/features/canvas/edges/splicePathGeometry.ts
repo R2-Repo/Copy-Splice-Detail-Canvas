@@ -129,7 +129,7 @@ export function routingLaneFromEntries(
 }
 
 
-/** True when handle X is shared ù same-side splices need an inward center detour. */
+/** True when handle X is shared ? same-side splices need an inward center detour. */
 export function isSameColumnSplice(
   sourceX: number,
   targetX: number,
@@ -318,7 +318,7 @@ export function enforceMinHorizontalInset(
     }
   }
 
-  // EDGE-009 hard floor ù never place the vertical leg over the OS/fan column.
+  // EDGE-009 hard floor ? never place the vertical leg over the OS/fan column.
   let x = midX;
   for (const [handleX, tagWidth, atLabelEdge] of [
     [sourceX, sourceTagWidth, sourceAtLabelOuterEdge] as const,
@@ -343,11 +343,11 @@ export function enforceMinHorizontalInset(
   if (routeBounds.lo <= routeBounds.hi + SPLICE_PATH_EPS) {
     return Math.max(routeBounds.lo, Math.min(routeBounds.hi, x));
   }
-  // Same-column stems: routing margin band is empty ù keep OS clearance.
+  // Same-column stems: routing margin band is empty ? keep OS clearance.
   return x;
 }
 
-/** @deprecated alias ù use enforceMinHorizontalInset */
+/** @deprecated alias ? use enforceMinHorizontalInset */
 export function clampMidXForMinHorizontalInset(
   midX: number,
   sourceX: number,
@@ -398,7 +398,7 @@ export function parseOrthogonalPathPoints(
   return points;
 }
 
-/** Count 90ù direction changes across one or more orthogonal path strings. */
+/** Count 90? direction changes across one or more orthogonal path strings. */
 export function countOrthogonalBends(...paths: string[]): number {
   const points: Array<{ x: number; y: number }> = [];
   for (const path of paths) {
@@ -547,30 +547,18 @@ export function routingLaneFromData(
 
 export const MAX_SPLICE_BENDS = 2;
 
+/** Strict EDGE-004: ?2 bends total ? Y-track offsets must not inflate the budget. */
 export function maxSpliceBendsForLane(
-  sourceY: number,
-  targetY: number,
-  lane: SpliceRoutingLane,
+  _sourceY: number,
+  _targetY: number,
+  _lane: SpliceRoutingLane,
 ): number {
-  let extra = 0;
-  if (
-    lane.sourceHorizY !== undefined &&
-    Math.abs(lane.sourceHorizY - sourceY) > SPLICE_PATH_EPS
-  ) {
-    extra += 1;
-  }
-  if (
-    lane.targetHorizY !== undefined &&
-    Math.abs(lane.targetHorizY - targetY) > SPLICE_PATH_EPS
-  ) {
-    extra += 1;
-  }
-  return MAX_SPLICE_BENDS + extra;
+  return MAX_SPLICE_BENDS;
 }
 
 /**
  * Build handle?handle splice paths with ?2 orthogonal bends.
- * Prefers straight (0) before same-side or cross-side HùVùH (2 each).
+ * Prefers straight (0) before same-side or cross-side H?V?H (2 each).
  */
 export function buildSplicePath(
   sourceX: number,
@@ -587,12 +575,25 @@ export function buildSplicePath(
   diagramCenterX = (sourceX + targetX) / 2,
   sourceTagWidth = 0,
   targetTagWidth = 0,
+  options?: FusionDotOptions,
 ): SplicePathResult {
   const template = pickSpliceRouteTemplate(sourceX, sourceY, targetX, targetY);
 
   if (template === "straight") {
-    const spliceX = (sourceX + targetX) / 2;
-    const spliceY = sourceY;
+    const midX = (sourceX + targetX) / 2;
+    const { spliceX, spliceY } = resolveFusionDotPosition(
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+      midX,
+      jogX,
+      sideHoriz,
+      sideSpans,
+      diagramCenterX,
+      sourceTagWidth,
+      options,
+    );
     const leftPath = `M ${sourceX},${sourceY} L ${spliceX},${spliceY}`;
     const rightPath = `M ${spliceX},${spliceY} L ${targetX},${targetY}`;
     return {
@@ -617,6 +618,7 @@ export function buildSplicePath(
     diagramCenterX,
     sourceTagWidth,
     targetTagWidth,
+    options,
   );
   return {
     ...demarcated,
@@ -625,7 +627,7 @@ export function buildSplicePath(
   };
 }
 
-/** Explicit HùVùH splice path; each edge owns its vertical at `midX`. */
+/** Explicit H?V?H splice path; each edge owns its vertical at `midX`. */
 export function buildOrthogonalSplicePath(
   sourceX: number,
   sourceY: number,
@@ -701,7 +703,7 @@ function clampGapBendX(
 }
 
 /**
- * Per-lane clear X for Y-track bends ù staggers inward by global gap lane index
+ * Per-lane clear X for Y-track bends ? staggers inward by global gap lane index
  * so strands never stack vertical legs at one shared OS column X.
  */
 export function laneClearXBeforeVertical(
@@ -836,6 +838,195 @@ function appendSourceHorizWaypoints(
   return lastX;
 }
 
+function horizWaypointsFromStart(
+  waypoints: number[],
+  startX: number,
+  inward: 1 | -1,
+): number[] {
+  const result: number[] = [];
+  let lastX = startX;
+  for (const x of waypoints) {
+    const delta = x - lastX;
+    if (inward > 0 && delta <= SPLICE_PATH_EPS) continue;
+    if (inward < 0 && delta >= -SPLICE_PATH_EPS) continue;
+    result.push(x);
+    lastX = x;
+  }
+  return result;
+}
+
+function appendSourceHorizWaypointsUpTo(
+  parts: string[],
+  waypoints: number[],
+  y: number,
+  startX: number,
+  stopX: number,
+  inward: 1 | -1,
+): number {
+  let lastX = startX;
+  for (const x of waypoints) {
+    const pastStop =
+      inward > 0
+        ? x > stopX + SPLICE_PATH_EPS
+        : x < stopX - SPLICE_PATH_EPS;
+    if (pastStop) {
+      return appendHorizontalPoint(parts, stopX, y, lastX);
+    }
+    const delta = x - lastX;
+    if (inward > 0 && delta <= SPLICE_PATH_EPS) continue;
+    if (inward < 0 && delta >= -SPLICE_PATH_EPS) continue;
+    lastX = appendHorizontalPoint(parts, x, y, lastX);
+  }
+  if (Math.abs(stopX - lastX) > SPLICE_PATH_EPS) {
+    lastX = appendHorizontalPoint(parts, stopX, y, lastX);
+  }
+  return lastX;
+}
+
+export type FusionDotOptions = {
+  tubeDotColumnX?: number;
+};
+
+/** DOT-001: fusion dot on the source-side horizontal row before center vertical fan-out. */
+export function resolveFusionDotPosition(
+  sourceX: number,
+  sourceY: number,
+  targetX: number,
+  _targetY: number,
+  midX: number,
+  jogX?: number,
+  sideHoriz?: Pick<
+    SpliceRoutingLane,
+    "sourceHorizY" | "targetHorizY" | "sourceBendX" | "targetBendX"
+  >,
+  _sideSpans: SideCircuitLabelSpan = defaultSideCircuitLabelSpan(),
+  diagramCenterX = (sourceX + targetX) / 2,
+  _sourceTagWidth = 0,
+  options?: FusionDotOptions,
+): { spliceX: number; spliceY: number } {
+  const sourceHorizY = sideHoriz?.sourceHorizY ?? sourceY;
+  if (options?.tubeDotColumnX !== undefined) {
+    return { spliceX: options.tubeDotColumnX, spliceY: sourceHorizY };
+  }
+
+  const trunkX = reconcileBundleJogXForRender(
+    midX,
+    jogX,
+    sourceX,
+    diagramCenterX,
+  );
+  const dotX = trunkX ?? midX;
+  return { spliceX: dotX, spliceY: sourceHorizY };
+}
+
+export function fusionDotLiesOnHorizontal(
+  spliceX: number,
+  spliceY: number,
+  segments: OrthogonalSegment[],
+): boolean {
+  for (const seg of segments) {
+    if (seg.kind !== "h") continue;
+    if (Math.abs(seg.y - spliceY) > SPLICE_PATH_EPS) continue;
+    const lo = Math.min(seg.x0, seg.x1);
+    const hi = Math.max(seg.x0, seg.x1);
+    if (spliceX >= lo - SPLICE_PATH_EPS && spliceX <= hi + SPLICE_PATH_EPS) {
+      return true;
+    }
+  }
+  return false;
+}
+
+type TubeDotReconcileMember = {
+  id: string;
+  sourceX: number;
+  sourceY: number;
+  targetX: number;
+  targetY: number;
+  sourceTubeDotGroupKey?: string;
+  fullButtSplice?: boolean;
+  sideCircuitSpan?: SideCircuitLabelSpan;
+  sourceTagWidth?: number;
+};
+
+/** DOT-002: one shared dot column X per source buffer tube group. */
+export function reconcileBufferTubeDotColumns(
+  entries: TubeDotReconcileMember[],
+  lanes: Map<string, SpliceRoutingLane>,
+  diagramCenterX: number,
+  sideSpans: SideCircuitLabelSpan = defaultSideCircuitLabelSpan(),
+): Map<string, number> {
+  const byGroup = new Map<
+    string,
+    Array<{ id: string; entry: TubeDotReconcileMember; lane: SpliceRoutingLane }>
+  >();
+
+  for (const entry of entries) {
+    if (entry.fullButtSplice || !entry.sourceTubeDotGroupKey) continue;
+    const lane = lanes.get(entry.id);
+    if (!lane) continue;
+    const list = byGroup.get(entry.sourceTubeDotGroupKey) ?? [];
+    list.push({ id: entry.id, entry, lane });
+    byGroup.set(entry.sourceTubeDotGroupKey, list);
+  }
+
+  const result = new Map<string, number>();
+
+  for (const members of byGroup.values()) {
+    if (members.length < 2) continue;
+
+    const preferred = members.map(({ entry, lane }) =>
+      resolveFusionDotPosition(
+        entry.sourceX,
+        entry.sourceY,
+        entry.targetX,
+        entry.targetY,
+        lane.midX,
+        lane.jogX,
+        {
+          sourceHorizY: lane.sourceHorizY,
+          targetHorizY: lane.targetHorizY,
+          sourceBendX: lane.sourceBendX,
+          targetBendX: lane.targetBendX,
+        },
+        entry.sideCircuitSpan ?? sideSpans,
+        diagramCenterX,
+        entry.sourceTagWidth ?? 0,
+      ).spliceX,
+    );
+
+    const trunks = members
+      .map(({ entry, lane }) =>
+        reconcileBundleJogXForRender(
+          lane.midX,
+          lane.jogX,
+          entry.sourceX,
+          diagramCenterX,
+        ),
+      )
+      .filter((x): x is number => x !== undefined);
+
+    let unified: number;
+    if (
+      trunks.length === members.length &&
+      trunks.every((x) => Math.abs(x - trunks[0]!) <= SPLICE_PATH_EPS)
+    ) {
+      unified = trunks[0]!;
+    } else {
+      const anchor = members[0]!.entry;
+      const inward = inwardSignForColumn(anchor.sourceX, diagramCenterX);
+      // Least-inward X shared by every member's source horizontal span.
+      unified =
+        inward > 0 ? Math.min(...preferred) : Math.max(...preferred);
+    }
+
+    for (const { id } of members) {
+      result.set(id, unified);
+    }
+  }
+
+  return result;
+}
+
 function appendVerticalPoint(
   parts: string[],
   x: number,
@@ -850,7 +1041,7 @@ function appendVerticalPoint(
 /**
  * Left leg stops at the fusion dot; right leg starts there (different strand colors).
  *
- * EDGE-004: at most two 90ù bends handle-to-handle ù route on handle rows only;
+ * EDGE-004: at most two 90? bends handle-to-handle ? route on handle rows only;
  * optional bundle jog uses same-Y horizontals before one center vertical.
  */
 export function buildDemarcatedSplicePaths(
@@ -868,19 +1059,22 @@ export function buildDemarcatedSplicePaths(
   diagramCenterX = (sourceX + targetX) / 2,
   sourceTagWidth = 0,
   targetTagWidth = 0,
+  options?: FusionDotOptions,
 ): {
   leftPath: string;
   rightPath: string;
   spliceX: number;
   spliceY: number;
 } {
-  const spliceY = (sourceY + targetY) / 2;
   const sourceHorizY = sideHoriz?.sourceHorizY ?? sourceY;
   const targetHorizY = sideHoriz?.targetHorizY ?? targetY;
   const sourceUsesOffset =
     Math.abs(sourceHorizY - sourceY) > SPLICE_PATH_EPS;
   const targetUsesOffset =
     Math.abs(targetHorizY - targetY) > SPLICE_PATH_EPS;
+  const routeVertY = (sourceY + targetY) / 2;
+  const inward =
+    inwardSignForColumn(sourceX, diagramCenterX) > 0 ? (1 as const) : (-1 as const);
 
   const horizXs = sourceHorizWaypoints(
     sourceX,
@@ -892,6 +1086,21 @@ export function buildDemarcatedSplicePaths(
     sideHoriz?.sourceBendX,
   );
 
+  const { spliceX: fusionX, spliceY: fusionY } = resolveFusionDotPosition(
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    midX,
+    jogX,
+    sideHoriz,
+    sideSpans,
+    diagramCenterX,
+    sourceTagWidth,
+    options,
+  );
+
+  const hostY = sourceUsesOffset ? sourceHorizY : sourceY;
   const leftParts = [`M ${sourceX},${sourceY}`];
   if (sourceUsesOffset) {
     const bendX =
@@ -907,22 +1116,35 @@ export function buildDemarcatedSplicePaths(
     lastX = appendHorizontalPoint(leftParts, bendX, sourceY, lastX);
     let lastY = sourceY;
     lastY = appendVerticalPoint(leftParts, bendX, sourceHorizY, lastY);
-    lastX = appendSourceHorizWaypoints(
+    appendSourceHorizWaypointsUpTo(
       leftParts,
       horizXs,
       sourceHorizY,
       bendX,
+      fusionX,
+      inward,
     );
-    if (Math.abs(midX - lastX) > SPLICE_PATH_EPS) {
-      appendHorizontalPoint(leftParts, midX, sourceHorizY, lastX);
-    }
-    leftParts.push(`L ${midX},${spliceY}`);
   } else {
-    appendSourceHorizWaypoints(leftParts, horizXs, sourceY, sourceX);
-    leftParts.push(`L ${midX},${spliceY}`);
+    appendSourceHorizWaypointsUpTo(
+      leftParts,
+      horizXs,
+      sourceY,
+      sourceX,
+      fusionX,
+      inward,
+    );
   }
 
-  const rightParts = [`M ${midX},${spliceY}`];
+  const rightParts = [`M ${fusionX},${fusionY}`];
+  let lastX = fusionX;
+  const remainingHoriz = horizWaypointsFromStart(horizXs, fusionX, inward);
+  lastX = appendSourceHorizWaypoints(rightParts, remainingHoriz, hostY, lastX);
+  if (Math.abs(midX - lastX) > SPLICE_PATH_EPS) {
+    lastX = appendHorizontalPoint(rightParts, midX, hostY, lastX);
+  }
+  let lastY = hostY;
+  lastY = appendVerticalPoint(rightParts, midX, routeVertY, lastY);
+
   if (targetUsesOffset) {
     const targetBendX =
       sideHoriz?.targetBendX !== undefined &&
@@ -935,14 +1157,14 @@ export function buildDemarcatedSplicePaths(
             sideSpans,
             targetTagWidth,
           );
-    let lastY = spliceY;
     lastY = appendVerticalPoint(rightParts, midX, targetHorizY, lastY);
-    let lastX = midX;
+    lastX = midX;
     lastX = appendHorizontalPoint(rightParts, targetBendX, targetHorizY, lastX);
     lastY = appendVerticalPoint(rightParts, targetBendX, targetY, lastY);
     appendHorizontalPoint(rightParts, targetX, targetY, lastX);
   } else {
-    rightParts.push(`L ${midX},${targetY}`, `L ${targetX},${targetY}`);
+    lastY = appendVerticalPoint(rightParts, midX, targetY, lastY);
+    appendHorizontalPoint(rightParts, targetX, targetY, midX);
   }
 
   const leftPath = leftParts.join(" ");
@@ -950,8 +1172,8 @@ export function buildDemarcatedSplicePaths(
   return {
     leftPath,
     rightPath,
-    spliceX: midX,
-    spliceY,
+    spliceX: fusionX,
+    spliceY: fusionY,
   };
 }
 
@@ -1032,7 +1254,7 @@ export function clampButtSpliceMidX(
 export const BUTT_SPLICE_STRAIGHT_Y_TOLERANCE = FIBER_ROW_PITCH / 2;
 
 /**
- * Vertical lane X for collapsed tubes ù always in the center routing band,
+ * Vertical lane X for collapsed tubes ? always in the center routing band,
  * never hugging a cable column (row-offset packed midX is for fibers only).
  */
 export function resolveButtSpliceMidX(
@@ -1089,7 +1311,7 @@ function buttSpliceYsAligned(sourceY: number, targetY: number): boolean {
 }
 
 /**
- * Collapsed full-butt-splice tube path ù ?2 bends, bend only when row Y differs.
+ * Collapsed full-butt-splice tube path ? ?2 bends, bend only when row Y differs.
  * Straight (0 bends) when handle rows align within half pitch.
  * Cross-side: vertical at center midX on source leg; target leg horizontal only.
  */
@@ -1512,7 +1734,7 @@ function orthogonalSegmentsCross(
   return false;
 }
 
-/** True when two HùVùH splice paths share a crossing segment intersection. */
+/** True when two H?V?H splice paths share a crossing segment intersection. */
 export function hvDemarcatedPathsCross(
   sourceXA: number,
   sourceYA: number,
@@ -1616,6 +1838,26 @@ export function parseButtTubeEndpointsFromEdgeId(
   return { endpointA, endpointB };
 }
 
+/** Local Y for a collapsed tube handle (tube.end + TUB-008 visualShiftY). */
+export function collapsedTubeHandleLocalY(
+  vc: VisualCable,
+  tubeColor: TubeColorCode,
+  tubeEndY: number,
+): number {
+  const sourceTube = vc.tubes.find((t) => t.tubeColor === tubeColor);
+  return tubeEndY + (sourceTube?.visualShiftY ?? 0);
+}
+
+/** Local X for a collapsed tube handle (stem face + splice overhang). */
+export function collapsedTubeHandleLocalX(
+  side: VisualCable["side"],
+  stemX: number,
+): number {
+  return side === "left"
+    ? stemX + SPLICE_HANDLE_OVERHANG
+    : stemX - SPLICE_HANDLE_OVERHANG;
+}
+
 /** React Flow handle center for a collapsed full-butt-splice buffer tube. */
 export function tubeHandlePosition(
   vc: VisualCable,
@@ -1634,22 +1876,19 @@ export function tubeHandlePosition(
     alignedStemX,
   );
   const tube = geo.tubes.find((t) => t.tubeColor === tubeColor);
-  const outset = SPLICE_HANDLE_OVERHANG;
   if (!tube) {
     return {
       x:
-        vc.side === "left"
-          ? nodePosition.x + geo.stemX + outset
-          : nodePosition.x + geo.stemX - outset,
+        nodePosition.x +
+        collapsedTubeHandleLocalX(vc.side, geo.stemX),
       y: nodePosition.y + CABLE_LAYOUT.headerH,
     };
   }
+  const localY = collapsedTubeHandleLocalY(vc, tubeColor, tube.end.y);
+  const localX = collapsedTubeHandleLocalX(vc.side, geo.stemX);
   return {
-    x:
-      vc.side === "left"
-        ? nodePosition.x + geo.stemX + outset
-        : nodePosition.x + geo.stemX - outset,
-    y: nodePosition.y + tube.end.y,
+    x: nodePosition.x + localX,
+    y: nodePosition.y + localY,
   };
 }
 
