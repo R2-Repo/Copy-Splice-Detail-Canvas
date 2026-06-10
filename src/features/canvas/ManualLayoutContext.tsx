@@ -11,6 +11,10 @@ export type ManualLayoutGuideLine = {
 export type ManualLayoutContextValue = {
   manualAdjustEnabled: boolean;
   alignedStemX?: number;
+  onFiberAnchorClick?: (
+    connectionId: string,
+    event: { shiftKey: boolean },
+  ) => void;
   snapTipTargets: number[];
   onTubeOverrideCommit: (
     tubeKey: TubeOverrideKey,

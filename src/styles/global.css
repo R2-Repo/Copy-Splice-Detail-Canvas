@@ -48,8 +48,26 @@ body,
 }
 
 .workflow-canvas {
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   background-color: #ffffff;
   color: #0f172a;
+}
+
+.workflow-canvas__body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.workflow-canvas__stage {
+  flex: 1;
+  min-height: 0;
+}
+
+.workflow-canvas__stage > .react-flow {
+  width: 100%;
+  height: 100%;
 }

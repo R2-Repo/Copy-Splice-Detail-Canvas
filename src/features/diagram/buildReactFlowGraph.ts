@@ -42,6 +42,10 @@ import type { CableXBounds } from "@/features/diagram/cableLayoutMetrics";
 import { tubeHandleId } from "@/features/diagram/tubeId";
 import { applyPersistedTubeOverrides } from "@/features/diagram/applyTubeOverrides";
 import {
+  applyAllLegOverrides,
+  mergeFanoutOverridesIntoTubes,
+} from "@/features/manualAdjust/applyManualAdjust";
+import {
   applyTubeRowAlignmentShifts,
   cablePositionsFromNodePositions,
   type TubeRowShiftOptions,
@@ -188,6 +192,8 @@ export function buildReactFlowGraph(
     stageWidth?: number;
     /** Skip cross-side tube tip auto-alignment (manual adjust mode). */
     skipTubeAutoAlign?: boolean;
+    /** Live cable drag — preserve exact Y, skip stack collision + tube auto-align. */
+    dragSync?: boolean;
   },
 ): {
   nodes: Node[];
@@ -255,18 +261,21 @@ export function buildReactFlowGraph(
     refreshRowLayout: buildOptions?.refreshRowLayout,
   });
 
-  resolveSameSideNodeCollisions(
-    visualCables,
-    placement,
-    positions,
-    diagramScale,
-  );
+  if (buildOptions?.dragSync !== true) {
+    resolveSameSideNodeCollisions(
+      visualCables,
+      placement,
+      positions,
+      diagramScale,
+    );
+  }
 
   const autoAdjustOn = overrides?.autoAdjustEnabled !== false;
   const lockedTubeKeys = applyPersistedTubeOverrides(
     visualCables,
     overrides?.tubeOverrides,
   );
+  mergeFanoutOverridesIntoTubes(visualCables, overrides);
 
   const tubeShiftOptions: TubeRowShiftOptions = {
     ...(collapseFullButtSplices && resolvedButtSplices.length > 0
@@ -280,7 +289,11 @@ export function buildReactFlowGraph(
     lockedTubeKeys,
   };
 
-  if (autoAdjustOn && buildOptions?.skipTubeAutoAlign !== true) {
+  if (
+    autoAdjustOn &&
+    buildOptions?.skipTubeAutoAlign !== true &&
+    buildOptions?.dragSync !== true
+  ) {
     applyTubeRowAlignmentShifts(
       graph,
       visualCables,
@@ -440,7 +453,7 @@ export function buildReactFlowGraph(
     );
     return {
       nodes: augmented.nodes,
-      edges: augmented.edges,
+      edges: applyAllLegOverrides(augmented.edges, overrides),
       layout,
       xBounds,
       autoLayoutY,

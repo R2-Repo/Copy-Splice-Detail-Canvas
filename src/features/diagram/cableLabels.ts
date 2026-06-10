@@ -1,7 +1,14 @@
 /** Bentley-style cable header from name (e.g. "006 SMFO (R2)"). */
 import {
+  FIBER_CODE_HANDLE_GAP,
   FIBER_CIRCUIT_MAX_WIDTH,
+  FIBER_HANDLE_DOT,
+  FIBER_LABEL_CODE_GAP,
+  FIBER_ROW_CODE_MIN_WIDTH,
+  FIBER_ROW_INNER_GAP,
+  FIBER_ROW_SWATCH_WIDTH,
   SPLICE_HANDLE_OVERHANG,
+  fiberCodeColumnWidth,
   fiberRowPrefixWidth,
 } from "@/features/diagram/cableLayoutMetrics";
 import type { VisualCable } from "@/features/diagram/visualCables";
@@ -78,7 +85,54 @@ export function fiberRowLabelWidth(circuitName?: string): number {
 
 /** Outset from stem X to splice handle center on one cable side. */
 export function spliceHandleOutsetFromStem(circuitName?: string): number {
-  return fiberRowLabelWidth(circuitName) + SPLICE_HANDLE_OVERHANG;
+  return (
+    formattedCircuitTagWidth(circuitName) +
+    fiberCodeColumnWidth() +
+    SPLICE_HANDLE_OVERHANG
+  );
+}
+
+/** Fixed stem → handle center: swatch runway + max label slot + code column + overhang. */
+export function fixedHandleOutsetFromStem(): number {
+  return (
+    FIBER_ROW_SWATCH_WIDTH +
+    FIBER_ROW_INNER_GAP +
+    FIBER_CIRCUIT_MAX_WIDTH +
+    fiberCodeColumnWidth() +
+    SPLICE_HANDLE_OVERHANG
+  );
+}
+
+export type FiberRowLayoutXs = {
+  handleX: number;
+  codeLeftX: number;
+  labelEndX: number;
+  labelStartX: number;
+  fanToX: number;
+};
+
+/** Per-row X anchors (left-cable local coords; mirror for right in CableNode). */
+export function fiberRowLayoutXs(
+  stemX: number,
+  circuitName?: string,
+): FiberRowLayoutXs {
+  const tagW = formattedCircuitTagWidth(circuitName);
+  const handleX = stemX + fixedHandleOutsetFromStem();
+  const codeLeftX =
+    handleX -
+    FIBER_HANDLE_DOT / 2 -
+    FIBER_CODE_HANDLE_GAP -
+    FIBER_ROW_CODE_MIN_WIDTH;
+  const labelEndX = codeLeftX - FIBER_LABEL_CODE_GAP;
+  const labelStartX = labelEndX - tagW;
+  return {
+    handleX,
+    codeLeftX,
+    labelEndX,
+    labelStartX,
+    /** Fan horizontal meets the label start — strand does not run through label text. */
+    fanToX: labelStartX,
+  };
 }
 
 /** @internal test helper */
@@ -105,11 +159,11 @@ export function computeSideCircuitLabelSpans(
   visualCables: VisualCable[],
   sideOf: (vc: VisualCable) => "left" | "right",
 ): SideCircuitLabelSpan {
-  const prefix = fiberRowPrefixWidth();
+  const codeCol = fiberCodeColumnWidth();
   const leftCables = visualCables.filter((vc) => sideOf(vc) === "left");
   const rightCables = visualCables.filter((vc) => sideOf(vc) === "right");
   return {
-    left: prefix + maxCircuitTagWidthForCables(leftCables),
-    right: prefix + maxCircuitTagWidthForCables(rightCables),
+    left: codeCol + maxCircuitTagWidthForCables(leftCables),
+    right: codeCol + maxCircuitTagWidthForCables(rightCables),
   };
 }

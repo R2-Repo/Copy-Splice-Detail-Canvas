@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  fiberRowLayoutXs,
+  fixedHandleOutsetFromStem,
+} from "./cableLabels";
+import {
   BREAKOUT,
   computeCableBreakout,
   computeDiagramScale,
@@ -43,6 +47,7 @@ function mockTube(
     rowYOffset?: number;
     handleId: string;
     fiberColor: string;
+    circuitName?: string;
   }[],
   pitch = 40,
 ): VisualTube {
@@ -56,6 +61,7 @@ function mockTube(
       handleId: f.handleId,
       rowIndex: f.rowIndex,
       rowYOffset: f.rowYOffset ?? f.rowIndex * pitch,
+      circuitName: f.circuitName,
     })),
   };
 }
@@ -105,6 +111,77 @@ describe("computeCableBreakout", () => {
     expect(tube.origin.x).toBe(geo.sheath.width);
   });
 
+  it("viewWidth fits fixed handle column; fan paths start at label anchor", () => {
+    const tubes = [
+      mockTube("BL", [
+        { rowIndex: 0, handleId: "f0", fiberColor: "BL" },
+        { rowIndex: 1, handleId: "f1", fiberColor: "OR" },
+      ]),
+    ];
+    const handleCol = fixedHandleOutsetFromStem();
+    const geo = computeCableBreakout(tubes, "left", 40, 56, 18);
+    expect(geo.viewWidth).toBeGreaterThanOrEqual(geo.stemX + handleCol - 1);
+    const labelStart = fiberRowLayoutXs(geo.stemX).labelStartX;
+    for (const fiber of geo.tubes[0]!.fibers) {
+      expect(fiber.fanTo.x).toBeCloseTo(labelStart, 5);
+      expect(fiberFanTopPathD(fiber).startsWith(`M ${fiber.fanTo.x}`)).toBe(
+        true,
+      );
+    }
+  });
+
+  it("fan elbow X is identical for every row in a tube", () => {
+    const tubes = [
+      mockTube("BL", [
+        { rowIndex: 0, handleId: "a", fiberColor: "BL", circuitName: "CH 1" },
+        {
+          rowIndex: 1,
+          handleId: "b",
+          fiberColor: "OR",
+          circuitName: "ATMS CENTRAL UTAH",
+        },
+      ]),
+    ];
+    const geo = computeCableBreakout(tubes, "left", 40, 56, 18);
+    const elbows = geo.tubes[0]!.fibers.map((f) => f.fanElbow?.x);
+    expect(elbows.every((x) => x === elbows[0])).toBe(true);
+  });
+
+  it("fan meets label start; long labels extend fan horizontal toward tube", () => {
+    const tubes = [
+      mockTube("BL", [
+        {
+          rowIndex: 0,
+          handleId: "short",
+          fiberColor: "BL",
+          circuitName: "CH 3254",
+        },
+        {
+          rowIndex: 1,
+          handleId: "long",
+          fiberColor: "OR",
+          circuitName: "ATMS CENTRAL UTAH COUNTY HUB",
+        },
+      ]),
+    ];
+    const geo = computeCableBreakout(tubes, "left", 40, 56, 18);
+    const shortFiber = geo.tubes[0]!.fibers.find((f) => f.handleId === "short")!;
+    const longFiber = geo.tubes[0]!.fibers.find((f) => f.handleId === "long")!;
+    expect(shortFiber.fanTo.x).toBeGreaterThan(longFiber.fanTo.x);
+    expect(shortFiber.fanElbow!.x).toBe(longFiber.fanElbow!.x);
+    const shortRun = shortFiber.fanTo.x - shortFiber.fanElbow!.x;
+    const longRun = longFiber.fanTo.x - longFiber.fanElbow!.x;
+    expect(shortRun).toBeGreaterThan(longRun);
+    expect(shortFiber.fanTo.x).toBeCloseTo(
+      fiberRowLayoutXs(geo.stemX, "CH 3254").fanToX,
+      2,
+    );
+    expect(longFiber.fanTo.x).toBeCloseTo(
+      fiberRowLayoutXs(geo.stemX, "ATMS CENTRAL UTAH COUNTY HUB").fanToX,
+      2,
+    );
+  });
+
   it("scales sheath uniformly with buffer tube count", () => {
     const tubes = [
       mockTube("BL", [{ rowIndex: 0, handleId: "f0", fiberColor: "BL" }]),
@@ -143,7 +220,7 @@ describe("computeCableBreakout", () => {
     expect(geo.tubes[0]!.end.y).not.toBeCloseTo(geo.tubes[1]!.end.y, 0);
   });
 
-  it("ignores visualShiftY on expanded tube and fan geometry (TUB-002)", () => {
+  it("applies visualShiftY to expanded tube tip, fan-out, and fiber rows", () => {
     const tubes = [
       {
         ...mockTube("BL", [
@@ -153,12 +230,20 @@ describe("computeCableBreakout", () => {
         visualShiftY: 10,
       },
     ];
-    const geo = computeCableBreakout(tubes, "left", 40, 56, 18);
-    const tube = geo.tubes[0]!;
-    const rowYs = tube.fibers.map((f) => f.rowY);
-    const fiberCenterY = (Math.min(...rowYs) + Math.max(...rowYs)) / 2;
-    expect(tube.end.y).toBeCloseTo(fiberCenterY, 5);
-    expect(tube.origin.y).toBeCloseTo(tube.end.y, 5);
+    const noShift = [
+      mockTube("BL", [
+        { rowIndex: 0, rowYOffset: 0, handleId: "f0", fiberColor: "BL" },
+        { rowIndex: 1, rowYOffset: 40, handleId: "f1", fiberColor: "OR" },
+      ]),
+    ];
+    const base = computeCableBreakout(noShift, "left", 40, 56, 18, 1, undefined);
+    const shifted = computeCableBreakout(tubes, "left", 40, 56, 18, 1, undefined);
+    const tube = shifted.tubes[0]!;
+    expect(tube.end.y - base.tubes[0]!.end.y).toBeCloseTo(10, 5);
+    expect(tube.fibers[0]!.rowY - base.tubes[0]!.fibers[0]!.rowY).toBeCloseTo(
+      10,
+      5,
+    );
   });
 
   it("shortens tube stem and uses smooth curved fan legs", () => {

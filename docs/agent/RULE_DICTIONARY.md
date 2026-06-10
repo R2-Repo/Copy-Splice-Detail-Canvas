@@ -111,7 +111,7 @@
 |----|------------|---------------|----------------|
 | **DOT-001** | Dot on horizontal | Fusion dot sits on a **horizontal** strand segment, not a vertical center leg. | Dots appear mid-way up a vertical lane. |
 | **DOT-002** | Tube dot column | Same **source buffer tube** splices share one dot **X**; dots **stack vertically** on each fiber row (24px). | Tube fibers’ dots scatter at different X values. |
-| **DOT-003** | Dot overlap *(TBD)* | Reserved — dot/strand conflict avoidance; not enforced yet. | — |
+| **DOT-003** | Dot corner clearance | Fusion dot stays **≥48px** along the leg path from any **corner**; still on a horizontal segment (**DOT-001**). | Dot sits right on a bend or too close to a corner. |
 
 ---
 
@@ -127,10 +127,13 @@
 
 | Term | Plain English |
 |------|----------------|
-| **Manual adjust** | Toolbar toggle (`autoAdjustEnabled: false`). Cable drag skips auto row/tube relayout; buffer-tube tip (Y) and fan-out reach (X) handles appear on cables. |
-| **Tube override** | Persisted per `visualCableId\|tubeColor`: `visualShiftY` shifts tube tip + fan origin; `stemReachX` extends tube toward center. Locked tubes skip auto TUB-008 alignment. |
-| **Soft snap** | 24px pitch + layout-line guides during handle drag; EDGE-004/012 violations show advisory banner only. |
-| **Reset to auto layout** | Clears `tubeOverrides` and re-runs import layout. |
+| **Manual adjust** | Toolbar toggle (`autoAdjustEnabled: false`). Cable drag = position only; fan-out/labels + leg edits go through **Manual Adjust Engine** (`src/features/manualAdjust/`). |
+| **Handle column** | All handles on a canvas side share one vertical column at max circuit-label width (~154px from stem). Labels grow **from handle toward center**. |
+| **Fan-out drag** | Vertical only per buffer tube — fan curves + labels move as a group; tube **stretches** between sheath and fan junction. Persisted in `fanoutOverrides` / `tubeOverrides.visualShiftY`. |
+| **Leg segment drag** | Numbered segments per leg at each corner; overlay handles in manual mode. Persisted in `legOverrides` (v13). |
+| **Multi-select** | Shift+click fiber anchors; box marquee on canvas. Group drag applies same delta with per-splice constraints. |
+| **Soft snap** | 24px pitch + layout-line guides; EDGE-004/012 violations show advisory banner only. |
+| **Reset to auto layout** | Clears overrides and re-runs import layout. |
 
 ---
 

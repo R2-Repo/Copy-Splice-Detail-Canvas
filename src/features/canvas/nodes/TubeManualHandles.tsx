@@ -26,6 +26,7 @@ type Props = {
   collapsedTubes: Set<string>;
   tubeFaceX: number;
   defaultTubeLength: number;
+  alignedStemX?: number;
 };
 
 export function TubeManualHandles({
@@ -36,6 +37,7 @@ export function TubeManualHandles({
   collapsedTubes,
   tubeFaceX,
   defaultTubeLength,
+  alignedStemX,
 }: Props) {
   const manual = useManualLayout();
   const [preview, setPreview] = useState<
@@ -123,7 +125,7 @@ export function TubeManualHandles({
           : drag.startPointer - event.clientX);
       const next = snapStemReachX(
         raw,
-        manual.alignedStemX,
+        alignedStemX,
         tubeFaceX,
         defaultTubeLength,
       );
@@ -135,12 +137,12 @@ export function TubeManualHandles({
         });
         return nextMap;
       });
-      if (manual.alignedStemX !== undefined) {
+      if (alignedStemX !== undefined) {
         manual.setActiveGuides([
           {
             id: `stem-${drag.tubeColor}`,
             orientation: "vertical",
-            value: manual.alignedStemX,
+            value: alignedStemX,
           },
         ]);
       }
@@ -212,19 +214,6 @@ export function TubeManualHandles({
               aria-label={`Adjust ${tube.tubeColor} tube tip`}
               onPointerDown={(e) =>
                 onPointerDown(e, tube.tubeColor, "y", baseTipY)
-              }
-            />
-            <button
-              type="button"
-              className="cable-node__tube-reach-drag nodrag nopan"
-              style={{
-                left: (tube.origin.x + displayEndX) / 2 - 8,
-                top: displayEndY - 6,
-              }}
-              title="Drag fan-out reach (horizontal)"
-              aria-label={`Adjust ${tube.tubeColor} fan-out reach`}
-              onPointerDown={(e) =>
-                onPointerDown(e, tube.tubeColor, "x", baseTipY)
               }
             />
           </div>

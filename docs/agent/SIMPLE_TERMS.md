@@ -54,7 +54,7 @@ Read each **cable** outside → in: cable → buffer tube → fan-out → labels
 | **Buffer tube** | Thick colored line from cable toward the fan | **Buffer tube** / **tube stem**; **tube origin** (sheath end); **tube tip** (fan end); **tube label** at junction (e.g. BR) | TUB-* |
 | **Fan-out** | Curved thin lines from tube to each fiber row | **Fan legs** (**fan tail** + **fan top**); **fan junction** / **fan-out origin**; **fan zone** | STR-001, TUB-002 |
 | **Labels** | Square + letters + circuit text on each row | **Fiber label column**; **fiber swatch**; **fiber code** (SL, WH…); **circuit tag** `(CH 2004)` | TUB-007, FBR-* |
-| **Handle** | Colored dot where the splice path attaches | **Fiber handle**; **stem column** (`stemX`) | TUB-007 |
+| **Handle** | Colored dot where the splice path attaches; all handles on one side line up in one **handle column** | **Fiber handle**; **stem column** (`stemX`); fixed **handle column** at max label width | TUB-007 |
 | **Left leg** | Colored path from left **handle** to the dot | **Left leg**; `leftPath`; source-side color; **source handle** on left cable | EDGE-002, DOT-001 |
 | **Fusion splice dot** | Black dot where the two legs meet | **Fusion splice dot** / **fusion splice point**; `spliceX`, `spliceY` | DOT-001, DOT-002 |
 | **Right leg** | Colored path from the dot to right **handle** | **Right leg**; `rightPath`; target-side color; **target handle** on right cable | EDGE-002 |
@@ -164,6 +164,29 @@ You usually don’t need these in chat — agents reach for them when fixing rou
 | “Tube order wrong on the cable” | **Tube order**; **TUB-006** |
 | “Line doesn’t clear the circuit text” | **Gap horizontals**; **OS / circuit column**; **EDGE-009** |
 | “Dots from one tube should line up” | **Dot column**; **DOT-002** |
+| “Dot too close to a corner” | **48px corner clearance**; **DOT-003** |
+
+---
+
+## Manual adjust (toolbar toggle)
+
+Turn **Manual adjust** on when you want to nudge fan-out/labels and leg segments without auto relayout.
+
+| You say | What it is | Agent / code |
+|---------|------------|--------------|
+| **Manual adjust** | Off = auto layout + routing; on = cable drag moves position only | `autoAdjustEnabled`; `useManualAdjustEngine` |
+| **Handle column** | Every handle on left (or right) lines up vertically; fiber codes sit in the column just left of handles | `fixedHandleOutsetFromStem`; `fiberRowLayoutXs`; fan strand fills gap to label |
+| **Fan-out drag** | Drag a buffer tube’s fan-out + labels **up/down** only | `fanoutOverrides`; buffer tube stretches (`visualShiftY`) |
+| **Leg segment** | One straight run between two **corners** on a leg | `legSegments.ts`; segment overlay handles |
+| **Multi-select** | Shift+click splices or box-select several rows | `selection.ts`; fiber anchor nodes |
+| **Corner clearance** | Fusion dot must stay **48px** from any leg corner | **DOT-003**; `FUSION_DOT_MIN_CORNER_CLEARANCE` |
+
+**Example phrases:**
+
+- “In **manual adjust**, drag the **fan-out** on the BR tube down.”
+- “**Handle column** looks good — now move **segment 2** on the left leg.”
+- “**Multi-select** these three rows and drag together.”
+- “**Dot** is too close to a **corner** — need more **corner clearance**.”
 
 ---
 

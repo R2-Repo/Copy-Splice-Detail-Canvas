@@ -41,18 +41,39 @@ export const MIN_HORIZONTAL_INSET_FLOOR = 16;
 export const MIN_SPLICE_HORIZONTAL_INSET = 60;
 
 /** Fiber row layout — keep in sync with splice-diagram.css */
-export const FIBER_ROW_SWATCH_WIDTH = 36;
+/** Minimum fan runway before the label column (short — labels expand inward). */
+export const FIBER_ROW_SWATCH_WIDTH = 16;
 export const FIBER_ROW_INNER_GAP = 5;
+/** Gap between circuit label and fiber code column (BL, OR, …). */
+export const FIBER_LABEL_CODE_GAP = 2;
 export const FIBER_ROW_CODE_MIN_WIDTH = 20;
-export const FIBER_CIRCUIT_MAX_WIDTH = 88;
+/** Gap between fiber code (BL) and splice handle dot — keep in sync with CSS. */
+export const FIBER_CODE_HANDLE_GAP = 4;
+export const FIBER_HANDLE_DOT = 6;
+export const FIBER_CIRCUIT_MAX_WIDTH = 128;
 
-/** Handle → start of circuit tag text (swatch + code + gaps). */
+/** @deprecated Legacy swatch+code prefix; prefer fiberCodeColumnWidth + dynamic fan strand. */
 export function fiberRowPrefixWidth(): number {
   return (
     FIBER_ROW_SWATCH_WIDTH +
     FIBER_ROW_INNER_GAP +
     FIBER_ROW_CODE_MIN_WIDTH +
     FIBER_ROW_INNER_GAP
+  );
+}
+
+/** Fixed-width fiber code column immediately left of the handle (BL, OR, …). */
+export function fiberCodeColumnWidth(): number {
+  return FIBER_ROW_CODE_MIN_WIDTH + FIBER_ROW_INNER_GAP;
+}
+
+/** Code + gap + handle dot + outward overhang. */
+export function fiberHandleStripWidth(): number {
+  return (
+    FIBER_ROW_CODE_MIN_WIDTH +
+    FIBER_CODE_HANDLE_GAP +
+    FIBER_HANDLE_DOT +
+    SPLICE_HANDLE_OVERHANG
   );
 }
 
@@ -153,25 +174,31 @@ export function fiberRowOffsetInCable(
   vc: VisualCable,
   connectionId: string,
 ): number {
+  let shiftY = 0;
   const fiber = vc.tubes
-    .flatMap((t) => t.fibers)
-    .find((f) => f.connectionId === connectionId);
+    .flatMap((t) =>
+      t.fibers.map((f) => ({ tube: t, fiber: f })),
+    )
+    .find(({ fiber: f }) => f.connectionId === connectionId);
   if (!fiber) return CABLE_LAYOUT.headerH;
+  shiftY = fiber.tube.visualShiftY ?? 0;
 
   const rowStart = CABLE_LAYOUT.headerH + CABLE_LAYOUT.tubeLabelH;
-  return rowStart + fiber.rowYOffset + CABLE_LAYOUT.fiberRowH / 2;
+  return rowStart + fiber.fiber.rowYOffset + CABLE_LAYOUT.fiberRowH / 2 + shiftY;
 }
 
 export function fiberRowOffsetInTubes(
   tubes: VisualCable["tubes"],
   connectionId: string,
 ): number {
-  const fiber = tubes
-    .flatMap((t) => t.fibers)
-    .find((f) => f.connectionId === connectionId);
-  if (!fiber) return CABLE_LAYOUT.headerH;
+  let shiftY = 0;
+  const match = tubes
+    .flatMap((t) => t.fibers.map((f) => ({ tube: t, fiber: f })))
+    .find(({ fiber: f }) => f.connectionId === connectionId);
+  if (!match) return CABLE_LAYOUT.headerH;
+  shiftY = match.tube.visualShiftY ?? 0;
   const rowStart = CABLE_LAYOUT.headerH + CABLE_LAYOUT.tubeLabelH;
-  return rowStart + fiber.rowYOffset + CABLE_LAYOUT.fiberRowH / 2;
+  return rowStart + match.fiber.rowYOffset + CABLE_LAYOUT.fiberRowH / 2 + shiftY;
 }
 
 export function compactVisualCableHeight(fiberCount: number): number {

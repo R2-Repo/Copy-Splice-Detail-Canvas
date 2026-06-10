@@ -4,6 +4,7 @@ import {
   BREAKOUT,
   computeSheathSize,
 } from "@/features/diagram/cableBreakoutGeometry";
+import { fixedHandleOutsetFromStem } from "@/features/diagram/cableLabels";
 import {
   CABLE_LAYOUT,
   cableXForSide,
@@ -51,7 +52,7 @@ export function estimatedCableNodeWidth(
       return sheath.width + tubeLength + BREAKOUT.fiberStemGap;
     }),
   );
-  return maxStem + BREAKOUT.fiberLabelWidth;
+  return maxStem + fixedHandleOutsetFromStem();
 }
 
 export function computeCableXBounds(

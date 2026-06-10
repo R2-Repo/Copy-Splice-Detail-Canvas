@@ -5,13 +5,13 @@ import {
   MIN_HORIZONTAL_INSET_FLOOR,
   FIBER_CIRCUIT_MAX_WIDTH,
   SPLICE_HANDLE_OVERHANG,
-  fiberRowPrefixWidth,
+  fiberCodeColumnWidth,
   CABLE_LAYOUT,
   FIBER_ROW_PITCH,
   fiberRowOffsetInCable,
 } from "@/features/diagram/cableLayoutMetrics";
 import {
-  spliceHandleOutsetFromStem,
+  fixedHandleOutsetFromStem,
   type SideCircuitLabelSpan,
 } from "@/features/diagram/cableLabels";
 import { computeCableBreakout } from "@/features/diagram/cableBreakoutGeometry";
@@ -150,8 +150,9 @@ export function templateUsesMidXLanes(template: SpliceRouteTemplate): boolean {
 }
 
 export function defaultSideCircuitLabelSpan(): SideCircuitLabelSpan {
-  const prefix = fiberRowPrefixWidth();
-  return { left: prefix, right: prefix };
+  const codeCol = fiberCodeColumnWidth();
+  const labelRun = codeCol + FIBER_CIRCUIT_MAX_WIDTH;
+  return { left: labelRun, right: labelRun };
 }
 
 export function canvasSideForHandle(
@@ -175,7 +176,7 @@ export function labelColumnRunForSide(
 ): number {
   return Math.max(
     circuitLabelSpanForSide(side, sideSpans),
-    fiberRowPrefixWidth() + FIBER_CIRCUIT_MAX_WIDTH,
+    fiberCodeColumnWidth() + FIBER_CIRCUIT_MAX_WIDTH,
   );
 }
 
@@ -200,18 +201,18 @@ export function minClearMidXForHandle(
   handleAtLabelOuterEdge = false,
 ): number {
   const side = canvasSideForHandle(handleX, diagramCenterX);
-  const prefix = fiberRowPrefixWidth();
+  const codeCol = fiberCodeColumnWidth();
   const columnRun = handleAtLabelOuterEdge
     ? labelColumnRunForSide(side, sideSpans)
     : circuitLabelSpanForSide(side, sideSpans);
   if (side === "left") {
     const columnClear = handleAtLabelOuterEdge
-      ? handleX - prefix - tagWidth + columnRun + jog
+      ? handleX - codeCol - tagWidth + columnRun + jog
       : handleX + columnRun + jog;
     return Math.max(handleX + jog, columnClear);
   }
   const columnClear = handleAtLabelOuterEdge
-    ? handleX + prefix + tagWidth - columnRun - jog
+    ? handleX + codeCol + tagWidth - columnRun - jog
     : handleX - columnRun - jog;
   return Math.min(handleX - jog, columnClear);
 }
@@ -546,6 +547,9 @@ export function routingLaneFromData(
 }
 
 export const MAX_SPLICE_BENDS = 2;
+
+/** DOT-003: minimum path distance from fusion dot to the nearest leg corner. */
+export const FUSION_DOT_MIN_CORNER_CLEARANCE = 48;
 
 /** Strict EDGE-004: ?2 bends total ? Y-track offsets must not inflate the budget. */
 export function maxSpliceBendsForLane(
@@ -1838,14 +1842,13 @@ export function parseButtTubeEndpointsFromEdgeId(
   return { endpointA, endpointB };
 }
 
-/** Local Y for a collapsed tube handle (tube.end + TUB-008 visualShiftY). */
+/** Local Y for a collapsed tube handle (tube.end already includes visualShiftY). */
 export function collapsedTubeHandleLocalY(
-  vc: VisualCable,
-  tubeColor: TubeColorCode,
+  _vc: VisualCable,
+  _tubeColor: TubeColorCode,
   tubeEndY: number,
 ): number {
-  const sourceTube = vc.tubes.find((t) => t.tubeColor === tubeColor);
-  return tubeEndY + (sourceTube?.visualShiftY ?? 0);
+  return tubeEndY;
 }
 
 /** Local X for a collapsed tube handle (stem face + splice overhang). */
@@ -1899,7 +1902,7 @@ export function fiberHandlePosition(
   nodePosition: { x: number; y: number },
   scale = 1,
   alignedStemX?: number,
-  circuitName?: string,
+  _circuitName?: string,
 ): { x: number; y: number } {
   const geo = computeCableBreakout(
     vc.tubes,
@@ -1913,15 +1916,14 @@ export function fiberHandlePosition(
   const fiber = vc.tubes
     .flatMap((t) => t.fibers)
     .find((f) => f.connectionId === connectionId);
-  const tagCircuit = circuitName ?? fiber?.circuitName;
-  const outset = fiber
-    ? spliceHandleOutsetFromStem(tagCircuit)
-    : SPLICE_HANDLE_OVERHANG;
+  const outset = fiber ? fixedHandleOutsetFromStem() : SPLICE_HANDLE_OVERHANG;
+  const stemOrigin =
+    vc.side === "left" ? geo.stemX : geo.viewWidth - geo.stemX;
+  const handleCenterX = stemOrigin + outset;
+  const handleLocalX =
+    vc.side === "left" ? handleCenterX : geo.viewWidth - handleCenterX;
   return {
-    x:
-      vc.side === "left"
-        ? nodePosition.x + geo.stemX + outset
-        : nodePosition.x + geo.stemX - outset,
+    x: nodePosition.x + handleLocalX,
     y: nodePosition.y + fiberRowOffsetInCable(vc, connectionId),
   };
 }

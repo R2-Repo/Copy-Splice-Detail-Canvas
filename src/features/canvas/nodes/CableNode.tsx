@@ -6,7 +6,11 @@ import {
 } from "@xyflow/react";
 import { useEffect, type CSSProperties } from "react";
 
-import { CABLE_LAYOUT } from "@/features/diagram/cableLayoutMetrics";
+import {
+  CABLE_LAYOUT,
+  FIBER_HANDLE_DOT,
+  FIBER_ROW_CODE_MIN_WIDTH,
+} from "@/features/diagram/cableLayoutMetrics";
 import { collapsedTubeHandleLocalX } from "@/features/canvas/edges/splicePathGeometry";
 import {
   computeCableBreakout,
@@ -16,14 +20,16 @@ import {
 import { useCircuitHighlight } from "@/features/canvas/CircuitHighlightContext";
 import {
   colorHex,
-  colorName,
   isStripedTube,
   needsFiberContrastOutline,
 } from "@/features/diagram/colorCode";
 import { ContrastSvgLine } from "@/features/canvas/nodes/ContrastSvgLine";
 import { ContrastSvgPath } from "@/features/canvas/nodes/ContrastSvgPath";
 import { TubeManualHandles } from "@/features/canvas/nodes/TubeManualHandles";
-import { formatCircuitTag } from "@/features/diagram/cableLabels";
+import {
+  fiberRowLayoutXs,
+  formatCircuitTag,
+} from "@/features/diagram/cableLabels";
 import { tubeHandleId } from "@/features/diagram/tubeId";
 import type { FiberColorAbbrev, TubeColorCode } from "@/types/splice";
 
@@ -94,6 +100,11 @@ export function CableNode({ id, data }: NodeProps) {
       ? Math.abs(geo.tubes[0].end.x - geo.tubes[0].origin.x)
       : 52;
   const tubeFaceX = d.side === "left" ? geo.sheath.width : geo.viewWidth - geo.sheath.width;
+  const stemAbsolute =
+    d.side === "left" ? geo.stemX : geo.viewWidth - geo.stemX;
+
+  const localX = (x: number, width = 0): number =>
+    d.side === "left" ? x : geo.viewWidth - x - width;
 
   return (
     <div
@@ -137,8 +148,7 @@ export function CableNode({ id, data }: NodeProps) {
           const stroke = tubeStroke(tube.tubeColor, striped);
           const tubeBase = tube.tubeColor.split("-")[0] as FiberColorAbbrev;
           const sourceTube = d.tubes.find((t) => t.tubeColor === tube.tubeColor);
-          const collapsedHandleY =
-            tube.end.y + (sourceTube?.visualShiftY ?? 0);
+          const collapsedHandleY = tube.end.y;
           const lineStart = tube.origin;
           const lineEnd = collapsed
             ? {
@@ -248,6 +258,8 @@ export function CableNode({ id, data }: NodeProps) {
             fiber.circuitName,
             fiber.fiberColor,
           );
+          const layout = fiberRowLayoutXs(stemAbsolute, fiber.circuitName);
+          const tagWidth = Math.max(0, layout.labelEndX - layout.labelStartX);
           const fiberHighlighted = isFiberHighlighted(
             fiber.connectionId,
             fiber.spliceConnectionIds,
@@ -258,13 +270,44 @@ export function CableNode({ id, data }: NodeProps) {
               className={`cable-node__fiber-row${fiberHighlighted ? " cable-node__fiber-row--highlighted" : ""}`}
               style={{
                 top: rowY,
-                left: d.side === "left" ? geo.stemX : undefined,
-                right:
-                  d.side === "right" ? geo.viewWidth - geo.stemX : undefined,
+                left: 0,
+                width: geo.viewWidth,
               }}
             >
+              {circuit ? (
+                <span
+                  className="cable-node__circuit"
+                  style={{
+                    left: localX(
+                      layout.labelEndX - tagWidth,
+                      tagWidth,
+                    ),
+                    width: tagWidth > 0 ? tagWidth : undefined,
+                  }}
+                >
+                  {circuit}
+                </span>
+              ) : null}
+              <span
+                className="cable-node__fiber-code"
+                style={{
+                  left: localX(layout.codeLeftX, FIBER_ROW_CODE_MIN_WIDTH),
+                  width: FIBER_ROW_CODE_MIN_WIDTH,
+                }}
+              >
+                {fiber.fiberColor}
+              </span>
               {!d.slim ? (
-                <>
+                <div
+                  className="cable-node__handle-slot"
+                  style={{
+                    left: localX(
+                      layout.handleX - FIBER_HANDLE_DOT / 2,
+                      FIBER_HANDLE_DOT,
+                    ),
+                    width: FIBER_HANDLE_DOT,
+                  }}
+                >
                   <Handle
                     type="source"
                     position={handlePos}
@@ -277,20 +320,7 @@ export function CableNode({ id, data }: NodeProps) {
                     id={`${fiber.handleId}-in`}
                     className="cable-node__handle"
                   />
-                </>
-              ) : null}
-              <span
-                className="cable-node__fiber-swatch"
-                style={{
-                  backgroundColor: colorHex(fiber.fiberColor),
-                }}
-                title={colorName(fiber.fiberColor)}
-              />
-              <span className="cable-node__fiber-code">
-                {fiber.fiberColor}
-              </span>
-              {circuit ? (
-                <span className="cable-node__circuit">{circuit}</span>
+                </div>
               ) : null}
             </div>
           );
@@ -299,32 +329,41 @@ export function CableNode({ id, data }: NodeProps) {
         {geo.tubes.map((tube) => {
           if (!isTubeCollapsed(tube.tubeColor)) return null;
           const handleBase = tubeHandleId(d.legId, tube.tubeColor);
-          const sourceTube = d.tubes.find((t) => t.tubeColor === tube.tubeColor);
-          const collapsedHandleY =
-            tube.end.y + (sourceTube?.visualShiftY ?? 0);
+          const collapsedHandleY = tube.end.y;
+          const collapsedLayout = fiberRowLayoutXs(stemAbsolute);
           return (
             <div
               key={handleBase}
               className="cable-node__fiber-row cable-node__fiber-row--tube"
               style={{
                 top: collapsedHandleY,
-                left: d.side === "left" ? geo.stemX : undefined,
-                right:
-                  d.side === "right" ? geo.viewWidth - geo.stemX : undefined,
+                left: 0,
+                width: geo.viewWidth,
               }}
             >
-              <Handle
-                type="source"
-                position={handlePos}
-                id={`${handleBase}-out`}
-                className="cable-node__handle"
-              />
-              <Handle
-                type="target"
-                position={handlePos}
-                id={`${handleBase}-in`}
-                className="cable-node__handle"
-              />
+              <div
+                className="cable-node__handle-slot"
+                style={{
+                  left: localX(
+                    collapsedLayout.handleX - FIBER_HANDLE_DOT / 2,
+                    FIBER_HANDLE_DOT,
+                  ),
+                  width: FIBER_HANDLE_DOT,
+                }}
+              >
+                <Handle
+                  type="source"
+                  position={handlePos}
+                  id={`${handleBase}-out`}
+                  className="cable-node__handle"
+                />
+                <Handle
+                  type="target"
+                  position={handlePos}
+                  id={`${handleBase}-in`}
+                  className="cable-node__handle"
+                />
+              </div>
             </div>
           );
         })}
@@ -339,6 +378,7 @@ export function CableNode({ id, data }: NodeProps) {
           collapsedTubes={collapsedTubes}
           tubeFaceX={tubeFaceX}
           defaultTubeLength={defaultTubeLength}
+          alignedStemX={d.alignedStemX}
         />
       ) : null}
     </div>

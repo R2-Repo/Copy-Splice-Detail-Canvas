@@ -1,4 +1,3 @@
-import { formattedCircuitTagWidth } from "@/features/diagram/cableLabels";
 import type { SideCircuitLabelSpan } from "@/features/diagram/cableLabels";
 import type { VisualCable } from "@/features/diagram/visualCables";
 
@@ -137,12 +136,9 @@ export function buildSpliceHandleEntries(
         targetAligned,
         targetFiber?.circuitName ?? edgeData.circuitName,
       );
-      sourceTagWidth = formattedCircuitTagWidth(
-        sourceFiber?.circuitName ?? edgeData.circuitName,
-      );
-      targetTagWidth = formattedCircuitTagWidth(
-        targetFiber?.circuitName ?? edgeData.circuitName,
-      );
+      // Handles sit at the fixed label column; routing starts at handle X.
+      sourceTagWidth = 0;
+      targetTagWidth = 0;
     }
 
     entries.push({

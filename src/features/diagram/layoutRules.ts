@@ -29,7 +29,12 @@ import {
   computeCableXBounds,
   type AlignedDiagramLayout,
 } from "@/features/diagram/spliceRowLayout";
-import { computeSideCircuitLabelSpans, formattedCircuitTagWidth } from "@/features/diagram/cableLabels";
+import { computeSideCircuitLabelSpans } from "@/features/diagram/cableLabels";
+import {
+  fusionDotCornerClearanceOk,
+  fusionDotOnHorizontalSegment,
+} from "@/features/manualAdjust/constraints";
+// fusionDotOnHorizontalSegment used in DOT-001/003 checks
 import { importLayoutWidthForGraph } from "@/features/diagram/layoutSpliceDiagram";
 import {
   DEFAULT_LAYOUT_EXPANSION,
@@ -63,7 +68,6 @@ import {
   buildButtSplicePath,
   buildSplicePath,
   fiberHandlePosition,
-  fusionDotLiesOnHorizontal,
   hvDemarcatedPathsCross,
   horizontalInsetOkFromHandle,
   MAX_SPLICE_BENDS,
@@ -161,6 +165,7 @@ export const LAYOUT_RULE_IDS = [
   "EDGE-012",
   "DOT-001",
   "DOT-002",
+  "DOT-003",
   "STR-001",
 ] as const;
 
@@ -185,7 +190,7 @@ export const LAYOUT_RULES: LayoutRuleMeta[] = [
   { id: "TUB-006", title: "Buffer tubes in TIA solid then striped order", category: "tube" },
   {
     id: "TUB-007",
-    title: "Same-side cables align fiber label columns at shared stem X",
+    title: "Same-side cables align stem X, handle column, and fiber-code column",
     category: "tube",
   },
   {
@@ -259,6 +264,11 @@ export const LAYOUT_RULES: LayoutRuleMeta[] = [
   {
     id: "DOT-002",
     title: "Source buffer tube dots share one column X and stack vertically",
+    category: "dot",
+  },
+  {
+    id: "DOT-003",
+    title: "Fusion splice dots keep 48px clearance from leg corners",
     category: "dot",
   },
   { id: "STR-001", title: "Fiber strands fan toward canvas center", category: "strand" },
@@ -644,26 +654,16 @@ function spliceHandleEndpoints(
 
   let sourceHandle = leftHandle;
   let targetHandle = rightHandle;
-  let sourceVc = leftVc;
-  let targetVc = rightVc;
   if (
     csvLeft.canvasSide === "right" &&
     csvRight.canvasSide === "left"
   ) {
     sourceHandle = rightHandle;
     targetHandle = leftHandle;
-    sourceVc = rightVc;
-    targetVc = leftVc;
   }
 
   const edge = spliceEdgeForConnection(ctx.reactFlow.edges, conn.id);
   const rowOffset = (edge?.data as { rowOffset?: number })?.rowOffset ?? 0;
-  const sourceFiber = sourceVc.tubes
-    .flatMap((tube) => tube.fibers)
-    .find((fiber) => fiber.connectionId === conn.id);
-  const targetFiber = targetVc.tubes
-    .flatMap((tube) => tube.fibers)
-    .find((fiber) => fiber.connectionId === conn.id);
 
   return {
     sourceX: sourceHandle.x,
@@ -671,8 +671,8 @@ function spliceHandleEndpoints(
     targetX: targetHandle.x,
     targetY: targetHandle.y,
     rowOffset,
-    sourceTagWidth: formattedCircuitTagWidth(sourceFiber?.circuitName),
-    targetTagWidth: formattedCircuitTagWidth(targetFiber?.circuitName),
+    sourceTagWidth: 0,
+    targetTagWidth: 0,
   };
 }
 
@@ -1095,31 +1095,18 @@ function fusionDotsOnHorizontalSegments(ctx: LayoutRuleContext): boolean {
       },
       sideSpans,
       ctx.layoutWidth / 2,
-      endpoints.sourceTagWidth ?? 0,
-      endpoints.targetTagWidth ?? 0,
+      0,
+      0,
       tubeDotColumnX !== undefined ? { tubeDotColumnX } : undefined,
     );
-    const spliceX = edgeData.spliceX ?? built.spliceX;
-    const spliceY = edgeData.spliceY ?? built.spliceY;
-    const segments = spliceRouteSegments(
-      sourceX,
-      sourceY,
-      targetX,
-      targetY,
-      lane.midX,
-      lane.jogX,
-      {
-        sourceHorizY: lane.sourceHorizY,
-        targetHorizY: lane.targetHorizY,
-        sourceBendX: lane.sourceBendX,
-        targetBendX: lane.targetBendX,
-      },
-      sideSpans,
-      ctx.layoutWidth / 2,
-      endpoints.sourceTagWidth ?? 0,
-      endpoints.targetTagWidth ?? 0,
-    );
-    if (!fusionDotLiesOnHorizontal(spliceX, spliceY, segments)) {
+    if (
+      !fusionDotOnHorizontalSegment(
+        built.spliceX,
+        built.spliceY,
+        built.leftPath,
+        built.rightPath,
+      )
+    ) {
       return false;
     }
   }
@@ -1180,6 +1167,67 @@ function findBufferTubeDotViolation(
     }
   }
   return undefined;
+}
+
+function fusionDotsCornerClearanceOk(ctx: LayoutRuleContext): boolean {
+  const packed = buildRenderRoutingMap(ctx);
+  const sideSpans = sideCircuitSpanFromCtx(ctx);
+
+  for (const conn of orderedFiberConnections(ctx.graph)) {
+    if (conn.kind !== "fiber") continue;
+    const edge = spliceEdgeForConnection(ctx.reactFlow.edges, conn.id);
+    if (!edge) continue;
+    const edgeData = edge.data as { fullButtSplice?: boolean };
+    if (edgeData.fullButtSplice) continue;
+
+    const endpoints = spliceHandleEndpoints(ctx, conn);
+    if (!endpoints) continue;
+    const { sourceX, sourceY, targetX, targetY } = endpoints;
+    const lane = resolveCtxSpliceRouting(ctx, conn.id, endpoints, packed);
+    const built = buildSplicePath(
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+      lane.midX,
+      lane.jogX,
+      {
+        sourceHorizY: lane.sourceHorizY,
+        targetHorizY: lane.targetHorizY,
+        sourceBendX: lane.sourceBendX,
+        targetBendX: lane.targetBendX,
+      },
+      sideSpans,
+      ctx.layoutWidth / 2,
+      0,
+      0,
+      (edge.data as { tubeDotColumnX?: number }).tubeDotColumnX !== undefined
+        ? {
+            tubeDotColumnX: (edge.data as { tubeDotColumnX?: number })
+              .tubeDotColumnX,
+          }
+        : undefined,
+    );
+    const tubeDotColumnX = (edge.data as { tubeDotColumnX?: number })
+      .tubeDotColumnX;
+    if (
+      tubeDotColumnX !== undefined &&
+      Math.abs(built.spliceX - tubeDotColumnX) <= 1
+    ) {
+      continue;
+    }
+    if (
+      !fusionDotCornerClearanceOk(
+        built.spliceX,
+        built.spliceY,
+        built.leftPath,
+        built.rightPath,
+      )
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function bufferTubeDotsStackVertically(ctx: LayoutRuleContext): boolean {
@@ -1878,7 +1926,7 @@ export function checkLayoutRule(
       return {
         id,
         ok: sameSideFiberStemColumnsAligned(ctx),
-        detail: "Same-side cable fiber label columns are not vertically aligned",
+        detail: "Same-side cable stem columns are not vertically aligned",
       };
     case "TUB-008":
       return {
@@ -2056,6 +2104,12 @@ export function checkLayoutRule(
         detail:
           findBufferTubeDotViolation(ctx) ??
           "Source buffer tube fusion dots do not share one column X or 24px vertical pitch",
+      };
+    case "DOT-003":
+      return {
+        id,
+        ok: fusionDotsCornerClearanceOk(ctx),
+        detail: "Fusion splice dot is too close to a leg corner or not on a horizontal segment",
       };
     case "STR-001":
       return {

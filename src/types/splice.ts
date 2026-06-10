@@ -133,7 +133,7 @@ export type LayoutNodePosition = {
 };
 
 /** Bump when override shape/semantics change — ignores stale localStorage. */
-export const LAYOUT_OVERRIDE_VERSION = 12;
+export const LAYOUT_OVERRIDE_VERSION = 13;
 
 /** `${visualCableId}|${tubeColor}` — matches `TubeKey` in tubeRowShift.ts */
 export type TubeOverrideKey = `${string}|${string}`;
@@ -169,4 +169,14 @@ export type LayoutOverrides = {
   autoAdjustEnabled?: boolean;
   /** User-locked buffer tube tip / fan-out reach per tube key. */
   tubeOverrides?: Record<TubeOverrideKey, TubeManualOverride>;
+  /** Per-tube fan-out + labels vertical shift (manual adjust engine). */
+  fanoutOverrides?: Record<TubeOverrideKey, { shiftY: number }>;
+  /** Per-splice leg segment adjustments (manual adjust engine). */
+  legOverrides?: Record<
+    string,
+    {
+      leftSegments?: Record<number, { dx?: number; dy?: number }>;
+      rightSegments?: Record<number, { dx?: number; dy?: number }>;
+    }
+  >;
 };

@@ -44,7 +44,7 @@ When EDGE rules conflict, see [`RULE_PRIORITY.md`](./RULE_PRIORITY.md) — EDGE-
 | **TUB-004** | Multi-tube cables have **longer tube reach** than single-tube cables (stem extends further from sheath). |
 | **TUB-005** | Right-side cables **mirror** breakout geometry (sheath and tubes face inward toward splice center). |
 | **TUB-006** | Buffer tubes on each cable are ordered top→bottom: **BL…AQ**, then **BL-BK…AQ-BK** (TIA solid then striped). |
-| **TUB-007** | Same-side cables share one **fiber label column** — circuit tags and fiber color codes align vertically; buffer tubes extend dynamically to meet the shared stem X. Per-tube horizontal reach scales with fiber count within the cable. |
+| **TUB-007** | Same-side cables share one **stem X** and aligned **handle** + **fiber-code** columns (BL, OR, … immediately left of each handle). Circuit tags right-align into the code column; fan strands dynamically lengthen to fill the variable gap between the tube junction and each label. Buffer tubes extend to meet the shared stem X. |
 | **TUB-008** | Cross-side buffer-tube pairs whose pre-shift handle gap fits the pair shift budget may shift **collapsed** tube handles so they align (±2px). Expanded mode: **±12px** per tube; collapsed full-butt tubes: **±24px**. Larger gaps (ring-cut splits, cross-cable stubs) are exempt. Solver runs on **final** node positions after layout overrides. Fiber handles stay on 24px pitch; neighbor tubes use bidirectional spacing to preserve `TUBE_GROUP_GAP`. Expanded buffer tubes and fan-outs stay horizontal at fiber-group center. |
 
 ### Cable placement (`CBL`)
@@ -98,7 +98,7 @@ When EDGE rules conflict, see [`RULE_PRIORITY.md`](./RULE_PRIORITY.md) — EDGE-
 |----|-------------|
 | **DOT-001** | Fusion dot lies on a **horizontal** splice-path segment (not a vertical segment). Default row: source fiber row (`sourceY` / `sourceHorizY`). |
 | **DOT-002** | Fibers sharing a **source buffer tube** (`visualCableId \| tubeColor`) use one **shared dot column X**; dot Y follows each fiber’s source handle row — vertically **stacked** at multiples of 24px (sparse tubes may skip unspliced fiber rows). Shared X prefers bundle `jogX` trunk when present. |
-| **DOT-003** | *(Reserved — overlap / conflict avoidance with other strands; not enforced yet. Subordinate to EDGE-011 until wording is finalized.)* |
+| **DOT-003** | Fusion splice dot sits on a **horizontal** segment (**DOT-001**) and is **≥48px** along the path from the nearest leg **corner** (90° bend). Exempt: tube dot-column bundles (`DOT-002`) and paths whose horizontal span is &lt;96px. Manual segment moves must respect the same clearance (`constraints.ts`). |
 
 ### Fiber strand direction (`STR`)
 

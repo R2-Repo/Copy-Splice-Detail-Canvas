@@ -246,52 +246,67 @@
 .cable-node__fiber-rows {
   position: absolute;
   inset: 0;
+  z-index: 3;
   pointer-events: none;
 }
 
 .cable-node__fiber-row {
   position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 5px;
   height: var(--fiber-pitch, 24px);
   min-height: var(--fiber-pitch, 24px);
   transform: translateY(-50%);
   pointer-events: none;
 }
 
-.cable-node--right .cable-node__fiber-row {
-  flex-direction: row-reverse;
-}
-
-.cable-node__fiber-swatch {
-  width: 36px;
-  height: var(--fiber-strand, 3px);
-  border-radius: 1px;
-  flex-shrink: 0;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+.cable-node__handle-slot {
+  position: absolute;
+  top: 50%;
+  height: 6px;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .cable-node__fiber-code {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 0.58rem;
   font-weight: 700;
   color: #0f172a;
-  min-width: 1.25rem;
+  box-sizing: border-box;
+  text-align: right;
+  pointer-events: none;
+}
+
+.cable-node--right .cable-node__fiber-code {
+  text-align: left;
 }
 
 .cable-node__circuit {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 0.5rem;
-  color: #475569;
+  font-weight: 500;
+  color: #000000;
+  background: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 88px;
+  text-align: right;
+  max-width: 128px;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
+.cable-node--right .cable-node__circuit {
+  text-align: right;
 }
 
 .cable-node__handle {
   position: absolute !important;
   top: 50% !important;
-  transform: translateY(-50%);
+  transform: translateY(-50%) !important;
   width: 6px !important;
   height: 6px !important;
   min-width: 6px !important;
@@ -302,12 +317,12 @@
   pointer-events: all;
 }
 
-.cable-node--left .cable-node__handle {
+.cable-node--left .cable-node__handle-slot .cable-node__handle {
   right: -4px !important;
   left: auto !important;
 }
 
-.cable-node--right .cable-node__handle {
+.cable-node--right .cable-node__handle-slot .cable-node__handle {
   left: -4px !important;
   right: auto !important;
 }
@@ -683,4 +698,51 @@
   .splice-report-overlay__text {
     overflow: visible;
   }
+}
+
+.manual-adjust-panel {
+  margin: 0 !important;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.manual-adjust-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: all;
+  z-index: 6;
+}
+
+.manual-adjust-segment {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid #64748b;
+  background: rgba(148, 163, 184, 0.35);
+  pointer-events: all;
+  cursor: grab;
+  padding: 0;
+}
+
+.manual-adjust-segment--selected {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.45);
+}
+
+.manual-adjust-selection-ring {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #2563eb;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.manual-adjust-marquee {
+  position: absolute;
+  border: 1px dashed #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+  pointer-events: none;
 }

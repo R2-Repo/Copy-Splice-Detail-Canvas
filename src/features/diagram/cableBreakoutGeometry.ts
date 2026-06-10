@@ -1,3 +1,7 @@
+import {
+  fiberRowLayoutXs,
+  fixedHandleOutsetFromStem,
+} from "@/features/diagram/cableLabels";
 import type { VisualTube } from "@/features/diagram/visualCables";
 import type { FiberColorAbbrev, TubeColorCode } from "@/types/splice";
 
@@ -24,7 +28,7 @@ export const BREAKOUT = {
   /** Pull tube tip back so curved fiber legs fill the fan zone (TUB-002). */
   tubeFanInset: 16,
   /** Horizontal fiber run at each row before curving to the tube tip. */
-  fiberFanStub: 12,
+  fiberFanStub: 8,
   /** Cubic-bezier control offset for smooth fan curves. */
   fiberCurveTension: 10,
   /** Inset from tube tip along axis — keeps label in the fan crest at the junction. */
@@ -265,7 +269,7 @@ function mirrorX(x: number, width: number): number {
 }
 
 /** Shared horizontal stub length before each fiber angles to the tube tip. */
-function fiberFanElbowX(
+export function fiberFanElbowX(
   stemX: number,
   endX: number,
   scale: number,
@@ -324,7 +328,8 @@ export function computeCableBreakout(
     alignedStemX ??
     tubeFaceX + defaultTubeLength + BREAKOUT.fiberStemGap;
   const stemX = stemXAbsolute;
-  const viewWidth = stemX + BREAKOUT.fiberLabelWidth;
+  const handleColumnW = fixedHandleOutsetFromStem();
+  const viewWidth = stemX + handleColumnW;
 
   const tubeGeoms: TubeBreakoutGeom[] = sortedTubes.map((tube) => {
     const tubeCenterY = tubeFiberCenterY(tube, bodyTop, pitch);
@@ -352,16 +357,12 @@ export function computeCableBreakout(
     const rawEndX = tubeFaceX + tubeLength + reachDelta;
     const endX = rawEndX - fanInset;
     const endY = tubeY;
-    const angleDeg =
-      Math.abs(endY - originY) <= Y_TOLERANCE
-        ? 0
-        : (Math.atan2(endY - originY, endX - origin.x) * 180) / Math.PI;
     const elbowX = fiberFanElbowX(stemX, endX, scale);
-
     const fibers: FiberBreakoutGeom[] = tube.fibers.map((fiber) => {
       const rowY = bodyTop + fiber.rowYOffset + pitch / 2;
       const junction = { x: endX, y: endY };
-      const stem = { x: stemX, y: rowY };
+      const fanToX = fiberRowLayoutXs(stemX, fiber.circuitName).fanToX;
+      const stem = { x: fanToX, y: rowY };
       if (isCenterFanRow(rowY, endY)) {
         return {
           handleId: fiber.handleId,
@@ -391,14 +392,46 @@ export function computeCableBreakout(
       };
     });
 
-    const end = { x: endX, y: endY };
+    const shiftY = tube.visualShiftY ?? 0;
+    const shiftedEndY = endY + shiftY;
+    const end = { x: endX, y: shiftedEndY };
+    const shiftedOrigin =
+      Math.abs(originY - endY) <= Y_TOLERANCE
+        ? { x: origin.x, y: shiftedEndY }
+        : origin;
+    const shiftedFibers = fibers.map((fiber) => ({
+      ...fiber,
+      rowY: fiber.rowY + shiftY,
+      fanFrom: { x: fiber.fanFrom.x, y: shiftedEndY },
+      fanTo: { x: fiber.fanTo.x, y: fiber.rowY + shiftY },
+      ...(fiber.fanElbow
+        ? { fanElbow: { x: fiber.fanElbow.x, y: fiber.rowY + shiftY } }
+        : {}),
+      ...(fiber.fanCurve
+        ? {
+            fanCurve: {
+              c1: { x: fiber.fanCurve.c1.x, y: fiber.rowY + shiftY },
+              c2: { x: fiber.fanCurve.c2.x, y: shiftedEndY },
+            },
+          }
+        : {}),
+    }));
+
     return {
       tubeColor: tube.tubeColor,
-      origin,
+      origin: shiftedOrigin,
       end,
-      angleDeg,
-      labelPos: tubeLabelPosition(origin, end, scale),
-      fibers,
+      angleDeg:
+        Math.abs(shiftedOrigin.y - shiftedEndY) <= Y_TOLERANCE
+          ? 0
+          : (Math.atan2(
+              shiftedEndY - shiftedOrigin.y,
+              end.x - shiftedOrigin.x,
+            ) *
+              180) /
+            Math.PI,
+      labelPos: tubeLabelPosition(shiftedOrigin, end, scale),
+      fibers: shiftedFibers,
     };
   });
 
