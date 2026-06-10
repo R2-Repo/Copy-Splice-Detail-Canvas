@@ -234,12 +234,13 @@
 
 .cable-node__tube-label {
   position: absolute;
-  font-size: 0.58rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: #000;
   line-height: 1;
   pointer-events: none;
   white-space: nowrap;
+  z-index: 2;
 }
 
 .cable-node__fiber-rows {

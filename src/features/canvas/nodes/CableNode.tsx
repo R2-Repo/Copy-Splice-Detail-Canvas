@@ -8,7 +8,11 @@ import { useEffect, type CSSProperties } from "react";
 
 import { CABLE_LAYOUT } from "@/features/diagram/cableLayoutMetrics";
 import { collapsedTubeHandleLocalX } from "@/features/canvas/edges/splicePathGeometry";
-import { computeCableBreakout } from "@/features/diagram/cableBreakoutGeometry";
+import {
+  computeCableBreakout,
+  fiberFanTailPathD,
+  fiberFanTopPathD,
+} from "@/features/diagram/cableBreakoutGeometry";
 import { useCircuitHighlight } from "@/features/canvas/CircuitHighlightContext";
 import {
   colorHex,
@@ -17,6 +21,7 @@ import {
   needsFiberContrastOutline,
 } from "@/features/diagram/colorCode";
 import { ContrastSvgLine } from "@/features/canvas/nodes/ContrastSvgLine";
+import { ContrastSvgPath } from "@/features/canvas/nodes/ContrastSvgPath";
 import { TubeManualHandles } from "@/features/canvas/nodes/TubeManualHandles";
 import { formatCircuitTag } from "@/features/diagram/cableLabels";
 import { tubeHandleId } from "@/features/diagram/tubeId";
@@ -132,7 +137,8 @@ export function CableNode({ id, data }: NodeProps) {
           const stroke = tubeStroke(tube.tubeColor, striped);
           const tubeBase = tube.tubeColor.split("-")[0] as FiberColorAbbrev;
           const sourceTube = d.tubes.find((t) => t.tubeColor === tube.tubeColor);
-          const collapsedHandleY = tube.end.y;
+          const collapsedHandleY =
+            tube.end.y + (sourceTube?.visualShiftY ?? 0);
           const lineStart = tube.origin;
           const lineEnd = collapsed
             ? {
@@ -149,8 +155,49 @@ export function CableNode({ id, data }: NodeProps) {
               ),
             ) ??
               false);
+          const renderFanLayer = (
+            layer: "tail" | "top",
+            keySuffix: string,
+          ) =>
+            !collapsed
+              ? tube.fibers.map((fiberGeom) => {
+                  const sourceFiber = sourceTube?.fibers.find(
+                    (f) => f.handleId === fiberGeom.handleId,
+                  );
+                  const fiberHighlighted = sourceFiber
+                    ? isFiberHighlighted(
+                        sourceFiber.connectionId,
+                        sourceFiber.spliceConnectionIds,
+                      )
+                    : false;
+                  const d =
+                    layer === "tail"
+                      ? fiberFanTailPathD(fiberGeom)
+                      : fiberFanTopPathD(fiberGeom);
+                  return (
+                    <ContrastSvgPath
+                      key={`${fiberGeom.handleId}-${keySuffix}`}
+                      d={d}
+                      stroke={colorHex(fiberGeom.fiberColor)}
+                      strokeWidth={3}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      contrastOutline={needsFiberContrastOutline(
+                        fiberGeom.fiberColor,
+                      )}
+                      className={
+                        fiberHighlighted
+                          ? "circuit-highlight-target"
+                          : undefined
+                      }
+                    />
+                  );
+                })
+              : null;
+
           return (
             <g key={tube.tubeColor}>
+              {renderFanLayer("tail", "under")}
               <ContrastSvgLine
                 x1={lineStart.x}
                 y1={lineStart.y}
@@ -165,39 +212,7 @@ export function CableNode({ id, data }: NodeProps) {
                   tubeHighlighted ? "circuit-highlight-target circuit-highlight-target--tube" : undefined
                 }
               />
-              {!collapsed
-                ? tube.fibers.map((fiberGeom) => {
-                    const sourceFiber = sourceTube?.fibers.find(
-                      (f) => f.handleId === fiberGeom.handleId,
-                    );
-                    const fiberHighlighted = sourceFiber
-                      ? isFiberHighlighted(
-                          sourceFiber.connectionId,
-                          sourceFiber.spliceConnectionIds,
-                        )
-                      : false;
-                    return (
-                      <ContrastSvgLine
-                        key={fiberGeom.handleId}
-                        x1={fiberGeom.fanFrom.x}
-                        y1={fiberGeom.fanFrom.y}
-                        x2={fiberGeom.fanTo.x}
-                        y2={fiberGeom.fanTo.y}
-                        stroke={colorHex(fiberGeom.fiberColor)}
-                        strokeWidth={3}
-                        strokeLinecap="round"
-                        contrastOutline={needsFiberContrastOutline(
-                          fiberGeom.fiberColor,
-                        )}
-                        className={
-                          fiberHighlighted
-                            ? "circuit-highlight-target"
-                            : undefined
-                        }
-                      />
-                    );
-                  })
-                : null}
+              {renderFanLayer("top", "over")}
             </g>
           );
         })}
@@ -210,10 +225,12 @@ export function CableNode({ id, data }: NodeProps) {
             key={`label-${tube.tubeColor}`}
             className="cable-node__tube-label"
             style={{
-              top: tube.end.y - 16,
-              left: d.side === "right" ? tube.end.x + 6 : undefined,
-              right:
-                d.side === "left" ? geo.viewWidth - tube.end.x + 6 : undefined,
+              left: tube.labelPos.x,
+              top: tube.labelPos.y,
+              transform:
+                tube.labelPos.placement === "below"
+                  ? "translate(-50%, 0)"
+                  : "translate(-50%, -100%)",
             }}
           >
             {tube.tubeColor}
@@ -283,7 +300,8 @@ export function CableNode({ id, data }: NodeProps) {
           if (!isTubeCollapsed(tube.tubeColor)) return null;
           const handleBase = tubeHandleId(d.legId, tube.tubeColor);
           const sourceTube = d.tubes.find((t) => t.tubeColor === tube.tubeColor);
-          const collapsedHandleY = tube.end.y;
+          const collapsedHandleY =
+            tube.end.y + (sourceTube?.visualShiftY ?? 0);
           return (
             <div
               key={handleBase}

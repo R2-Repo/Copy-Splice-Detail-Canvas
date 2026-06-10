@@ -21,6 +21,16 @@ export const BREAKOUT = {
   tubeLengthPerMultiTube: 28,
   tubeThickness: 8,
   fiberStemGap: 18,
+  /** Pull tube tip back so curved fiber legs fill the fan zone (TUB-002). */
+  tubeFanInset: 16,
+  /** Horizontal fiber run at each row before curving to the tube tip. */
+  fiberFanStub: 12,
+  /** Cubic-bezier control offset for smooth fan curves. */
+  fiberCurveTension: 10,
+  /** Inset from tube tip along axis — keeps label in the fan crest at the junction. */
+  tubeLabelTipInset: 2,
+  /** Gap from tube outer edge to label (pairs with `tubeThickness`). */
+  tubeLabelGap: 10,
   fiberLabelWidth: 130,
 } as const;
 
@@ -30,17 +40,111 @@ export type FiberBreakoutGeom = {
   rowY: number;
   fiberColor: FiberColorAbbrev;
   tubeColor: TubeColorCode;
+  /** Tube-tip junction — all fibers meet here; Y is the fiber-group center. */
   fanFrom: { x: number; y: number };
+  /** Fiber handle at the shared stem column. */
   fanTo: { x: number; y: number };
+  /** End of the horizontal row run before the curve; omitted when row is centered. */
+  fanElbow?: { x: number; y: number };
+  /** Cubic-bezier controls (elbow → junction); omitted when row is centered. */
+  fanCurve?: { c1: { x: number; y: number }; c2: { x: number; y: number } };
+  /** Junction-adjacent span tucked under the buffer tube stroke (scaled px). */
+  fanTailUnderlay: number;
 };
+
+function fanTailSplitX(fiber: FiberBreakoutGeom): number {
+  const junction = fiber.fanFrom;
+  const stem = fiber.fanTo;
+  const towardStem = stem.x > junction.x ? 1 : -1;
+  return junction.x + towardStem * fiber.fanTailUnderlay;
+}
+
+/** Curved/straight tail drawn under the buffer tube at the fan junction. */
+export function fiberFanTailPathD(fiber: FiberBreakoutGeom): string {
+  const junction = fiber.fanFrom;
+  if (!fiber.fanElbow || !fiber.fanCurve) {
+    const splitX = fanTailSplitX(fiber);
+    return `M ${junction.x} ${junction.y} L ${splitX} ${junction.y}`;
+  }
+  const elbow = fiber.fanElbow;
+  const { c1, c2 } = fiber.fanCurve;
+  return `M ${elbow.x} ${elbow.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${junction.x} ${junction.y}`;
+}
+
+/** Horizontal stub (and sheath-adjacent run) drawn above the buffer tube. */
+export function fiberFanTopPathD(fiber: FiberBreakoutGeom): string {
+  const junction = fiber.fanFrom;
+  const stem = fiber.fanTo;
+  if (!fiber.fanElbow || !fiber.fanCurve) {
+    const splitX = fanTailSplitX(fiber);
+    return `M ${stem.x} ${stem.y} L ${splitX} ${junction.y}`;
+  }
+  return `M ${stem.x} ${stem.y} L ${fiber.fanElbow.x} ${fiber.fanElbow.y}`;
+}
+
+/** Full fan leg — tail + top (for tests and layout checks). */
+export function fiberFanPathD(fiber: FiberBreakoutGeom): string {
+  const junction = fiber.fanFrom;
+  const stem = fiber.fanTo;
+  if (!fiber.fanElbow || !fiber.fanCurve) {
+    return `M ${stem.x} ${stem.y} L ${junction.x} ${junction.y}`;
+  }
+  const elbow = fiber.fanElbow;
+  const { c1, c2 } = fiber.fanCurve;
+  return `M ${stem.x} ${stem.y} L ${elbow.x} ${elbow.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${junction.x} ${junction.y}`;
+}
 
 export type TubeBreakoutGeom = {
   tubeColor: TubeColorCode;
   origin: { x: number; y: number };
   end: { x: number; y: number };
   angleDeg: number;
+  /** Anchor for the tube color abbreviation in the fan crest at the junction. */
+  labelPos: {
+    x: number;
+    y: number;
+    /** `above` = crest over upward/horizontal tubes; `below` = crest under downward tubes. */
+    placement: "above" | "below";
+  };
   fibers: FiberBreakoutGeom[];
 };
+
+/** Tube label in the fan crest: above stroke when tube angles up, below when it angles down. */
+export function tubeLabelPosition(
+  origin: { x: number; y: number },
+  end: { x: number; y: number },
+  scale = 1,
+): TubeBreakoutGeom["labelPos"] {
+  const dx = end.x - origin.x;
+  const dy = end.y - origin.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const inset = BREAKOUT.tubeLabelTipInset * scale;
+  const alongX = end.x - ux * inset;
+  const alongY = end.y - uy * inset;
+  const placement: "above" | "below" =
+    dy > Y_TOLERANCE ? "below" : "above";
+  // Perpendicular into the open crest between fan legs and the buffer tube.
+  let nx = -uy;
+  let ny = ux;
+  if (placement === "below") {
+    if (ny < 0) {
+      nx = uy;
+      ny = -ux;
+    }
+  } else if (ny > 0) {
+    nx = uy;
+    ny = -ux;
+  }
+  const normalLen = Math.hypot(nx, ny) || 1;
+  const offset = BREAKOUT.tubeThickness / 2 + BREAKOUT.tubeLabelGap * scale;
+  return {
+    x: alongX + (nx / normalLen) * offset,
+    y: alongY + (ny / normalLen) * offset,
+    placement,
+  };
+}
 
 export type CableBreakoutGeom = {
   bodyTop: number;
@@ -160,6 +264,25 @@ function mirrorX(x: number, width: number): number {
   return width - x;
 }
 
+/** Shared horizontal stub length before each fiber angles to the tube tip. */
+function fiberFanElbowX(
+  stemX: number,
+  endX: number,
+  scale: number,
+): number {
+  const gap = Math.max(0, stemX - endX);
+  const stub = clamp(
+    BREAKOUT.fiberFanStub * scale,
+    4,
+    Math.max(4, gap - 4),
+  );
+  return stemX - stub;
+}
+
+function isCenterFanRow(rowY: number, tubeTipY: number): boolean {
+  return Math.abs(rowY - tubeTipY) <= Y_TOLERANCE;
+}
+
 export function computeCableBreakout(
   tubes: VisualTube[],
   side: "left" | "right",
@@ -206,15 +329,14 @@ export function computeCableBreakout(
   const tubeGeoms: TubeBreakoutGeom[] = sortedTubes.map((tube) => {
     const tubeCenterY = tubeFiberCenterY(tube, bodyTop, pitch);
     const tubeY = tubeCenterY;
-    const shiftY = tube.visualShiftY ?? 0;
     const sheathTop = sheath.y;
     const sheathBottom = sheath.y + sheath.height;
     const tubeCenterOnSheathFace =
       tubeY >= sheathTop - Y_TOLERANCE && tubeY <= sheathBottom + Y_TOLERANCE;
     // Horizontal when the fiber group center meets the sheath face; otherwise
     // fan from cable center (multi-tube cables span taller than the sheath box).
-    const originY =
-      (tubeCenterOnSheathFace ? tubeY : cableCenterY) + shiftY;
+    // Expanded geometry ignores visualShiftY (TUB-002); collapsed handles add it separately.
+    const originY = tubeCenterOnSheathFace ? tubeY : cableCenterY;
     const origin = { x: tubeFaceX, y: originY };
     const perTubeLength = Math.max(
       defaultTubeLength,
@@ -225,31 +347,57 @@ export function computeCableBreakout(
       stemXAbsolute - BREAKOUT.fiberStemGap - tubeFaceX,
     );
     const reachDelta = tube.stemReachX ?? 0;
-    const endX = tubeFaceX + tubeLength + reachDelta;
-    const endY = tubeY + shiftY;
+    const fanInset = BREAKOUT.tubeFanInset * scale;
+    const curveK = BREAKOUT.fiberCurveTension * scale;
+    const rawEndX = tubeFaceX + tubeLength + reachDelta;
+    const endX = rawEndX - fanInset;
+    const endY = tubeY;
     const angleDeg =
       Math.abs(endY - originY) <= Y_TOLERANCE
         ? 0
         : (Math.atan2(endY - originY, endX - origin.x) * 180) / Math.PI;
+    const elbowX = fiberFanElbowX(stemX, endX, scale);
 
     const fibers: FiberBreakoutGeom[] = tube.fibers.map((fiber) => {
       const rowY = bodyTop + fiber.rowYOffset + pitch / 2;
+      const junction = { x: endX, y: endY };
+      const stem = { x: stemX, y: rowY };
+      if (isCenterFanRow(rowY, endY)) {
+        return {
+          handleId: fiber.handleId,
+          rowIndex: fiber.rowIndex,
+          rowY,
+          fiberColor: fiber.fiberColor,
+          tubeColor: fiber.tubeColor,
+          fanFrom: junction,
+          fanTo: stem,
+          fanTailUnderlay: fanInset,
+        };
+      }
       return {
         handleId: fiber.handleId,
         rowIndex: fiber.rowIndex,
         rowY,
         fiberColor: fiber.fiberColor,
         tubeColor: fiber.tubeColor,
-        fanFrom: { x: endX, y: endY },
-        fanTo: { x: stemX, y: rowY },
+        fanFrom: junction,
+        fanTo: stem,
+        fanElbow: { x: elbowX, y: rowY },
+        fanCurve: {
+          c1: { x: elbowX - curveK, y: rowY },
+          c2: { x: endX + curveK, y: endY },
+        },
+        fanTailUnderlay: fanInset,
       };
     });
 
+    const end = { x: endX, y: endY };
     return {
       tubeColor: tube.tubeColor,
       origin,
-      end: { x: endX, y: endY },
+      end,
       angleDeg,
+      labelPos: tubeLabelPosition(origin, end, scale),
       fibers,
     };
   });
@@ -262,6 +410,10 @@ export function computeCableBreakout(
         y: tube.origin.y,
       };
       tube.end = { x: mirrorX(tube.end.x, viewWidth), y: tube.end.y };
+      tube.labelPos = {
+        ...tube.labelPos,
+        x: mirrorX(tube.labelPos.x, viewWidth),
+      };
       for (const fiber of tube.fibers) {
         fiber.fanFrom = {
           x: mirrorX(fiber.fanFrom.x, viewWidth),
@@ -271,6 +423,24 @@ export function computeCableBreakout(
           x: mirrorX(fiber.fanTo.x, viewWidth),
           y: fiber.fanTo.y,
         };
+        if (fiber.fanElbow) {
+          fiber.fanElbow = {
+            x: mirrorX(fiber.fanElbow.x, viewWidth),
+            y: fiber.fanElbow.y,
+          };
+        }
+        if (fiber.fanCurve) {
+          fiber.fanCurve = {
+            c1: {
+              x: mirrorX(fiber.fanCurve.c1.x, viewWidth),
+              y: fiber.fanCurve.c1.y,
+            },
+            c2: {
+              x: mirrorX(fiber.fanCurve.c2.x, viewWidth),
+              y: fiber.fanCurve.c2.y,
+            },
+          };
+        }
       }
     }
   }

@@ -1,12 +1,39 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BREAKOUT,
   computeCableBreakout,
   computeDiagramScale,
   computeSheathSize,
   computeSideStemAlignment,
+  fiberFanPathD,
+  fiberFanTailPathD,
+  fiberFanTopPathD,
   SHEATH_SIZE,
+  tubeLabelPosition,
 } from "./cableBreakoutGeometry";
+
+function pointToSegmentDistance(
+  px: number,
+  py: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): number {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(px - x1, py - y1);
+  const t = clamp01(((px - x1) * dx + (py - y1) * dy) / lenSq);
+  const projX = x1 + t * dx;
+  const projY = y1 + t * dy;
+  return Math.hypot(px - projX, py - projY);
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
 import type { VisualTube } from "./visualCables";
 
 function mockTube(
@@ -116,7 +143,7 @@ describe("computeCableBreakout", () => {
     expect(geo.tubes[0]!.end.y).not.toBeCloseTo(geo.tubes[1]!.end.y, 0);
   });
 
-  it("applies visualShiftY to expanded tube tip and fan origin", () => {
+  it("ignores visualShiftY on expanded tube and fan geometry (TUB-002)", () => {
     const tubes = [
       {
         ...mockTube("BL", [
@@ -130,12 +157,11 @@ describe("computeCableBreakout", () => {
     const tube = geo.tubes[0]!;
     const rowYs = tube.fibers.map((f) => f.rowY);
     const fiberCenterY = (Math.min(...rowYs) + Math.max(...rowYs)) / 2;
-    expect(tube.end.y).toBeCloseTo(fiberCenterY + 10, 5);
+    expect(tube.end.y).toBeCloseTo(fiberCenterY, 5);
     expect(tube.origin.y).toBeCloseTo(tube.end.y, 5);
-    expect(tube.fibers[0]!.fanFrom.y).toBe(tube.end.y);
   });
 
-  it("fans each strand from the tube tip to its row at the stem", () => {
+  it("shortens tube stem and uses smooth curved fan legs", () => {
     const tubes = [
       mockTube("BL", [
         { rowIndex: 0, rowYOffset: 0, handleId: "f0", fiberColor: "BL" },
@@ -144,8 +170,93 @@ describe("computeCableBreakout", () => {
     ];
     const geo = computeCableBreakout(tubes, "left", 40, 56, 18);
     const tube = geo.tubes[0]!;
-    expect(tube.fibers[0]!.fanFrom).toEqual(tube.end);
-    expect(tube.fibers[0]!.fanTo.y).not.toBe(tube.end.y);
+    const rowYs = tube.fibers.map((f) => f.rowY);
+    expect(tube.end.y).toBeCloseTo(
+      (Math.min(...rowYs) + Math.max(...rowYs)) / 2,
+      5,
+    );
+    expect(geo.stemX - tube.end.x).toBeCloseTo(
+      BREAKOUT.fiberStemGap + BREAKOUT.tubeFanInset,
+      0,
+    );
+    for (const fiber of tube.fibers) {
+      expect(fiber.fanFrom).toEqual(tube.end);
+      expect(fiber.fanElbow).toBeDefined();
+      expect(fiber.fanCurve).toBeDefined();
+      expect(fiber.fanElbow!.y).toBe(fiber.rowY);
+      expect(fiber.fanTo.y).not.toBe(tube.end.y);
+      expect(fiberFanPathD(fiber)).toContain(" C ");
+      expect(fiberFanTailPathD(fiber)).toContain(" C ");
+      expect(fiberFanTopPathD(fiber)).not.toContain(" C ");
+    }
+  });
+
+  it("splits fan legs into tail-under and stub-over paths for layering", () => {
+    const tubes = [
+      mockTube("BL", [
+        { rowIndex: 0, rowYOffset: 0, handleId: "f0", fiberColor: "BL" },
+        { rowIndex: 1, rowYOffset: 40, handleId: "f1", fiberColor: "OR" },
+        { rowIndex: 2, rowYOffset: 80, handleId: "f2", fiberColor: "GR" },
+      ]),
+    ];
+    const geo = computeCableBreakout(tubes, "left", 40, 56, 18);
+    const tube = geo.tubes[0]!;
+    const center = tube.fibers.find((f) => f.rowIndex === 1)!;
+    const outer = tube.fibers.find((f) => f.rowIndex === 0)!;
+    expect(fiberFanTailPathD(center)).toMatch(/^M .* L .*/);
+    expect(fiberFanTopPathD(center)).toMatch(/^M .* L .*/);
+    expect(fiberFanTailPathD(outer)).toContain(" C ");
+    expect(fiberFanTopPathD(outer)).not.toContain(" C ");
+  });
+
+  it("keeps the centered fiber straight for odd fiber counts", () => {
+    const tubes = [
+      mockTube("BL", [
+        { rowIndex: 0, rowYOffset: 0, handleId: "f0", fiberColor: "BL" },
+        { rowIndex: 1, rowYOffset: 40, handleId: "f1", fiberColor: "OR" },
+        { rowIndex: 2, rowYOffset: 80, handleId: "f2", fiberColor: "GR" },
+      ]),
+    ];
+    const geo = computeCableBreakout(tubes, "left", 40, 56, 18);
+    const tube = geo.tubes[0]!;
+    const center = tube.fibers.find((f) => f.rowIndex === 1)!;
+    const outer = tube.fibers.filter((f) => f.rowIndex !== 1);
+    expect(center.fanElbow).toBeUndefined();
+    expect(center.fanCurve).toBeUndefined();
+    expect(center.fanTo.y).toBeCloseTo(tube.end.y, 5);
+    expect(fiberFanPathD(center)).not.toContain(" C ");
+    for (const fiber of outer) {
+      expect(fiber.fanElbow).toBeDefined();
+      expect(fiber.fanCurve).toBeDefined();
+    }
+  });
+
+  it("places tube labels in the fan crest with direction-aware offset", () => {
+    const tubes = [
+      mockTube("BL", [{ rowIndex: 0, handleId: "f0", fiberColor: "BL" }]),
+      mockTube("OR", [{ rowIndex: 6, handleId: "f1", fiberColor: "OR" }]),
+    ];
+    const geo = computeCableBreakout(tubes, "left", 40, 56, 18);
+    const expectedOffset =
+      BREAKOUT.tubeThickness / 2 + BREAKOUT.tubeLabelGap;
+    const bl = geo.tubes.find((t) => t.tubeColor === "BL")!;
+    const or = geo.tubes.find((t) => t.tubeColor === "OR")!;
+    expect(bl.labelPos.placement).toBe("above");
+    expect(or.labelPos.placement).toBe("below");
+    for (const tube of geo.tubes) {
+      const dist = pointToSegmentDistance(
+        tube.labelPos.x,
+        tube.labelPos.y,
+        tube.origin.x,
+        tube.origin.y,
+        tube.end.x,
+        tube.end.y,
+      );
+      expect(dist).toBeCloseTo(expectedOffset, 0);
+      expect(tubeLabelPosition(tube.origin, tube.end)).toEqual(tube.labelPos);
+    }
+    expect(bl.labelPos.y).toBeLessThan(Math.min(bl.origin.y, bl.end.y));
+    expect(or.labelPos.y).toBeGreaterThan(Math.max(or.origin.y, or.end.y));
   });
 
   it("centers each tube endpoint on its fiber group", () => {
@@ -252,11 +363,15 @@ describe("computeCableBreakout", () => {
     const left = computeCableBreakout(tubes, "left", 40, 56, 18);
     for (const fiber of left.tubes[0]!.fibers) {
       expect(fiber.fanTo.x).toBeGreaterThan(fiber.fanFrom.x);
+      expect(fiber.fanElbow!.x).toBeLessThan(fiber.fanTo.x);
+      expect(fiber.fanElbow!.x).toBeGreaterThan(fiber.fanFrom.x);
     }
 
     const right = computeCableBreakout(tubes, "right", 40, 56, 18);
     for (const fiber of right.tubes[0]!.fibers) {
       expect(fiber.fanTo.x).toBeLessThan(fiber.fanFrom.x);
+      expect(fiber.fanElbow!.x).toBeGreaterThan(fiber.fanTo.x);
+      expect(fiber.fanElbow!.x).toBeLessThan(fiber.fanFrom.x);
     }
   });
 });

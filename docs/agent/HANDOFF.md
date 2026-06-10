@@ -4,22 +4,22 @@
 
 ## Last updated
 
-2026-06-09 — Manual adjust mode + buffer-tube handles (Phase 1).
+2026-06-10 — Curved buffer-tube fan-out geometry.
 
 ## Done
 
-- **`LayoutOverrides` v12** — `autoAdjustEnabled` (default true), `tubeOverrides` per `vcId|tubeColor`.
-- **Toolbar** — “Manual adjust” toggle, “Reset to auto layout”; advisory banner for EDGE-004/012 on touched edges.
-- **Cable drag (manual mode)** — position-only during drag; lightweight rebuild on stop (`skipTubeAutoAlign`); resize reflow frozen.
-- **Tube handles** — tip (Y) + fan-out reach (X) on `CableNode` when manual mode on; snap guides (`snapGuides.ts`).
-- **Geometry** — `visualShiftY` / `stemReachX` in `computeCableBreakout`; locked tubes skip `applyTubeRowAlignmentShifts`.
-- **Tests** — `snapGuides.test.ts`, `layoutStorage.test.ts`, locked-tube case in `tubeRowShift.test.ts`.
+- **Curved fan legs** — cubic-bezier from horizontal stub to tube tip (`fiberFanPathD`); center row stays straight.
+- **Shorter tube stem** — `tubeFanInset` (14px) pulls tip back; fan zone widens by same amount.
+- **Tube tip** — lands at geometric fiber-group center (`tubeFiberCenterY`); 2-fiber tubes attach between rows, not on one strand.
+- **TUB-002** — expanded breakout ignores `visualShiftY`; collapsed handles still add shift.
+- **`CableNode`** — renders two-segment fan polylines; collapsed handle Y includes `visualShiftY`.
+- **Tests** — updated `cableBreakoutGeometry.test.ts` (2-fiber elbows, 3-fiber center straight).
 
 ## Next
 
-- User trial: Example #2 → Manual adjust → drag tube tip/reach; confirm splice paths follow + snap lines.
+- Visual re-test on Example #2 / user’s 12-fiber screenshot case (even counts: both middle fibers angle).
+- Manual adjust trial: tube tip/reach handles with new fan geometry.
 - Phase 2: per-fiber / multi-fiber row groups.
-- Phase 3: splice-routing waypoint handles (`midX` / `jogX`).
 
 ## Commands verified
 

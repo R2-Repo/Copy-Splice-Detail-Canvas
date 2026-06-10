@@ -18,7 +18,7 @@
 
 ## Current phase
 
-**Manual adjust mode (Phase 1)** — toggle auto-relayout; per-tube tip + fan-out reach handles.
+**Fan-out geometry polish** — symmetric L-shaped fiber legs; tube tip at fiber-group center.
 
 ## In scope NOW
 
