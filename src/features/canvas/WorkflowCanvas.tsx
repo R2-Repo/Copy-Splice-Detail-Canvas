@@ -98,6 +98,21 @@ import {
 } from "@/features/diagram/layoutSpliceDiagram";
 import { estimatedCableNodeWidth } from "@/features/diagram/spliceRowLayout";
 import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
+import {
+  AutoIcon,
+  CalloutIcon,
+  CollapseIcon,
+  ExpandIcon,
+  EyeIcon,
+  EyeOffIcon,
+  ManualIcon,
+  ReportIcon,
+  ResetIcon,
+} from "@/components/toolbar/ToolbarIcon";
+import {
+  ToolbarActionButton,
+  ToolbarSegmentedControl,
+} from "@/components/toolbar/ToolbarSegmentedControl";
 import { CsvImportButton } from "@/features/import/CsvImportButton";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
 import type {
@@ -1332,57 +1347,88 @@ function WorkflowCanvasInner() {
     <div className="workflow-canvas">
       <div className="workflow-canvas__toolbar">
         <CsvImportButton onImport={loadFromCsv} />
-        {meta ? (
-          <>
-            <button
-              type="button"
-              className="csv-import__button csv-import__button--secondary"
-              onClick={toggleFullButtCollapse}
-            >
-              {collapseFullButtSplices
-                ? "Expand full butt splices"
-                : "Collapse full butt splices"}
-            </button>
-            <button
-              type="button"
-              className="csv-import__button csv-import__button--secondary"
-              onClick={() => setReportOpen(true)}
-            >
-              View connection report
-            </button>
-            <button
-              type="button"
-              className="csv-import__button csv-import__button--secondary"
-              onClick={generateCableCallouts}
-            >
-              Add cable callouts
-            </button>
-            <button
-              type="button"
-              className={`csv-import__button csv-import__button--secondary${circuitPanelOpen ? " csv-import__button--active" : ""}`}
-              onClick={() => setCircuitPanelOpen((open) => !open)}
-              aria-pressed={circuitPanelOpen}
-            >
-              {circuitPanelOpen ? "Hide circuits" : "Track circuits"}
-            </button>
-            <button
-              type="button"
-              className={`csv-import__button csv-import__button--secondary${!autoAdjustEnabled ? " csv-import__button--active" : ""}`}
-              onClick={toggleManualAdjust}
-              aria-pressed={!autoAdjustEnabled}
-            >
-              {autoAdjustEnabled ? "Manual adjust" : "Auto adjust on"}
-            </button>
-            {!autoAdjustEnabled ? (
-              <button
-                type="button"
-                className="csv-import__button csv-import__button--secondary"
-                onClick={resetToAutoLayout}
-              >
-                Reset to auto layout
-              </button>
-            ) : null}
-          </>
+        <ToolbarSegmentedControl
+          ariaLabel="Full butt splices"
+          disabled={!meta}
+          value={collapseFullButtSplices ? "collapsed" : "expanded"}
+          onChange={(next) => {
+            if ((next === "collapsed") !== collapseFullButtSplices) {
+              toggleFullButtCollapse();
+            }
+          }}
+          options={[
+            {
+              value: "collapsed",
+              label: "Collapse full butt splices",
+              icon: <CollapseIcon />,
+            },
+            {
+              value: "expanded",
+              label: "Expand full butt splices",
+              icon: <ExpandIcon />,
+            },
+          ]}
+        />
+        <ToolbarActionButton
+          label="View connection report"
+          icon={<ReportIcon />}
+          pressed={reportOpen}
+          disabled={!meta}
+          onClick={() => setReportOpen(true)}
+        />
+        <ToolbarActionButton
+          label="Add cable callouts"
+          icon={<CalloutIcon />}
+          disabled={!meta}
+          onClick={generateCableCallouts}
+        />
+        <ToolbarSegmentedControl
+          ariaLabel="Track circuits"
+          disabled={!meta}
+          value={circuitPanelOpen ? "on" : "off"}
+          onChange={(next) => setCircuitPanelOpen(next === "on")}
+          options={[
+            {
+              value: "off",
+              label: "Hide circuits",
+              icon: <EyeOffIcon />,
+            },
+            {
+              value: "on",
+              label: "Track circuits",
+              icon: <EyeIcon />,
+            },
+          ]}
+        />
+        <ToolbarSegmentedControl
+          ariaLabel="Adjust mode"
+          disabled={!meta}
+          value={autoAdjustEnabled ? "auto" : "manual"}
+          onChange={(next) => {
+            const wantManual = next === "manual";
+            if (wantManual !== !autoAdjustEnabled) {
+              toggleManualAdjust();
+            }
+          }}
+          options={[
+            {
+              value: "auto",
+              label: "Auto adjust",
+              icon: <AutoIcon />,
+            },
+            {
+              value: "manual",
+              label: "Manual adjust",
+              icon: <ManualIcon />,
+            },
+          ]}
+        />
+        {!autoAdjustEnabled && meta ? (
+          <ToolbarActionButton
+            label="Reset to auto layout"
+            icon={<ResetIcon />}
+            onClick={resetToAutoLayout}
+          />
         ) : null}
         <span className="workflow-canvas__hint">
           {autoAdjustEnabled
