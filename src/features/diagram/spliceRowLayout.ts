@@ -1,4 +1,4 @@
-import { connectionsInRowLayoutOrder } from "@/features/diagram/connectionRowOrder";
+import { effectiveCableGap } from "@/features/diagram/layoutExpansion";
 import type { CableXBounds } from "@/features/diagram/cableLayoutMetrics";
 import {
   BREAKOUT,
@@ -11,7 +11,7 @@ import {
   fiberRowOffsetInCable,
   fiberRowYFromOffset,
 } from "@/features/diagram/cableLayoutMetrics";
-import { connectionRowOffsets } from "@/features/diagram/connectionRowOrder";
+import { connectionRowOffsets, connectionsInRowLayoutOrder } from "@/features/diagram/connectionRowOrder";
 import type { CablePlacement } from "@/features/diagram/canvasPlacement";
 import {
   parentVisualGroupKey,
@@ -92,7 +92,7 @@ export function resolveSameSideStackCollisions(
   placement: Map<string, CablePlacement>,
   cablePositions: Map<string, { x: number; y: number; height: number }>,
   heightFor: (vc: VisualCable) => number = (vc) => cableNodeLayoutHeight(vc),
-  minGap = CABLE_LAYOUT.cableGap,
+  minGap = effectiveCableGap(),
 ): void {
   for (const side of ["left", "right"] as const) {
     const cables = visualCables
@@ -144,7 +144,7 @@ export function resolveSameSideNodeCollisions(
       const h = cableNodeLayoutHeight(vc, scale);
       const nodeY = Math.max(pos.y, stackBottom);
       positions[nodeId] = { ...pos, y: nodeY };
-      stackBottom = nodeY + h + CABLE_LAYOUT.cableGap;
+      stackBottom = nodeY + h + effectiveCableGap();
     }
   }
 }
@@ -270,7 +270,7 @@ function reflowStackPreservingY(
     if (!pos) continue;
     const nodeY = Math.max(pos.y, stackBottom);
     cablePositions.set(vc.id, { ...pos, y: nodeY });
-    stackBottom = nodeY + pos.height + CABLE_LAYOUT.cableGap;
+    stackBottom = nodeY + pos.height + effectiveCableGap();
   }
 }
 
@@ -350,7 +350,7 @@ export function computeAlignedLayout(
       const h = cableNodeLayoutHeight(vc);
       const x = cableXForSide(side, vc.tubes.length, xBounds);
       cablePositions.set(vc.id, { x, y: nodeY, height: h });
-      stackBottom = nodeY + h + CABLE_LAYOUT.cableGap;
+      stackBottom = nodeY + h + effectiveCableGap();
     }
   };
 

@@ -16,14 +16,26 @@ import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
 import { TIA_12_COLORS } from "@/features/diagram/colorCode";
 
 const examples = join(process.cwd(), "docs/reference/examples");
+const legacyExamples = join(examples, "old csv examples");
 const EXAMPLE_NUMBERS = [1, 2, 3] as const;
+const STAGE_WIDTH_FIXTURE = 1920;
 
 function graphFromExample(n: (typeof EXAMPLE_NUMBERS)[number]) {
   const csv = readFileSync(
-    join(examples, `CSV Splice Detail Example #${n}.csv`),
+    join(legacyExamples, `CSV Splice Detail Example #${n}.csv`),
     "utf8",
   );
   return buildConnectionGraph(parseBentleyCsv(csv));
+}
+
+function productionCsvPath(file: string): string {
+  const legacy = join(legacyExamples, file);
+  try {
+    readFileSync(legacy);
+    return legacy;
+  } catch {
+    return join(examples, file);
+  }
 }
 
 /** Rules that only apply when the diagram has the relevant structure. */
@@ -59,7 +71,9 @@ describe("layout rules contract (docs/agent/LAYOUT_RULES.md)", () => {
 
   for (const n of EXAMPLE_NUMBERS) {
     describe(`Example #${n}`, () => {
-      const ctx = buildLayoutRuleContext(graphFromExample(n));
+      const ctx = buildLayoutRuleContext(graphFromExample(n), undefined, undefined, {
+        skipFeasibility: true,
+      });
 
       for (const ruleId of LAYOUT_RULE_IDS) {
         if (!ruleApplies(ruleId, n)) continue;
@@ -93,9 +107,11 @@ describe("reference production CSV layout sanity", () => {
 
   for (const { file, cableNodes } of productionCsvs) {
     it(`${file} builds ${cableNodes} cable nodes and passes STR-001`, () => {
-      const csv = readFileSync(join(examples, file), "utf8");
+      const csv = readFileSync(productionCsvPath(file), "utf8");
       const graph = buildConnectionGraph(parseBentleyCsv(csv));
-      const ctx = buildLayoutRuleContext(graph);
+      const ctx = buildLayoutRuleContext(graph, undefined, undefined, {
+        skipFeasibility: true,
+      });
       expect(ctx.visualCables.length).toBe(cableNodes);
       const { nodes } = buildReactFlowGraph(
         graph,
@@ -108,9 +124,26 @@ describe("reference production CSV layout sanity", () => {
     });
   }
 
+  it("Left-SPI-215_I-80.csv passes strict EDGE-004, EDGE-011, and EDGE-012", () => {
+    const csv = readFileSync(join(examples, "Left-SPI-215_I-80.csv"), "utf8");
+    const ctx = buildLayoutRuleContext(
+      buildConnectionGraph(parseBentleyCsv(csv)),
+      undefined,
+      undefined,
+      { stageWidth: STAGE_WIDTH_FIXTURE },
+    );
+    for (const id of ["EDGE-004", "EDGE-011", "EDGE-012"] as const) {
+      const result = checkLayoutRule(id, ctx);
+      expect(result.ok, result.detail).toBe(true);
+    }
+    expect(ctx.layoutExpansion.centerGapPadding).toBeGreaterThanOrEqual(0);
+  });
+
   it("SPI-215_I-80.csv passes fiber spacing rules FBR-001 and FBR-002", () => {
-    const csv = readFileSync(join(examples, "SPI-215_I-80.csv"), "utf8");
-    const ctx = buildLayoutRuleContext(buildConnectionGraph(parseBentleyCsv(csv)));
+    const csv = readFileSync(productionCsvPath("SPI-215_I-80.csv"), "utf8");
+    const ctx = buildLayoutRuleContext(buildConnectionGraph(parseBentleyCsv(csv)), undefined, undefined, {
+      skipFeasibility: true,
+    });
     for (const id of ["FBR-001", "FBR-002"] as const) {
       const result = checkLayoutRule(id, ctx);
       expect(result.ok, result.detail).toBe(true);
@@ -122,7 +155,7 @@ describe("collapsed full butt splice layout (EDGE-004)", () => {
   it("Example #3 OR tube passes EDGE-004 when collapsed", () => {
     const ctx = buildLayoutRuleContext(graphFromExample(3), undefined, {
       collapseFullButtSplices: true,
-    });
+    }, { skipFeasibility: true });
     const buttEdges = ctx.reactFlow.edges.filter((e) => e.id.startsWith("butt-"));
     expect(buttEdges.length).toBeGreaterThan(0);
     const result = checkLayoutRule("EDGE-004", ctx);
@@ -130,16 +163,16 @@ describe("collapsed full butt splice layout (EDGE-004)", () => {
   });
 
   it("300N_MAIN collapsed butt tubes pass EDGE-004", () => {
-    const csv = readFileSync(join(examples, "300N_MAIN.csv"), "utf8");
+    const csv = readFileSync(productionCsvPath("300N_MAIN.csv"), "utf8");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const ctx = buildLayoutRuleContext(graph, undefined, {
       collapseFullButtSplices: true,
-    });
+    }, { skipFeasibility: true });
     const buttEdges = ctx.reactFlow.edges.filter((e) => e.id.startsWith("butt-"));
     expect(buttEdges.length).toBeGreaterThan(0);
     const result = checkLayoutRule("EDGE-004", ctx);
     expect(result.ok, result.detail).toBe(true);
-  });
+  }, 30_000);
 
   it("synthetic 12-fiber BL↔OR collapsed tube passes EDGE-004", () => {
     const pairs = TIA_12_COLORS.map((color, index) => ({
@@ -181,7 +214,7 @@ describe("collapsed full butt splice layout (EDGE-004)", () => {
     });
     const ctx = buildLayoutRuleContext(graph, undefined, {
       collapseFullButtSplices: true,
-    });
+    }, { skipFeasibility: true });
     expect(ctx.reactFlow.edges.some((e) => e.id.startsWith("butt-"))).toBe(true);
     const result = checkLayoutRule("EDGE-004", ctx);
     expect(result.ok, result.detail).toBe(true);

@@ -20,6 +20,7 @@ export type SpliceHandleEntry = {
   fallbackLane: number;
   rowOffset?: number;
   tubeBundleKey?: string;
+  sourceTubeDotGroupKey?: string;
   fullButtSplice?: boolean;
   sideCircuitSpan?: SideCircuitLabelSpan;
   sourceTagWidth?: number;
@@ -68,6 +69,7 @@ export function buildSpliceHandleEntries(
     const edgeData = (edge.data ?? {}) as {
       rowOffset?: number;
       tubeBundleKey?: string;
+      sourceTubeDotGroupKey?: string;
       fullButtSplice?: boolean;
       laneIndex?: number;
       sideCircuitSpan?: SideCircuitLabelSpan;
@@ -154,6 +156,7 @@ export function buildSpliceHandleEntries(
       fallbackLane: edgeData.laneIndex ?? 0,
       rowOffset: edgeData.rowOffset,
       tubeBundleKey: edgeData.tubeBundleKey,
+      sourceTubeDotGroupKey: edgeData.sourceTubeDotGroupKey,
       fullButtSplice: isButtEdge,
       sideCircuitSpan: edgeData.sideCircuitSpan,
       sourceTagWidth,

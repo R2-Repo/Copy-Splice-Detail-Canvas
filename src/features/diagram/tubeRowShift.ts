@@ -23,6 +23,8 @@ export type TubeRowShiftOptions = {
     string,
     ReadonlySet<TubeColorCode>
   >;
+  /** Tubes with manual overrides — skip auto visualShiftY reset/apply. */
+  lockedTubeKeys?: ReadonlySet<TubeKey>;
 };
 
 export function tubeKeyFor(vcId: string, tubeColor: TubeColorCode): TubeKey {
@@ -140,9 +142,14 @@ function clampShift(value: number, max: number): number {
   return Math.max(-max, Math.min(max, value));
 }
 
-function resetVisualShifts(visualCables: VisualCable[]): void {
+function resetVisualShifts(
+  visualCables: VisualCable[],
+  locked?: ReadonlySet<TubeKey>,
+): void {
   for (const vc of visualCables) {
     for (const tube of vc.tubes) {
+      const key = tubeKeyFor(vc.id, tube.tubeColor);
+      if (locked?.has(key)) continue;
       tube.visualShiftY = 0;
     }
   }
@@ -203,8 +210,11 @@ function resolveTubeShiftSpacing(
 function applyShiftsToVisualCable(
   vc: VisualCable,
   shifts: Map<TubeColorCode, number>,
+  locked?: ReadonlySet<TubeKey>,
 ): void {
   for (const tube of vc.tubes) {
+    const key = tubeKeyFor(vc.id, tube.tubeColor);
+    if (locked?.has(key)) continue;
     const delta = shifts.get(tube.tubeColor) ?? 0;
     if (Math.abs(delta) <= Y_TOLERANCE) {
       tube.visualShiftY = 0;
@@ -285,7 +295,8 @@ export function applyTubeRowAlignmentShifts(
   cablePositions: Map<string, { x: number; y: number; height: number }>,
   options?: TubeRowShiftOptions,
 ): void {
-  resetVisualShifts(visualCables);
+  const locked = options?.lockedTubeKeys;
+  resetVisualShifts(visualCables, locked);
 
   const ideals = new Map<TubeKey, number[]>();
   const vcById = new Map(visualCables.map((vc) => [vc.id, vc]));
@@ -346,6 +357,6 @@ export function applyTubeRowAlignmentShifts(
       perCable.set(tube.tubeColor, tubeShifts.get(key) ?? 0);
     }
     resolveTubeShiftSpacing(vc, perCable, options);
-    applyShiftsToVisualCable(vc, perCable);
+    applyShiftsToVisualCable(vc, perCable, locked);
   }
 }

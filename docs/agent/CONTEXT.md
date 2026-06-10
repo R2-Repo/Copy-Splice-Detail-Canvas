@@ -1,63 +1,109 @@
 # Context
 
+
+
 > Agents: keep this file current-only. History lives in git log and [`CHANGELOG.md`](./CHANGELOG.md).
+
+
 
 ## Baseline
 
+
+
 - Branch: `main` @ tag `layout-baseline-v1`
-- Verified: `npm run verify` — all 31 layout rules on Examples #1–#3 + production CSVs
+
+- Verified: `npm run test:layout` — Examples #1–#3 + SPI-215 strict EDGE checks
+
+
 
 ## Current phase
 
-**Layout stabilization** — baseline merged to `main`; contract tests green.
+**Manual adjust mode (Phase 1)** — toggle auto-relayout; per-tube tip + fan-out reach handles.
 
 ## In scope NOW
 
-- **3161.4 BL tube bundle** — import + post-drag order + loop-back bend fix; user visual re-test pending
-- Bug fixes: one example, one rule ID, max 2 source files per session
+- **Manual adjust** — toolbar toggle; `LayoutOverrides` v12 (`autoAdjustEnabled`, `tubeOverrides`); soft snap + EDGE advisory banner
+- **Cable callouts** — toolbar button; red editable labels per cable node
+- **DOT-001/002** — fusion dots on horizontal source rows
+- Visual re-test: import Example #2 → Manual adjust → drag tube handles
+- `test:ci` CSV path cleanup (`docs/reference/examples/old csv examples/`)
+
+
 
 ## Out of scope until stabilization complete
 
-- PDF export, PNG typography polish, new layout rule IDs
-- Refactors of `spliceEdgeRouting.ts` (split deferred)
+
+
+- PDF export (callouts not embedded yet), PNG typography polish
+
+- Y-track horizontal deconflict (disabled — strict ≤2 bends)
+
 - New npm dependencies
+
+
 
 ## Rule priority (conflicts)
 
-See [`RULE_PRIORITY.md`](./RULE_PRIORITY.md). EDGE-004 wins over EDGE-011.
+
+
+See [`RULE_PRIORITY.md`](./RULE_PRIORITY.md). EDGE-004 strict ≤2 bends; widen layout via `resolveFeasibleImportLayout` instead of Y-tracks.
+
+
 
 ## Active decisions
 
+
+
 | Topic | Choice | Notes |
+
 |-------|--------|-------|
-| CSV import | Direct interpret + internal normalize | No cleaned.csv rewrite |
-| Cable leg identity | **Cable name only** at splice | Remote `device` diagnostic only |
-| Side assignment | Bend-first exhaustive + height balance | `compareSideAssignments` in `layoutScoring.ts` |
-| Cable stack order | Barycenter (2-pass Sugiyama) | Dominant pair still first |
-| Full butt splice | **Auto-enable on import** when detected | Toggle persists; row layout excludes collapsed fiber pairs |
-| Canvas | `@xyflow/react` | LayoutOverrides v8 |
-| Layout scope | Auto-layout on **import** + drag rowOffset/routing refresh for **moved cable only** | No full-diagram re-route after import |
-| Same-side routing | Inward H–V–H detour | 60px jog after measured OS column |
-| Center spacing | Packed midX lanes per zone | Min 24px; never collapse on infeasible inset |
-| Layout regressions | Rules doc + contract tests | Must pass before merge |
-| New npm deps | User approval required | PDF lib TBD |
+
+| Manual adjust | **Toggle + tube handles** | `autoAdjustEnabled` default true; cable drag skips full relayout when off |
+| Tube overrides | **`vcId\|tubeColor` keys** | `visualShiftY` (tip), `stemReachX` (reach); locked tubes skip auto TUB-008 |
+| Callouts | **One per cable node** | `LayoutOverrides.callouts` v11 |
+
+| Callout regen | **Replace all on re-click** | Overwrites manual text |
+
+| DOT group | **Source buffer tube** | `sourceTubeDotGroupKey` = `visualCableId\|tubeColor` |
+
+| Dot row | **Source horizontal** | `sourceY` / `sourceHorizY`; trunk `jogX` when bundled |
+
+| Dot column | **Shared X per tube** | `reconcileBufferTubeDotColumns` after lane assign |
+
+| EDGE-004 | **Max 2 bends always** | Demarcation at horizontal dot may reduce counted bends |
+
+
 
 ## Known issues (ordered)
 
-1. SPI-215 / busy diagrams: lane assign runs; handle-row Y-offsets stored on edges but **not yet drawn** in `buildDemarcatedSplicePaths` (still ≤2-bend handle-row paths). Re-test SPI-215&I-80 after import.
-2. PNG visual parity incomplete
-3. PDF export blocked on dep approval
+
+
+1. Many `test:ci` tests still reference Example CSVs under `docs/reference/examples/` (files live in `old csv examples/`)
+
+2. `spliceEdgeRouting.test.ts` 300N_MAIN butt midX band assertion may fail with legacy CSV path
+
+3. PNG visual parity incomplete
+
+4. Callout text does not auto-update when toggling existing splices (re-click button)
+
+
 
 ## Blockers
 
-None for Examples #1–#3 contract tests.
+
+
+None for `npm run test:layout`.
+
+
 
 ## Canonical docs (read order)
 
+
+
 1. [`SCOPE.md`](./SCOPE.md) — product requirements
+
 2. [`RULE_PRIORITY.md`](./RULE_PRIORITY.md) — conflict resolution
-3. [`LAYOUT_RULES.md`](./LAYOUT_RULES.md) — layout contract (31 rules)
-4. [`CSV_SEMANTICS.md`](./CSV_SEMANTICS.md) — parser/import semantics
-5. [`HANDOFF.md`](./HANDOFF.md) — last session only
-6. [`RULE_DICTIONARY.md`](./RULE_DICTIONARY.md) — plain-English rule IDs
-7. [`CANVAS_GLOSSARY.md`](./CANVAS_GLOSSARY.md) — diagram component names + screenshots
+
+3. [`LAYOUT_RULES.md`](./LAYOUT_RULES.md) — layout contract (33 rules incl. DOT-*)
+
+4. [`HANDOFF.md`](./HANDOFF.md) — last session only

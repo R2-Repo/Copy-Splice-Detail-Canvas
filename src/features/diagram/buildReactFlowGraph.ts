@@ -40,6 +40,7 @@ import {
 } from "@/features/diagram/spliceRowLayout";
 import type { CableXBounds } from "@/features/diagram/cableLayoutMetrics";
 import { tubeHandleId } from "@/features/diagram/tubeId";
+import { applyPersistedTubeOverrides } from "@/features/diagram/applyTubeOverrides";
 import {
   applyTubeRowAlignmentShifts,
   cablePositionsFromNodePositions,
@@ -48,6 +49,7 @@ import {
 import {
   buildSpliceHandleEntries,
   routingLaneDataFromLane,
+  sourceTubeDotGroupKey,
   spliceTubeBundleKey,
 } from "@/features/canvas/edges/spliceEdgeRouting";
 import { routeCenterSplices } from "@/features/diagram/centerRouter";
@@ -137,6 +139,7 @@ function buildCableNode(
     collapsedTubes?: string[];
     diagramScale: number;
     sideStemAlign: ReturnType<typeof computeSideStemAlignment>;
+    manualAdjustEnabled?: boolean;
   },
 ): Node {
   const nodeId = `cable-${vc.id}`;
@@ -168,6 +171,7 @@ function buildCableNode(
       alignedStemX,
       spliceNumber: graph.report.header.spliceNumber,
       collapsedTubes: options.collapsedTubes,
+      manualAdjustEnabled: options.manualAdjustEnabled,
     } satisfies CableNodeData,
     draggable: true,
   };
@@ -177,7 +181,14 @@ export function buildReactFlowGraph(
   graph: ConnectionGraph,
   overrides?: LayoutOverrides,
   layoutWidth?: number,
-  buildOptions?: { refreshColumnX?: boolean; refreshRowLayout?: boolean },
+  buildOptions?: {
+    refreshColumnX?: boolean;
+    refreshRowLayout?: boolean;
+    skipFeasibility?: boolean;
+    stageWidth?: number;
+    /** Skip cross-side tube tip auto-alignment (manual adjust mode). */
+    skipTubeAutoAlign?: boolean;
+  },
 ): {
   nodes: Node[];
   edges: Edge[];
@@ -251,23 +262,33 @@ export function buildReactFlowGraph(
     diagramScale,
   );
 
-  const tubeShiftOptions: TubeRowShiftOptions | undefined =
-    collapseFullButtSplices && resolvedButtSplices.length > 0
+  const autoAdjustOn = overrides?.autoAdjustEnabled !== false;
+  const lockedTubeKeys = applyPersistedTubeOverrides(
+    visualCables,
+    overrides?.tubeOverrides,
+  );
+
+  const tubeShiftOptions: TubeRowShiftOptions = {
+    ...(collapseFullButtSplices && resolvedButtSplices.length > 0
       ? {
           collapsedTubeColorsByVcId: collapsedTubeColorsByVcId(
             visualCables,
             resolvedButtSplices,
           ),
         }
-      : undefined;
+      : {}),
+    lockedTubeKeys,
+  };
 
-  applyTubeRowAlignmentShifts(
-    graph,
-    visualCables,
-    layout.rowYs,
-    cablePositionsFromNodePositions(positions),
-    tubeShiftOptions,
-  );
+  if (autoAdjustOn && buildOptions?.skipTubeAutoAlign !== true) {
+    applyTubeRowAlignmentShifts(
+      graph,
+      visualCables,
+      layout.rowYs,
+      cablePositionsFromNodePositions(positions),
+      tubeShiftOptions,
+    );
+  }
 
   for (const vc of visualCables) {
     const pos = positions[`cable-${vc.id}`];
@@ -296,6 +317,7 @@ export function buildReactFlowGraph(
   const nodeBuildOptions = {
     diagramScale,
     sideStemAlign,
+    manualAdjustEnabled: !autoAdjustOn,
   };
 
   const nodes: Node[] = visualCables.map((vc) => {
@@ -353,6 +375,10 @@ export function buildReactFlowGraph(
           source.endpoint.tubeColor,
           target.visualCableId,
         ),
+        sourceTubeDotGroupKey: sourceTubeDotGroupKey(
+          source.visualCableId,
+          source.endpoint.tubeColor,
+        ),
       },
     });
   }
@@ -387,6 +413,7 @@ export function buildReactFlowGraph(
       type: "splice",
       data: {
         fullButtSplice: true,
+        pairIds: tube.pairIds,
         sourceColor: colorHex(leftBase),
         targetColor: colorHex(rightBase),
         laneIndex,

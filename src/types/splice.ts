@@ -133,7 +133,22 @@ export type LayoutNodePosition = {
 };
 
 /** Bump when override shape/semantics change — ignores stale localStorage. */
-export const LAYOUT_OVERRIDE_VERSION = 10;
+export const LAYOUT_OVERRIDE_VERSION = 12;
+
+/** `${visualCableId}|${tubeColor}` — matches `TubeKey` in tubeRowShift.ts */
+export type TubeOverrideKey = `${string}|${string}`;
+
+export type TubeManualOverride = {
+  /** Bounded Y shift for tube tip / fan-out origin (fibers stay on row pitch). */
+  visualShiftY?: number;
+  /** Extra horizontal reach from sheath face toward center (px). */
+  stemReachX?: number;
+};
+
+export type LayoutCalloutRecord = {
+  targetCableNodeId: string;
+  text: string;
+};
 
 export type LayoutOverrides = {
   reportKey: string;
@@ -148,4 +163,10 @@ export type LayoutOverrides = {
   collapseFullButtSplices?: boolean;
   /** Import-time canvas width used for column placement and strand center. */
   layoutWidth?: number;
+  /** Cable callout labels keyed by callout node id. */
+  callouts?: Record<string, LayoutCalloutRecord>;
+  /** When false, cable drag and resize skip auto row/tube relayout (default true). */
+  autoAdjustEnabled?: boolean;
+  /** User-locked buffer tube tip / fan-out reach per tube key. */
+  tubeOverrides?: Record<TubeOverrideKey, TubeManualOverride>;
 };

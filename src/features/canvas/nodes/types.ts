@@ -19,6 +19,8 @@ export type CableNodeData = {
   collapsedTubes?: string[];
   /** Sheath + label only — fibers live on `fiberAnchor` nodes (nodes routing engine). */
   slim?: boolean;
+  /** Show buffer-tube manual drag handles (manual adjust mode). */
+  manualAdjustEnabled?: boolean;
 };
 
 export type BufferTubeNodeData = {
@@ -59,4 +61,9 @@ export type SplicePointNodeData = {
   sourceColor: string;
   targetColor: string;
   fullButtSplice?: boolean;
+};
+
+export type CableCalloutNodeData = {
+  targetCableNodeId: string;
+  text: string;
 };

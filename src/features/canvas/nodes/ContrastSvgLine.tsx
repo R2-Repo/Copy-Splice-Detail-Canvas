@@ -10,6 +10,7 @@ type ContrastSvgLineProps = {
   contrastOutline?: boolean;
   strokeLinecap?: "round" | "butt" | "square";
   strokeDasharray?: string;
+  className?: string;
 };
 
 export function ContrastSvgLine({

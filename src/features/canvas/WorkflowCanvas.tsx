@@ -13,8 +13,29 @@ import {
   type OnNodeDrag,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { SpliceReportOverlay } from "@/components/SpliceReportOverlay";
+import { defaultCalloutPosition } from "@/features/canvas/callouts/cableCalloutGeometry";
+import { CalloutLeaderLayer } from "@/features/canvas/callouts/CalloutLeaderLayer";
+import { CalloutPersistContext } from "@/features/canvas/callouts/CalloutPersistContext";
+import {
+  calloutIdForCable,
+  fibersFromCableTubes,
+  formatCableCalloutText,
+} from "@/features/canvas/callouts/formatCableCalloutText";
+import { mergeCalloutNodes } from "@/features/canvas/callouts/mergeCalloutNodes";
+import {
+  buildCircuitIndex,
+  type CircuitIndex,
+} from "@/features/canvas/circuitIndex";
+import { CircuitHighlightProvider } from "@/features/canvas/CircuitHighlightContext";
+import { CircuitListPanel } from "@/features/canvas/CircuitListPanel";
+import {
+  ManualLayoutProvider,
+  type ManualLayoutGuideLine,
+} from "@/features/canvas/ManualLayoutContext";
+import { ManualLayoutGuideOverlay } from "@/features/canvas/ManualLayoutGuideOverlay";
 import { spliceEdgeTypes } from "@/features/canvas/edgeTypes";
 import {
   existingIdsFromEdges,
@@ -23,7 +44,7 @@ import {
   positionsFromNodes,
   saveLayoutOverrides,
 } from "@/features/canvas/layoutStorage";
-import type { CableNodeData } from "@/features/canvas/nodes/types";
+import type { CableCalloutNodeData, CableNodeData } from "@/features/canvas/nodes/types";
 import {
   displaySideFromCanvasX,
   visualCableIdFromNodeId,
@@ -43,6 +64,22 @@ import {
   type CableXBounds,
 } from "@/features/diagram/cableLayoutMetrics";
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
+import { formatSpliceConnectionReport } from "@/features/report/formatSpliceConnectionReport";
+import {
+  DEFAULT_LAYOUT_EXPANSION,
+  runWithLayoutExpansion,
+  type LayoutExpansion,
+} from "@/features/diagram/layoutExpansion";
+import { resolveFeasibleImportLayout } from "@/features/diagram/layoutRules";
+import { computeSpliceEdgeLayout } from "@/features/diagram/computeSpliceLayout";
+import {
+  formatManualLayoutWarningBanner,
+  manualLayoutWarningsForEdges,
+} from "@/features/diagram/manualLayoutWarnings";
+import {
+  collectGlobalTubeTipSnapTargets,
+  spliceEdgeIdsForTubeKey,
+} from "@/features/diagram/snapGuides";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
 import { detectFullButtSpliceTubes } from "@/features/diagram/fullButtSplice";
 import {
@@ -60,7 +97,12 @@ import { estimatedCableNodeWidth } from "@/features/diagram/spliceRowLayout";
 import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import { CsvImportButton } from "@/features/import/CsvImportButton";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
-import type { ConnectionGraph } from "@/types/splice";
+import type {
+  ConnectionGraph,
+  LayoutCalloutRecord,
+  TubeManualOverride,
+  TubeOverrideKey,
+} from "@/types/splice";
 
 const emptyNodes: Node[] = [];
 const emptyEdges: Edge[] = [];
@@ -73,6 +115,16 @@ const FIT_WIDTH_OPTIONS = {
 
 /** Ignore sub-pixel resize noise from React Flow / scrollbar churn. */
 const STAGE_WIDTH_DELTA_PX = 16;
+
+function attachStoredCallouts(
+  nodes: Node[],
+  reportKey: string,
+  savedPositions?: Record<string, { x: number; y: number }>,
+): Node[] {
+  const overrides = loadLayoutOverrides(reportKey);
+  const positions = { ...overrides?.positions, ...savedPositions };
+  return mergeCalloutNodes(nodes, overrides?.callouts, positions);
+}
 
 function boundsForOutwardDrag(
   draggedX: number,
@@ -144,8 +196,20 @@ function WorkflowCanvasInner() {
   >(() => {});
   const [meta, setMeta] = useState<string | null>(null);
   const [collapseFullButtSplices, setCollapseFullButtSplices] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [circuitPanelOpen, setCircuitPanelOpen] = useState(false);
+  const [circuitIndex, setCircuitIndex] = useState<CircuitIndex | null>(null);
+  const [autoAdjustEnabled, setAutoAdjustEnabled] = useState(true);
+  const [manualWarningBanner, setManualWarningBanner] = useState<string | null>(
+    null,
+  );
+  const [activeGuides, setActiveGuides] = useState<ManualLayoutGuideLine[]>(
+    [],
+  );
+  const autoAdjustRef = useRef(true);
 
   collapseRef.current = collapseFullButtSplices;
+  autoAdjustRef.current = autoAdjustEnabled;
 
   const rebuildNodesEngineLayout = useCallback(
     (draggedNode: Node, patch?: Record<string, { x: number; y: number }>) => {
@@ -159,6 +223,7 @@ function WorkflowCanvasInner() {
         ...positionsFromNodes(getNodes().filter((n) => n.type === "cable")),
         ...patch,
       };
+      const manualMode = !autoAdjustRef.current;
 
       const { nodes: nextNodes, edges: nextEdges, autoLayoutY } =
         buildReactFlowGraph(
@@ -170,22 +235,28 @@ function WorkflowCanvasInner() {
             existingEdgeIds: existing?.existingEdgeIds,
             cableSides: existing?.cableSides,
             layoutWidth: layoutWidthRef.current,
+            autoAdjustEnabled: autoAdjustRef.current,
+            tubeOverrides: existing?.tubeOverrides,
           },
           layoutWidthRef.current,
+          manualMode ? { skipTubeAutoAlign: true } : undefined,
         );
 
-      setNodes(nextNodes);
+      const merged = attachStoredCallouts(nextNodes, reportKey, positions);
+
+      setNodes(merged);
       setEdges(nextEdges);
       saveLayoutOverrides(
         mergeLayoutOverrides(reportKey, {
-          positions: positionsFromNodes(
-            nextNodes.filter((n) => n.type === "cable"),
-          ),
+          positions: positionsFromNodes(merged),
           autoLayoutY,
           existingEdgeIds: existingIdsFromEdges(nextEdges),
           collapseFullButtSplices: collapseRef.current,
           layoutWidth: layoutWidthRef.current,
           cableSides: existing?.cableSides,
+          callouts: existing?.callouts,
+          autoAdjustEnabled: autoAdjustRef.current,
+          tubeOverrides: existing?.tubeOverrides,
         }),
       );
     },
@@ -194,6 +265,12 @@ function WorkflowCanvasInner() {
 
   const refreshDragRouting = useCallback(
     (draggedNode: Node) => {
+      if (!autoAdjustRef.current) {
+        setNodes((current) =>
+          current.map((n) => (n.id === draggedNode.id ? draggedNode : n)),
+        );
+        return;
+      }
       if (useNodesRoutingEngine()) {
         rebuildNodesEngineLayout(draggedNode, {
           [draggedNode.id]: draggedNode.position,
@@ -214,7 +291,7 @@ function WorkflowCanvasInner() {
       );
       publishDragRoutingSnapshot(handleEntries, layoutWidthRef.current / 2);
     },
-    [getEdges, getNodes, rebuildNodesEngineLayout],
+    [getEdges, getNodes, rebuildNodesEngineLayout, setNodes],
   );
 
   const stageWidthForLayout = useCallback((): number => {
@@ -315,6 +392,8 @@ function WorkflowCanvasInner() {
       const overrides = mergeLayoutOverrides(reportKey, {
         collapseFullButtSplices: collapse,
         cableSides: options?.cableSidesPatch,
+        autoAdjustEnabled: existing?.autoAdjustEnabled,
+        tubeOverrides: existing?.tubeOverrides,
       });
       const stageWidth = stageWidthForLayout();
       const viewportLayoutWidth =
@@ -331,37 +410,64 @@ function WorkflowCanvasInner() {
                 existing?.layoutWidth,
               )
           : undefined;
-      const layoutWidthArg =
+      let layoutWidthArg =
         options?.layoutWidth ??
         (options?.refreshColumnX && viewportLayoutWidth !== undefined
           ? viewportLayoutWidth
           : undefined) ??
         existing?.layoutWidth ??
         layoutWidthRef.current;
+
+      let layoutExpansion: LayoutExpansion = DEFAULT_LAYOUT_EXPANSION;
+      if (
+        options?.fitAtUnitZoom &&
+        options?.layoutWidth === undefined &&
+        !options?.refreshRowLayout
+      ) {
+        const resolved = resolveFeasibleImportLayout(graph, {
+          stageWidth: stageWidth > 0 ? stageWidth : undefined,
+          layoutWidth:
+            viewportLayoutWidth ??
+            (stageWidth > 0
+              ? importLayoutWidthForGraph(graph, { stageWidth })
+              : undefined),
+          collapseFullButtSplices: collapse,
+        });
+        layoutWidthArg = resolved.layoutWidth;
+        layoutExpansion = resolved.expansion;
+      }
+
       layoutWidthRef.current = layoutWidthArg;
 
       const savedPositions =
         options?.refreshLayout ?? false ? {} : existing?.positions ?? {};
 
       const { nodes: nextNodes, edges: nextEdges, layout, xBounds, autoLayoutY } =
-        buildReactFlowGraph(
-          graph,
-          {
-            ...overrides,
-            reportKey,
-            collapseFullButtSplices: collapse,
-            positions: savedPositions,
-            existingEdgeIds: existing?.existingEdgeIds,
-            layoutWidth: layoutWidthArg,
-          },
-          layoutWidthArg,
-          {
-            refreshColumnX: options?.refreshColumnX,
-            refreshRowLayout: options?.refreshRowLayout,
-          },
+        runWithLayoutExpansion(layoutExpansion, () =>
+          buildReactFlowGraph(
+            graph,
+            {
+              ...overrides,
+              reportKey,
+              collapseFullButtSplices: collapse,
+              positions: savedPositions,
+              existingEdgeIds: existing?.existingEdgeIds,
+              layoutWidth: layoutWidthArg,
+              autoAdjustEnabled: overrides.autoAdjustEnabled,
+              tubeOverrides: overrides.tubeOverrides,
+            },
+            layoutWidthArg,
+            {
+              refreshColumnX: options?.refreshColumnX,
+              refreshRowLayout: options?.refreshRowLayout,
+              skipFeasibility: true,
+              skipTubeAutoAlign: overrides.autoAdjustEnabled === false,
+            },
+          ),
         );
       xBoundsRef.current = xBounds;
-      setNodes(nextNodes);
+      const merged = attachStoredCallouts(nextNodes, reportKey, savedPositions);
+      setNodes(merged);
       setEdges(nextEdges);
 
       if (
@@ -372,11 +478,14 @@ function WorkflowCanvasInner() {
         saveLayoutOverrides(
           mergeLayoutOverrides(reportKey, {
             layoutWidth: layoutWidthArg,
-            positions: positionsFromNodes(nextNodes),
+            positions: positionsFromNodes(merged),
             autoLayoutY,
             existingEdgeIds: existing?.existingEdgeIds,
             collapseFullButtSplices: collapse,
             cableSides: overrides.cableSides,
+            callouts: existing?.callouts,
+            autoAdjustEnabled: overrides.autoAdjustEnabled,
+            tubeOverrides: overrides.tubeOverrides,
           }),
         );
       }
@@ -412,6 +521,7 @@ function WorkflowCanvasInner() {
       const graph = graphRef.current;
       const reportKey = reportKeyRef.current;
       if (!graph || !reportKey) return;
+      if (!autoAdjustRef.current) return;
 
       const nextWidth = stageLayoutWidthForGraph(graph, width, {
         userExpandedLayoutWidth: userExpandedLayoutRef.current
@@ -456,6 +566,7 @@ function WorkflowCanvasInner() {
         : undefined,
     });
     if (Math.abs(target - layoutWidthRef.current) < STAGE_WIDTH_DELTA_PX) return;
+    if (!autoAdjustRef.current) return;
 
     applyGraphRef.current(graph, reportKey, collapseRef.current, {
       layoutWidth: target,
@@ -473,12 +584,15 @@ function WorkflowCanvasInner() {
       const reportKey = reportStorageKey(graph);
       reportKeyRef.current = reportKey;
       graphRef.current = graph;
+      setCircuitIndex(buildCircuitIndex(graph));
       const saved = loadLayoutOverrides(reportKey);
       const { visualCables } = buildVisualCablesForLayout(graph);
       const detected = detectFullButtSpliceTubes(graph, visualCables);
       const collapsed =
         saved?.collapseFullButtSplices ?? detected.length > 0;
       setCollapseFullButtSplices(collapsed);
+      setAutoAdjustEnabled(saved?.autoAdjustEnabled !== false);
+      setManualWarningBanner(null);
       userExpandedLayoutRef.current = false;
 
       const importWhenStageReady = (attempt = 0) => {
@@ -535,6 +649,180 @@ function WorkflowCanvasInner() {
     };
   }, [loadFromCsv]);
 
+  const updateManualWarnings = useCallback(
+    (
+      graph: ConnectionGraph,
+      nextNodes: Node[],
+      nextEdges: Edge[],
+      touchedEdgeIds: Set<string>,
+    ) => {
+      if (touchedEdgeIds.size === 0) {
+        setManualWarningBanner(null);
+        return;
+      }
+      const { visualCables } = buildVisualCablesForLayout(graph);
+      const { handleEntries } = computeSpliceEdgeLayout(
+        nextNodes,
+        nextEdges,
+        visualCables,
+        layoutWidthRef.current / 2,
+      );
+      const warnings = manualLayoutWarningsForEdges(
+        handleEntries,
+        nextEdges,
+        touchedEdgeIds,
+        layoutWidthRef.current / 2,
+      );
+      setManualWarningBanner(formatManualLayoutWarningBanner(warnings));
+    },
+    [],
+  );
+
+  const handleTubeOverrideCommit = useCallback(
+    (tubeKey: TubeOverrideKey, patch: TubeManualOverride) => {
+      const graph = graphRef.current;
+      const reportKey = reportKeyRef.current;
+      if (!graph || !reportKey) return;
+
+      const existing = loadLayoutOverrides(reportKey);
+      const prev = existing?.tubeOverrides?.[tubeKey] ?? {};
+      const merged: TubeManualOverride = { ...prev, ...patch };
+      if (merged.visualShiftY === undefined && merged.stemReachX === undefined) {
+        delete merged.visualShiftY;
+        delete merged.stemReachX;
+      }
+      const tubeOverrides = { ...(existing?.tubeOverrides ?? {}) };
+      if (
+        merged.visualShiftY === undefined &&
+        merged.stemReachX === undefined
+      ) {
+        delete tubeOverrides[tubeKey];
+      } else {
+        tubeOverrides[tubeKey] = merged;
+      }
+
+      const positions = positionsFromNodes(
+        getNodes().filter((n) => n.type === "cable"),
+      );
+      const { nodes: nextNodes, edges: nextEdges, autoLayoutY } =
+        buildReactFlowGraph(
+          graph,
+          {
+            reportKey,
+            collapseFullButtSplices: collapseRef.current,
+            positions,
+            existingEdgeIds: existing?.existingEdgeIds,
+            cableSides: existing?.cableSides,
+            layoutWidth: layoutWidthRef.current,
+            autoAdjustEnabled: false,
+            tubeOverrides,
+          },
+          layoutWidthRef.current,
+          { skipTubeAutoAlign: true },
+        );
+      const mergedNodes = attachStoredCallouts(nextNodes, reportKey, positions);
+      setNodes(mergedNodes);
+      setEdges(nextEdges);
+      saveLayoutOverrides(
+        mergeLayoutOverrides(reportKey, {
+          positions: positionsFromNodes(mergedNodes),
+          autoLayoutY,
+          existingEdgeIds: existingIdsFromEdges(nextEdges),
+          collapseFullButtSplices: collapseRef.current,
+          layoutWidth: layoutWidthRef.current,
+          cableSides: existing?.cableSides,
+          callouts: existing?.callouts,
+          autoAdjustEnabled: false,
+          tubeOverrides,
+        }),
+      );
+      updateManualWarnings(
+        graph,
+        mergedNodes,
+        nextEdges,
+        spliceEdgeIdsForTubeKey(graph, tubeKey),
+      );
+      requestAnimationFrame(() => {
+        for (const node of mergedNodes) {
+          if (node.type === "cable") updateNodeInternals(node.id);
+        }
+      });
+    },
+    [getNodes, setEdges, setNodes, updateManualWarnings, updateNodeInternals],
+  );
+
+  const toggleManualAdjust = useCallback(() => {
+    const graph = graphRef.current;
+    const reportKey = reportKeyRef.current;
+    if (!graph || !reportKey) return;
+    const existing = loadLayoutOverrides(reportKey);
+    const next = !(existing?.autoAdjustEnabled !== false);
+    setAutoAdjustEnabled(next);
+    if (next) {
+      setManualWarningBanner(null);
+      setActiveGuides([]);
+    }
+    const positions = positionsFromNodes(
+      getNodes().filter((n) => n.type === "cable"),
+    );
+    const { nodes: nextNodes, edges: nextEdges, autoLayoutY } =
+      buildReactFlowGraph(
+        graph,
+        {
+          reportKey,
+          collapseFullButtSplices: collapseRef.current,
+          positions,
+          existingEdgeIds: existing?.existingEdgeIds,
+          cableSides: existing?.cableSides,
+          layoutWidth: layoutWidthRef.current,
+          autoAdjustEnabled: next,
+          tubeOverrides: existing?.tubeOverrides,
+        },
+        layoutWidthRef.current,
+        next ? undefined : { skipTubeAutoAlign: true },
+      );
+    const merged = attachStoredCallouts(nextNodes, reportKey, positions);
+    setNodes(merged);
+    setEdges(nextEdges);
+    saveLayoutOverrides(
+      mergeLayoutOverrides(reportKey, {
+        positions: positionsFromNodes(merged),
+        autoLayoutY,
+        existingEdgeIds: existingIdsFromEdges(nextEdges),
+        collapseFullButtSplices: collapseRef.current,
+        layoutWidth: layoutWidthRef.current,
+        cableSides: existing?.cableSides,
+        callouts: existing?.callouts,
+        autoAdjustEnabled: next,
+        tubeOverrides: existing?.tubeOverrides,
+      }),
+    );
+  }, [getNodes, setEdges, setNodes]);
+
+  const resetToAutoLayout = useCallback(() => {
+    const graph = graphRef.current;
+    const reportKey = reportKeyRef.current;
+    if (!graph || !reportKey) return;
+    setAutoAdjustEnabled(true);
+    setManualWarningBanner(null);
+    setActiveGuides([]);
+    saveLayoutOverrides(
+      mergeLayoutOverrides(reportKey, {
+        autoAdjustEnabled: true,
+        tubeOverrides: {},
+      }),
+    );
+    const width = resolveLayoutWidth(graph, false);
+    applyGraph(graph, reportKey, collapseRef.current, {
+      layoutWidth: width,
+      refreshLayout: true,
+      refreshColumnX: true,
+      refreshRowLayout: true,
+      fitView: true,
+      fitAtUnitZoom: true,
+    });
+  }, [applyGraph, resolveLayoutWidth]);
+
   const toggleFullButtCollapse = useCallback(() => {
     const graph = graphRef.current;
     const reportKey = reportKeyRef.current;
@@ -564,6 +852,15 @@ function WorkflowCanvasInner() {
 
   const onNodeDragStop: OnNodeDrag<Node> = useCallback(
     (_, node) => {
+      if (node.type === "cableCallout") {
+        setNodes((current) => {
+          const next = current.map((n) => (n.id === node.id ? node : n));
+          persistLayout(next, edges);
+          return next;
+        });
+        return;
+      }
+
       if (node.type !== "cable") {
         persistLayout(nodes, edges);
         return;
@@ -621,6 +918,7 @@ function WorkflowCanvasInner() {
           ...(existing?.cableSides ?? {}),
           ...(sideChanged ? { [visualId]: newSide } : {}),
         };
+        const manualMode = !autoAdjustRef.current;
         const { nodes: nextNodes, edges: nextEdges, autoLayoutY } =
           buildReactFlowGraph(
             graph,
@@ -634,24 +932,57 @@ function WorkflowCanvasInner() {
               existingEdgeIds: existing?.existingEdgeIds,
               cableSides,
               layoutWidth,
+              autoAdjustEnabled: autoAdjustRef.current,
+              tubeOverrides: existing?.tubeOverrides,
             },
             layoutWidth,
+            manualMode ? { skipTubeAutoAlign: true } : undefined,
           );
-        setNodes(nextNodes);
+        const merged = attachStoredCallouts(nextNodes, reportKeyRef.current, {
+          ...(existing?.positions ?? {}),
+          [node.id]: { x: finalX, y: finalY },
+        });
+        setNodes(merged);
         setEdges(nextEdges);
         saveLayoutOverrides(
           mergeLayoutOverrides(reportKeyRef.current, {
-            positions: positionsFromNodes(
-              nextNodes.filter((n) => n.type === "cable"),
-            ),
+            positions: positionsFromNodes(merged),
             autoLayoutY,
             existingEdgeIds: existingIdsFromEdges(nextEdges),
             collapseFullButtSplices: collapseRef.current,
             layoutWidth,
             cableSides,
+            callouts: existing?.callouts,
+            autoAdjustEnabled: autoAdjustRef.current,
+            tubeOverrides: existing?.tubeOverrides,
           }),
         );
         layoutWidthRef.current = layoutWidth;
+        if (manualMode) {
+          const touched = new Set<string>();
+          for (const edge of nextEdges) {
+            if (
+              edge.type === "splice" &&
+              (edge.source === node.id ||
+                edge.target === node.id ||
+                edge.id.startsWith("splice-left-") ||
+                edge.id.startsWith("splice-right-"))
+            ) {
+              if (edge.id.startsWith("splice-left-")) {
+                touched.add(
+                  `splice-${edge.id.slice("splice-left-".length)}`,
+                );
+              } else if (edge.id.startsWith("splice-right-")) {
+                touched.add(
+                  `splice-${edge.id.slice("splice-right-".length)}`,
+                );
+              } else {
+                touched.add(edge.id);
+              }
+            }
+          }
+          updateManualWarnings(graph, merged, nextEdges, touched);
+        }
         if (sideChanged) {
           requestAnimationFrame(() => updateNodeInternals(node.id));
         }
@@ -733,7 +1064,7 @@ function WorkflowCanvasInner() {
         return nextNodes;
       });
     },
-    [edges, nodes, persistLayout, setNodes, updateNodeInternals],
+    [edges, nodes, persistLayout, setNodes, updateManualWarnings, updateNodeInternals],
   );
 
   const onNodeDrag: OnNodeDrag<Node> = useCallback(
@@ -758,6 +1089,134 @@ function WorkflowCanvasInner() {
     [refreshDragRouting, setNodes],
   );
 
+  const snapTipTargets = useMemo(() => {
+    const graph = graphRef.current;
+    if (!graph || autoAdjustEnabled) return [];
+    const reportKey = reportKeyRef.current;
+    const existing = reportKey
+      ? loadLayoutOverrides(reportKey)
+      : undefined;
+    return collectGlobalTubeTipSnapTargets(
+      graph,
+      positionsFromNodes(nodes.filter((n) => n.type === "cable")),
+      existing?.tubeOverrides,
+    );
+  }, [nodes, autoAdjustEnabled, meta]);
+
+  const manualLayoutContextValue = useMemo(
+    () => ({
+      manualAdjustEnabled: !autoAdjustEnabled,
+      alignedStemX: undefined as number | undefined,
+      snapTipTargets,
+      onTubeOverrideCommit: handleTubeOverrideCommit,
+      activeGuides,
+      setActiveGuides,
+    }),
+    [
+      autoAdjustEnabled,
+      snapTipTargets,
+      handleTubeOverrideCommit,
+      activeGuides,
+    ],
+  );
+
+  const reportText = useMemo(() => {
+    const graph = graphRef.current;
+    if (!graph || !reportOpen) return "";
+    const existingConnectionIds = new Set(
+      existingIdsFromEdges(edges).map((id) =>
+        id.startsWith("splice-") ? id.slice("splice-".length) : id,
+      ),
+    );
+    return formatSpliceConnectionReport(graph, { existingConnectionIds });
+  }, [reportOpen, edges]);
+
+  const handleCalloutTextChange = useCallback(
+    (calloutId: string, text: string) => {
+      setNodes((current) => {
+        const next = current.map((n) =>
+          n.id === calloutId
+            ? {
+                ...n,
+                data: { ...(n.data as CableCalloutNodeData), text },
+              }
+            : n,
+        );
+        const key = reportKeyRef.current;
+        if (key) {
+          const existing = loadLayoutOverrides(key);
+          const callouts: Record<string, LayoutCalloutRecord> = {
+            ...(existing?.callouts ?? {}),
+          };
+          const record = callouts[calloutId];
+          if (record) {
+            callouts[calloutId] = { ...record, text };
+          }
+          saveLayoutOverrides(
+            mergeLayoutOverrides(key, {
+              positions: positionsFromNodes(next),
+              callouts,
+              existingEdgeIds: existingIdsFromEdges(getEdges()),
+              collapseFullButtSplices: collapseRef.current,
+              layoutWidth: layoutWidthRef.current,
+              cableSides: existing?.cableSides,
+            }),
+          );
+        }
+        return next;
+      });
+    },
+    [getEdges, setNodes],
+  );
+
+  const generateCableCallouts = useCallback(() => {
+    const reportKey = reportKeyRef.current;
+    if (!reportKey) return;
+
+    const cableNodes = nodes.filter((n) => n.type === "cable");
+    const leftCables = cableNodes.filter(
+      (n) => (n.data as CableNodeData).side === "left",
+    );
+    const rightCables = cableNodes.filter(
+      (n) => (n.data as CableNodeData).side === "right",
+    );
+
+    const callouts: Record<string, LayoutCalloutRecord> = {};
+    const calloutNodes: Node[] = [];
+
+    const addForSide = (sideNodes: Node[]) => {
+      sideNodes.forEach((cableNode, index) => {
+        const data = cableNode.data as CableNodeData;
+        const text = formatCableCalloutText(
+          data.label,
+          fibersFromCableTubes(data.tubes),
+          edges,
+        );
+        const id = calloutIdForCable(cableNode.id);
+        const position = defaultCalloutPosition(cableNode, data, index);
+        callouts[id] = { targetCableNodeId: cableNode.id, text };
+        calloutNodes.push({
+          id,
+          type: "cableCallout",
+          position,
+          width: 200,
+          height: 52,
+          data: { targetCableNodeId: cableNode.id, text },
+          draggable: true,
+          selectable: true,
+        });
+      });
+    };
+
+    addForSide(leftCables);
+    addForSide(rightCables);
+
+    const withoutCallouts = nodes.filter((n) => n.type !== "cableCallout");
+    const nextNodes = [...withoutCallouts, ...calloutNodes];
+    setNodes(nextNodes);
+    persistLayout(nextNodes, edges, { callouts });
+  }, [edges, nodes, persistLayout, setNodes]);
+
   const onEdgeClick = useCallback(
     (_: React.MouseEvent, edge: Edge) => {
       setEdges((current) => {
@@ -780,46 +1239,114 @@ function WorkflowCanvasInner() {
       <div className="workflow-canvas__toolbar">
         <CsvImportButton onImport={loadFromCsv} />
         {meta ? (
-          <button
-            type="button"
-            className="csv-import__button csv-import__button--secondary"
-            onClick={toggleFullButtCollapse}
-          >
-            {collapseFullButtSplices
-              ? "Expand full butt splices"
-              : "Collapse full butt splices"}
-          </button>
+          <>
+            <button
+              type="button"
+              className="csv-import__button csv-import__button--secondary"
+              onClick={toggleFullButtCollapse}
+            >
+              {collapseFullButtSplices
+                ? "Expand full butt splices"
+                : "Collapse full butt splices"}
+            </button>
+            <button
+              type="button"
+              className="csv-import__button csv-import__button--secondary"
+              onClick={() => setReportOpen(true)}
+            >
+              View connection report
+            </button>
+            <button
+              type="button"
+              className="csv-import__button csv-import__button--secondary"
+              onClick={generateCableCallouts}
+            >
+              Add cable callouts
+            </button>
+            <button
+              type="button"
+              className={`csv-import__button csv-import__button--secondary${circuitPanelOpen ? " csv-import__button--active" : ""}`}
+              onClick={() => setCircuitPanelOpen((open) => !open)}
+              aria-pressed={circuitPanelOpen}
+            >
+              {circuitPanelOpen ? "Hide circuits" : "Track circuits"}
+            </button>
+            <button
+              type="button"
+              className={`csv-import__button csv-import__button--secondary${!autoAdjustEnabled ? " csv-import__button--active" : ""}`}
+              onClick={toggleManualAdjust}
+              aria-pressed={!autoAdjustEnabled}
+            >
+              {autoAdjustEnabled ? "Manual adjust" : "Auto adjust on"}
+            </button>
+            {!autoAdjustEnabled ? (
+              <button
+                type="button"
+                className="csv-import__button csv-import__button--secondary"
+                onClick={resetToAutoLayout}
+              >
+                Reset to auto layout
+              </button>
+            ) : null}
+          </>
         ) : null}
         <span className="workflow-canvas__hint">
-          Drag to reposition; only the moved cable's strands re-route; click edge
-          for protect-in-place
+          {autoAdjustEnabled
+            ? "Drag cables to reposition; click edge for protect-in-place"
+            : "Manual mode: drag tube handles on cables; cable drag skips auto relayout"}
         </span>
+        {manualWarningBanner ? (
+          <span className="workflow-canvas__manual-warning" role="status">
+            {manualWarningBanner}
+          </span>
+        ) : null}
         {meta ? <span className="workflow-canvas__meta">{meta}</span> : null}
       </div>
       <div className="workflow-canvas__body">
-        <div className="workflow-canvas__stage" ref={stageRef}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onNodeDragStart={onNodeDragStart}
-            onNodeDrag={onNodeDrag}
-            onNodeDragStop={onNodeDragStop}
-            onEdgesChange={onEdgesChange}
-            onEdgeClick={onEdgeClick}
-            nodeTypes={spliceNodeTypes}
-            edgeTypes={spliceEdgeTypes}
-            minZoom={0.05}
-            maxZoom={2}
-            nodesDraggable
-            elementsSelectable
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background gap={16} />
-            <Controls />
-          </ReactFlow>
-        </div>
+        <CircuitHighlightProvider
+          key={reportKeyRef.current ?? "empty"}
+          circuitIndex={circuitIndex}
+        >
+          <div className="workflow-canvas__stage" ref={stageRef}>
+            <ManualLayoutGuideOverlay guides={activeGuides} />
+            <CalloutPersistContext.Provider
+              value={{ onTextChange: handleCalloutTextChange }}
+            >
+              <ManualLayoutProvider value={manualLayoutContextValue}>
+              <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onNodeDragStart={onNodeDragStart}
+                onNodeDrag={onNodeDrag}
+                onNodeDragStop={onNodeDragStop}
+                onEdgesChange={onEdgesChange}
+                onEdgeClick={onEdgeClick}
+                nodeTypes={spliceNodeTypes}
+                edgeTypes={spliceEdgeTypes}
+                minZoom={0.05}
+                maxZoom={2}
+                nodesDraggable
+                elementsSelectable
+                proOptions={{ hideAttribution: true }}
+              >
+                <Background gap={16} />
+                <Controls />
+                <CalloutLeaderLayer />
+              </ReactFlow>
+              </ManualLayoutProvider>
+            </CalloutPersistContext.Provider>
+          </div>
+          {circuitPanelOpen && meta ? (
+            <CircuitListPanel circuitIndex={circuitIndex} />
+          ) : null}
+        </CircuitHighlightProvider>
       </div>
+      <SpliceReportOverlay
+        open={reportOpen}
+        text={reportText}
+        onClose={() => setReportOpen(false)}
+      />
     </div>
   );
 }

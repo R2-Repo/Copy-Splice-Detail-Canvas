@@ -80,7 +80,7 @@ When EDGE rules conflict, see [`RULE_PRIORITY.md`](./RULE_PRIORITY.md) — EDGE-
 | ID | Requirement |
 |----|-------------|
 | **EDGE-001** | On import, each splice edge receives a **distinct routing lane** (no overlapping mid-X paths). |
-| **EDGE-002** | Splice paths use **orthogonal** H–V–H routing with a fusion dot at the elbow. |
+| **EDGE-002** | Splice paths use **orthogonal** H–V–H routing with a fusion dot on the **horizontal fiber segment** before center vertical fan-out (see DOT-001). |
 | **EDGE-003** | Lane registry assigns **staggered lanes on initial mount** (no drag required to separate overlapping strands). *Tested in `spliceEdgeRouting.test.ts`.* |
 | **EDGE-004** | Handle-to-handle splice path uses **≤2 orthogonal 90° bends total** across both legs combined; prefer **0** (straight) when tube rows align within **12px** (half pitch). Collapsed tubes use the same limit. Deconfliction uses distinct `midX` lanes — not Y-track offsets that add bends. |
 | **EDGE-005** | **Buffer-tube grouping in center lanes:** `midX` order mirrors vertical `rowOffset` (+ tube-boundary gaps). Coherent tube bundles apply the same `spliceMidOrderInverts` logic as individual strands. For downward splices (right endpoint below left), top rows bend farther toward the target; for upward splices, top rows bend closer to the source. |
@@ -91,6 +91,14 @@ When EDGE rules conflict, see [`RULE_PRIORITY.md`](./RULE_PRIORITY.md) — EDGE-
 | **EDGE-010** | Fibers from the **same buffer tube** to the **same target cable** use **24px-spaced** vertical lanes plus a **shared horizontal trunk** (`jogX`) before each lane turns vertical — stay grouped without stacking. **Exception:** same-side downward loop bundles omit `jogX` so the source bend can cross while preserving color order. |
 | **EDGE-011** | Parallel splice segments never **stack on the same track** (same X for vertical, same Y for horizontal); distinct lanes stay ≥24px apart. Side horizontal legs use **offset Y tracks** (`sourceHorizY` / `targetHorizY`) when aligned rows would overlap in the gap. **Global** — applies across all routing zones, not just within a single source/target cable pair. |
 | **EDGE-012** | When vertical center legs overlap in Y, they use **distinct midX lanes** (≥24px apart). **Global** — applies across all routing zones. |
+
+### Fusion splice dots (`DOT`)
+
+| ID | Requirement |
+|----|-------------|
+| **DOT-001** | Fusion dot lies on a **horizontal** splice-path segment (not a vertical segment). Default row: source fiber row (`sourceY` / `sourceHorizY`). |
+| **DOT-002** | Fibers sharing a **source buffer tube** (`visualCableId \| tubeColor`) use one **shared dot column X**; dot Y follows each fiber’s source handle row — vertically **stacked** at multiples of 24px (sparse tubes may skip unspliced fiber rows). Shared X prefers bundle `jogX` trunk when present. |
+| **DOT-003** | *(Reserved — overlap / conflict avoidance with other strands; not enforced yet. Subordinate to EDGE-011 until wording is finalized.)* |
 
 ### Fiber strand direction (`STR`)
 

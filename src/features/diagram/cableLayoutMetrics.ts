@@ -3,6 +3,10 @@ import {
   computeCableBreakout,
 } from "@/features/diagram/cableBreakoutGeometry";
 
+import {
+  getLayoutExpansion,
+} from "@/features/diagram/layoutExpansion";
+
 /**
  * Center-to-center spacing between adjacent fiber splice lines within one buffer tube (px).
  * Used for row layout, cable node rows, and edge routing clearance.
@@ -71,7 +75,8 @@ export function minCenterGapForRowSpan(
       ? MIN_CENTER_GAP_FLOOR
       : Math.max(MIN_CENTER_GAP_FLOOR, (laneCount - 1) * SPLICE_LANE_SEP) +
         2 * SPLICE_ROUTING_END_MARGIN;
-  return Math.max(minFromOffsets, minFromLanes);
+  const base = Math.max(minFromOffsets, minFromLanes);
+  return base + getLayoutExpansion().centerGapPadding;
 }
 
 export function diagramCenterXFromLayoutWidth(layoutWidth: number): number {

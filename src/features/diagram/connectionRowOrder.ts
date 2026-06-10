@@ -3,11 +3,14 @@ import {
   pairEndpointsForSide,
 } from "@/features/diagram/buildConnectionGraph";
 import {
-  CABLE_LAYOUT,
   compactVisualCableHeight,
   FIBER_ROW_PITCH,
   TUBE_GROUP_GAP,
 } from "@/features/diagram/cableLayoutMetrics";
+import {
+  effectiveCableGap,
+  getLayoutExpansion,
+} from "@/features/diagram/layoutExpansion";
 import type { DominantCablePair } from "@/features/diagram/dominantCablePair";
 import { parentVisualGroupKey } from "@/features/diagram/dominantCablePair";
 import {
@@ -118,7 +121,10 @@ function rowStepAfter(
  */
 export function adaptiveBoundaryRowGap(shortFiberCount: number): number {
   const pitchSteps = Math.min(Math.max(1, shortFiberCount), 2);
-  return Math.max(TUBE_GROUP_GAP, pitchSteps * FIBER_ROW_PITCH);
+  return (
+    Math.max(TUBE_GROUP_GAP, pitchSteps * FIBER_ROW_PITCH) +
+    getLayoutExpansion().tubeGroupGapExtra
+  );
 }
 
 /** Extra gap when leaving the dominant pair row block for stub cables. */
@@ -227,7 +233,7 @@ function splitInstanceGapAtBoundary(
     const adaptive = adaptiveBoundaryRowGap(shortCount);
     const stackClearance = Math.max(
       0,
-      compactVisualCableHeight(tallCount) + CABLE_LAYOUT.cableGap - FIBER_ROW_PITCH,
+      compactVisualCableHeight(tallCount) + effectiveCableGap() - FIBER_ROW_PITCH,
     );
     return Math.max(adaptive, stackClearance);
   }

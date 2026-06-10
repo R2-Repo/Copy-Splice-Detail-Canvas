@@ -21,7 +21,6 @@ import {
   spliceRouteHorizontalSegments,
   spliceRoutingBounds,
   SPLICE_PATH_EPS,
-  targetClearXBeforeVertical,
   type SpliceRoutingLane,
 } from "@/features/canvas/edges/splicePathGeometry";
 import type { SpliceHandleEntry } from "@/features/canvas/edges/spliceHandleEntries";
@@ -129,6 +128,14 @@ export function spliceTubeBundleKey(
   targetVisualCableId: string,
 ): string {
   return `${normalizeVisualCableIdForRouting(sourceVisualCableId)}|${sourceTubeColor}|${normalizeVisualCableIdForRouting(targetVisualCableId)}`;
+}
+
+/** Dot stack group = all splices from fibers in one source buffer tube (DOT-002). */
+export function sourceTubeDotGroupKey(
+  sourceVisualCableId: string,
+  sourceTubeColor: string,
+): string {
+  return `${normalizeVisualCableIdForRouting(sourceVisualCableId)}|${sourceTubeColor}`;
 }
 
 function bundleKeyForCandidate(candidate: MidXLaneCandidate): string {
@@ -1432,132 +1439,15 @@ function stripSideHorizYOffsets(lanes: Map<string, SpliceRoutingLane>): void {
   }
 }
 
-function mergeSideHorizYOffsets(
-  lanes: Map<string, SpliceRoutingLane>,
-  offsets: Map<string, Pick<SpliceRoutingLane, "sourceHorizY" | "targetHorizY">>,
-): void {
-  for (const [id, horiz] of offsets) {
-    const lane = lanes.get(id);
-    if (!lane) continue;
-    lanes.set(id, { ...lane, ...horiz });
-  }
-}
-
-/** Two-pass Y-track + gap-bend assignment so ledger matches rendered bend X. */
+/** Gap-bend X only — Y-track offsets add bends and are disabled under strict EDGE-004. */
 function assignSideHorizLanesWithGapBends(
   candidates: MidXLaneCandidate[],
   lanes: Map<string, SpliceRoutingLane>,
   sideSpans: SideCircuitLabelSpan,
   diagramCenterX: number,
 ): void {
-  for (let pass = 0; pass < 2; pass++) {
-    if (pass > 0) {
-      stripSideHorizYOffsets(lanes);
-    }
-    mergeSideHorizYOffsets(
-      lanes,
-      assignSideHorizLaneYs(candidates, lanes, sideSpans, diagramCenterX),
-    );
-    assignGapBendLaneXs(candidates, lanes, sideSpans, diagramCenterX);
-  }
-}
-
-function sourceGapHorizSegments(
-  sourceX: number,
-  sourceY: number,
-  midX: number,
-  jogX: number | undefined,
-  sourceHorizY: number,
-  sideSpans: SideCircuitLabelSpan,
-  diagramCenterX: number,
-  sourceTagWidth = 0,
-): Array<{ kind: "h"; y: number; x0: number; x1: number }> {
-  const trunkX = jogX ?? midX;
-  const usesBundleJog =
-    jogX !== undefined && Math.abs(trunkX - midX) > SPLICE_PATH_EPS;
-  const sourceOffsetY = Math.abs(sourceHorizY - sourceY) > SPLICE_PATH_EPS;
-  const segments: Array<{ kind: "h"; y: number; x0: number; x1: number }> = [];
-
-  if (sourceOffsetY) {
-    const bendX = laneClearXBeforeVertical(
-      sourceX,
-      midX,
-      sourceY,
-      sourceHorizY,
-      diagramCenterX,
-      sideSpans,
-      sourceTagWidth,
-    );
-    if (usesBundleJog) {
-      if (Math.abs(trunkX - bendX) > SPLICE_PATH_EPS) {
-        segments.push({
-          kind: "h" as const,
-          y: sourceHorizY,
-          x0: bendX,
-          x1: trunkX,
-        });
-      }
-      if (Math.abs(midX - trunkX) > SPLICE_PATH_EPS) {
-        segments.push({
-          kind: "h" as const,
-          y: sourceHorizY,
-          x0: trunkX,
-          x1: midX,
-        });
-      }
-    } else if (Math.abs(midX - bendX) > SPLICE_PATH_EPS) {
-      segments.push({
-        kind: "h" as const,
-        y: sourceHorizY,
-        x0: bendX,
-        x1: midX,
-      });
-    }
-    return segments;
-  }
-
-  if (Math.abs(midX - sourceX) > SPLICE_PATH_EPS) {
-    segments.push({
-      kind: "h" as const,
-      y: sourceY,
-      x0: sourceX,
-      x1: midX,
-    });
-  }
-  if (usesBundleJog) {
-    if (Math.abs(trunkX - midX) > SPLICE_PATH_EPS) {
-      segments.push({
-        kind: "h" as const,
-        y: sourceY,
-        x0: trunkX,
-        x1: midX,
-      });
-    }
-  }
-  return segments;
-}
-
-function targetGapHorizSegments(
-  targetX: number,
-  targetY: number,
-  midX: number,
-  targetHorizY: number,
-  sideSpans: SideCircuitLabelSpan,
-  diagramCenterX: number,
-  targetTagWidth = 0,
-): Array<{ kind: "h"; y: number; x0: number; x1: number }> {
-  const targetClearX = targetClearXBeforeVertical(
-    targetX,
-    midX,
-    diagramCenterX,
-    sideSpans,
-    targetTagWidth,
-  );
-  const targetOffsetY = Math.abs(targetHorizY - targetY) > SPLICE_PATH_EPS;
-  if (targetOffsetY) {
-    return [{ kind: "h" as const, y: targetHorizY, x0: midX, x1: targetClearX }];
-  }
-  return [{ kind: "h" as const, y: targetHorizY, x0: midX, x1: targetX }];
+  stripSideHorizYOffsets(lanes);
+  assignGapBendLaneXs(candidates, lanes, sideSpans, diagramCenterX);
 }
 
 function sideHorizLaneSign(anchorY: number, diagramCenterY: number): 1 | -1 {
@@ -1713,19 +1603,6 @@ function assignHorizLanesForTubeBundle(
 
   for (;;) {
     if (attempts++ > 64) {
-      const fallback = horizOffsetsForBundleLane(
-        sorted,
-        lanes,
-        diagramCenterY,
-        sideSpans,
-        diagramCenterX,
-        0,
-        0,
-      );
-      occupied.push(...fallback.segments);
-      for (const [id, offsets] of fallback.offsetsById) {
-        result.set(id, offsets);
-      }
       return;
     }
     const attempt = horizOffsetsForBundleLane(

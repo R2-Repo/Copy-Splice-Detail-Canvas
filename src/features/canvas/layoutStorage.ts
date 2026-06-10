@@ -56,5 +56,9 @@ export function mergeLayoutOverrides(
     collapseFullButtSplices:
       patch.collapseFullButtSplices ?? existing?.collapseFullButtSplices,
     layoutWidth: patch.layoutWidth ?? existing?.layoutWidth,
+    callouts: patch.callouts ?? existing?.callouts,
+    autoAdjustEnabled:
+      patch.autoAdjustEnabled ?? existing?.autoAdjustEnabled ?? true,
+    tubeOverrides: { ...existing?.tubeOverrides, ...patch.tubeOverrides },
   };
 }

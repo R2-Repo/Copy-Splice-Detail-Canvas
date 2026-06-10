@@ -23,6 +23,7 @@ export {
   packMidXLanes,
   recomputeRowOffsetsFromHandleYs,
   spliceRoutingZoneKey,
+  sourceTubeDotGroupKey,
   spliceTubeBundleKey,
   type MidXLaneCandidate,
 } from "@/features/diagram/spliceCenterLanes";
@@ -32,6 +33,10 @@ export {
   buildDemarcatedSplicePaths,
   buildOrthogonalSplicePath,
   buildSplicePath,
+  reconcileBufferTubeDotColumns,
+  resolveFusionDotPosition,
+  fusionDotLiesOnHorizontal,
+  type FusionDotOptions,
   BUTT_SPLICE_STRAIGHT_Y_TOLERANCE,
   clampButtSpliceMidX,
   clampMidXForMinHorizontalInset,

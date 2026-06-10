@@ -138,6 +138,13 @@ export function augmentNodesEngineGraph(
   const seenAnchors = new Set<string>();
   const seenSplices = new Set<string>();
 
+  const activeFiberConnIds = new Set<string>();
+  for (const edge of routedEdges) {
+    if (edge.type !== "splice") continue;
+    if (edge.id.startsWith("butt-")) continue;
+    activeFiberConnIds.add(edge.id.replace(/^splice-/, ""));
+  }
+
   for (const vc of visualCables) {
     const cableNode = cableById.get(`cable-${vc.id}`);
     if (!cableNode) continue;
@@ -147,6 +154,7 @@ export function augmentNodesEngineGraph(
       .alignedStemX;
 
     for (const fiber of vc.tubes.flatMap((t) => t.fibers)) {
+      if (!activeFiberConnIds.has(fiber.connectionId)) continue;
       const anchorId = `fiberAnchor-${vc.id}::${fiber.connectionId}`;
       if (seenAnchors.has(anchorId)) continue;
       seenAnchors.add(anchorId);
@@ -183,6 +191,7 @@ export function augmentNodesEngineGraph(
   }
 
   for (const entry of handleEntries) {
+    if (entry.fullButtSplice) continue;
     const connectionId = entry.id.replace(/^splice-/, "").replace(/^butt-/, "");
     const spliceId = `splicePoint-${connectionId}`;
     if (seenSplices.has(spliceId)) continue;

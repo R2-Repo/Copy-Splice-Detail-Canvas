@@ -72,21 +72,55 @@
   color: #64748b;
 }
 
-.cable-node__fiber-drag,
-.cable-node__tube-reach-drag {
-  margin-left: 4px;
-  padding: 0 4px;
-  font-size: 0.65rem;
-  border: 1px solid #94a3b8;
-  border-radius: 4px;
-  background: #fff;
-  cursor: ns-resize;
+.cable-node__manual-handles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cable-node--manual-adjust .cable-node__tube-tip-drag,
+.cable-node--manual-adjust .cable-node__tube-reach-drag {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 1px solid #64748b;
+  border-radius: 3px;
+  background: #f8fafc;
+  box-shadow: 0 0 0 1px #fff;
   pointer-events: all;
+  z-index: 4;
+}
+
+.cable-node__tube-tip-drag {
+  cursor: ns-resize;
 }
 
 .cable-node__tube-reach-drag {
   cursor: ew-resize;
-  margin-left: 6px;
+  width: 16px;
+}
+
+.manual-layout-guides {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.manual-layout-guides line {
+  stroke: #38bdf8;
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  opacity: 0.7;
+}
+
+.workflow-canvas__manual-warning {
+  font-size: 0.75rem;
+  color: #b45309;
+  max-width: 28rem;
 }
 
 .workflow-canvas__stage > .react-flow {
@@ -318,4 +352,334 @@
   opacity: 0;
   width: 4px !important;
   height: 4px !important;
+}
+
+@keyframes circuit-flash-stroke {
+  0%,
+  100% {
+    stroke-width: 3;
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  50% {
+    stroke-width: 6;
+    filter: drop-shadow(0 0 4px rgba(234, 179, 8, 0.95));
+  }
+}
+
+@keyframes circuit-flash-tube-stroke {
+  0%,
+  100% {
+    stroke-width: 8;
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  50% {
+    stroke-width: 11;
+    filter: drop-shadow(0 0 5px rgba(234, 179, 8, 0.95));
+  }
+}
+
+@keyframes circuit-flash-swatch {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+    transform: scaleY(1);
+  }
+  50% {
+    box-shadow: 0 0 0 2px #eab308, 0 0 8px rgba(234, 179, 8, 0.85);
+    transform: scaleY(1.8);
+  }
+}
+
+@keyframes circuit-flash-label {
+  0%,
+  100% {
+    color: #475569;
+    font-weight: 500;
+  }
+  50% {
+    color: #b45309;
+    font-weight: 700;
+  }
+}
+
+@keyframes circuit-flash-dot {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    transform: scale(1.6);
+    box-shadow: 0 0 6px rgba(234, 179, 8, 0.95);
+  }
+}
+
+@keyframes circuit-flash-edge {
+  0%,
+  100% {
+    stroke-width: 2.5;
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  50% {
+    stroke-width: 4.5;
+    filter: drop-shadow(0 0 4px rgba(234, 179, 8, 0.95));
+  }
+}
+
+.circuit-highlight-target {
+  animation: circuit-flash-stroke 1.2s ease-in-out infinite;
+}
+
+.circuit-highlight-target--tube {
+  animation: circuit-flash-tube-stroke 1.2s ease-in-out infinite;
+}
+
+.cable-node__fiber-row--highlighted .cable-node__fiber-swatch {
+  animation: circuit-flash-swatch 1.2s ease-in-out infinite;
+}
+
+.cable-node__fiber-row--highlighted .cable-node__circuit {
+  animation: circuit-flash-label 1.2s ease-in-out infinite;
+}
+
+.fiber-anchor-node--highlighted .fiber-anchor-node__dot {
+  animation: circuit-flash-dot 1.2s ease-in-out infinite;
+}
+
+.splice-edge--highlighted path {
+  animation: circuit-flash-edge 1.2s ease-in-out infinite;
+}
+
+.splice-edge--highlighted .splice-edge__dot,
+.splice-edge--highlighted .splice-edge__square {
+  animation: circuit-flash-dot 1.2s ease-in-out infinite;
+}
+
+.csv-import__button--active {
+  background: #cbd5e1;
+  border-color: #64748b;
+}
+
+.circuit-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.circuit-panel__header h3 {
+  margin: 0;
+}
+
+.circuit-panel__clear {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  border: 1px solid #94a3b8;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.circuit-panel__hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.72rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.circuit-panel__search {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8125rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+}
+
+.circuit-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.circuit-panel__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  margin-bottom: 0.25rem;
+  text-align: left;
+  font-size: 0.8125rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.circuit-panel__item:hover {
+  background: #e2e8f0;
+}
+
+.circuit-panel__item--active {
+  border-color: #eab308;
+  background: #fef9c3;
+}
+
+.circuit-panel__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.circuit-panel__count {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.circuit-panel__empty {
+  margin-top: 0.5rem;
+}
+
+.splice-report-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.splice-report-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.splice-report-overlay__panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(960px, 100%);
+  height: 100%;
+  margin: 0 auto;
+  background: #fff;
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.2);
+}
+
+.splice-report-overlay__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #cbd5e1;
+  flex-shrink: 0;
+}
+
+.splice-report-overlay__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.splice-report-overlay__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.splice-report-overlay__text {
+  flex: 1;
+  margin: 0;
+  padding: 1rem 1.25rem;
+  overflow: auto;
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #0f172a;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cable-callout {
+  box-sizing: border-box;
+  border: 2px solid #dc2626;
+  border-radius: 4px;
+  background: #fff;
+  padding: 4px 6px;
+  pointer-events: all;
+}
+
+.cable-callout__text {
+  display: block;
+  width: 100%;
+  min-height: 2.5rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  resize: none;
+  background: transparent;
+  color: #dc2626;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  outline: none;
+}
+
+.callout-leader-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  transform-origin: 0 0;
+  z-index: 4;
+}
+
+.callout-leader-layer__line {
+  stroke: #dc2626;
+  stroke-width: 1.5;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .splice-report-overlay,
+  .splice-report-overlay * {
+    visibility: visible;
+  }
+
+  .splice-report-overlay {
+    position: absolute;
+    inset: 0;
+  }
+
+  .splice-report-overlay__backdrop,
+  .splice-report-overlay__header {
+    display: none;
+  }
+
+  .splice-report-overlay__panel {
+    width: 100%;
+    height: auto;
+    box-shadow: none;
+  }
+
+  .splice-report-overlay__text {
+    overflow: visible;
+  }
 }
