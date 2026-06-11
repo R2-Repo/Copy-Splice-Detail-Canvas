@@ -1,7 +1,6 @@
 import { useCallback, useRef } from "react";
 
 import { useManualLayout } from "@/features/canvas/ManualLayoutContext";
-import { snapStemReachX, snapTubeTipShiftYOnRelease } from "@/features/diagram/snapGuides";
 import { clampFanoutShiftY } from "@/features/manualAdjust/constraints";
 import { tubeKeyFor } from "@/features/diagram/tubeRowShift";
 import type { VisualTube } from "@/features/diagram/visualCables";
@@ -30,9 +29,9 @@ export function TubeManualHandles({
   tubes,
   tubeGeoms,
   collapsedTubes,
-  tubeFaceX,
-  defaultTubeLength,
-  alignedStemX,
+  tubeFaceX: _tubeFaceX,
+  defaultTubeLength: _defaultTubeLength,
+  alignedStemX: _alignedStemX,
 }: Props) {
   const manual = useManualLayout();
   const dragRef = useRef<{
@@ -94,35 +93,15 @@ export function TubeManualHandles({
       const delta = event.clientY - drag.startPointer;
       const next = clampFanoutShiftY(drag.startShiftY + delta);
       manual.setTubePreview(tubeKey, { visualShiftY: next });
-      manual.setActiveGuides([
-        {
-          id: `tip-${drag.tubeColor}`,
-          orientation: "horizontal",
-          value: drag.baseTipY + next,
-        },
-      ]);
+      manual.setActiveGuides([]);
     } else {
-      const raw =
+      const next =
         drag.startReachX +
         (side === "left"
           ? event.clientX - drag.startPointer
           : drag.startPointer - event.clientX);
-      const next = snapStemReachX(
-        raw,
-        alignedStemX,
-        tubeFaceX,
-        defaultTubeLength,
-      );
       manual.setTubePreview(tubeKey, { stemReachX: next });
-      if (alignedStemX !== undefined) {
-        manual.setActiveGuides([
-          {
-            id: `stem-${drag.tubeColor}`,
-            orientation: "vertical",
-            value: alignedStemX,
-          },
-        ]);
-      }
+      manual.setActiveGuides([]);
     }
   };
 
@@ -137,12 +116,7 @@ export function TubeManualHandles({
     const patch: { visualShiftY?: number; stemReachX?: number } = {};
 
     if (drag.axis === "y") {
-      let finalShift = clampFanoutShiftY(state.visualShiftY);
-      finalShift = snapTubeTipShiftYOnRelease(
-        finalShift,
-        drag.baseTipY + finalShift,
-        manual.snapTipTargets,
-      );
+      const finalShift = clampFanoutShiftY(state.visualShiftY);
       patch.visualShiftY =
         Math.abs(finalShift) < 0.5 ? undefined : finalShift;
     } else {

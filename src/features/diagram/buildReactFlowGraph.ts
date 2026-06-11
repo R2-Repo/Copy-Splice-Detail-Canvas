@@ -271,6 +271,7 @@ export function buildReactFlowGraph(
       diagramScale,
     );
   }
+
   const lockedTubeKeys = applyPersistedTubeOverrides(
     visualCables,
     overrides?.tubeOverrides,

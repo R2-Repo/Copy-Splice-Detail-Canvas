@@ -1,15 +1,20 @@
 import { describe, expect, it } from "vitest";
 
+import { parseOrthogonalPathPoints } from "@/features/canvas/edges/splicePathGeometry";
+
 import {
   allowedSegmentAxes,
   applySegmentDelta,
   connectLegPathsAtSplice,
+  finalizeConnectedLegPaths,
   pathEndPoint,
   pathStartPoint,
   pathToLegSegments,
   routeTemplateForHandles,
+  segmentsToPath,
   setPathEnd,
   setPathStart,
+  simplifyOrthogonalPath,
 } from "./legSegments";
 
 describe("legSegments", () => {
@@ -101,6 +106,94 @@ describe("legSegments", () => {
     expect(
       allowedSegmentAxes(template, "right", lane!, right.length),
     ).toEqual(["horizontal"]);
+  });
+
+  it("segmentsToPath stays orthogonal when start Y differs from first segment", () => {
+    const segments = pathToLegSegments("M 100,50 L 200,50 L 200,120");
+    const path = segmentsToPath(segments, { x: 100, y: 52 });
+    const points = path.match(/L\s*([-\d.]+),([-\d.]+)/g) ?? [];
+    for (const move of points) {
+      const [, x, y] = move.match(/L\s*([-\d.]+),([-\d.]+)/) ?? [];
+      const prev = path.indexOf(move);
+      const before = path.slice(0, prev);
+      const lastM = [...before.matchAll(/[ML]\s*([-\d.]+),([-\d.]+)/g)].at(-1);
+      if (!lastM || !x || !y) continue;
+      const px = Number(lastM[1]);
+      const py = Number(lastM[2]);
+      const nx = Number(x);
+      const ny = Number(y);
+      expect(Math.abs(px - nx) <= 0.01 || Math.abs(py - ny) <= 0.01).toBe(true);
+    }
+  });
+
+  it("allows shifting vertical lane past diagram center", () => {
+    const centerX = 960;
+    const leftPath = `M 584,180 L 700,180 L ${centerX - 20},180 L ${centerX - 20},436`;
+    const left = pathToLegSegments(leftPath);
+    const template = routeTemplateForHandles(584, 180, 396, 436);
+    const lane = left.find((s) => s.kind === "v");
+    expect(lane).toBeTruthy();
+    const pastCenter = applySegmentDelta(
+      left,
+      lane!.index,
+      "horizontal",
+      80,
+      template,
+      "left",
+    );
+    const moved = pastCenter.find((s) => s.kind === "v");
+    expect(moved?.kind === "v" && moved.x).toBeGreaterThan(centerX);
+  });
+
+  it("simplifyOrthogonalPath removes vertical overshoot loop-back", () => {
+    const looped = "M 100,50 L 200,50 L 200,180 L 200,120";
+    const fixed = simplifyOrthogonalPath(looped);
+    expect(parseOrthogonalPathPoints(fixed)).toEqual([
+      { x: 100, y: 50 },
+      { x: 200, y: 50 },
+      { x: 200, y: 120 },
+    ]);
+  });
+
+  it("setPathEnd vertical stops at horizontal corner without overshoot", () => {
+    const leftPath = "M 100,50 L 200,50 L 200,120";
+    const pinned = setPathEnd(leftPath, { x: 215, y: 120 });
+    expect(pathEndPoint(pinned)).toEqual({ x: 215, y: 120 });
+    expect(parseOrthogonalPathPoints(pinned)).toEqual([
+      { x: 100, y: 50 },
+      { x: 200, y: 50 },
+      { x: 215, y: 50 },
+      { x: 215, y: 120 },
+    ]);
+  });
+
+  it("finalizeConnectedLegPaths keeps orthogonal legs after lane shift", () => {
+    const leftPath = "M 100,50 L 200,50 L 200,120";
+    const rightPath = "M 200,120 L 400,120 L 400,60 L 500,60";
+    const left = pathToLegSegments(leftPath);
+    const template = routeTemplateForHandles(200, 50, 500, 60);
+    const shifted = applySegmentDelta(left, 2, "horizontal", 30, template, "left");
+    const nextLeft = segmentsToPath(shifted, { x: 100, y: 50 });
+    const result = finalizeConnectedLegPaths(nextLeft, rightPath, "left", {
+      source: { x: 100, y: 50 },
+      target: { x: 500, y: 60 },
+    });
+    const pts = parseOrthogonalPathPoints(result.leftPath);
+    for (let i = 2; i < pts.length; i++) {
+      const a = pts[i - 2]!;
+      const b = pts[i - 1]!;
+      const c = pts[i]!;
+      const sameX =
+        Math.abs(a.x - b.x) < 0.5 && Math.abs(b.x - c.x) < 0.5;
+      const sameY =
+        Math.abs(a.y - b.y) < 0.5 && Math.abs(b.y - c.y) < 0.5;
+      if (sameX) {
+        expect((a.y - b.y) * (b.y - c.y)).toBeGreaterThanOrEqual(0);
+      }
+      if (sameY) {
+        expect((a.x - b.x) * (b.x - c.x)).toBeGreaterThanOrEqual(0);
+      }
+    }
   });
 
   it("shifts all stacked vertical segments sharing the same lane X", () => {

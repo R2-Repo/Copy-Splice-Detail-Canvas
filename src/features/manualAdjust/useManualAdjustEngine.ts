@@ -11,13 +11,11 @@ import {
 } from "./applyManualAdjust";
 import {
   applySegmentDelta,
-  connectLegPathsAtSplice,
+  finalizeConnectedLegPaths,
   legSegmentsFromPaths,
   pathStartPoint,
   routeTemplateForHandles,
   segmentsToPath,
-  setPathEnd,
-  setPathStart,
   type SegmentDragAxis,
 } from "./legSegments";
 import { handleCoordsForConnection } from "./handleCoords";
@@ -79,6 +77,8 @@ export function useManualAdjustEngine({
   onLegOverridesCommit,
   setEdges,
   setNodes,
+  getNodes,
+  getEdges,
 }: {
   enabled: boolean;
   nodes: Node[];
@@ -90,6 +90,8 @@ export function useManualAdjustEngine({
   ) => void;
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
+  getNodes: () => Node[];
+  getEdges: () => Edge[];
 }): ManualAdjustEngine {
   const [selection, setSelection] = useState<ManualAdjustSelection>(
     emptySelection(),
@@ -194,6 +196,9 @@ export function useManualAdjustEngine({
     [enabled, legOverrides, resolveSegmentAxis, selection.connectionIds],
   );
 
+  const legDragRafRef = useRef<number | null>(null);
+  const legDragPendingDeltaRef = useRef(0);
+
   const onSegmentPointerMove = useCallback(
     (event: React.PointerEvent) => {
       const drag = segmentDragRef.current;
@@ -201,23 +206,38 @@ export function useManualAdjustEngine({
       const pointer = drag.axis === "horizontal" ? event.clientX : event.clientY;
       const frameDelta = pointer - drag.startPointer - drag.accumulatedDelta;
       if (Math.abs(frameDelta) < 0.5) return;
+      drag.accumulatedDelta += frameDelta;
+      legDragPendingDeltaRef.current += frameDelta;
 
-      setEdges((current) => {
+      if (legDragRafRef.current != null) return;
+      legDragRafRef.current = requestAnimationFrame(() => {
+        legDragRafRef.current = null;
+        const active = segmentDragRef.current;
+        const delta = legDragPendingDeltaRef.current;
+        legDragPendingDeltaRef.current = 0;
+        if (!active || Math.abs(delta) < 0.5) return;
+        const currentEdges = getEdges();
+        const currentNodes = getNodes();
         const nextEdges = previewSegmentDrag(
-          current,
-          drag,
-          frameDelta,
-          nodes,
+          currentEdges,
+          active,
+          delta,
+          currentNodes,
           graph,
         );
-        setNodes((currentNodes) =>
-          syncSplicePointNodes(currentNodes, nextEdges, drag.connectionIds),
+        if (nextEdges === currentEdges) return;
+        const nextNodes = syncSplicePointNodes(
+          currentNodes,
+          nextEdges,
+          active.connectionIds,
         );
-        return nextEdges;
+        setEdges(nextEdges);
+        if (nextNodes !== currentNodes) {
+          setNodes(nextNodes);
+        }
       });
-      drag.accumulatedDelta += frameDelta;
     },
-    [enabled, graph, nodes, setEdges, setNodes],
+    [enabled, getNodes, getEdges, graph, setEdges, setNodes],
   );
 
   const onSegmentPointerUp = useCallback(
@@ -304,7 +324,8 @@ function previewSegmentDrag(
   nodes: Node[],
   graph: ConnectionGraph | null,
 ): Edge[] {
-  const nextEdges = edges.map((e) => ({ ...e, data: { ...(e.data as object) } }));
+  const nextEdges = [...edges];
+  let changed = false;
   for (const connectionId of drag.connectionIds) {
     const leftId = `splice-left-${connectionId}`;
     const rightId = `splice-right-${connectionId}`;
@@ -351,24 +372,36 @@ function previewSegmentDrag(
         ? segmentsToPath(updatedSegments, pathStart)
         : rightPathRaw;
 
-    if (handles) {
-      nextLeft = setPathStart(nextLeft, handles.source);
-      nextRight = setPathEnd(nextRight, handles.target);
-    }
-
-    const connected = connectLegPathsAtSplice(
+    const connected = finalizeConnectedLegPaths(
       nextLeft,
       nextRight,
       drag.side,
+      handles ?? undefined,
     );
 
     for (const edgeId of [leftId, rightId]) {
       const idx = nextEdges.findIndex((e) => e.id === edgeId);
       if (idx < 0) continue;
+      const prev = nextEdges[idx]!;
+      const prevData = (prev.data ?? {}) as {
+        leftPath?: string;
+        rightPath?: string;
+        spliceX?: number;
+        spliceY?: number;
+      };
+      if (
+        prevData.leftPath === connected.leftPath &&
+        prevData.rightPath === connected.rightPath &&
+        prevData.spliceX === connected.spliceX &&
+        prevData.spliceY === connected.spliceY
+      ) {
+        continue;
+      }
+      changed = true;
       nextEdges[idx] = {
-        ...nextEdges[idx]!,
+        ...prev,
         data: {
-          ...(nextEdges[idx]!.data as Record<string, unknown>),
+          ...(prev.data as Record<string, unknown>),
           leftPath: connected.leftPath,
           rightPath: connected.rightPath,
           spliceX: connected.spliceX,
@@ -377,5 +410,6 @@ function previewSegmentDrag(
       };
     }
   }
+  if (!changed) return edges;
   return nextEdges;
 }

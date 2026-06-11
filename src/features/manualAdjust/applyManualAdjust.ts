@@ -13,12 +13,10 @@ import {
 } from "./constraints";
 import {
   applySegmentDelta,
-  connectLegPathsAtSplice,
+  finalizeConnectedLegPaths,
   legSegmentsFromPaths,
   routeTemplateForHandles,
   segmentsToPath,
-  setPathEnd,
-  setPathStart,
   type LegSegment,
   type SegmentDragAxis,
 } from "./legSegments";
@@ -71,25 +69,26 @@ export function applyLegOverridesToEdge(
     y: Number(data.spliceY ?? sourceY),
   };
 
-  let nextLeft = segmentsToPath(left, { x: sourceX, y: sourceY });
-  let nextRight = segmentsToPath(right, spliceStart);
-  nextLeft = setPathStart(nextLeft, { x: sourceX, y: sourceY });
-  nextRight = setPathEnd(nextRight, { x: targetX, y: targetY });
-  const connected = connectLegPathsAtSplice(nextLeft, nextRight, "left");
-  nextLeft = connected.leftPath;
-  nextRight = connected.rightPath;
+  const nextLeft = segmentsToPath(left, { x: sourceX, y: sourceY });
+  const nextRight = segmentsToPath(right, spliceStart);
+  const connected = finalizeConnectedLegPaths(nextLeft, nextRight, "left", {
+    source: { x: sourceX, y: sourceY },
+    target: { x: targetX, y: targetY },
+  });
   const splicePoint = {
     x: connected.spliceX,
     y: connected.spliceY,
   };
 
-  if (!pathsWithinBendBudget(nextLeft, nextRight)) return null;
+  if (!pathsWithinBendBudget(connected.leftPath, connected.rightPath)) {
+    return null;
+  }
   if (
     !fusionDotOnHorizontalSegment(
       splicePoint.x,
       splicePoint.y,
-      nextLeft,
-      nextRight,
+      connected.leftPath,
+      connected.rightPath,
     )
   ) {
     return null;
@@ -98,8 +97,8 @@ export function applyLegOverridesToEdge(
     !fusionDotCornerClearanceOk(
       splicePoint.x,
       splicePoint.y,
-      nextLeft,
-      nextRight,
+      connected.leftPath,
+      connected.rightPath,
     )
   ) {
     return null;
@@ -109,8 +108,8 @@ export function applyLegOverridesToEdge(
     ...edge,
     data: {
       ...data,
-      leftPath: nextLeft,
-      rightPath: nextRight,
+      leftPath: connected.leftPath,
+      rightPath: connected.rightPath,
       spliceX: splicePoint.x,
       spliceY: splicePoint.y,
     },

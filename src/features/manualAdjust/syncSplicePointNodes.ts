@@ -21,8 +21,15 @@ export function syncSplicePointNodes(
     });
   }
   if (updates.size === 0) return nodes;
-  return nodes.map((node) => {
+  let changed = false;
+  const result = nodes.map((node) => {
     const next = updates.get(node.id);
-    return next ? { ...node, position: next } : node;
+    if (!next) return node;
+    const dy = Math.abs(next.y - node.position.y);
+    const dx = Math.abs(next.x - node.position.x);
+    if (dx < 0.5 && dy < 0.5) return node;
+    changed = true;
+    return { ...node, position: next };
   });
+  return changed ? result : nodes;
 }

@@ -78,11 +78,9 @@ import {
 } from "@/features/diagram/manualLayoutWarnings";
 import { ManualAdjustOverlay } from "@/features/manualAdjust/ManualAdjustOverlay";
 import { syncSplicePointNodes } from "@/features/manualAdjust/syncSplicePointNodes";
+import { syncManualVisualCable } from "@/features/manualAdjust/syncManualVisualCable";
 import { useManualAdjustEngine } from "@/features/manualAdjust/useManualAdjustEngine";
-import {
-  collectGlobalTubeTipSnapTargets,
-  spliceEdgeIdsForTubeKey,
-} from "@/features/diagram/snapGuides";
+import { spliceEdgeIdsForTubeKey } from "@/features/diagram/snapGuides";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
 import { syncNodesEngineDragLayout } from "@/features/diagram/syncNodesEngineDragLayout";
 import { detectFullButtSpliceTubes } from "@/features/diagram/fullButtSplice";
@@ -230,12 +228,56 @@ function WorkflowCanvasInner() {
     Map<TubeOverrideKey, TubeManualOverride>
   >(() => new Map());
   const autoAdjustRef = useRef(true);
+  const manualCableDragRafRef = useRef<number | null>(null);
+  const pendingManualCableNodeRef = useRef<Node | null>(null);
 
   collapseRef.current = collapseFullButtSplices;
   autoAdjustRef.current = autoAdjustEnabled;
 
+  const applyManualCableDrag = useCallback(
+    (draggedNode: Node) => {
+      const graph = graphRef.current;
+      if (!graph || draggedNode.type !== "cable") return;
+      const visualId = visualCableIdFromNodeId(draggedNode.id);
+      if (!visualId) return;
+      const current = getNodes();
+      const callouts = current.filter((n) => n.type === "cableCallout");
+      const engine = current.filter((n) => n.type !== "cableCallout");
+      const currentEdges = getEdges();
+      const { nodes: synced, edges: nextEdges } = syncManualVisualCable(
+        engine,
+        currentEdges,
+        graph,
+        visualId,
+        draggedNode,
+      );
+      if (synced !== engine) {
+        setNodes([...synced, ...callouts]);
+      }
+      if (nextEdges !== currentEdges) {
+        setEdges(nextEdges);
+      }
+    },
+    [getEdges, getNodes, setEdges, setNodes],
+  );
+
+  const syncManualCableDrag = useCallback(
+    (draggedNode: Node) => {
+      pendingManualCableNodeRef.current = draggedNode;
+      if (manualCableDragRafRef.current != null) return;
+      manualCableDragRafRef.current = requestAnimationFrame(() => {
+        manualCableDragRafRef.current = null;
+        const node = pendingManualCableNodeRef.current;
+        pendingManualCableNodeRef.current = null;
+        if (node) applyManualCableDrag(node);
+      });
+    },
+    [applyManualCableDrag],
+  );
+
   const syncNodesEngineDrag = useCallback(
     (draggedNode: Node) => {
+      if (!autoAdjustRef.current) return;
       const graph = graphRef.current;
       const reportKey = reportKeyRef.current;
       if (!graph || !reportKey || draggedNode.type !== "cable") return;
@@ -257,6 +299,8 @@ function WorkflowCanvasInner() {
           cableSides: existing?.cableSides,
           autoAdjustEnabled: autoAdjustRef.current,
           tubeOverrides: existing?.tubeOverrides,
+          fanoutOverrides: existing?.fanoutOverrides,
+          legOverrides: existing?.legOverrides,
         },
         layoutWidth: layoutWidthRef.current,
         positions,
@@ -273,9 +317,7 @@ function WorkflowCanvasInner() {
   const refreshDragRouting = useCallback(
     (draggedNode: Node) => {
       if (!autoAdjustRef.current) {
-        setNodes((current) =>
-          current.map((n) => (n.id === draggedNode.id ? draggedNode : n)),
-        );
+        syncManualCableDrag(draggedNode);
         return;
       }
       if (useNodesRoutingEngine()) {
@@ -296,7 +338,7 @@ function WorkflowCanvasInner() {
       );
       publishDragRoutingSnapshot(handleEntries, layoutWidthRef.current / 2);
     },
-    [getEdges, getNodes, syncNodesEngineDrag, setNodes],
+    [getEdges, getNodes, syncManualCableDrag, syncNodesEngineDrag, setNodes],
   );
 
   const stageWidthForLayout = useCallback((): number => {
@@ -720,31 +762,53 @@ function WorkflowCanvasInner() {
       const positions = positionsFromNodes(
         getNodes().filter((n) => n.type === "cable"),
       );
-      const { nodes: nextNodes, edges: nextEdges, autoLayoutY } =
-        buildReactFlowGraph(
-          graph,
-          {
-            reportKey,
-            collapseFullButtSplices: collapseRef.current,
-            positions,
-            existingEdgeIds: existing?.existingEdgeIds,
-            cableSides: existing?.cableSides,
-            layoutWidth: layoutWidthRef.current,
-            autoAdjustEnabled: false,
-            tubeOverrides,
-            fanoutOverrides,
-            legOverrides: existing?.legOverrides,
-          },
-          layoutWidthRef.current,
-          { skipTubeAutoAlign: true },
-        );
-      const mergedNodes = attachStoredCallouts(nextNodes, reportKey, positions);
+      const vcId = tubeKey.split("|")[0]!;
+      const tubeColor = tubeKey.split("|")[1]!;
+      const current = getNodes();
+      const callouts = current.filter((n) => n.type === "cableCallout");
+      const engine = current
+        .filter((n) => n.type !== "cableCallout")
+        .map((n) => {
+          if (n.id !== `cable-${vcId}`) return n;
+          const data = n.data as CableNodeData;
+          return {
+            ...n,
+            data: {
+              ...data,
+              tubes: data.tubes.map((t) => {
+                if (t.tubeColor !== tubeColor) return t;
+                const updated = { ...t };
+                if (merged.visualShiftY !== undefined) {
+                  updated.visualShiftY = merged.visualShiftY;
+                } else {
+                  delete updated.visualShiftY;
+                }
+                if (merged.stemReachX !== undefined) {
+                  updated.stemReachX = merged.stemReachX;
+                } else {
+                  delete updated.stemReachX;
+                }
+                return updated;
+              }),
+            },
+          };
+        });
+      const { nodes: synced, edges: nextEdges } = syncManualVisualCable(
+        engine,
+        getEdges(),
+        graph,
+        vcId,
+      );
+      const mergedNodes = attachStoredCallouts(
+        [...synced, ...callouts],
+        reportKey,
+        positions,
+      );
       setNodes(mergedNodes);
       setEdges(nextEdges);
       saveLayoutOverrides(
         mergeLayoutOverrides(reportKey, {
           positions: positionsFromNodes(mergedNodes),
-          autoLayoutY,
           existingEdgeIds: existingIdsFromEdges(nextEdges),
           collapseFullButtSplices: collapseRef.current,
           layoutWidth: layoutWidthRef.current,
@@ -827,12 +891,13 @@ function WorkflowCanvasInner() {
     onLegOverridesCommit: handleLegOverridesCommit,
     setEdges,
     setNodes,
+    getNodes,
+    getEdges,
   });
 
   const toggleManualAdjust = useCallback(() => {
-    const graph = graphRef.current;
     const reportKey = reportKeyRef.current;
-    if (!graph || !reportKey) return;
+    if (!reportKey) return;
     const existing = loadLayoutOverrides(reportKey);
     const next = !(existing?.autoAdjustEnabled !== false);
     setAutoAdjustEnabled(next);
@@ -840,42 +905,29 @@ function WorkflowCanvasInner() {
       setManualWarningBanner(null);
       setActiveGuides([]);
     }
-    const positions = positionsFromNodes(
-      getNodes().filter((n) => n.type === "cable"),
-    );
-    const { nodes: nextNodes, edges: nextEdges, autoLayoutY } =
-      buildReactFlowGraph(
-        graph,
-        {
-          reportKey,
-          collapseFullButtSplices: collapseRef.current,
-          positions,
-          existingEdgeIds: existing?.existingEdgeIds,
-          cableSides: existing?.cableSides,
-          layoutWidth: layoutWidthRef.current,
-          autoAdjustEnabled: next,
-          tubeOverrides: existing?.tubeOverrides,
-        },
-        layoutWidthRef.current,
-        next ? undefined : { skipTubeAutoAlign: true },
-      );
-    const merged = attachStoredCallouts(nextNodes, reportKey, positions);
-    setNodes(merged);
-    setEdges(nextEdges);
-    saveLayoutOverrides(
-      mergeLayoutOverrides(reportKey, {
-        positions: positionsFromNodes(merged),
-        autoLayoutY,
-        existingEdgeIds: existingIdsFromEdges(nextEdges),
-        collapseFullButtSplices: collapseRef.current,
-        layoutWidth: layoutWidthRef.current,
-        cableSides: existing?.cableSides,
-        callouts: existing?.callouts,
-        autoAdjustEnabled: next,
-        tubeOverrides: existing?.tubeOverrides,
+    setNodes((current) =>
+      current.map((n) => {
+        if (n.type !== "cable") return n;
+        return {
+          ...n,
+          data: {
+            ...(n.data as CableNodeData),
+            manualAdjustEnabled: !next,
+          },
+        };
       }),
     );
-  }, [getNodes, setEdges, setNodes]);
+    requestAnimationFrame(() => {
+      for (const n of getNodes()) {
+        if (n.type === "cable") updateNodeInternals(n.id);
+      }
+    });
+    saveLayoutOverrides(
+      mergeLayoutOverrides(reportKey, {
+        autoAdjustEnabled: next,
+      }),
+    );
+  }, [getNodes, setNodes, updateNodeInternals]);
 
   const resetToAutoLayout = useCallback(() => {
     const graph = graphRef.current;
@@ -955,6 +1007,12 @@ function WorkflowCanvasInner() {
       const visualId = visualCableIdFromNodeId(node.id);
       if (!visualId) return;
 
+      if (manualCableDragRafRef.current != null) {
+        cancelAnimationFrame(manualCableDragRafRef.current);
+        manualCableDragRafRef.current = null;
+      }
+      pendingManualCableNodeRef.current = null;
+
       const centerX = layoutWidthRef.current / 2;
       const newSide = displaySideFromCanvasX(node.position.x, centerX);
       const prevSide = (node.data as CableNodeData).side;
@@ -1005,35 +1063,64 @@ function WorkflowCanvasInner() {
           ...(sideChanged ? { [visualId]: newSide } : {}),
         };
         const manualMode = !autoAdjustRef.current;
-        const { nodes: nextNodes, edges: nextEdges, autoLayoutY } =
-          buildReactFlowGraph(
-            graph,
-            {
-              reportKey: reportKeyRef.current,
-              collapseFullButtSplices: collapseRef.current,
-              positions: {
-                ...(existing?.positions ?? {}),
-                [node.id]: { x: finalX, y: finalY },
-              },
-              existingEdgeIds: existing?.existingEdgeIds,
-              cableSides,
-              layoutWidth,
-              autoAdjustEnabled: autoAdjustRef.current,
-              tubeOverrides: existing?.tubeOverrides,
-            },
-            layoutWidth,
-            manualMode ? { skipTubeAutoAlign: true } : undefined,
-          );
-        const merged = attachStoredCallouts(nextNodes, reportKeyRef.current, {
+        const finalPositions = {
           ...(existing?.positions ?? {}),
           [node.id]: { x: finalX, y: finalY },
-        });
+        };
+        const draggedFinal: Node = {
+          ...node,
+          position: { x: finalX, y: finalY },
+          data: sideChanged
+            ? { ...(node.data as CableNodeData), side: newSide }
+            : node.data,
+        };
+
+        let nextNodes: Node[];
+        let nextEdges: Edge[];
+        let autoLayoutY: Record<string, number> | undefined;
+
+        if (manualMode) {
+          const callouts = getNodes().filter((n) => n.type === "cableCallout");
+          const engine = getNodes().filter((n) => n.type !== "cableCallout");
+          ({ nodes: nextNodes, edges: nextEdges } = syncManualVisualCable(
+            engine,
+            getEdges(),
+            graph,
+            visualId,
+            draggedFinal,
+          ));
+          nextNodes = [...nextNodes, ...callouts];
+        } else {
+          ({ nodes: nextNodes, edges: nextEdges, autoLayoutY } =
+            buildReactFlowGraph(
+              graph,
+              {
+                reportKey: reportKeyRef.current,
+                collapseFullButtSplices: collapseRef.current,
+                positions: finalPositions,
+                existingEdgeIds: existing?.existingEdgeIds,
+                cableSides,
+                layoutWidth,
+                autoAdjustEnabled: true,
+                tubeOverrides: existing?.tubeOverrides,
+                fanoutOverrides: existing?.fanoutOverrides,
+                legOverrides: existing?.legOverrides,
+              },
+              layoutWidth,
+            ));
+        }
+
+        const merged = attachStoredCallouts(
+          nextNodes,
+          reportKeyRef.current,
+          finalPositions,
+        );
         setNodes(merged);
         setEdges(nextEdges);
         saveLayoutOverrides(
           mergeLayoutOverrides(reportKeyRef.current, {
             positions: positionsFromNodes(merged),
-            autoLayoutY,
+            ...(autoLayoutY ? { autoLayoutY } : {}),
             existingEdgeIds: existingIdsFromEdges(nextEdges),
             collapseFullButtSplices: collapseRef.current,
             layoutWidth,
@@ -1041,6 +1128,8 @@ function WorkflowCanvasInner() {
             callouts: existing?.callouts,
             autoAdjustEnabled: autoAdjustRef.current,
             tubeOverrides: existing?.tubeOverrides,
+            fanoutOverrides: existing?.fanoutOverrides,
+            legOverrides: existing?.legOverrides,
           }),
         );
         layoutWidthRef.current = layoutWidth;
@@ -1168,23 +1257,19 @@ function WorkflowCanvasInner() {
         return;
       }
       if (node.type !== "cable") return;
-      refreshDragRouting(node);
       const centerX = layoutWidthRef.current / 2;
       const nextSide = displaySideFromCanvasX(node.position.x, centerX);
       const prevSide = (node.data as CableNodeData).side;
-      if (prevSide === nextSide) return;
-      setNodes((current) =>
-        current.map((n) =>
-          n.id === node.id
-            ? {
-                ...node,
-                data: { ...(node.data as CableNodeData), side: nextSide },
-              }
-            : n,
-        ),
-      );
+      const dragNode =
+        prevSide !== nextSide
+          ? {
+              ...node,
+              data: { ...(node.data as CableNodeData), side: nextSide },
+            }
+          : node;
+      refreshDragRouting(dragNode);
     },
-    [manualAdjustEngine, refreshDragRouting, setNodes],
+    [manualAdjustEngine, refreshDragRouting, nodes],
   );
 
   const setTubePreview = useCallback(
@@ -1202,19 +1287,7 @@ function WorkflowCanvasInner() {
     [],
   );
 
-  const snapTipTargets = useMemo(() => {
-    const graph = graphRef.current;
-    if (!graph || autoAdjustEnabled) return [];
-    const reportKey = reportKeyRef.current;
-    const existing = reportKey
-      ? loadLayoutOverrides(reportKey)
-      : undefined;
-    return collectGlobalTubeTipSnapTargets(
-      graph,
-      positionsFromNodes(nodes.filter((n) => n.type === "cable")),
-      existing?.tubeOverrides,
-    );
-  }, [nodes, autoAdjustEnabled, meta]);
+  const snapTipTargets = useMemo(() => [], []);
 
   const manualLayoutContextValue = useMemo(
     () => ({

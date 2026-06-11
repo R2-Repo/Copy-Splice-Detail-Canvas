@@ -112,11 +112,35 @@ export function segmentsToPath(
 ): string {
   if (segments.length === 0) return `M ${start.x},${start.y}`;
   const parts = [`M ${start.x},${start.y}`];
+  let cx = start.x;
+  let cy = start.y;
+
   for (const seg of segments) {
     if (seg.kind === "h") {
-      parts.push(`L ${seg.x1},${seg.y}`);
+      if (Math.abs(cy - seg.y) > SPLICE_PATH_EPS) {
+        parts.push(`L ${cx},${seg.y}`);
+        cy = seg.y;
+      }
+      if (Math.abs(cx - seg.x1) > SPLICE_PATH_EPS) {
+        parts.push(`L ${seg.x1},${seg.y}`);
+        cx = seg.x1;
+        cy = seg.y;
+      }
     } else {
-      parts.push(`L ${seg.x},${seg.y1}`);
+      const yMin = Math.min(seg.y0, seg.y1);
+      const yMax = Math.max(seg.y0, seg.y1);
+      if (Math.abs(cx - seg.x) > SPLICE_PATH_EPS) {
+        parts.push(`L ${seg.x},${cy}`);
+        cx = seg.x;
+      }
+      if (Math.abs(cy - yMin) > SPLICE_PATH_EPS) {
+        parts.push(`L ${seg.x},${yMin}`);
+        cy = yMin;
+      }
+      if (Math.abs(cy - yMax) > SPLICE_PATH_EPS) {
+        parts.push(`L ${seg.x},${yMax}`);
+        cy = yMax;
+      }
     }
   }
   return parts.join(" ");
@@ -143,6 +167,16 @@ function interiorHorizontalX(
   return segment.x0 === anchorX ? segment.x1 : segment.x0;
 }
 
+function verticalSpanFromCorner(
+  anchorY: number,
+  cornerY: number,
+): { y0: number; y1: number } {
+  return {
+    y0: Math.min(anchorY, cornerY),
+    y1: Math.max(anchorY, cornerY),
+  };
+}
+
 export function setPathStart(
   path: string,
   start: { x: number; y: number },
@@ -153,14 +187,17 @@ export function setPathStart(
     if (index !== 0) return segment;
     if (segment.kind === "h") {
       const interiorX = interiorHorizontalX(segment, start.x);
-      return { ...segment, y: start.y, x0: segment.x0, x1: interiorX };
+      return { ...segment, y: start.y, x0: start.x, x1: interiorX };
     }
-    return {
-      ...segment,
-      x: start.x,
-      y0: Math.min(segment.y0, start.y),
-      y1: Math.max(segment.y0, start.y),
-    };
+    const next = segments[index + 1];
+    const cornerY =
+      next?.kind === "h"
+        ? next.y
+        : segment.y0 <= segment.y1
+          ? segment.y1
+          : segment.y0;
+    const span = verticalSpanFromCorner(start.y, cornerY);
+    return { ...segment, x: start.x, y0: span.y0, y1: span.y1 };
   });
   return segmentsToPath(updated, start);
 }
@@ -184,14 +221,110 @@ export function setPathEnd(
         x1: end.x,
       };
     }
-    return {
-      ...segment,
-      x: end.x,
-      y0: Math.min(segment.y0, end.y),
-      y1: Math.max(segment.y0, end.y),
-    };
+    const prev = segments[index - 1];
+    const cornerY =
+      prev?.kind === "h"
+        ? prev.y
+        : segment.y0 <= segment.y1
+          ? segment.y0
+          : segment.y1;
+    const span = verticalSpanFromCorner(end.y, cornerY);
+    return { ...segment, x: end.x, y0: span.y0, y1: span.y1 };
   });
   return segmentsToPath(updated, start);
+}
+
+/** Remove duplicate points and same-axis U-turn loop-backs (overshoot + return). */
+export function simplifyOrthogonalPath(path: string): string {
+  const raw = parseOrthogonalPathPoints(path);
+  if (raw.length < 2) return path;
+
+  const deduped: Array<{ x: number; y: number }> = [raw[0]!];
+  for (let i = 1; i < raw.length; i++) {
+    const p = raw[i]!;
+    const prev = deduped[deduped.length - 1]!;
+    if (
+      Math.abs(p.x - prev.x) <= SPLICE_PATH_EPS &&
+      Math.abs(p.y - prev.y) <= SPLICE_PATH_EPS
+    ) {
+      continue;
+    }
+    deduped.push(p);
+  }
+  if (deduped.length < 2) return path;
+
+  const out = [...deduped];
+  let changed = true;
+  while (changed && out.length > 2) {
+    changed = false;
+    for (let i = 1; i < out.length - 1; i++) {
+      const a = out[i - 1]!;
+      const b = out[i]!;
+      const c = out[i + 1]!;
+      const sameX =
+        Math.abs(a.x - b.x) <= SPLICE_PATH_EPS &&
+        Math.abs(b.x - c.x) <= SPLICE_PATH_EPS;
+      const sameY =
+        Math.abs(a.y - b.y) <= SPLICE_PATH_EPS &&
+        Math.abs(b.y - c.y) <= SPLICE_PATH_EPS;
+      const verticalLoop =
+        sameX && (a.y - b.y) * (b.y - c.y) < -SPLICE_PATH_EPS;
+      const horizontalLoop =
+        sameY && (a.x - b.x) * (b.x - c.x) < -SPLICE_PATH_EPS;
+      if (verticalLoop || horizontalLoop) {
+        out.splice(i, 1);
+        changed = true;
+        break;
+      }
+    }
+  }
+
+  return out
+    .map((p, idx) => (idx === 0 ? `M ${p.x},${p.y}` : `L ${p.x},${p.y}`))
+    .join(" ");
+}
+
+export function finalizeConnectedLegPaths(
+  leftPath: string,
+  rightPath: string,
+  editedSide: LegSide,
+  handles?: {
+    source: { x: number; y: number };
+    target: { x: number; y: number };
+  },
+): {
+  leftPath: string;
+  rightPath: string;
+  spliceX: number;
+  spliceY: number;
+} {
+  let left = leftPath;
+  let right = rightPath;
+  if (handles) {
+    left = setPathStart(left, handles.source);
+    right = setPathEnd(right, handles.target);
+  }
+
+  let connected = connectLegPathsAtSplice(left, right, editedSide);
+  left = simplifyOrthogonalPath(connected.leftPath);
+  right = simplifyOrthogonalPath(connected.rightPath);
+  connected = connectLegPathsAtSplice(left, right, editedSide);
+
+  if (handles) {
+    if (editedSide === "left") {
+      left = setPathStart(connected.leftPath, handles.source);
+      right = setPathEnd(connected.rightPath, handles.target);
+    } else {
+      right = setPathEnd(connected.rightPath, handles.target);
+      left = setPathStart(connected.leftPath, handles.source);
+    }
+    connected = connectLegPathsAtSplice(left, right, editedSide);
+    left = simplifyOrthogonalPath(connected.leftPath);
+    right = simplifyOrthogonalPath(connected.rightPath);
+    connected = connectLegPathsAtSplice(left, right, editedSide);
+  }
+
+  return connected;
 }
 
 /** Keep fusion splice dot on the horizontal junction between left and right legs. */
