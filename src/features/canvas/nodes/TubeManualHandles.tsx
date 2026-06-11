@@ -1,7 +1,7 @@
 import { useCallback, useRef } from "react";
 
 import { useManualLayout } from "@/features/canvas/ManualLayoutContext";
-import { snapManualShiftYOnRelease } from "@/features/diagram/snapGuides";
+import { snapStemReachX, snapTubeTipShiftYOnRelease } from "@/features/diagram/snapGuides";
 import { clampFanoutShiftY } from "@/features/manualAdjust/constraints";
 import { tubeKeyFor } from "@/features/diagram/tubeRowShift";
 import type { VisualTube } from "@/features/diagram/visualCables";
@@ -30,8 +30,8 @@ export function TubeManualHandles({
   tubes,
   tubeGeoms,
   collapsedTubes,
-  tubeFaceX: _tubeFaceX,
-  defaultTubeLength: _defaultTubeLength,
+  tubeFaceX,
+  defaultTubeLength,
   alignedStemX,
 }: Props) {
   const manual = useManualLayout();
@@ -107,7 +107,13 @@ export function TubeManualHandles({
         (side === "left"
           ? event.clientX - drag.startPointer
           : drag.startPointer - event.clientX);
-      manual.setTubePreview(tubeKey, { stemReachX: raw });
+      const next = snapStemReachX(
+        raw,
+        alignedStemX,
+        tubeFaceX,
+        defaultTubeLength,
+      );
+      manual.setTubePreview(tubeKey, { stemReachX: next });
       if (alignedStemX !== undefined) {
         manual.setActiveGuides([
           {
@@ -131,33 +137,12 @@ export function TubeManualHandles({
     const patch: { visualShiftY?: number; stemReachX?: number } = {};
 
     if (drag.axis === "y") {
-      const before = state.visualShiftY;
       let finalShift = clampFanoutShiftY(state.visualShiftY);
-      finalShift = snapManualShiftYOnRelease(
+      finalShift = snapTubeTipShiftYOnRelease(
         finalShift,
-        drag.baseTipY,
+        drag.baseTipY + finalShift,
         manual.snapTipTargets,
       );
-      // #region agent log
-      if (Math.abs(finalShift - before) > 0.01) {
-        fetch("http://127.0.0.1:7276/ingest/954dc9e2-dc29-44e2-8638-93624e140b86", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Debug-Session-Id": "ab59ca",
-          },
-          body: JSON.stringify({
-            sessionId: "ab59ca",
-            location: "TubeManualHandles.tsx:finishDrag",
-            message: "fan-out snap on release",
-            data: { before, after: finalShift, rowAnchorY: drag.baseTipY },
-            timestamp: Date.now(),
-            hypothesisId: "S1",
-            runId: "snap-fix",
-          }),
-        }).catch(() => {});
-      }
-      // #endregion
       patch.visualShiftY =
         Math.abs(finalShift) < 0.5 ? undefined : finalShift;
     } else {

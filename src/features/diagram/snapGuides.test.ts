@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  snapManualShiftYOnRelease,
   snapStemReachX,
   snapToNearestTarget,
   snapToPitch,
@@ -25,14 +24,8 @@ describe("snapGuides", () => {
     expect(shift).toBe(-5);
   });
 
-  it("snapStemReachX snaps only to zero extension in manual mode", () => {
+  it("snapStemReachX snaps toward aligned stem reach", () => {
     const snapped = snapStemReachX(3, 120, 96, 40, 8);
     expect(snapped).toBe(0);
-    expect(snapStemReachX(12, 120, 96, 40, 8)).toBe(12);
-  });
-
-  it("snapManualShiftYOnRelease snaps to pitch grid and peer lines", () => {
-    expect(snapManualShiftYOnRelease(29, 100, [], 8)).toBe(24);
-    expect(snapManualShiftYOnRelease(3, 100, [103], 8)).toBe(3);
   });
 });

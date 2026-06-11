@@ -77,7 +77,7 @@ import {
   manualLayoutWarningsForEdges,
 } from "@/features/diagram/manualLayoutWarnings";
 import { ManualAdjustOverlay } from "@/features/manualAdjust/ManualAdjustOverlay";
-import { applyAllLegOverrides } from "@/features/manualAdjust/applyManualAdjust";
+import { syncSplicePointNodes } from "@/features/manualAdjust/syncSplicePointNodes";
 import { useManualAdjustEngine } from "@/features/manualAdjust/useManualAdjustEngine";
 import {
   collectGlobalTubeTipSnapTargets,
@@ -778,25 +778,38 @@ function WorkflowCanvasInner() {
       if (!graph || !reportKey) return;
 
       const existing = loadLayoutOverrides(reportKey);
-      const nextEdges = applyAllLegOverrides(edges, {
-        legOverrides,
-      } as LayoutOverrides);
-      setEdges(nextEdges);
-      saveLayoutOverrides(
-        mergeLayoutOverrides(reportKey, {
-          ...existing,
-          legOverrides,
-          autoAdjustEnabled: false,
-        }),
-      );
-      updateManualWarnings(
-        graph,
-        nodes,
-        nextEdges,
-        new Set(Object.keys(legOverrides ?? {}).map((id) => `splice-${id}`)),
-      );
+      const connectionIds = Object.keys(legOverrides ?? {});
+
+      setEdges((currentEdges) => {
+        setNodes((currentNodes) =>
+          syncSplicePointNodes(currentNodes, currentEdges, connectionIds),
+        );
+        saveLayoutOverrides(
+          mergeLayoutOverrides(reportKey, {
+            positions: positionsFromNodes(
+              getNodes().filter((n) => n.type === "cable"),
+            ),
+            existingEdgeIds: existingIdsFromEdges(currentEdges),
+            collapseFullButtSplices: collapseRef.current,
+            layoutWidth: layoutWidthRef.current,
+            cableSides: existing?.cableSides,
+            callouts: existing?.callouts,
+            autoAdjustEnabled: false,
+            tubeOverrides: existing?.tubeOverrides,
+            fanoutOverrides: existing?.fanoutOverrides,
+            legOverrides,
+          }),
+        );
+        updateManualWarnings(
+          graph,
+          getNodes(),
+          currentEdges,
+          new Set(connectionIds.map((id) => `splice-${id}`)),
+        );
+        return currentEdges;
+      });
     },
-    [edges, nodes, setEdges, updateManualWarnings],
+    [getNodes, setEdges, setNodes, updateManualWarnings],
   );
 
   const legOverridesForEngine = useMemo(() => {
@@ -813,6 +826,7 @@ function WorkflowCanvasInner() {
     legOverrides: legOverridesForEngine,
     onLegOverridesCommit: handleLegOverridesCommit,
     setEdges,
+    setNodes,
   });
 
   const toggleManualAdjust = useCallback(() => {
@@ -1472,6 +1486,7 @@ function WorkflowCanvasInner() {
                   enabled={!autoAdjustEnabled}
                   nodes={nodes}
                   edges={edges}
+                  graph={graphRef.current}
                   selection={manualAdjustEngine.selection}
                   onMarqueeComplete={manualAdjustEngine.onMarqueeComplete}
                   onSegmentPointerDown={manualAdjustEngine.onSegmentPointerDown}

@@ -261,7 +261,9 @@ export function buildReactFlowGraph(
     refreshRowLayout: buildOptions?.refreshRowLayout,
   });
 
-  if (buildOptions?.dragSync !== true) {
+  const autoAdjustOn = overrides?.autoAdjustEnabled !== false;
+
+  if (buildOptions?.dragSync !== true && autoAdjustOn) {
     resolveSameSideNodeCollisions(
       visualCables,
       placement,
@@ -269,8 +271,6 @@ export function buildReactFlowGraph(
       diagramScale,
     );
   }
-
-  const autoAdjustOn = overrides?.autoAdjustEnabled !== false;
   const lockedTubeKeys = applyPersistedTubeOverrides(
     visualCables,
     overrides?.tubeOverrides,
@@ -453,7 +453,7 @@ export function buildReactFlowGraph(
     );
     return {
       nodes: augmented.nodes,
-      edges: applyAllLegOverrides(augmented.edges, overrides),
+      edges: applyAllLegOverrides(augmented.edges, overrides, augmented.nodes, graph),
       layout,
       xBounds,
       autoLayoutY,

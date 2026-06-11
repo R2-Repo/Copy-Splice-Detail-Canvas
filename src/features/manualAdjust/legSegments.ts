@@ -84,7 +84,10 @@ export function allowedSegmentAxes(
   if (run < 8) return [];
 
   if (template === "same_side") {
-    return segment.index === 2 ? ["horizontal"] : [];
+    if (segmentCount <= 3) {
+      return segment.index === 2 ? ["horizontal"] : [];
+    }
+    return ["horizontal"];
   }
 
   // hv_demarcated — vertical run on a 90° bend toward/from center
@@ -117,6 +120,109 @@ export function segmentsToPath(
     }
   }
   return parts.join(" ");
+}
+
+export function pathStartPoint(path: string): { x: number; y: number } {
+  const points = parseOrthogonalPathPoints(path);
+  return points[0] ?? { x: 0, y: 0 };
+}
+
+export function pathEndPoint(path: string): { x: number; y: number } {
+  const points = parseOrthogonalPathPoints(path);
+  return points.at(-1) ?? { x: 0, y: 0 };
+}
+
+function interiorHorizontalX(
+  segment: Extract<LegSegment, { kind: "h" }>,
+  anchorX: number,
+): number {
+  const d0 = Math.abs(segment.x0 - anchorX);
+  const d1 = Math.abs(segment.x1 - anchorX);
+  if (d0 > d1) return segment.x0;
+  if (d1 > d0) return segment.x1;
+  return segment.x0 === anchorX ? segment.x1 : segment.x0;
+}
+
+export function setPathStart(
+  path: string,
+  start: { x: number; y: number },
+): string {
+  const segments = pathToLegSegments(path);
+  if (segments.length === 0) return `M ${start.x},${start.y}`;
+  const updated = segments.map((segment, index) => {
+    if (index !== 0) return segment;
+    if (segment.kind === "h") {
+      const interiorX = interiorHorizontalX(segment, start.x);
+      return { ...segment, y: start.y, x0: segment.x0, x1: interiorX };
+    }
+    return {
+      ...segment,
+      x: start.x,
+      y0: Math.min(segment.y0, start.y),
+      y1: Math.max(segment.y0, start.y),
+    };
+  });
+  return segmentsToPath(updated, start);
+}
+
+export function setPathEnd(
+  path: string,
+  end: { x: number; y: number },
+): string {
+  const segments = pathToLegSegments(path);
+  if (segments.length === 0) return `M ${end.x},${end.y}`;
+  const start = pathStartPoint(path);
+  const lastIdx = segments.length - 1;
+  const updated = segments.map((segment, index) => {
+    if (index !== lastIdx) return segment;
+    if (segment.kind === "h") {
+      const interiorX = interiorHorizontalX(segment, end.x);
+      return {
+        ...segment,
+        y: end.y,
+        x0: interiorX,
+        x1: end.x,
+      };
+    }
+    return {
+      ...segment,
+      x: end.x,
+      y0: Math.min(segment.y0, end.y),
+      y1: Math.max(segment.y0, end.y),
+    };
+  });
+  return segmentsToPath(updated, start);
+}
+
+/** Keep fusion splice dot on the horizontal junction between left and right legs. */
+export function connectLegPathsAtSplice(
+  leftPath: string,
+  rightPath: string,
+  editedSide: LegSide,
+): {
+  leftPath: string;
+  rightPath: string;
+  spliceX: number;
+  spliceY: number;
+} {
+  if (editedSide === "left") {
+    const junction = pathEndPoint(leftPath);
+    const nextRight = setPathStart(rightPath, junction);
+    return {
+      leftPath,
+      rightPath: nextRight,
+      spliceX: junction.x,
+      spliceY: junction.y,
+    };
+  }
+  const junction = pathStartPoint(rightPath);
+  const nextLeft = setPathEnd(leftPath, junction);
+  return {
+    leftPath: nextLeft,
+    rightPath,
+    spliceX: junction.x,
+    spliceY: junction.y,
+  };
 }
 
 function shiftVerticalLane(
@@ -196,7 +302,7 @@ export function applySegmentDelta(
   if (!axes.includes(axis)) return segments;
 
   if (axis === "horizontal" && seg.kind === "v") {
-    if (template === "same_side") {
+    if (template === "same_side" && segments.length <= 3) {
       return segments.map((s) => {
         if (s.kind === "h" && s.index === 1) {
           return { ...s, x1: s.x1 + delta };

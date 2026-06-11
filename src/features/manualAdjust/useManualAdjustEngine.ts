@@ -11,15 +11,17 @@ import {
 } from "./applyManualAdjust";
 import {
   applySegmentDelta,
+  connectLegPathsAtSplice,
   legSegmentsFromPaths,
+  pathStartPoint,
   routeTemplateForHandles,
   segmentsToPath,
+  setPathEnd,
+  setPathStart,
   type SegmentDragAxis,
 } from "./legSegments";
-import {
-  collectLegLaneSnapTargetsXs,
-  snapManualX,
-} from "./snapTargets";
+import { handleCoordsForConnection } from "./handleCoords";
+import { syncSplicePointNodes } from "./syncSplicePointNodes";
 import {
   connectionsInMarquee,
   emptySelection,
@@ -35,7 +37,6 @@ type SegmentDragState = {
   axis: SegmentDragAxis;
   startPointer: number;
   accumulatedDelta: number;
-  startLaneX?: number;
   baseOverrides: NonNullable<LayoutOverrides["legOverrides"]>;
 };
 
@@ -77,6 +78,7 @@ export function useManualAdjustEngine({
   legOverrides,
   onLegOverridesCommit,
   setEdges,
+  setNodes,
 }: {
   enabled: boolean;
   nodes: Node[];
@@ -87,6 +89,7 @@ export function useManualAdjustEngine({
     legOverrides: LayoutOverrides["legOverrides"],
   ) => void;
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
+  setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
 }): ManualAdjustEngine {
   const [selection, setSelection] = useState<ManualAdjustSelection>(
     emptySelection(),
@@ -177,21 +180,6 @@ export function useManualAdjustEngine({
       const ids = selection.connectionIds.has(connectionId)
         ? [...selection.connectionIds]
         : [connectionId];
-      let startLaneX: number | undefined;
-      if (axis === "horizontal") {
-        const leftEdge = edges.find((e) => e.id === `splice-left-${connectionId}`);
-        const data = (leftEdge?.data ?? {}) as {
-          leftPath?: string;
-          rightPath?: string;
-        };
-        const paths = legSegmentsFromPaths(
-          String(data.leftPath ?? ""),
-          String(data.rightPath ?? ""),
-        );
-        const segments = side === "left" ? paths.left : paths.right;
-        const seg = segments.find((s) => s.index === segmentIndex);
-        if (seg?.kind === "v") startLaneX = seg.x;
-      }
       segmentDragRef.current = {
         connectionIds: ids,
         side,
@@ -199,12 +187,11 @@ export function useManualAdjustEngine({
         axis,
         startPointer: axis === "horizontal" ? event.clientX : event.clientY,
         accumulatedDelta: 0,
-        startLaneX,
         baseOverrides: { ...(legOverrides ?? {}) },
       };
       (event.target as HTMLElement).setPointerCapture(event.pointerId);
     },
-    [enabled, edges, legOverrides, resolveSegmentAxis, selection.connectionIds],
+    [enabled, legOverrides, resolveSegmentAxis, selection.connectionIds],
   );
 
   const onSegmentPointerMove = useCallback(
@@ -215,12 +202,22 @@ export function useManualAdjustEngine({
       const frameDelta = pointer - drag.startPointer - drag.accumulatedDelta;
       if (Math.abs(frameDelta) < 0.5) return;
 
-      setEdges((current) =>
-        previewSegmentDrag(current, drag, frameDelta),
-      );
+      setEdges((current) => {
+        const nextEdges = previewSegmentDrag(
+          current,
+          drag,
+          frameDelta,
+          nodes,
+          graph,
+        );
+        setNodes((currentNodes) =>
+          syncSplicePointNodes(currentNodes, nextEdges, drag.connectionIds),
+        );
+        return nextEdges;
+      });
       drag.accumulatedDelta += frameDelta;
     },
-    [enabled, setEdges],
+    [enabled, graph, nodes, setEdges, setNodes],
   );
 
   const onSegmentPointerUp = useCallback(
@@ -230,49 +227,6 @@ export function useManualAdjustEngine({
       segmentDragRef.current = null;
       if (Math.abs(drag.accumulatedDelta) < 0.5) return;
 
-      let finalDelta = drag.accumulatedDelta;
-      if (
-        drag.axis === "horizontal" &&
-        drag.startLaneX !== undefined
-      ) {
-        const targets = collectLegLaneSnapTargetsXs(
-          edges,
-          drag.connectionIds[0],
-        );
-        const snappedX = snapManualX(drag.startLaneX + finalDelta, targets);
-        finalDelta = snappedX - drag.startLaneX;
-      }
-
-      const correction = finalDelta - drag.accumulatedDelta;
-      if (Math.abs(correction) > 0.01) {
-        setEdges((current) => previewSegmentDrag(current, drag, correction));
-      }
-
-      // #region agent log
-      if (Math.abs(finalDelta - drag.accumulatedDelta) > 0.01) {
-        fetch("http://127.0.0.1:7276/ingest/954dc9e2-dc29-44e2-8638-93624e140b86", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Debug-Session-Id": "ab59ca",
-          },
-          body: JSON.stringify({
-            sessionId: "ab59ca",
-            location: "useManualAdjustEngine.ts:onSegmentPointerUp",
-            message: "leg lane snap on release",
-            data: {
-              rawDelta: drag.accumulatedDelta,
-              finalDelta,
-              startLaneX: drag.startLaneX,
-            },
-            timestamp: Date.now(),
-            hypothesisId: "S2",
-            runId: "snap-fix",
-          }),
-        }).catch(() => {});
-      }
-      // #endregion
-
       const nextOverrides = { ...drag.baseOverrides };
       for (const connectionId of drag.connectionIds) {
         nextOverrides[connectionId] = accumulateLegOverride(
@@ -280,12 +234,12 @@ export function useManualAdjustEngine({
           drag.side,
           drag.segmentIndex,
           drag.axis,
-          finalDelta,
+          drag.accumulatedDelta,
         );
       }
       onLegOverridesCommit(nextOverrides);
     },
-    [enabled, edges, onLegOverridesCommit, setEdges],
+    [enabled, onLegOverridesCommit],
   );
 
   const onNodeDrag: OnNodeDrag<Node> = useCallback((_, node) => {
@@ -347,6 +301,8 @@ function previewSegmentDrag(
   edges: Edge[],
   drag: SegmentDragState,
   delta: number,
+  nodes: Node[],
+  graph: ConnectionGraph | null,
 ): Edge[] {
   const nextEdges = edges.map((e) => ({ ...e, data: { ...(e.data as object) } }));
   for (const connectionId of drag.connectionIds) {
@@ -357,21 +313,22 @@ function previewSegmentDrag(
     const data = (leftEdge.data ?? {}) as {
       leftPath?: string;
       rightPath?: string;
-      sourceX?: number;
-      sourceY?: number;
-      targetX?: number;
-      targetY?: number;
+      spliceX?: number;
+      spliceY?: number;
     };
+    const handles =
+      graph != null
+        ? handleCoordsForConnection(connectionId, nodes, graph)
+        : null;
+    const leftPathRaw = String(data.leftPath ?? "");
+    const rightPathRaw = String(data.rightPath ?? "");
     const template = routeTemplateForHandles(
-      Number(data.sourceX ?? 0),
-      Number(data.sourceY ?? 0),
-      Number(data.targetX ?? 0),
-      Number(data.targetY ?? 0),
+      handles?.source.x ?? 0,
+      handles?.source.y ?? 0,
+      handles?.target.x ?? 0,
+      handles?.target.y ?? 0,
     );
-    const paths = legSegmentsFromPaths(
-      String(data.leftPath ?? ""),
-      String(data.rightPath ?? ""),
-    );
+    const paths = legSegmentsFromPaths(leftPathRaw, rightPathRaw);
     const segments = drag.side === "left" ? paths.left : paths.right;
     const updatedSegments = applySegmentDelta(
       segments,
@@ -381,14 +338,30 @@ function previewSegmentDrag(
       template,
       drag.side,
     );
-    const pathKey = drag.side === "left" ? "leftPath" : "rightPath";
-    const startPath = String(data[pathKey] ?? "");
-    const match = startPath.match(/M\s*([-\d.]+),([-\d.]+)/);
-    const start = {
-      x: match ? Number(match[1]) : 0,
-      y: match ? Number(match[2]) : 0,
-    };
-    const nextPath = segmentsToPath(updatedSegments, start);
+    const pathStart =
+      drag.side === "left"
+        ? (handles?.source ?? pathStartPoint(leftPathRaw))
+        : pathStartPoint(rightPathRaw);
+    let nextLeft =
+      drag.side === "left"
+        ? segmentsToPath(updatedSegments, pathStart)
+        : leftPathRaw;
+    let nextRight =
+      drag.side === "right"
+        ? segmentsToPath(updatedSegments, pathStart)
+        : rightPathRaw;
+
+    if (handles) {
+      nextLeft = setPathStart(nextLeft, handles.source);
+      nextRight = setPathEnd(nextRight, handles.target);
+    }
+
+    const connected = connectLegPathsAtSplice(
+      nextLeft,
+      nextRight,
+      drag.side,
+    );
+
     for (const edgeId of [leftId, rightId]) {
       const idx = nextEdges.findIndex((e) => e.id === edgeId);
       if (idx < 0) continue;
@@ -396,7 +369,10 @@ function previewSegmentDrag(
         ...nextEdges[idx]!,
         data: {
           ...(nextEdges[idx]!.data as Record<string, unknown>),
-          [pathKey]: nextPath,
+          leftPath: connected.leftPath,
+          rightPath: connected.rightPath,
+          spliceX: connected.spliceX,
+          spliceY: connected.spliceY,
         },
       };
     }

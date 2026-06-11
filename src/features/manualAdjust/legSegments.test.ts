@@ -3,8 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   allowedSegmentAxes,
   applySegmentDelta,
+  connectLegPathsAtSplice,
+  pathEndPoint,
+  pathStartPoint,
   pathToLegSegments,
   routeTemplateForHandles,
+  setPathEnd,
+  setPathStart,
 } from "./legSegments";
 
 describe("legSegments", () => {
@@ -63,6 +68,39 @@ describe("legSegments", () => {
     expect(
       allowedSegmentAxes(template, "left", { kind: "h", index: 1, y: 60, x0: 396, x1: 584 }, 2),
     ).toEqual([]);
+  });
+
+  it("keeps fusion splice junction when left leg end moves", () => {
+    const leftPath = "M 100,50 L 200,50 L 200,120";
+    const rightPath = "M 200,120 L 400,120 L 400,60 L 500,60";
+    const connected = connectLegPathsAtSplice(leftPath, rightPath, "left");
+    expect(pathEndPoint(connected.leftPath)).toEqual(pathStartPoint(connected.rightPath));
+    expect(connected.spliceX).toBeCloseTo(200, 0);
+    expect(connected.spliceY).toBeCloseTo(120, 0);
+  });
+
+  it("pins path end to handle when last segment is horizontal toward center", () => {
+    const rightPath = "M 504,180 L 584,180 L 680,180 L 680,436";
+    const pinned = setPathEnd(rightPath, { x: 396, y: 436 });
+    expect(pathEndPoint(pinned)).toEqual({ x: 396, y: 436 });
+  });
+
+  it("pins path start to source handle on left leg", () => {
+    const leftPath = "M 396,180 L 584,180 L 680,180";
+    const pinned = setPathStart(leftPath, { x: 396, y: 180 });
+    expect(pathStartPoint(pinned)).toEqual({ x: 396, y: 180 });
+  });
+
+  it("allows nested same-side vertical lanes beyond index 2", () => {
+    const rightPath = "M 504,180 L 584,180 L 680,180 L 680,300 L 680,436 L 396,436";
+    const right = pathToLegSegments(rightPath);
+    const template = routeTemplateForHandles(396, 180, 396, 436);
+    expect(template).toBe("same_side");
+    const lane = right.find((s) => s.kind === "v" && s.index === 4);
+    expect(lane).toBeTruthy();
+    expect(
+      allowedSegmentAxes(template, "right", lane!, right.length),
+    ).toEqual(["horizontal"]);
   });
 
   it("shifts all stacked vertical segments sharing the same lane X", () => {

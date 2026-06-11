@@ -1,8 +1,10 @@
-import type { Edge } from "@xyflow/react";
+import type { Edge, Node } from "@xyflow/react";
 
 import { parseOrthogonalPathPoints } from "@/features/canvas/edges/splicePathGeometry";
 import type { VisualCable } from "@/features/diagram/visualCables";
-import type { LayoutOverrides } from "@/types/splice";
+import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
+
+import { handleCoordsForConnection } from "./handleCoords";
 
 import {
   fusionDotCornerClearanceOk,
@@ -11,9 +13,12 @@ import {
 } from "./constraints";
 import {
   applySegmentDelta,
+  connectLegPathsAtSplice,
   legSegmentsFromPaths,
   routeTemplateForHandles,
   segmentsToPath,
+  setPathEnd,
+  setPathStart,
   type LegSegment,
   type SegmentDragAxis,
 } from "./legSegments";
@@ -61,24 +66,31 @@ export function applyLegOverridesToEdge(
     "right",
   );
 
-  const leftStart = parseOrthogonalPathPoints(leftPath)[0] ?? {
-    x: sourceX,
-    y: sourceY,
-  };
-  const rightStart = parseOrthogonalPathPoints(rightPath)[0] ?? {
+  const spliceStart = parseOrthogonalPathPoints(rightPath)[0] ?? {
     x: Number(data.spliceX ?? sourceX),
     y: Number(data.spliceY ?? sourceY),
   };
 
-  const nextLeft = segmentsToPath(left, leftStart);
-  const nextRight = segmentsToPath(right, rightStart);
-  const splicePoint =
-    parseOrthogonalPathPoints(nextRight)[0] ??
-    parseOrthogonalPathPoints(nextLeft).at(-1) ?? rightStart;
+  let nextLeft = segmentsToPath(left, { x: sourceX, y: sourceY });
+  let nextRight = segmentsToPath(right, spliceStart);
+  nextLeft = setPathStart(nextLeft, { x: sourceX, y: sourceY });
+  nextRight = setPathEnd(nextRight, { x: targetX, y: targetY });
+  const connected = connectLegPathsAtSplice(nextLeft, nextRight, "left");
+  nextLeft = connected.leftPath;
+  nextRight = connected.rightPath;
+  const splicePoint = {
+    x: connected.spliceX,
+    y: connected.spliceY,
+  };
 
   if (!pathsWithinBendBudget(nextLeft, nextRight)) return null;
   if (
-    !fusionDotOnHorizontalSegment(splicePoint.x, splicePoint.y, nextLeft, nextRight)
+    !fusionDotOnHorizontalSegment(
+      splicePoint.x,
+      splicePoint.y,
+      nextLeft,
+      nextRight,
+    )
   ) {
     return null;
   }
@@ -128,26 +140,25 @@ function applyStoredSegmentOverrides(
 export function applyAllLegOverrides(
   edges: Edge[],
   overrides: LayoutOverrides | undefined,
+  nodes?: Node[],
+  graph?: ConnectionGraph,
 ): Edge[] {
   const legMap = overrides?.legOverrides;
   if (!legMap) return edges;
   return edges.map((edge) => {
     const connId = edge.id.replace(/^splice-(?:left|right)-/, "");
     if (!legMap[connId]) return edge;
-    const leftEdge = edges.find((e) => e.id === `splice-left-${connId}`);
-    const data = (leftEdge?.data ?? {}) as {
-      sourceX?: number;
-      sourceY?: number;
-      targetX?: number;
-      targetY?: number;
-    };
+    const handles =
+      nodes != null && graph != null
+        ? handleCoordsForConnection(connId, nodes, graph)
+        : null;
     const updated = applyLegOverridesToEdge(
       edge,
       legMap[connId],
-      Number(data.sourceX ?? 0),
-      Number(data.sourceY ?? 0),
-      Number(data.targetX ?? 0),
-      Number(data.targetY ?? 0),
+      handles?.source.x ?? 0,
+      handles?.source.y ?? 0,
+      handles?.target.x ?? 0,
+      handles?.target.y ?? 0,
     );
     return updated ?? edge;
   });

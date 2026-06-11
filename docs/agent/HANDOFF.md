@@ -4,10 +4,13 @@
 
 ## Last updated
 
-2026-06-10 — Leg segment drag: vertical center lanes ↔ only; fan-out smooth drag.
+2026-06-10 — Vertical leg ↔ drag: handle pin + smooth preview (verified).
 
 ## Done
 
+- **Vertical leg ↔ drag fix** — `setPathStart`/`setPathEnd` pin path terminus to handles; nested same-side lanes use `shiftVerticalLane`; overlay uses live handle coords; commit persists preview (no re-apply jump); graph rebuild resolves handle coords for overrides.
+- **Leg segment drag detach fix** — preview pins left leg to source handle, right leg to target handle; `connectLegPathsAtSplice` keeps fusion dot junction; splice point node moves live during drag.
+- **Manual mode auto-off** — skip `resolveSameSideNodeCollisions` when `autoAdjustEnabled: false`; leg commit applies overrides in-place (no full graph reroute).
 - **Leg segment drag** — vertical center-lane segments only (↔); horizontal legs not draggable; Y via fan-out; pointer move/up wired; `shiftVerticalLane` keeps corners connected.
 - **Fan-out drag** — live preview, ±96px, single-tube sheath moves with tube; snap on release only.
 - **Manual adjust leg overlay** — panel-local coords; invisible hit strips on draggable segments only.

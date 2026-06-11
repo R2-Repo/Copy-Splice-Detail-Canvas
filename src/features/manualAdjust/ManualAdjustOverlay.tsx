@@ -2,6 +2,9 @@ import { Panel, useReactFlow, useViewport } from "@xyflow/react";
 import type { Edge, Node } from "@xyflow/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { ConnectionGraph } from "@/types/splice";
+
+import { handleCoordsForConnection } from "./handleCoords";
 import {
   allowedSegmentAxes,
   legSegmentsFromPaths,
@@ -17,6 +20,7 @@ type Props = {
   enabled: boolean;
   nodes: Node[];
   edges: Edge[];
+  graph: ConnectionGraph | null;
   selection: ManualAdjustSelection;
   onMarqueeComplete: (box: {
     x0: number;
@@ -87,6 +91,7 @@ export function ManualAdjustOverlay({
   enabled,
   nodes,
   edges,
+  graph,
   selection,
   onMarqueeComplete,
   onSegmentPointerDown,
@@ -134,6 +139,7 @@ export function ManualAdjustOverlay({
   const draggableSegments: DraggableSegment[] = [];
 
   for (const connectionId of connIds) {
+    if (!graph) continue;
     const leftEdge = edges.find((e) => e.id === `splice-left-${connectionId}`);
     const leftData = (leftEdge?.data ?? {}) as {
       leftPath?: string;
@@ -147,11 +153,13 @@ export function ManualAdjustOverlay({
     const rightPath = String(leftData.rightPath ?? "");
     if (!leftPath || !rightPath) continue;
 
+    const handles = handleCoordsForConnection(connectionId, nodes, graph);
+    if (!handles) continue;
     const template = routeTemplateForHandles(
-      Number(leftData.sourceX ?? 0),
-      Number(leftData.sourceY ?? 0),
-      Number(leftData.targetX ?? 0),
-      Number(leftData.targetY ?? 0),
+      handles.source.x,
+      handles.source.y,
+      handles.target.x,
+      handles.target.y,
     );
     const { left, right } = legSegmentsFromPaths(leftPath, rightPath);
 

@@ -46,14 +46,15 @@ See [`RULE_PRIORITY.md`](./RULE_PRIORITY.md). EDGE-004 strict ≤2 bends; widen 
 
 ## Known issues (ordered)
 
-1. Many `test:ci` tests still reference Example CSVs under `docs/reference/examples/` (files live in `old csv examples/`)
-2. PNG visual parity incomplete
-3. Callout text does not auto-update when toggling existing splices (re-click button)
-4. Glossary screenshot crops (`docs/reference/images/glossary/00`–`03`) not in repo — capture from `?fixture=example-2` + `scripts/crop-glossary-shots.ps1`
+1. Example #2 `EDGE-010` layout check failing in `layoutRules.test.ts` (tube bundle lane spacing — investigate separately)
+2. Many `test:ci` tests still reference Example CSVs under `docs/reference/examples/` (files live in `old csv examples/`)
+3. PNG visual parity incomplete
+4. Callout text does not auto-update when toggling existing splices (re-click button)
+5. Glossary screenshot crops (`docs/reference/images/glossary/00`–`03`) not in repo — capture from `?fixture=example-2` + `scripts/crop-glossary-shots.ps1`
 
 ## Blockers
 
-None for `npm run test:layout`.
+Example #2 `EDGE-010` fails `npm run test:layout` — pre-existing / separate from manual-leg work.
 
 ## Canonical docs (read order)
 
