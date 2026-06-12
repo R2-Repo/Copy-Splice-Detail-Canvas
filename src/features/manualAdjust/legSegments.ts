@@ -1,9 +1,15 @@
 import {
   parseOrthogonalPathPoints,
   pickSpliceRouteTemplate,
+  FUSION_DOT_MIN_VERTICAL_LANE_CLEARANCE,
   SPLICE_PATH_EPS,
   type SpliceRouteTemplate,
 } from "@/features/canvas/edges/splicePathGeometry";
+
+import {
+  clampHorizontalLaneDeltaNearFusionDot,
+  verticalSegmentSpansSpliceY,
+} from "./constraints";
 
 import type { LegSide } from "./types";
 
@@ -76,12 +82,26 @@ export function allowedSegmentAxes(
   side: LegSide,
   segment: LegSegment,
   segmentCount: number,
+  splice?: { x: number; y: number },
 ): SegmentDragAxis[] {
   // Manual leg adjust: shift center vertical lanes ↔ only (Y via fan-out drag).
   if (segment.kind !== "v") return [];
 
   const run = segment.y1 - segment.y0;
-  if (run < 8) return [];
+  const spliceY = splice?.y;
+  const atSpliceJunction =
+    spliceY !== undefined &&
+    (Math.abs(segment.y0 - spliceY) <= SPLICE_PATH_EPS + 1 ||
+      Math.abs(segment.y1 - spliceY) <= SPLICE_PATH_EPS + 1);
+  if (run < 8 && !atSpliceJunction) return [];
+
+  if (
+    splice &&
+    verticalSegmentSpansSpliceY(segment, splice.y) &&
+    Math.abs(segment.x - splice.x) < FUSION_DOT_MIN_VERTICAL_LANE_CLEARANCE
+  ) {
+    return [];
+  }
 
   if (template === "same_side") {
     if (segmentCount <= 3) {
@@ -327,6 +347,46 @@ export function finalizeConnectedLegPaths(
   return connected;
 }
 
+/**
+ * Manual cable drag: pin only the moved cable's leg end and reconnect at the splice.
+ * Avoids simplify / dual-handle rewriting used by segment-drag finalize.
+ */
+export function pinCableLegHandles(
+  leftPath: string,
+  rightPath: string,
+  editedSide: LegSide,
+  handles: {
+    source: { x: number; y: number };
+    target: { x: number; y: number };
+  },
+): {
+  leftPath: string;
+  rightPath: string;
+  spliceX: number;
+  spliceY: number;
+} {
+  if (editedSide === "left") {
+    const nextLeft = setPathStart(leftPath, handles.source);
+    const junction = pathEndPoint(nextLeft);
+    const nextRight = setPathStart(rightPath, junction);
+    return {
+      leftPath: nextLeft,
+      rightPath: nextRight,
+      spliceX: junction.x,
+      spliceY: junction.y,
+    };
+  }
+  const nextRight = setPathEnd(rightPath, handles.target);
+  const junction = pathStartPoint(nextRight);
+  const nextLeft = setPathEnd(leftPath, junction);
+  return {
+    leftPath: nextLeft,
+    rightPath: nextRight,
+    spliceX: junction.x,
+    spliceY: junction.y,
+  };
+}
+
 /** Keep fusion splice dot on the horizontal junction between left and right legs. */
 export function connectLegPathsAtSplice(
   leftPath: string,
@@ -356,6 +416,54 @@ export function connectLegPathsAtSplice(
     spliceX: junction.x,
     spliceY: junction.y,
   };
+}
+
+/** Segment-drag reconnect: pin only the edited cable side; anchor fusion dot in place. */
+export function reconnectEditedLegPaths(
+  leftPath: string,
+  rightPath: string,
+  editedSide: LegSide,
+  options?: {
+    handles?: {
+      source: { x: number; y: number };
+      target: { x: number; y: number };
+    };
+    /** DOT-001/DOT-004: keep fusion dot fixed while vertical lanes shift. */
+    preserveSplice?: { x: number; y: number };
+  },
+): {
+  leftPath: string;
+  rightPath: string;
+  spliceX: number;
+  spliceY: number;
+} {
+  let left = leftPath;
+  let right = rightPath;
+  const handles = options?.handles;
+  if (handles) {
+    if (editedSide === "left") {
+      left = setPathStart(left, handles.source);
+    } else {
+      right = setPathEnd(right, handles.target);
+    }
+  }
+
+  if (options?.preserveSplice) {
+    const anchor = options.preserveSplice;
+    left = setPathEnd(left, anchor);
+    right = setPathStart(right, anchor);
+    // #region agent log
+    fetch('http://127.0.0.1:7692/ingest/76af12d0-a987-40d1-88e0-d22d15ff6bad',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c6eead'},body:JSON.stringify({sessionId:'c6eead',location:'legSegments.ts:reconnectEditedLegPaths',message:'preserveSplice anchor',data:{anchor,editedSide},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
+    return {
+      leftPath: left,
+      rightPath: right,
+      spliceX: anchor.x,
+      spliceY: anchor.y,
+    };
+  }
+
+  return connectLegPathsAtSplice(left, right, editedSide);
 }
 
 function shiftVerticalLane(
@@ -427,14 +535,19 @@ export function applySegmentDelta(
   delta: number,
   template: SpliceRouteTemplate,
   side: LegSide,
+  splice?: { x: number; y: number },
 ): LegSegment[] {
   const seg = segments.find((s) => s.index === segmentIndex);
   if (!seg) return segments;
 
-  const axes = allowedSegmentAxes(template, side, seg, segments.length);
+  const axes = allowedSegmentAxes(template, side, seg, segments.length, splice);
   if (!axes.includes(axis)) return segments;
 
   if (axis === "horizontal" && seg.kind === "v") {
+    if (splice) {
+      delta = clampHorizontalLaneDeltaNearFusionDot(seg, delta, splice.x, splice.y);
+      if (Math.abs(delta) < 0.5) return segments;
+    }
     if (template === "same_side" && segments.length <= 3) {
       return segments.map((s) => {
         if (s.kind === "h" && s.index === 1) {

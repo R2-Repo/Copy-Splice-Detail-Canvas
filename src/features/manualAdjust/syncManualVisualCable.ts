@@ -12,7 +12,7 @@ import {
   buildHandleCoordsCache,
   handleCoordsForConnection,
 } from "./handleCoords";
-import { finalizeConnectedLegPaths } from "./legSegments";
+import { pinCableLegHandles } from "./legSegments";
 import { syncSplicePointNodes } from "./syncSplicePointNodes";
 
 const ANCHOR_DOT = 6;
@@ -144,7 +144,7 @@ export function syncManualVisualCable(
     let rightPath = String(data.rightPath ?? "");
 
     const editedSide = pinsSource ? ("left" as const) : ("right" as const);
-    const connected = finalizeConnectedLegPaths(
+    const connected = pinCableLegHandles(
       leftPath,
       rightPath,
       editedSide,

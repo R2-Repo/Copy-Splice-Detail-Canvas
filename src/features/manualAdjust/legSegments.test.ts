@@ -10,6 +10,8 @@ import {
   pathEndPoint,
   pathStartPoint,
   pathToLegSegments,
+  pinCableLegHandles,
+  reconnectEditedLegPaths,
   routeTemplateForHandles,
   segmentsToPath,
   setPathEnd,
@@ -82,6 +84,31 @@ describe("legSegments", () => {
     expect(pathEndPoint(connected.leftPath)).toEqual(pathStartPoint(connected.rightPath));
     expect(connected.spliceX).toBeCloseTo(200, 0);
     expect(connected.spliceY).toBeCloseTo(120, 0);
+  });
+
+  it("pinCableLegHandles only rewrites the dragged cable leg end", () => {
+    const leftPath = "M 100,50 L 200,50 L 200,120";
+    const rightPath = "M 200,120 L 400,120 L 400,60 L 500,60";
+    const pinned = pinCableLegHandles(leftPath, rightPath, "left", {
+      source: { x: 110, y: 52 },
+      target: { x: 500, y: 60 },
+    });
+    expect(pathStartPoint(pinned.leftPath)).toEqual({ x: 110, y: 52 });
+    expect(pathEndPoint(pinned.rightPath)).toEqual({ x: 500, y: 60 });
+    expect(pinned.spliceX).toBeCloseTo(pathEndPoint(pinned.leftPath).x, 0);
+    expect(pinned.spliceY).toBeCloseTo(pathEndPoint(pinned.leftPath).y, 0);
+  });
+
+  it("reconnectEditedLegPaths pins fusion dot while legs reconnect", () => {
+    const leftPath = "M 100,80 L 220,80 L 220,120";
+    const rightPath = "M 220,80 L 500,80";
+    const connected = reconnectEditedLegPaths(leftPath, rightPath, "left", {
+      preserveSplice: { x: 260, y: 80 },
+    });
+    expect(connected.spliceX).toBeCloseTo(260, 0);
+    expect(connected.spliceY).toBeCloseTo(80, 0);
+    expect(pathEndPoint(connected.leftPath)).toEqual({ x: 260, y: 80 });
+    expect(pathStartPoint(connected.rightPath)).toEqual({ x: 260, y: 80 });
   });
 
   it("pins path end to handle when last segment is horizontal toward center", () => {

@@ -326,13 +326,13 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 2px solid #94a3b8;
+  border: 2px solid #000;
   background: #ffffff;
   border-radius: 8px;
   box-sizing: border-box;
   pointer-events: none;
   z-index: 1;
-  padding: 3px 5px;
+  padding: 2px 4px;
   overflow: hidden;
 }
 
@@ -349,14 +349,14 @@
 }
 
 .cable-node__smfo {
-  font-size: 0.5rem;
+  font-size: 0.43rem;
   font-weight: 700;
   color: #0f172a;
   line-height: 1.05;
 }
 
 .cable-node__label {
-  font-size: 0.45rem;
+  font-size: 0.38rem;
   line-height: 1.1;
   color: #475569;
   word-break: break-word;
@@ -810,7 +810,12 @@
 }
 
 @media print {
-  body * {
+  @page {
+    size: landscape;
+    margin: 0.5in;
+  }
+
+  body:not(.printing-diagram) * {
     visibility: hidden;
   }
 
@@ -839,11 +844,48 @@
     overflow: visible;
   }
 
+  body.printing-diagram * {
+    visibility: hidden;
+  }
+
+  body.printing-diagram .app-shell,
+  body.printing-diagram .app-shell__main,
+  body.printing-diagram .workflow-canvas,
+  body.printing-diagram .workflow-canvas__body,
+  body.printing-diagram .workflow-canvas__stage,
+  body.printing-diagram .workflow-canvas__stage *,
+  body.printing-diagram .react-flow,
+  body.printing-diagram .react-flow__viewport,
+  body.printing-diagram .react-flow__viewport * {
+    visibility: visible;
+  }
+
+  body.printing-diagram .workflow-canvas__toolbar,
+  body.printing-diagram .workflow-canvas__hint,
+  body.printing-diagram .workflow-canvas__meta,
+  body.printing-diagram .workflow-canvas__manual-warning,
+  body.printing-diagram .react-flow__controls,
+  body.printing-diagram .react-flow__background,
+  body.printing-diagram .react-flow__panel,
+  body.printing-diagram .diagram-inspector,
+  body.printing-diagram .splice-report-overlay {
+    display: none !important;
+  }
+
+  body.printing-diagram .workflow-canvas,
+  body.printing-diagram .workflow-canvas__body,
+  body.printing-diagram .workflow-canvas__stage,
+  body.printing-diagram .react-flow {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
   .cable-callout,
   .cable-callout__text,
   .callout-leader-layer,
-  .callout-leader-layer__line {
-    visibility: visible;
+  .callout-leader-layer__line,
+  body.printing-diagram .react-flow__node,
+  body.printing-diagram .react-flow__edge {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
@@ -898,5 +940,9 @@
   position: absolute;
   border: 1px dashed #2563eb;
   background: rgba(37, 99, 235, 0.08);
+  pointer-events: none;
+}
+
+.workflow-canvas--manual-adjust .splice-point-node {
   pointer-events: none;
 }

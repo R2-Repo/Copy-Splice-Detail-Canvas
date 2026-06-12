@@ -69,6 +69,7 @@ import {
   manualLayoutWarningsForConnections,
   touchedConnectionIdsFromEdgeIds,
 } from "@/features/diagram/manualLayoutWarnings";
+import { usePrintDiagram } from "@/features/export/usePrintDiagram";
 import { ManualAdjustOverlay } from "@/features/manualAdjust/ManualAdjustOverlay";
 import { syncSplicePointNodes } from "@/features/manualAdjust/syncSplicePointNodes";
 import { syncManualVisualCable } from "@/features/manualAdjust/syncManualVisualCable";
@@ -98,6 +99,7 @@ import {
   EyeIcon,
   EyeOffIcon,
   ManualIcon,
+  PrintPdfIcon,
   ReportIcon,
   ResetIcon,
 } from "@/components/toolbar/ToolbarIcon";
@@ -217,6 +219,9 @@ function WorkflowCanvasInner() {
   const [calloutsVisible, setCalloutsVisible] = useState(false);
   const [circuitIndex, setCircuitIndex] = useState<CircuitIndex | null>(null);
   const [autoAdjustEnabled, setAutoAdjustEnabled] = useState(true);
+  const [legOverridesState, setLegOverridesState] = useState<
+    LayoutOverrides["legOverrides"]
+  >();
   const [manualWarningBanner, setManualWarningBanner] = useState<string | null>(
     null,
   );
@@ -505,6 +510,7 @@ function WorkflowCanvasInner() {
       const merged = attachStoredCallouts(nextNodes, reportKey, savedPositions);
       setNodes(merged);
       setEdges(nextEdges);
+      setLegOverridesState(overrides.legOverrides);
 
       if (
         options?.refreshColumnX ||
@@ -631,6 +637,7 @@ function WorkflowCanvasInner() {
       setCollapseFullButtSplices(collapsed);
       setCalloutsVisible(calloutsShouldShow(saved));
       setAutoAdjustEnabled(saved?.autoAdjustEnabled !== false);
+      setLegOverridesState(saved?.legOverrides);
       setManualWarningBanner(null);
       userExpandedLayoutRef.current = false;
 
@@ -826,6 +833,7 @@ function WorkflowCanvasInner() {
         setNodes((currentNodes) =>
           syncSplicePointNodes(currentNodes, currentEdges, connectionIds),
         );
+        setLegOverridesState(legOverrides);
         saveLayoutOverrides(
           mergeLayoutOverrides(reportKey, {
             positions: positionsFromNodes(
@@ -854,18 +862,12 @@ function WorkflowCanvasInner() {
     [getNodes, setEdges, setNodes, updateManualWarnings],
   );
 
-  const legOverridesForEngine = useMemo(() => {
-    const key = reportKeyRef.current;
-    if (!key) return undefined;
-    return loadLayoutOverrides(key)?.legOverrides;
-  }, [nodes, edges, meta]);
-
   const manualAdjustEngine = useManualAdjustEngine({
     enabled: !autoAdjustEnabled,
     nodes,
     edges,
     graph: graphRef.current,
-    legOverrides: legOverridesForEngine,
+    legOverrides: legOverridesState,
     onLegOverridesCommit: handleLegOverridesCommit,
     onLegCommitBlocked: setManualWarningBanner,
     setEdges,
@@ -873,6 +875,8 @@ function WorkflowCanvasInner() {
     getNodes,
     getEdges,
   });
+
+  const printDiagram = usePrintDiagram(nodes, graphRef.current, stageRef);
 
   const toggleManualAdjust = useCallback(() => {
     const reportKey = reportKeyRef.current;
@@ -915,6 +919,7 @@ function WorkflowCanvasInner() {
     setAutoAdjustEnabled(true);
     setManualWarningBanner(null);
     setActiveGuides([]);
+    setLegOverridesState({});
     saveLayoutOverrides(
       mergeLayoutOverrides(reportKey, {
         autoAdjustEnabled: true,
@@ -1056,7 +1061,27 @@ function WorkflowCanvasInner() {
         let nextEdges: Edge[];
         let autoLayoutY: Record<string, number> | undefined;
 
-        if (manualMode) {
+        if (manualMode && sideChanged) {
+          ({ nodes: nextNodes, edges: nextEdges } = buildReactFlowGraph(
+            graph,
+            {
+              reportKey: reportKeyRef.current,
+              collapseFullButtSplices: collapseRef.current,
+              positions: finalPositions,
+              existingEdgeIds: existing?.existingEdgeIds,
+              cableSides,
+              layoutWidth,
+              autoAdjustEnabled: false,
+              tubeOverrides: existing?.tubeOverrides,
+              fanoutOverrides: existing?.fanoutOverrides,
+              legOverrides: existing?.legOverrides,
+            },
+            layoutWidth,
+            { skipTubeAutoAlign: true },
+          ));
+          const callouts = getNodes().filter((n) => n.type === "cableCallout");
+          nextNodes = [...nextNodes, ...callouts];
+        } else if (manualMode) {
           const callouts = getNodes().filter((n) => n.type === "cableCallout");
           const engine = getNodes().filter((n) => n.type !== "cableCallout");
           ({ nodes: nextNodes, edges: nextEdges } = syncManualVisualCable(
@@ -1421,6 +1446,12 @@ function WorkflowCanvasInner() {
           disabled={!meta}
           onClick={() => setReportOpen(true)}
         />
+        <ToolbarActionButton
+          label="Print to PDF"
+          icon={<PrintPdfIcon />}
+          disabled={!meta}
+          onClick={printDiagram}
+        />
         <ToolbarSegmentedControl
           ariaLabel="Cable callouts"
           disabled={!meta}
@@ -1511,6 +1542,9 @@ function WorkflowCanvasInner() {
             >
               <ManualLayoutProvider value={manualLayoutContextValue}>
               <ReactFlow
+                className={
+                  !autoAdjustEnabled ? "workflow-canvas--manual-adjust" : undefined
+                }
                 nodes={nodes}
                 edges={edges}
                 onNodesChange={onNodesChange}

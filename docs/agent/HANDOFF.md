@@ -4,26 +4,26 @@
 
 ## Last updated
 
-2026-06-12 — Cable callout sizing fix (text cutoff) + shorter default gap.
+2026-06-12 — V1 Print to PDF toolbar button (browser print).
 
 ## Done
 
-- **Text cutoff fix** — removed `height: 100%` on textarea; measure `scrollHeight` then set explicit height; `white-space: pre-wrap`; chrome buffer via `CALLOUT_BOX_CHROME_Y`.
-- **Larger callouts** — width **240px**, min height **80px**.
-- **Shorter leaders** — default gap **48 → 20px** (callouts sit closer to cable on generate).
+- **`src/features/export/`** — `printDiagram.ts` (bounds, viewport fit, print orchestration), `usePrintDiagram.ts`, unit tests.
+- **Toolbar** — Print to PDF button (disabled until CSV import); printer icon; opens browser print → Save as PDF.
+- **Print CSS** — `body.printing-diagram` hides chrome, shows diagram stage, landscape `@page`, preserves callout colors when visible.
+- **Viewport restore** — saves/restores live viewport and document title on `afterprint`.
 
 ## Next
 
-- Visual re-test: Example #2 → Add cable callouts → confirm readable text, no scroll, straight red leaders to cable outer border.
-- Visual re-test: Example #2 → Manual adjust → toggle Auto (diagram unchanged) → refresh (overrides restore) → drag cable in Auto.
-- **Group drag** — multi-select fiber anchors, drag together with constraints.
+- Manual QA: import Example #2 (`?fixture=example-2`) → Print to PDF → verify cables/splices/colors; toggle callouts → re-print; cancel print → confirm viewport restores.
+- Visual re-test: Example #2 → Manual → drag vertical leg at fusion dot ↔; drag cable (same side, no flip).
 
 ## Commands verified
 
 ```bash
+npm run test:layout   # 3/3 pass
 npm run check
+npx vitest run src/features/export/printDiagram.test.ts   # 6/6 pass
+npm run test:ci       # 183/183 pass
 npm run build
-npx vitest run src/features/canvas/callouts/cableCalloutGeometry.test.ts
 ```
-
-- `npm run test:layout` / `test:ci` — pre-existing failures unchanged (EDGE-010, CSV paths, routing goldens).

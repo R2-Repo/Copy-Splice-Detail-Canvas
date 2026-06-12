@@ -551,6 +551,9 @@ export const MAX_SPLICE_BENDS = 2;
 /** DOT-003: minimum path distance from fusion dot to the nearest leg corner. */
 export const FUSION_DOT_MIN_CORNER_CLEARANCE = 48;
 
+/** DOT-004: minimum horizontal distance from fusion dot to a vertical leg that spans the dot row. */
+export const FUSION_DOT_MIN_VERTICAL_LANE_CLEARANCE = 48;
+
 /** Strict EDGE-004: ?2 bends total ? Y-track offsets must not inflate the budget. */
 export function maxSpliceBendsForLane(
   _sourceY: number,

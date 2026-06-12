@@ -9,7 +9,7 @@ import { handleCoordsForConnection } from "./handleCoords";
 import { validateLegPaths } from "./constraints";
 import {
   applySegmentDelta,
-  finalizeConnectedLegPaths,
+  reconnectEditedLegPaths,
   legSegmentsFromPaths,
   routeTemplateForHandles,
   segmentsToPath,
@@ -17,6 +17,17 @@ import {
   type SegmentDragAxis,
 } from "./legSegments";
 import type { ConnectionLegOverrides, LegSide } from "./types";
+
+function primaryEditedSide(legOverrides: ConnectionLegOverrides): LegSide {
+  const hasLeft =
+    legOverrides.leftSegments != null &&
+    Object.keys(legOverrides.leftSegments).length > 0;
+  const hasRight =
+    legOverrides.rightSegments != null &&
+    Object.keys(legOverrides.rightSegments).length > 0;
+  if (hasRight && !hasLeft) return "right";
+  return "left";
+}
 
 export function mergeFanoutOverridesIntoTubes(
   visualCables: VisualCable[],
@@ -50,14 +61,25 @@ export function applyLegOverridesToEdge(
   if (!leftPath || !rightPath) return edge;
 
   const template = routeTemplateForHandles(sourceX, sourceY, targetX, targetY);
+  const preserveSplice =
+    Number.isFinite(Number(data.spliceX)) && Number.isFinite(Number(data.spliceY))
+      ? { x: Number(data.spliceX), y: Number(data.spliceY) }
+      : undefined;
   let { left, right } = legSegmentsFromPaths(leftPath, rightPath);
 
-  left = applyStoredSegmentOverrides(left, legOverrides.leftSegments, template, "left");
+  left = applyStoredSegmentOverrides(
+    left,
+    legOverrides.leftSegments,
+    template,
+    "left",
+    preserveSplice,
+  );
   right = applyStoredSegmentOverrides(
     right,
     legOverrides.rightSegments,
     template,
     "right",
+    preserveSplice,
   );
 
   const spliceStart = parseOrthogonalPathPoints(rightPath)[0] ?? {
@@ -67,10 +89,15 @@ export function applyLegOverridesToEdge(
 
   const nextLeft = segmentsToPath(left, { x: sourceX, y: sourceY });
   const nextRight = segmentsToPath(right, spliceStart);
-  const connected = finalizeConnectedLegPaths(nextLeft, nextRight, "left", {
-    source: { x: sourceX, y: sourceY },
-    target: { x: targetX, y: targetY },
-  });
+  const connected = reconnectEditedLegPaths(
+    nextLeft,
+    nextRight,
+    primaryEditedSide(legOverrides),
+    {
+      handles: { source: { x: sourceX, y: sourceY }, target: { x: targetX, y: targetY } },
+      preserveSplice,
+    },
+  );
   const splicePoint = {
     x: connected.spliceX,
     y: connected.spliceY,
@@ -104,16 +131,17 @@ function applyStoredSegmentOverrides(
   overrides: Record<number, { dx?: number; dy?: number }> | undefined,
   template: ReturnType<typeof routeTemplateForHandles>,
   side: LegSide,
+  splice?: { x: number; y: number },
 ): LegSegment[] {
   if (!overrides) return segments;
   let next = segments;
   for (const [indexRaw, patch] of Object.entries(overrides)) {
     const index = Number(indexRaw);
     if (patch.dx) {
-      next = applySegmentDelta(next, index, "horizontal", patch.dx, template, side);
+      next = applySegmentDelta(next, index, "horizontal", patch.dx, template, side, splice);
     }
     if (patch.dy) {
-      next = applySegmentDelta(next, index, "vertical", patch.dy, template, side);
+      next = applySegmentDelta(next, index, "vertical", patch.dy, template, side, splice);
     }
   }
   return next;
@@ -125,6 +153,7 @@ export function applyAllLegOverrides(
   nodes?: Node[],
   graph?: ConnectionGraph,
 ): Edge[] {
+  if (overrides?.autoAdjustEnabled !== false) return edges;
   const legMap = overrides?.legOverrides;
   if (!legMap) return edges;
   return edges.map((edge) => {

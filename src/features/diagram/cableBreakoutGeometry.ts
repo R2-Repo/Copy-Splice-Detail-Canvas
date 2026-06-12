@@ -5,12 +5,12 @@ import {
 import type { VisualTube } from "@/features/diagram/visualCables";
 import type { FiberColorAbbrev, TubeColorCode } from "@/types/splice";
 
-/** Cable rectangle — uniform scale preserves base aspect ratio (96×46). */
+/** Cable rectangle — uniform scale preserves base aspect ratio (82×39). */
 export const SHEATH_SIZE = {
-  baseWidth: 96,
-  baseHeight: 46,
-  minWidth: 84,
-  maxWidth: 132,
+  baseWidth: 82,
+  baseHeight: 39,
+  minWidth: 71,
+  maxWidth: 112,
   /** Size bump per buffer tube beyond the first (applied to both width and height). */
   tubeCountScale: 0.1,
 } as const;

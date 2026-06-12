@@ -33,6 +33,7 @@ import { computeSideCircuitLabelSpans } from "@/features/diagram/cableLabels";
 import {
   fusionDotCornerClearanceOk,
   fusionDotOnHorizontalSegment,
+  fusionDotVerticalLaneClearanceOk,
 } from "@/features/manualAdjust/constraints";
 // fusionDotOnHorizontalSegment used in DOT-001/003 checks
 import { importLayoutWidthForGraph } from "@/features/diagram/layoutSpliceDiagram";
@@ -166,6 +167,7 @@ export const LAYOUT_RULE_IDS = [
   "DOT-001",
   "DOT-002",
   "DOT-003",
+  "DOT-004",
   "STR-001",
 ] as const;
 
@@ -269,6 +271,11 @@ export const LAYOUT_RULES: LayoutRuleMeta[] = [
   {
     id: "DOT-003",
     title: "Fusion splice dots keep 48px clearance from leg corners",
+    category: "dot",
+  },
+  {
+    id: "DOT-004",
+    title: "Vertical leg lanes stay 48px clear of fusion splice dots",
     category: "dot",
   },
   { id: "STR-001", title: "Fiber strands fan toward canvas center", category: "strand" },
@@ -1230,6 +1237,59 @@ function fusionDotsCornerClearanceOk(ctx: LayoutRuleContext): boolean {
   return true;
 }
 
+function fusionDotsVerticalLaneClearanceOk(ctx: LayoutRuleContext): boolean {
+  const packed = buildRenderRoutingMap(ctx);
+  const sideSpans = sideCircuitSpanFromCtx(ctx);
+
+  for (const conn of orderedFiberConnections(ctx.graph)) {
+    if (conn.kind !== "fiber") continue;
+    const edge = spliceEdgeForConnection(ctx.reactFlow.edges, conn.id);
+    if (!edge) continue;
+    const edgeData = edge.data as { fullButtSplice?: boolean };
+    if (edgeData.fullButtSplice) continue;
+
+    const endpoints = spliceHandleEndpoints(ctx, conn);
+    if (!endpoints) continue;
+    const { sourceX, sourceY, targetX, targetY } = endpoints;
+    const lane = resolveCtxSpliceRouting(ctx, conn.id, endpoints, packed);
+    const built = buildSplicePath(
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+      lane.midX,
+      lane.jogX,
+      {
+        sourceHorizY: lane.sourceHorizY,
+        targetHorizY: lane.targetHorizY,
+        sourceBendX: lane.sourceBendX,
+        targetBendX: lane.targetBendX,
+      },
+      sideSpans,
+      ctx.layoutWidth / 2,
+      0,
+      0,
+      (edge.data as { tubeDotColumnX?: number }).tubeDotColumnX !== undefined
+        ? {
+            tubeDotColumnX: (edge.data as { tubeDotColumnX?: number })
+              .tubeDotColumnX,
+          }
+        : undefined,
+    );
+    if (
+      !fusionDotVerticalLaneClearanceOk(
+        built.spliceX,
+        built.spliceY,
+        built.leftPath,
+        built.rightPath,
+      )
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function bufferTubeDotsStackVertically(ctx: LayoutRuleContext): boolean {
   return findBufferTubeDotViolation(ctx) === undefined;
 }
@@ -2110,6 +2170,13 @@ export function checkLayoutRule(
         id,
         ok: fusionDotsCornerClearanceOk(ctx),
         detail: "Fusion splice dot is too close to a leg corner or not on a horizontal segment",
+      };
+    case "DOT-004":
+      return {
+        id,
+        ok: fusionDotsVerticalLaneClearanceOk(ctx),
+        detail:
+          "A vertical leg lane runs through or within 48px of a fusion splice dot row",
       };
     case "STR-001":
       return {

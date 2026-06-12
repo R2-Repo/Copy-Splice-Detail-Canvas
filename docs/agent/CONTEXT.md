@@ -13,16 +13,18 @@
 
 ## In scope NOW
 
+- **Cable sheath visuals** — ~15% smaller bordered cable box; black border; lighter inside label text (tube/fiber labels unchanged for now)
+- **Regression fix (2026-06-12)** — isolate near-splice leg segment drag from cable drag: `pinCableLegHandles` for manual cable sync; full rebuild on manual side flip; skip `legOverrides` in auto mode
 - **Toggle Auto/Manual** — flag + UI only; diagram unchanged until cable drag in Auto (or manual fan-out/leg edits in Manual)
 - **Auto-mode cable drag** — live drag uses `dragSync` (routing only); stack collision on drag stop
 - **Manual adjust** — `LayoutOverrides` v13; fixed **handle column**; fan-out/labels vertical drag; **direct leg segment drag** (invisible hit strips + axis cursor); shift+click + box marquee multi-select; DOT-003 (48px corner clearance); invalid leg commit reverts + banner
 - **Cable callouts** — toolbar on/off toggle; `calloutsVisible` in `LayoutOverrides`; text/positions kept when hidden
-- Visual re-test: import Example #2 → Manual adjust → fan-out drag, segment handles, multi-select
+- **Print to PDF (V1)** — toolbar button; browser print dialog → Save as PDF; WYSIWYG canvas export (not model-based vector PDF yet)
 - `test:ci` CSV path cleanup (`docs/reference/examples/old csv examples/`)
 
 ## Out of scope until stabilization complete
 
-- PDF export (callouts not embedded yet), PNG typography polish
+- Full PDF export (title block, pagination, model-based vector output), PNG typography polish
 - Y-track horizontal deconflict (disabled — strict ≤2 bends)
 - New npm dependencies
 
@@ -44,6 +46,8 @@ See [`RULE_PRIORITY.md`](./RULE_PRIORITY.md). EDGE-004 strict ≤2 bends; widen 
 | Auto cable drag | **`dragSync` during pointer move** | Skips collision until drag stop; `syncNodesEngineDragLayout` |
 | Tube overrides | **`vcId\|tubeColor` keys** | `visualShiftY` (fan-out shift); locked tubes skip auto TUB-008 |
 | Callouts | **One per cable node** | Fixed 200px width; dynamic height; straight leaders; discrete border anchors; `LayoutOverrides.callouts` v11 |
+| Print to PDF | **Browser print (V1)** | `src/features/export/`; fits viewport to diagram bounds; `@media print` landscape; restores viewport after print |
+| Cable sheath | **~15% smaller, black border** | `SHEATH_SIZE` in `cableBreakoutGeometry.ts`; CSS in `splice-diagram.css`; fiber pitch unchanged |
 | DOT-003 | **48px corner clearance** | Enforced on import; exempt tube dot columns + span &lt;96px |
 | EDGE-004 | **Max 2 bends always** | Demarcation at horizontal dot may reduce counted bends |
 

@@ -1,5 +1,5 @@
 import type { Edge, Node, OnNodeDrag } from "@xyflow/react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { fiberHandlePosition } from "@/features/canvas/edges/splicePathGeometry";
 import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
@@ -16,9 +16,9 @@ import {
 } from "./constraints";
 import {
   applySegmentDelta,
-  finalizeConnectedLegPaths,
   legSegmentsFromPaths,
   pathStartPoint,
+  reconnectEditedLegPaths,
   routeTemplateForHandles,
   segmentsToPath,
   type SegmentDragAxis,
@@ -183,45 +183,19 @@ export function useManualAdjustEngine({
     [edges],
   );
 
-  const onSegmentPointerDown = useCallback(
-    (
-      connectionId: string,
-      side: LegSide,
-      segmentIndex: number,
-      event: React.PointerEvent,
-    ) => {
-      if (!enabled) return;
-      event.stopPropagation();
-      event.preventDefault();
-      const axis = resolveSegmentAxis(event, side, segmentIndex, connectionId);
-      const ids = selection.connectionIds.has(connectionId)
-        ? [...selection.connectionIds]
-        : [connectionId];
-      const preDragPaths = new Map<string, ConnectionLegPathData>();
-      for (const id of ids) {
-        const snapshot = legPathDataFromEdges(getEdges(), id);
-        if (snapshot) preDragPaths.set(id, snapshot);
-      }
-      segmentDragRef.current = {
-        connectionIds: ids,
-        side,
-        segmentIndex,
-        axis,
-        startPointer: axis === "horizontal" ? event.clientX : event.clientY,
-        accumulatedDelta: 0,
-        baseOverrides: { ...(legOverrides ?? {}) },
-        preDragPaths,
-      };
-      (event.target as HTMLElement).setPointerCapture(event.pointerId);
-    },
-    [enabled, getEdges, legOverrides, resolveSegmentAxis, selection.connectionIds],
-  );
-
   const legDragRafRef = useRef<number | null>(null);
   const legDragPendingDeltaRef = useRef(0);
+  const segmentMoveListenerRef = useRef<(event: PointerEvent) => void>(() => {});
+  const segmentUpListenerRef = useRef<(event: PointerEvent) => void>(() => {});
+
+  const detachSegmentDragListeners = useCallback(() => {
+    window.removeEventListener("pointermove", segmentMoveListenerRef.current);
+    window.removeEventListener("pointerup", segmentUpListenerRef.current);
+    window.removeEventListener("pointercancel", segmentUpListenerRef.current);
+  }, []);
 
   const onSegmentPointerMove = useCallback(
-    (event: React.PointerEvent) => {
+    (event: React.PointerEvent | PointerEvent) => {
       const drag = segmentDragRef.current;
       if (!drag || !enabled) return;
       const pointer = drag.axis === "horizontal" ? event.clientX : event.clientY;
@@ -261,8 +235,9 @@ export function useManualAdjustEngine({
     [enabled, getNodes, getEdges, graph, setEdges, setNodes],
   );
 
-  const onSegmentPointerUp = useCallback(
-    (_event: React.PointerEvent) => {
+  const onSegmentPointerUpNative = useCallback(
+    (_event: PointerEvent) => {
+      detachSegmentDragListeners();
       const drag = segmentDragRef.current;
       if (!drag || !enabled) return;
       segmentDragRef.current = null;
@@ -283,6 +258,9 @@ export function useManualAdjustEngine({
       }
 
       if (blockedCode) {
+        // #region agent log
+        fetch('http://127.0.0.1:7692/ingest/76af12d0-a987-40d1-88e0-d22d15ff6bad',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c6eead'},body:JSON.stringify({sessionId:'c6eead',location:'useManualAdjustEngine.ts:commit',message:'segment commit blocked',data:{blockedCode,connectionIds:drag.connectionIds,accumulatedDelta:drag.accumulatedDelta},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
         const revertedEdges = applyLegPathSnapshots(
           currentEdges,
           drag.connectionIds,
@@ -314,6 +292,7 @@ export function useManualAdjustEngine({
       onLegOverridesCommit(nextOverrides);
     },
     [
+      detachSegmentDragListeners,
       enabled,
       getEdges,
       getNodes,
@@ -321,6 +300,72 @@ export function useManualAdjustEngine({
       onLegOverridesCommit,
       setEdges,
       setNodes,
+    ],
+  );
+
+  segmentMoveListenerRef.current = (event: PointerEvent) => {
+    onSegmentPointerMove(event);
+  };
+  segmentUpListenerRef.current = onSegmentPointerUpNative;
+
+  useEffect(
+    () => () => {
+      detachSegmentDragListeners();
+      if (legDragRafRef.current != null) {
+        cancelAnimationFrame(legDragRafRef.current);
+      }
+    },
+    [detachSegmentDragListeners],
+  );
+
+  const onSegmentPointerUp = useCallback(
+    (event: React.PointerEvent) => {
+      onSegmentPointerUpNative(event.nativeEvent);
+    },
+    [onSegmentPointerUpNative],
+  );
+
+  const onSegmentPointerDown = useCallback(
+    (
+      connectionId: string,
+      side: LegSide,
+      segmentIndex: number,
+      event: React.PointerEvent,
+    ) => {
+      if (!enabled) return;
+      event.stopPropagation();
+      event.preventDefault();
+      detachSegmentDragListeners();
+      const axis = resolveSegmentAxis(event, side, segmentIndex, connectionId);
+      const ids = selection.connectionIds.has(connectionId)
+        ? [...selection.connectionIds]
+        : [connectionId];
+      const preDragPaths = new Map<string, ConnectionLegPathData>();
+      for (const id of ids) {
+        const snapshot = legPathDataFromEdges(getEdges(), id);
+        if (snapshot) preDragPaths.set(id, snapshot);
+      }
+      segmentDragRef.current = {
+        connectionIds: ids,
+        side,
+        segmentIndex,
+        axis,
+        startPointer: axis === "horizontal" ? event.clientX : event.clientY,
+        accumulatedDelta: 0,
+        baseOverrides: { ...(legOverrides ?? {}) },
+        preDragPaths,
+      };
+      window.addEventListener("pointermove", segmentMoveListenerRef.current);
+      window.addEventListener("pointerup", segmentUpListenerRef.current);
+      window.addEventListener("pointercancel", segmentUpListenerRef.current);
+    },
+    [
+      detachSegmentDragListeners,
+      enabled,
+      getEdges,
+      legOverrides,
+      resolveSegmentAxis,
+      selection.connectionIds,
     ],
   );
 
@@ -473,6 +518,9 @@ function previewSegmentDrag(
       delta,
       template,
       drag.side,
+      Number.isFinite(Number(data.spliceX)) && Number.isFinite(Number(data.spliceY))
+        ? { x: Number(data.spliceX), y: Number(data.spliceY) }
+        : undefined,
     );
     const pathStart =
       drag.side === "left"
@@ -487,11 +535,18 @@ function previewSegmentDrag(
         ? segmentsToPath(updatedSegments, pathStart)
         : rightPathRaw;
 
-    const connected = finalizeConnectedLegPaths(
+    const connected = reconnectEditedLegPaths(
       nextLeft,
       nextRight,
       drag.side,
-      handles ?? undefined,
+      {
+        handles: handles ?? undefined,
+        preserveSplice:
+          Number.isFinite(Number(data.spliceX)) &&
+          Number.isFinite(Number(data.spliceY))
+            ? { x: Number(data.spliceX), y: Number(data.spliceY) }
+            : undefined,
+      },
     );
 
     for (const edgeId of [leftId, rightId]) {

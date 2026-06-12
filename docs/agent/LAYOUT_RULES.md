@@ -99,6 +99,7 @@ When EDGE rules conflict, see [`RULE_PRIORITY.md`](./RULE_PRIORITY.md) — EDGE-
 | **DOT-001** | Fusion dot lies on a **horizontal** splice-path segment (not a vertical segment). Default row: source fiber row (`sourceY` / `sourceHorizY`). |
 | **DOT-002** | Fibers sharing a **source buffer tube** (`visualCableId \| tubeColor`) use one **shared dot column X**; dot Y follows each fiber’s source handle row — vertically **stacked** at multiples of 24px (sparse tubes may skip unspliced fiber rows). Shared X prefers bundle `jogX` trunk when present. |
 | **DOT-003** | Fusion splice dot sits on a **horizontal** segment (**DOT-001**) and is **≥48px** along the path from the nearest leg **corner** (90° bend). Exempt: tube dot-column bundles (`DOT-002`) and paths whose horizontal span is &lt;96px. Manual segment moves must respect the same clearance (`constraints.ts`). |
+| **DOT-004** | No **vertical leg** lane may run through or within **≥48px horizontal** of a fusion splice dot on that row. Manual segment drag clamps at 48px and rejects commits that violate (`constraints.ts`, `DOT-004`). Distinct from **EDGE-009** (60px horizontal inset before vertical legs after OS labels). |
 
 ### Fiber strand direction (`STR`)
 

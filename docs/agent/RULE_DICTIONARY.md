@@ -112,6 +112,7 @@
 | **DOT-001** | Dot on horizontal | Fusion dot sits on a **horizontal** strand segment, not a vertical center leg. | Dots appear mid-way up a vertical lane. |
 | **DOT-002** | Tube dot column | Same **source buffer tube** splices share one dot **X**; dots **stack vertically** on each fiber row (24px). | Tube fibers’ dots scatter at different X values. |
 | **DOT-003** | Dot corner clearance | Fusion dot stays **≥48px** along the leg path from any **corner**; still on a horizontal segment (**DOT-001**). | Dot sits right on a bend or too close to a corner. |
+| **DOT-004** | Dot vertical lane clearance | No **vertical leg** may run through or within **48px horizontal** of the fusion dot on that row. | A center vertical leg crosses the dot or hugs it. **Not** the 60px OS-label inset (**EDGE-009**). |
 
 ---
 

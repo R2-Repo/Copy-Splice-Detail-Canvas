@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { FUSION_DOT_MIN_CORNER_CLEARANCE } from "@/features/canvas/edges/splicePathGeometry";
+import {
+  FUSION_DOT_MIN_CORNER_CLEARANCE,
+  FUSION_DOT_MIN_VERTICAL_LANE_CLEARANCE,
+} from "@/features/canvas/edges/splicePathGeometry";
 
 import {
+  distanceVerticalSegmentsToFusionDot,
   fusionDotCornerClearanceOk,
   fusionDotOnHorizontalSegment,
+  fusionDotVerticalLaneClearanceOk,
   legCommitBlockedMessage,
   validateLegPaths,
 } from "./constraints";
@@ -36,5 +41,39 @@ describe("DOT-003 fusion dot constraints", () => {
     const rightPath = "M 300,80 L 500,80";
     expect(validateLegPaths(leftPath, rightPath, 300, 80)).toBe("EDGE-004");
     expect(legCommitBlockedMessage("EDGE-004")).toContain("2-corner");
+  });
+});
+
+describe("DOT-004 vertical lane clearance", () => {
+  it("requires 48px vertical lane clearance constant", () => {
+    expect(FUSION_DOT_MIN_VERTICAL_LANE_CLEARANCE).toBe(48);
+  });
+
+  it("rejects vertical leg through fusion dot row", () => {
+    const leftPath = "M 100,80 L 300,80";
+    const rightPath = "M 300,80 L 300,200 L 500,200";
+    expect(
+      fusionDotVerticalLaneClearanceOk(300, 80, leftPath, rightPath),
+    ).toBe(false);
+    expect(validateLegPaths(leftPath, rightPath, 300, 80)).toBe("DOT-004");
+    expect(legCommitBlockedMessage("DOT-004")).toContain("48px");
+  });
+
+  it("rejects vertical leg within 48px of dot on same row", () => {
+    const leftPath = "M 100,80 L 300,80";
+    const rightPath = "M 300,80 L 340,80 L 340,200 L 500,200";
+    expect(distanceVerticalSegmentsToFusionDot(300, 80, [
+      { kind: "v", index: 2, x: 340, y0: 80, y1: 200 },
+    ])).toBe(40);
+    expect(validateLegPaths(leftPath, rightPath, 300, 80)).toBe("DOT-004");
+  });
+
+  it("accepts vertical leg at least 48px from dot", () => {
+    const leftPath = "M 100,80 L 300,80";
+    const rightPath = "M 300,80 L 360,80 L 360,200 L 500,200";
+    expect(
+      fusionDotVerticalLaneClearanceOk(300, 80, leftPath, rightPath),
+    ).toBe(true);
+    expect(validateLegPaths(leftPath, rightPath, 300, 80)).toBeNull();
   });
 });

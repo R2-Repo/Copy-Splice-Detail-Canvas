@@ -5,6 +5,7 @@ import { SPLICE_LANE_SEP } from "@/features/diagram/cableLayoutMetrics";
 import {
   fusionDotCornerClearanceOk,
   fusionDotOnHorizontalSegment,
+  fusionDotVerticalLaneClearanceOk,
   pathsWithinBendBudget,
 } from "@/features/manualAdjust/constraints";
 import { pathToLegSegments } from "@/features/manualAdjust/legSegments";
@@ -15,7 +16,8 @@ export type ManualLayoutWarningCode =
   | "EDGE-004"
   | "EDGE-012"
   | "DOT-001"
-  | "DOT-003";
+  | "DOT-003"
+  | "DOT-004";
 
 export type ManualLayoutWarning = {
   connectionId: string;
@@ -128,6 +130,16 @@ export function manualLayoutWarningsForConnections(
       });
     }
 
+    if (
+      !fusionDotVerticalLaneClearanceOk(spliceX, spliceY, leftPath, rightPath)
+    ) {
+      warnings.push({
+        connectionId,
+        code: "DOT-004",
+        message: `${connectionId}: vertical leg within 48px of fusion dot`,
+      });
+    }
+
     laneXsByConnection.push({
       connectionId,
       xs: verticalLaneXsFromPaths(leftPath, rightPath),
@@ -176,6 +188,7 @@ export function formatManualLayoutWarningBanner(
   const edge012 = warnings.filter((w) => w.code === "EDGE-012").length;
   const dot001 = warnings.filter((w) => w.code === "DOT-001").length;
   const dot003 = warnings.filter((w) => w.code === "DOT-003").length;
+  const dot004 = warnings.filter((w) => w.code === "DOT-004").length;
   const parts: string[] = [];
   if (edge004 > 0) {
     parts.push(
@@ -195,6 +208,11 @@ export function formatManualLayoutWarningBanner(
   if (dot003 > 0) {
     parts.push(
       `${dot003} fusion dot${dot003 === 1 ? "" : "s"} too close to corner`,
+    );
+  }
+  if (dot004 > 0) {
+    parts.push(
+      `${dot004} vertical leg${dot004 === 1 ? "" : "s"} too close to fusion dot`,
     );
   }
   return `${parts.join("; ")} — manual override kept`;

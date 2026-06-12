@@ -136,4 +136,21 @@ describe("applyAllLegOverrides refresh contract", () => {
     expect(data.leftPath).toBeTruthy();
     expect(data.leftPath).not.toBe(leftPath);
   });
+
+  it("skips leg overrides while auto adjust is enabled", () => {
+    const edges: Edge[] = [
+      {
+        id: "splice-left-conn1",
+        type: "splice",
+        data: { leftPath: "M 0,0", rightPath: "M 0,0" },
+      },
+    ];
+    const result = applyAllLegOverrides(edges, {
+      reportKey: "r",
+      positions: {},
+      autoAdjustEnabled: true,
+      legOverrides: { conn1: { leftSegments: { 2: { dx: 10 } } } },
+    });
+    expect(result).toBe(edges);
+  });
 });

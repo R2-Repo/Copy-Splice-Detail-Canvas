@@ -1,6 +1,6 @@
 import { Panel, useReactFlow, useViewport } from "@xyflow/react";
 import type { Edge, Node } from "@xyflow/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { ConnectionGraph } from "@/types/splice";
 
@@ -113,73 +113,93 @@ export function ManualAdjustOverlay({
     y1: number;
   } | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const panelOriginRef = useRef({ left: 0, top: 0 });
+
+  useLayoutEffect(() => {
+    const rect = overlayRef.current?.getBoundingClientRect();
+    if (rect) {
+      panelOriginRef.current = { left: rect.left, top: rect.top };
+    }
+  });
 
   const flowToPanelLocal = useCallback(
     (flowX: number, flowY: number) => {
       const screen = flowToScreenPosition({ x: flowX, y: flowY });
-      const origin = overlayRef.current?.getBoundingClientRect();
+      const origin = panelOriginRef.current;
       return {
-        x: screen.x - (origin?.left ?? 0),
-        y: screen.y - (origin?.top ?? 0),
+        x: screen.x - origin.left,
+        y: screen.y - origin.top,
       };
     },
     [flowToScreenPosition, viewport.x, viewport.y, viewport.zoom],
   );
 
-  const spliceEdges = edges.filter(
-    (e) =>
-      e.type === "splice" &&
-      (e.id.startsWith("splice-left-") || e.id.startsWith("splice-right-")),
-  );
-  const connIds = new Set<string>();
-  for (const edge of spliceEdges) {
-    connIds.add(edge.id.replace(/^splice-(?:left|right)-/, ""));
-  }
+  const draggableSegments = useMemo(() => {
+    if (!enabled || !graph) return [];
 
-  const draggableSegments: DraggableSegment[] = [];
-
-  for (const connectionId of connIds) {
-    if (!graph) continue;
-    const leftEdge = edges.find((e) => e.id === `splice-left-${connectionId}`);
-    const leftData = (leftEdge?.data ?? {}) as {
-      leftPath?: string;
-      rightPath?: string;
-      sourceX?: number;
-      sourceY?: number;
-      targetX?: number;
-      targetY?: number;
-    };
-    const leftPath = String(leftData.leftPath ?? "");
-    const rightPath = String(leftData.rightPath ?? "");
-    if (!leftPath || !rightPath) continue;
-
-    const handles = handleCoordsForConnection(connectionId, nodes, graph);
-    if (!handles) continue;
-    const template = routeTemplateForHandles(
-      handles.source.x,
-      handles.source.y,
-      handles.target.x,
-      handles.target.y,
+    const spliceEdges = edges.filter(
+      (e) =>
+        e.type === "splice" &&
+        (e.id.startsWith("splice-left-") || e.id.startsWith("splice-right-")),
     );
-    const { left, right } = legSegmentsFromPaths(leftPath, rightPath);
+    const connIds = new Set<string>();
+    for (const edge of spliceEdges) {
+      connIds.add(edge.id.replace(/^splice-(?:left|right)-/, ""));
+    }
 
-    for (const side of ["left", "right"] as const) {
-      const segments = side === "left" ? left : right;
-      for (const seg of segments) {
-        const axes = allowedSegmentAxes(template, side, seg, segments.length);
-        if (axes.length === 0) continue;
-        draggableSegments.push({
-          key: `${connectionId}-${side}-${seg.index}`,
-          connectionId,
-          side,
-          segmentIndex: seg.index,
-          segment: seg,
-          axes,
-          cursor: cursorForAxes(seg, axes),
-        });
+    const items: DraggableSegment[] = [];
+    for (const connectionId of connIds) {
+      const leftEdge = edges.find((e) => e.id === `splice-left-${connectionId}`);
+      const leftData = (leftEdge?.data ?? {}) as {
+        leftPath?: string;
+        rightPath?: string;
+        spliceY?: number;
+      };
+      const leftPath = String(leftData.leftPath ?? "");
+      const rightPath = String(leftData.rightPath ?? "");
+      if (!leftPath || !rightPath) continue;
+
+      const handles = handleCoordsForConnection(connectionId, nodes, graph);
+      if (!handles) continue;
+      const template = routeTemplateForHandles(
+        handles.source.x,
+        handles.source.y,
+        handles.target.x,
+        handles.target.y,
+      );
+      const { left, right } = legSegmentsFromPaths(leftPath, rightPath);
+      const spliceX = Number(leftData.spliceX ?? NaN);
+      const spliceY = Number(leftData.spliceY ?? NaN);
+      const splice =
+        Number.isFinite(spliceX) && Number.isFinite(spliceY)
+          ? { x: spliceX, y: spliceY }
+          : undefined;
+
+      for (const side of ["left", "right"] as const) {
+        const segments = side === "left" ? left : right;
+        for (const seg of segments) {
+          const axes = allowedSegmentAxes(
+            template,
+            side,
+            seg,
+            segments.length,
+            splice,
+          );
+          if (axes.length === 0) continue;
+          items.push({
+            key: `${connectionId}-${side}-${seg.index}`,
+            connectionId,
+            side,
+            segmentIndex: seg.index,
+            segment: seg,
+            axes,
+            cursor: cursorForAxes(seg, axes),
+          });
+        }
       }
     }
-  }
+    return items;
+  }, [enabled, graph, edges, nodes]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -281,29 +301,6 @@ export function ManualAdjustOverlay({
                 item.segmentIndex,
                 event,
               );
-            }}
-            onPointerMove={(event) => {
-              if ((event.buttons & 1) === 0) return;
-              event.stopPropagation();
-              onSegmentPointerMove(event);
-            }}
-            onPointerUp={(event) => {
-              event.stopPropagation();
-              onSegmentPointerUp(event);
-              try {
-                event.currentTarget.releasePointerCapture(event.pointerId);
-              } catch {
-                // ignore
-              }
-            }}
-            onPointerCancel={(event) => {
-              event.stopPropagation();
-              onSegmentPointerUp(event);
-              try {
-                event.currentTarget.releasePointerCapture(event.pointerId);
-              } catch {
-                // ignore
-              }
             }}
           />
         ))}
