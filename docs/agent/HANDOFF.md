@@ -4,26 +4,27 @@
 
 ## Last updated
 
-2026-06-12 — V1 Print to PDF toolbar button (browser print).
+2026-06-12 — DOT-003 fusion dot corner clearance fix.
 
 ## Done
 
-- **`src/features/export/`** — `printDiagram.ts` (bounds, viewport fit, print orchestration), `usePrintDiagram.ts`, unit tests.
-- **Toolbar** — Print to PDF button (disabled until CSV import); printer icon; opens browser print → Save as PDF.
-- **Print CSS** — `body.printing-diagram` hides chrome, shows diagram stage, landscape `@page`, preserves callout colors when visible.
-- **Viewport restore** — saves/restores live viewport and document title on `afterprint`.
+- **DOT-003 measurement** — path-walking distance along left/right legs; removed &lt;96px span exemption and tube-bundle layout skip.
+- **Proactive placement** — `resolveFusionDotPosition` nudges dot 48px from `midX`/bend anchors; clearance-aware `reconcileBufferTubeDotColumns`; `buildSplicePath` post-check slides dot when needed.
+- **Manual drag** — live `clampVerticalLaneDeltaForCornerClearance` during vertical lane drag; removed debug `fetch` logs.
+- **Tests** — `constraints.test.ts` short-span regression; `spliceEdgeRouting.test.ts` DOT-003 build/column cases.
 
 ## Next
 
-- Manual QA: import Example #2 (`?fixture=example-2`) → Print to PDF → verify cables/splices/colors; toggle callouts → re-print; cancel print → confirm viewport restores.
-- Visual re-test: Example #2 → Manual → drag vertical leg at fusion dot ↔; drag cable (same side, no flip).
+- Manual QA: `?fixture=example-2` → confirm fusion dots are visibly separated from corners on import; Manual → drag vertical leg near dot (live stop + commit rejection).
+- Run full verify when npm available: `npm run test:layout`, `npm run check`, `npm run test:ci`, `npm run build`.
 
 ## Commands verified
 
 ```bash
-npm run test:layout   # 3/3 pass
-npm run check
-npx vitest run src/features/export/printDiagram.test.ts   # 6/6 pass
-npm run test:ci       # 183/183 pass
-npm run build
+npm run check          # pass
+npm run build          # pass
+npm run test:layout    # 112/114 pass — Example #2 EDGE-010 only (pre-existing)
+npx vitest run src/features/manualAdjust/constraints.test.ts  # pass
 ```
+
+Pre-existing failures unchanged: Example #2 `EDGE-010`, `packMidXLanes` / `assignSpliceRoutingLanes` unit tests in `spliceEdgeRouting.test.ts`.

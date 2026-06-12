@@ -431,6 +431,90 @@ export function countOrthogonalBends(...paths: string[]): number {
   return bends;
 }
 
+function manhattanPathDist(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): number {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+function isOrthogonalPathCorner(
+  prev: { x: number; y: number },
+  mid: { x: number; y: number },
+  next: { x: number; y: number },
+): boolean {
+  const dx1 = mid.x - prev.x;
+  const dy1 = mid.y - prev.y;
+  const dx2 = next.x - mid.x;
+  const dy2 = next.y - mid.y;
+  if (Math.abs(dx1) <= SPLICE_PATH_EPS && Math.abs(dy1) <= SPLICE_PATH_EPS) {
+    return false;
+  }
+  if (Math.abs(dx2) <= SPLICE_PATH_EPS && Math.abs(dy2) <= SPLICE_PATH_EPS) {
+    return false;
+  }
+  const horiz1 = Math.abs(dy1) <= SPLICE_PATH_EPS;
+  const horiz2 = Math.abs(dy2) <= SPLICE_PATH_EPS;
+  const vert1 = Math.abs(dx1) <= SPLICE_PATH_EPS;
+  const vert2 = Math.abs(dx2) <= SPLICE_PATH_EPS;
+  return (horiz1 && vert2) || (vert1 && horiz2);
+}
+
+/** DOT-003: Manhattan distance along a leg path from the fusion dot to the nearest corner. */
+export function pathDistanceToNearestCorner(
+  path: string,
+  direction: "backward" | "forward",
+): number {
+  const points = parseOrthogonalPathPoints(path);
+  if (points.length < 3) return Infinity;
+
+  if (direction === "backward") {
+    let dist = 0;
+    for (let i = points.length - 1; i > 0; i--) {
+      dist += manhattanPathDist(points[i]!, points[i - 1]!);
+      if (
+        i - 2 >= 0 &&
+        isOrthogonalPathCorner(points[i - 2]!, points[i - 1]!, points[i]!)
+      ) {
+        return dist;
+      }
+    }
+    return Infinity;
+  }
+
+  let dist = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    dist += manhattanPathDist(points[i]!, points[i + 1]!);
+    if (
+      i + 2 < points.length &&
+      isOrthogonalPathCorner(points[i]!, points[i + 1]!, points[i + 2]!)
+    ) {
+      return dist;
+    }
+  }
+  return Infinity;
+}
+
+export function pathCornerClearanceFromFusionDot(
+  leftPath: string,
+  rightPath: string,
+): number {
+  return Math.min(
+    pathDistanceToNearestCorner(leftPath, "backward"),
+    pathDistanceToNearestCorner(rightPath, "forward"),
+  );
+}
+
+export function fusionDotCornerClearanceFromPaths(
+  leftPath: string,
+  rightPath: string,
+): boolean {
+  return (
+    pathCornerClearanceFromFusionDot(leftPath, rightPath) >=
+    FUSION_DOT_MIN_CORNER_CLEARANCE
+  );
+}
+
 function inwardAnchorFromColumn(
   columnX: number,
   diagramCenterX: number,
@@ -603,12 +687,26 @@ export function buildSplicePath(
     );
     const leftPath = `M ${sourceX},${sourceY} L ${spliceX},${spliceY}`;
     const rightPath = `M ${spliceX},${spliceY} L ${targetX},${targetY}`;
-    return {
+    const straight = {
       leftPath,
       rightPath,
       spliceX,
       spliceY,
-      bendCount: countOrthogonalBends(leftPath, rightPath),
+    };
+    const cleared = ensureFusionDotCornerClearance(
+      straight,
+      sourceX,
+      midX,
+      jogX,
+      diagramCenterX,
+      sideSpans,
+      sourceTagWidth,
+      sideHoriz?.sourceBendX,
+      options,
+    );
+    return {
+      ...cleared,
+      bendCount: countOrthogonalBends(cleared.leftPath, cleared.rightPath),
       template,
     };
   }
@@ -627,9 +725,20 @@ export function buildSplicePath(
     targetTagWidth,
     options,
   );
+  const cleared = ensureFusionDotCornerClearance(
+    demarcated,
+    sourceX,
+    midX,
+    jogX,
+    diagramCenterX,
+    sideSpans,
+    sourceTagWidth,
+    sideHoriz?.sourceBendX,
+    options,
+  );
   return {
-    ...demarcated,
-    bendCount: countOrthogonalBends(demarcated.leftPath, demarcated.rightPath),
+    ...cleared,
+    bendCount: countOrthogonalBends(cleared.leftPath, cleared.rightPath),
     template,
   };
 }
@@ -894,6 +1003,185 @@ export type FusionDotOptions = {
   tubeDotColumnX?: number;
 };
 
+/** Corner X anchors the fusion dot must keep 48px from on the dot-row horizontal. */
+export function fusionDotCornerAnchorXs(
+  sourceX: number,
+  midX: number,
+  jogX: number | undefined,
+  diagramCenterX: number,
+  sideSpans: SideCircuitLabelSpan = defaultSideCircuitLabelSpan(),
+  sourceTagWidth = 0,
+  sourceBendX?: number,
+): number[] {
+  const inward =
+    inwardSignForColumn(sourceX, diagramCenterX) > 0 ? (1 as const) : (-1 as const);
+  const anchors = new Set<number>([midX]);
+  const rawSourceClearX =
+    sourceBendX !== undefined && Number.isFinite(sourceBendX)
+      ? sourceBendX
+      : inwardClearXBeforeVertical(
+          sourceX,
+          midX,
+          diagramCenterX,
+          sideSpans,
+          sourceTagWidth,
+        );
+  const sourceClearX =
+    inward > 0
+      ? Math.min(rawSourceClearX, midX)
+      : Math.max(rawSourceClearX, midX);
+  anchors.add(sourceClearX);
+  const trunkX = reconcileBundleJogXForRender(
+    midX,
+    jogX,
+    sourceX,
+    diagramCenterX,
+  );
+  if (trunkX !== undefined) anchors.add(trunkX);
+  return [...anchors];
+}
+
+export function fusionDotFeasibleXInterval(
+  sourceX: number,
+  midX: number,
+  anchors: number[],
+  inward: 1 | -1,
+  clearance = FUSION_DOT_MIN_CORNER_CLEARANCE,
+): { lo: number; hi: number } {
+  let lo = -Infinity;
+  let hi = Infinity;
+  if (inward > 0) {
+    hi = Math.min(hi, midX - clearance);
+    lo = Math.max(lo, sourceX);
+    for (const anchor of anchors) {
+      if (anchor < midX - SPLICE_PATH_EPS) {
+        lo = Math.max(lo, anchor + clearance);
+      }
+    }
+  } else {
+    lo = Math.max(lo, midX + clearance);
+    hi = Math.min(hi, sourceX);
+    for (const anchor of anchors) {
+      if (anchor > midX + SPLICE_PATH_EPS) {
+        hi = Math.min(hi, anchor - clearance);
+      }
+    }
+  }
+  if (lo > hi) {
+    const fallback = inward > 0 ? hi : lo;
+    return { lo: fallback, hi: fallback };
+  }
+  return { lo, hi };
+}
+
+export function clampFusionDotXToFeasibleInterval(
+  dotX: number,
+  interval: { lo: number; hi: number },
+): number {
+  if (interval.lo > interval.hi) {
+    return Math.abs(dotX - interval.lo) <= Math.abs(dotX - interval.hi)
+      ? interval.lo
+      : interval.hi;
+  }
+  return Math.max(interval.lo, Math.min(interval.hi, dotX));
+}
+
+function orthogonalPathFromPoints(
+  points: Array<{ x: number; y: number }>,
+): string {
+  if (points.length === 0) return "";
+  return points
+    .map((point, index) =>
+      index === 0
+        ? `M ${point.x},${point.y}`
+        : `L ${point.x},${point.y}`,
+    )
+    .join(" ");
+}
+
+function adjustSplicePathsForDotX(
+  leftPath: string,
+  rightPath: string,
+  spliceY: number,
+  newSpliceX: number,
+): {
+  leftPath: string;
+  rightPath: string;
+  spliceX: number;
+  spliceY: number;
+} {
+  const leftPts = parseOrthogonalPathPoints(leftPath);
+  const rightPts = parseOrthogonalPathPoints(rightPath);
+  if (leftPts.length > 0) {
+    leftPts[leftPts.length - 1] = { x: newSpliceX, y: spliceY };
+  }
+  if (rightPts.length > 0) {
+    rightPts[0] = { x: newSpliceX, y: spliceY };
+  }
+  return {
+    leftPath: orthogonalPathFromPoints(leftPts),
+    rightPath: orthogonalPathFromPoints(rightPts),
+    spliceX: newSpliceX,
+    spliceY,
+  };
+}
+
+function ensureFusionDotCornerClearance(
+  result: {
+    leftPath: string;
+    rightPath: string;
+    spliceX: number;
+    spliceY: number;
+  },
+  sourceX: number,
+  midX: number,
+  jogX: number | undefined,
+  diagramCenterX: number,
+  sideSpans: SideCircuitLabelSpan,
+  sourceTagWidth: number,
+  sourceBendX?: number,
+  options?: FusionDotOptions,
+): {
+  leftPath: string;
+  rightPath: string;
+  spliceX: number;
+  spliceY: number;
+} {
+  if (fusionDotCornerClearanceFromPaths(result.leftPath, result.rightPath)) {
+    return result;
+  }
+  if (options?.tubeDotColumnX !== undefined) {
+    return result;
+  }
+  const inward = inwardSignForColumn(sourceX, diagramCenterX);
+  const anchors = fusionDotCornerAnchorXs(
+    sourceX,
+    midX,
+    jogX,
+    diagramCenterX,
+    sideSpans,
+    sourceTagWidth,
+    sourceBendX,
+  );
+  const interval = fusionDotFeasibleXInterval(sourceX, midX, anchors, inward);
+  const newX = clampFusionDotXToFeasibleInterval(result.spliceX, interval);
+  if (Math.abs(newX - result.spliceX) <= SPLICE_PATH_EPS) {
+    return result;
+  }
+  const adjusted = adjustSplicePathsForDotX(
+    result.leftPath,
+    result.rightPath,
+    result.spliceY,
+    newX,
+  );
+  if (
+    !fusionDotCornerClearanceFromPaths(adjusted.leftPath, adjusted.rightPath)
+  ) {
+    return result;
+  }
+  return adjusted;
+}
+
 /** DOT-001: fusion dot on the source-side horizontal row before center vertical fan-out. */
 export function resolveFusionDotPosition(
   sourceX: number,
@@ -906,24 +1194,44 @@ export function resolveFusionDotPosition(
     SpliceRoutingLane,
     "sourceHorizY" | "targetHorizY" | "sourceBendX" | "targetBendX"
   >,
-  _sideSpans: SideCircuitLabelSpan = defaultSideCircuitLabelSpan(),
+  sideSpans: SideCircuitLabelSpan = defaultSideCircuitLabelSpan(),
   diagramCenterX = (sourceX + targetX) / 2,
-  _sourceTagWidth = 0,
+  sourceTagWidth = 0,
   options?: FusionDotOptions,
 ): { spliceX: number; spliceY: number } {
   const sourceHorizY = sideHoriz?.sourceHorizY ?? sourceY;
-  if (options?.tubeDotColumnX !== undefined) {
-    return { spliceX: options.tubeDotColumnX, spliceY: sourceHorizY };
-  }
-
+  const inward = inwardSignForColumn(sourceX, diagramCenterX);
   const trunkX = reconcileBundleJogXForRender(
     midX,
     jogX,
     sourceX,
     diagramCenterX,
   );
-  const dotX = trunkX ?? midX;
-  return { spliceX: dotX, spliceY: sourceHorizY };
+  const preferredX =
+    options?.tubeDotColumnX !== undefined
+      ? options.tubeDotColumnX
+      : (trunkX ?? midX);
+  if (options?.tubeDotColumnX !== undefined) {
+    return { spliceX: preferredX, spliceY: sourceHorizY };
+  }
+  const straightRow =
+    Math.abs(sourceY - _targetY) <= SPLICE_PATH_EPS &&
+    Math.abs(sourceHorizY - sourceY) <= SPLICE_PATH_EPS;
+  if (straightRow) {
+    return { spliceX: preferredX, spliceY: sourceHorizY };
+  }
+  const anchors = fusionDotCornerAnchorXs(
+    sourceX,
+    midX,
+    jogX,
+    diagramCenterX,
+    sideSpans,
+    sourceTagWidth,
+    sideHoriz?.sourceBendX,
+  );
+  const interval = fusionDotFeasibleXInterval(sourceX, midX, anchors, inward);
+  const spliceX = clampFusionDotXToFeasibleInterval(preferredX, interval);
+  return { spliceX, spliceY: sourceHorizY };
 }
 
 export function fusionDotLiesOnHorizontal(
@@ -981,8 +1289,15 @@ export function reconcileBufferTubeDotColumns(
   for (const members of byGroup.values()) {
     if (members.length < 2) continue;
 
-    const preferred = members.map(({ entry, lane }) =>
-      resolveFusionDotPosition(
+    const anchorEntry = members[0]!.entry;
+    const inward = inwardSignForColumn(anchorEntry.sourceX, diagramCenterX);
+
+    let lo = -Infinity;
+    let hi = Infinity;
+    const preferred: number[] = [];
+
+    for (const { entry, lane } of members) {
+      const pos = resolveFusionDotPosition(
         entry.sourceX,
         entry.sourceY,
         entry.targetX,
@@ -998,8 +1313,26 @@ export function reconcileBufferTubeDotColumns(
         entry.sideCircuitSpan ?? sideSpans,
         diagramCenterX,
         entry.sourceTagWidth ?? 0,
-      ).spliceX,
-    );
+      );
+      preferred.push(pos.spliceX);
+      const anchors = fusionDotCornerAnchorXs(
+        entry.sourceX,
+        lane.midX,
+        lane.jogX,
+        diagramCenterX,
+        entry.sideCircuitSpan ?? sideSpans,
+        entry.sourceTagWidth ?? 0,
+        lane.sourceBendX,
+      );
+      const interval = fusionDotFeasibleXInterval(
+        entry.sourceX,
+        lane.midX,
+        anchors,
+        inward,
+      );
+      lo = Math.max(lo, interval.lo);
+      hi = Math.min(hi, interval.hi);
+    }
 
     const trunks = members
       .map(({ entry, lane }) =>
@@ -1012,18 +1345,67 @@ export function reconcileBufferTubeDotColumns(
       )
       .filter((x): x is number => x !== undefined);
 
-    let unified: number;
-    if (
+    const trunkPreferred =
       trunks.length === members.length &&
       trunks.every((x) => Math.abs(x - trunks[0]!) <= SPLICE_PATH_EPS)
-    ) {
-      unified = trunks[0]!;
-    } else {
-      const anchor = members[0]!.entry;
-      const inward = inwardSignForColumn(anchor.sourceX, diagramCenterX);
-      // Least-inward X shared by every member's source horizontal span.
-      unified =
-        inward > 0 ? Math.min(...preferred) : Math.max(...preferred);
+        ? trunks[0]!
+        : inward > 0
+          ? Math.min(...preferred)
+          : Math.max(...preferred);
+
+    let unified = trunkPreferred;
+    for (const { entry, lane } of members) {
+      const anchors = fusionDotCornerAnchorXs(
+        entry.sourceX,
+        lane.midX,
+        lane.jogX,
+        diagramCenterX,
+        entry.sideCircuitSpan ?? sideSpans,
+        entry.sourceTagWidth ?? 0,
+        lane.sourceBendX,
+      );
+      const interval = fusionDotFeasibleXInterval(
+        entry.sourceX,
+        lane.midX,
+        anchors,
+        inward,
+      );
+      unified = clampFusionDotXToFeasibleInterval(unified, interval);
+    }
+
+    if (lo <= hi) {
+      unified = clampFusionDotXToFeasibleInterval(unified, { lo, hi });
+    }
+
+    let worstClearance = Infinity;
+    for (const { entry, lane } of members) {
+      const built = buildSplicePath(
+        entry.sourceX,
+        entry.sourceY,
+        entry.targetX,
+        entry.targetY,
+        lane.midX,
+        lane.jogX,
+        {
+          sourceHorizY: lane.sourceHorizY,
+          targetHorizY: lane.targetHorizY,
+          sourceBendX: lane.sourceBendX,
+          targetBendX: lane.targetBendX,
+        },
+        entry.sideCircuitSpan ?? sideSpans,
+        diagramCenterX,
+        entry.sourceTagWidth ?? 0,
+        0,
+        { tubeDotColumnX: unified },
+      );
+      worstClearance = Math.min(
+        worstClearance,
+        pathCornerClearanceFromFusionDot(built.leftPath, built.rightPath),
+      );
+    }
+    if (worstClearance < FUSION_DOT_MIN_CORNER_CLEARANCE) {
+      const deficit = FUSION_DOT_MIN_CORNER_CLEARANCE - worstClearance;
+      unified = inward > 0 ? unified - deficit : unified + deficit;
     }
 
     for (const { id } of members) {

@@ -97,12 +97,12 @@ describe("createPrintDiagramHandler", () => {
         cb(0);
         return 1;
       },
-      addEventListener: (type, listener) => {
+      addEventListener: ((type: string, listener: EventListenerOrEventListenerObject) => {
         listeners.set(type, listener as EventListener);
-      },
-      removeEventListener: (type) => {
+      }) as typeof window.addEventListener,
+      removeEventListener: ((type: string) => {
         listeners.delete(type);
-      },
+      }) as typeof window.removeEventListener,
     });
 
     document.title = "Original title";

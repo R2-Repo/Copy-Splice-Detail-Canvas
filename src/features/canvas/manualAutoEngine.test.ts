@@ -141,6 +141,8 @@ describe("applyAllLegOverrides refresh contract", () => {
     const edges: Edge[] = [
       {
         id: "splice-left-conn1",
+        source: "fiberAnchor-vc::conn1",
+        target: "splicePoint-conn1",
         type: "splice",
         data: { leftPath: "M 0,0", rightPath: "M 0,0" },
       },

@@ -8,6 +8,7 @@ import {
 
 import {
   clampHorizontalLaneDeltaNearFusionDot,
+  clampVerticalLaneDeltaForCornerClearance,
   verticalSegmentSpansSpliceY,
 } from "./constraints";
 
@@ -452,9 +453,6 @@ export function reconnectEditedLegPaths(
     const anchor = options.preserveSplice;
     left = setPathEnd(left, anchor);
     right = setPathStart(right, anchor);
-    // #region agent log
-    fetch('http://127.0.0.1:7692/ingest/76af12d0-a987-40d1-88e0-d22d15ff6bad',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c6eead'},body:JSON.stringify({sessionId:'c6eead',location:'legSegments.ts:reconnectEditedLegPaths',message:'preserveSplice anchor',data:{anchor,editedSide},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
     return {
       leftPath: left,
       rightPath: right,
@@ -546,6 +544,12 @@ export function applySegmentDelta(
   if (axis === "horizontal" && seg.kind === "v") {
     if (splice) {
       delta = clampHorizontalLaneDeltaNearFusionDot(seg, delta, splice.x, splice.y);
+      delta = clampVerticalLaneDeltaForCornerClearance(
+        seg,
+        delta,
+        splice.x,
+        splice.y,
+      );
       if (Math.abs(delta) < 0.5) return segments;
     }
     if (template === "same_side" && segments.length <= 3) {

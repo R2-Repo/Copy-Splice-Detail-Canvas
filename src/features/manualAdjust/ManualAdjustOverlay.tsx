@@ -95,8 +95,8 @@ export function ManualAdjustOverlay({
   selection,
   onMarqueeComplete,
   onSegmentPointerDown,
-  onSegmentPointerMove,
-  onSegmentPointerUp,
+  onSegmentPointerMove: _onSegmentPointerMove,
+  onSegmentPointerUp: _onSegmentPointerUp,
 }: Props) {
   const { screenToFlowPosition, flowToScreenPosition } = useReactFlow();
   const viewport = useViewport();
@@ -153,6 +153,7 @@ export function ManualAdjustOverlay({
       const leftData = (leftEdge?.data ?? {}) as {
         leftPath?: string;
         rightPath?: string;
+        spliceX?: number;
         spliceY?: number;
       };
       const leftPath = String(leftData.leftPath ?? "");

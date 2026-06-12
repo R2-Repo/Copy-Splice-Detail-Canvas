@@ -48,7 +48,7 @@ See [`RULE_PRIORITY.md`](./RULE_PRIORITY.md). EDGE-004 strict ≤2 bends; widen 
 | Callouts | **One per cable node** | Fixed 200px width; dynamic height; straight leaders; discrete border anchors; `LayoutOverrides.callouts` v11 |
 | Print to PDF | **Browser print (V1)** | `src/features/export/`; fits viewport to diagram bounds; `@media print` landscape; restores viewport after print |
 | Cable sheath | **~15% smaller, black border** | `SHEATH_SIZE` in `cableBreakoutGeometry.ts`; CSS in `splice-diagram.css`; fiber pitch unchanged |
-| DOT-003 | **48px corner clearance** | Enforced on import; exempt tube dot columns + span &lt;96px |
+| DOT-003 | **48px corner clearance** | Path-walking distance on both legs; applies to all dots including tube bundles |
 | EDGE-004 | **Max 2 bends always** | Demarcation at horizontal dot may reduce counted bends |
 
 ## Known issues (ordered)

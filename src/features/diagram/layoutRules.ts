@@ -1215,14 +1215,6 @@ function fusionDotsCornerClearanceOk(ctx: LayoutRuleContext): boolean {
           }
         : undefined,
     );
-    const tubeDotColumnX = (edge.data as { tubeDotColumnX?: number })
-      .tubeDotColumnX;
-    if (
-      tubeDotColumnX !== undefined &&
-      Math.abs(built.spliceX - tubeDotColumnX) <= 1
-    ) {
-      continue;
-    }
     if (
       !fusionDotCornerClearanceOk(
         built.spliceX,

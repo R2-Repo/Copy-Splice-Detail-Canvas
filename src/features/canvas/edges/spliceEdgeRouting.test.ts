@@ -24,6 +24,8 @@ import {
   reconcileBufferTubeDotColumns,
   resolveFusionDotPosition,
   fusionDotLiesOnHorizontal,
+  pathCornerClearanceFromFusionDot,
+  FUSION_DOT_MIN_CORNER_CLEARANCE,
   clampMidXForMinHorizontalInset,
   defaultSideCircuitLabelSpan,
   effectiveRoutingLane,
@@ -218,22 +220,38 @@ describe("spliceEdgeRouting", () => {
       300,
     );
     const clearX = inwardClearXBeforeVertical(100, 300, 300, sideSpans);
-    expect(leftPath).toBe(`M 100,50 L ${clearX},50 L 300,50`);
-    expect(rightPath).toBe("M 300,50 L 300,125 L 300,200 L 500,200");
-    expect(spliceX).toBe(300);
+    const dotX = 300 - FUSION_DOT_MIN_CORNER_CLEARANCE;
+    expect(leftPath).toBe(
+      dotX < clearX ? `M 100,50 L ${dotX},50` : `M 100,50 L ${clearX},50 L ${dotX},50`,
+    );
+    expect(rightPath).toBe(
+      `M ${dotX},50 L ${clearX},50 L 300,50 L 300,125 L 300,200 L 500,200`,
+    );
+    expect(spliceX).toBe(dotX);
     expect(spliceY).toBe(50);
+    expect(
+      pathCornerClearanceFromFusionDot(leftPath, rightPath),
+    ).toBeGreaterThanOrEqual(FUSION_DOT_MIN_CORNER_CLEARANCE);
   });
 
   it("resolveFusionDotPosition places dot on source horizontal row (DOT-001)", () => {
     const sideSpans = defaultSideCircuitLabelSpan();
     const pos = resolveFusionDotPosition(100, 50, 500, 200, 300, undefined, undefined, sideSpans, 300);
     expect(pos.spliceY).toBe(50);
-    expect(pos.spliceX).toBe(300);
+    expect(pos.spliceX).toBe(300 - FUSION_DOT_MIN_CORNER_CLEARANCE);
     const segments = spliceRouteSegments(100, 50, 500, 200, 300, undefined, undefined, sideSpans, 300);
     expect(fusionDotLiesOnHorizontal(pos.spliceX, pos.spliceY, segments)).toBe(true);
   });
 
-  it("reconcileBufferTubeDotColumns shares jogX trunk X for source buffer tube (DOT-002)", () => {
+  it("buildSplicePath keeps fusion dot at least 48px from leg corners (DOT-003)", () => {
+    const sideSpans = defaultSideCircuitLabelSpan();
+    const built = buildSplicePath(100, 50, 500, 200, 300, 280, undefined, sideSpans, 300);
+    expect(
+      pathCornerClearanceFromFusionDot(built.leftPath, built.rightPath),
+    ).toBeGreaterThanOrEqual(FUSION_DOT_MIN_CORNER_CLEARANCE);
+  });
+
+  it("reconcileBufferTubeDotColumns shares one clearance-aware column per tube (DOT-002)", () => {
     const sourceX = 100;
     const targetX = 1100;
     const bundleKey = "vc-left|BL|vc-right";
@@ -264,10 +282,9 @@ describe("spliceEdgeRouting", () => {
       })),
     );
     const columns = reconcileBufferTubeDotColumns(entries, lanes, 600);
-    const jogA = lanes.get("a")!.jogX;
-    expect(jogA).toBeDefined();
-    expect(columns.get("a")).toBe(jogA);
-    expect(columns.get("b")).toBe(jogA);
+    const shared = columns.get("a");
+    expect(shared).toBeDefined();
+    expect(columns.get("b")).toBe(shared);
   });
 
   it("routes source-side gap horizontals on sourceHorizY offset track", () => {
@@ -275,7 +292,7 @@ describe("spliceEdgeRouting", () => {
     const sourceY = 100;
     const midX = 420;
     const sideSpans = defaultSideCircuitLabelSpan();
-    const { leftPath } = buildDemarcatedSplicePaths(
+    const { leftPath, spliceX } = buildDemarcatedSplicePaths(
       sourceX,
       sourceY,
       900,
@@ -294,9 +311,9 @@ describe("spliceEdgeRouting", () => {
     );
     expect(leftPath).toMatch(new RegExp(`^M ${sourceX},${sourceY} L ${clearX},${sourceY}`));
     expect(leftPath).toContain(`,124`);
-    expect(leftPath).toContain(`L ${midX},124`);
-    expect(leftPath).not.toMatch(new RegExp(`L ${midX},${sourceY}`));
-    expect(leftPath).not.toContain(`L ${midX},250`);
+    expect(leftPath).toContain(`L ${spliceX},124`);
+    expect(spliceX).toBeLessThanOrEqual(midX - FUSION_DOT_MIN_CORNER_CLEARANCE);
+    expect(spliceX).toBeLessThan(midX);
   });
 
   it("uses OS span for clearX when side labels are wide", () => {
@@ -391,7 +408,7 @@ describe("spliceEdgeRouting", () => {
       undefined,
       sideSpans,
       550,
-    ).leftPath;
+    );
     const pathB = buildDemarcatedSplicePaths(
       250,
       148,
@@ -402,9 +419,11 @@ describe("spliceEdgeRouting", () => {
       undefined,
       sideSpans,
       550,
-    ).leftPath;
-    expect(pathA).toContain(`L ${midA},100`);
-    expect(pathB).toContain(`L ${midB},148`);
+    );
+    expect(pathA.leftPath).toContain(`L ${pathA.spliceX},100`);
+    expect(pathB.leftPath).toContain(`L ${pathB.spliceX},148`);
+    expect(pathA.spliceX).toBeLessThanOrEqual(midA - FUSION_DOT_MIN_CORNER_CLEARANCE);
+    expect(pathB.spliceX).toBeLessThanOrEqual(midB - FUSION_DOT_MIN_CORNER_CLEARANCE);
   });
 
   it("spliceRouteSegments match demarcated paths (no vertical at handles)", () => {
@@ -460,7 +479,8 @@ describe("spliceEdgeRouting", () => {
     const result = buildSplicePath(handleX, 100, handleX, 400, midX);
     expect(result.template).toBe("same_side");
     expect(result.bendCount).toBeLessThanOrEqual(MAX_SPLICE_BENDS);
-    expect(result.leftPath).toContain(`L ${midX},100`);
+    expect(result.leftPath).toContain(`L ${result.spliceX},100`);
+    expect(result.spliceX).toBeLessThanOrEqual(midX - FUSION_DOT_MIN_CORNER_CLEARANCE);
     expect(
       horizontalInsetOkFromHandle(midX, handleX, 350, sideSpans),
     ).toBe(true);
@@ -480,7 +500,7 @@ describe("spliceEdgeRouting", () => {
     expect(result.template).toBe("same_side");
     expect(result.bendCount).toBeLessThanOrEqual(MAX_SPLICE_BENDS);
     expect(result.leftPath).toMatch(
-      new RegExp(`^M ${handleX},100 L ${midX},100$`),
+      new RegExp(`^M ${handleX},100 L ${result.spliceX},100$`),
     );
     expect(result.rightPath).toContain(`L ${midX},`);
   });

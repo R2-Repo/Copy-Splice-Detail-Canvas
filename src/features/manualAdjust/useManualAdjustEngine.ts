@@ -258,9 +258,6 @@ export function useManualAdjustEngine({
       }
 
       if (blockedCode) {
-        // #region agent log
-        fetch('http://127.0.0.1:7692/ingest/76af12d0-a987-40d1-88e0-d22d15ff6bad',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c6eead'},body:JSON.stringify({sessionId:'c6eead',location:'useManualAdjustEngine.ts:commit',message:'segment commit blocked',data:{blockedCode,connectionIds:drag.connectionIds,accumulatedDelta:drag.accumulatedDelta},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-        // #endregion
         const revertedEdges = applyLegPathSnapshots(
           currentEdges,
           drag.connectionIds,

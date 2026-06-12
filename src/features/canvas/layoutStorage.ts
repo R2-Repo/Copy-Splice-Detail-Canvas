@@ -55,7 +55,7 @@ function mergeOverrideMap<T extends Record<string, unknown>>(
 }
 
 export function calloutsShouldShow(
-  overrides?: LayoutOverrides,
+  overrides?: Pick<LayoutOverrides, "callouts" | "calloutsVisible">,
 ): boolean {
   if (overrides?.calloutsVisible === true) return true;
   if (overrides?.calloutsVisible === false) return false;
