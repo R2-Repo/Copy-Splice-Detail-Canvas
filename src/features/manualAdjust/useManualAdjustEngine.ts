@@ -10,6 +10,11 @@ import {
   applyLegOverridesToEdge,
 } from "./applyManualAdjust";
 import {
+  legCommitBlockedMessage,
+  validateLegPaths,
+  type LegPathValidationCode,
+} from "./constraints";
+import {
   applySegmentDelta,
   finalizeConnectedLegPaths,
   legSegmentsFromPaths,
@@ -28,6 +33,13 @@ import {
 } from "./selection";
 import type { LegSide, ManualAdjustSelection } from "./types";
 
+type ConnectionLegPathData = {
+  leftPath: string;
+  rightPath: string;
+  spliceX: number;
+  spliceY: number;
+};
+
 type SegmentDragState = {
   connectionIds: string[];
   side: LegSide;
@@ -36,6 +48,7 @@ type SegmentDragState = {
   startPointer: number;
   accumulatedDelta: number;
   baseOverrides: NonNullable<LayoutOverrides["legOverrides"]>;
+  preDragPaths: Map<string, ConnectionLegPathData>;
 };
 
 export type ManualAdjustEngine = {
@@ -75,6 +88,7 @@ export function useManualAdjustEngine({
   graph,
   legOverrides,
   onLegOverridesCommit,
+  onLegCommitBlocked,
   setEdges,
   setNodes,
   getNodes,
@@ -88,6 +102,7 @@ export function useManualAdjustEngine({
   onLegOverridesCommit: (
     legOverrides: LayoutOverrides["legOverrides"],
   ) => void;
+  onLegCommitBlocked?: (message: string) => void;
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   getNodes: () => Node[];
@@ -182,6 +197,11 @@ export function useManualAdjustEngine({
       const ids = selection.connectionIds.has(connectionId)
         ? [...selection.connectionIds]
         : [connectionId];
+      const preDragPaths = new Map<string, ConnectionLegPathData>();
+      for (const id of ids) {
+        const snapshot = legPathDataFromEdges(getEdges(), id);
+        if (snapshot) preDragPaths.set(id, snapshot);
+      }
       segmentDragRef.current = {
         connectionIds: ids,
         side,
@@ -190,10 +210,11 @@ export function useManualAdjustEngine({
         startPointer: axis === "horizontal" ? event.clientX : event.clientY,
         accumulatedDelta: 0,
         baseOverrides: { ...(legOverrides ?? {}) },
+        preDragPaths,
       };
       (event.target as HTMLElement).setPointerCapture(event.pointerId);
     },
-    [enabled, legOverrides, resolveSegmentAxis, selection.connectionIds],
+    [enabled, getEdges, legOverrides, resolveSegmentAxis, selection.connectionIds],
   );
 
   const legDragRafRef = useRef<number | null>(null);
@@ -247,6 +268,39 @@ export function useManualAdjustEngine({
       segmentDragRef.current = null;
       if (Math.abs(drag.accumulatedDelta) < 0.5) return;
 
+      const currentEdges = getEdges();
+      let blockedCode: LegPathValidationCode | null = null;
+      for (const connectionId of drag.connectionIds) {
+        const paths = legPathDataFromEdges(currentEdges, connectionId);
+        if (!paths) continue;
+        blockedCode = validateLegPaths(
+          paths.leftPath,
+          paths.rightPath,
+          paths.spliceX,
+          paths.spliceY,
+        );
+        if (blockedCode) break;
+      }
+
+      if (blockedCode) {
+        const revertedEdges = applyLegPathSnapshots(
+          currentEdges,
+          drag.connectionIds,
+          drag.preDragPaths,
+        );
+        const revertedNodes = syncSplicePointNodes(
+          getNodes(),
+          revertedEdges,
+          drag.connectionIds,
+        );
+        setEdges(revertedEdges);
+        if (revertedNodes !== getNodes()) {
+          setNodes(revertedNodes);
+        }
+        onLegCommitBlocked?.(legCommitBlockedMessage(blockedCode));
+        return;
+      }
+
       const nextOverrides = { ...drag.baseOverrides };
       for (const connectionId of drag.connectionIds) {
         nextOverrides[connectionId] = accumulateLegOverride(
@@ -259,7 +313,15 @@ export function useManualAdjustEngine({
       }
       onLegOverridesCommit(nextOverrides);
     },
-    [enabled, onLegOverridesCommit],
+    [
+      enabled,
+      getEdges,
+      getNodes,
+      onLegCommitBlocked,
+      onLegOverridesCommit,
+      setEdges,
+      setNodes,
+    ],
   );
 
   const onNodeDrag: OnNodeDrag<Node> = useCallback((_, node) => {
@@ -315,6 +377,59 @@ export function useManualAdjustEngine({
     onNodeDragStop,
     applyLegOverridesToEdges,
   };
+}
+
+function legPathDataFromEdges(
+  edges: Edge[],
+  connectionId: string,
+): ConnectionLegPathData | null {
+  const leftEdge = edges.find((e) => e.id === `splice-left-${connectionId}`);
+  if (!leftEdge) return null;
+  const data = (leftEdge.data ?? {}) as {
+    leftPath?: string;
+    rightPath?: string;
+    spliceX?: number;
+    spliceY?: number;
+  };
+  const leftPath = String(data.leftPath ?? "");
+  const rightPath = String(data.rightPath ?? "");
+  if (!leftPath || !rightPath) return null;
+  return {
+    leftPath,
+    rightPath,
+    spliceX: Number(data.spliceX ?? 0),
+    spliceY: Number(data.spliceY ?? 0),
+  };
+}
+
+function applyLegPathSnapshots(
+  edges: Edge[],
+  connectionIds: string[],
+  snapshots: Map<string, ConnectionLegPathData>,
+): Edge[] {
+  return edges.map((edge) => {
+    for (const connectionId of connectionIds) {
+      const snapshot = snapshots.get(connectionId);
+      if (!snapshot) continue;
+      if (
+        edge.id !== `splice-left-${connectionId}` &&
+        edge.id !== `splice-right-${connectionId}`
+      ) {
+        continue;
+      }
+      return {
+        ...edge,
+        data: {
+          ...(edge.data as Record<string, unknown>),
+          leftPath: snapshot.leftPath,
+          rightPath: snapshot.rightPath,
+          spliceX: snapshot.spliceX,
+          spliceY: snapshot.spliceY,
+        },
+      };
+    }
+    return edge;
+  });
 }
 
 function previewSegmentDrag(

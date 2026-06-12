@@ -1,9 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
-import { mergeLayoutOverrides } from "@/features/canvas/layoutStorage";
+import {
+  calloutsShouldShow,
+  mergeLayoutOverrides,
+  saveLayoutOverrides,
+} from "@/features/canvas/layoutStorage";
 import { LAYOUT_OVERRIDE_VERSION } from "@/types/splice";
 
 describe("mergeLayoutOverrides", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   it("merges autoAdjustEnabled and tubeOverrides", () => {
     const merged = mergeLayoutOverrides("report-1", {
       autoAdjustEnabled: false,
@@ -24,5 +32,85 @@ describe("mergeLayoutOverrides", () => {
       positions: {},
     });
     expect(merged.autoAdjustEnabled).toBe(true);
+  });
+
+  it("preserves legOverrides and fanoutOverrides on partial patch", () => {
+    saveLayoutOverrides({
+      reportKey: "report-persist",
+      layoutVersion: LAYOUT_OVERRIDE_VERSION,
+      positions: {},
+      legOverrides: {
+        conn1: { leftSegments: { 2: { dx: 12 } } },
+      },
+      fanoutOverrides: {
+        "vc-left|BL": { shiftY: 8 },
+      },
+    });
+
+    const merged = mergeLayoutOverrides("report-persist", {
+      autoAdjustEnabled: true,
+    });
+
+    expect(merged.legOverrides?.conn1).toEqual({
+      leftSegments: { 2: { dx: 12 } },
+    });
+    expect(merged.fanoutOverrides?.["vc-left|BL"]).toEqual({ shiftY: 8 });
+  });
+
+  it("toggle-style patch does not drop manual overrides", () => {
+    saveLayoutOverrides({
+      reportKey: "report-toggle",
+      layoutVersion: LAYOUT_OVERRIDE_VERSION,
+      positions: {},
+      autoAdjustEnabled: false,
+      legOverrides: { conn2: { rightSegments: { 1: { dx: -6 } } } },
+      fanoutOverrides: { "vc-right|RD": { shiftY: -4 } },
+    });
+
+    const merged = mergeLayoutOverrides("report-toggle", {
+      autoAdjustEnabled: true,
+    });
+
+    expect(merged.autoAdjustEnabled).toBe(true);
+    expect(merged.legOverrides?.conn2).toEqual({
+      rightSegments: { 1: { dx: -6 } },
+    });
+    expect(merged.fanoutOverrides?.["vc-right|RD"]).toEqual({ shiftY: -4 });
+  });
+
+  it("explicit empty override maps clear stored manual data", () => {
+    saveLayoutOverrides({
+      reportKey: "report-reset",
+      layoutVersion: LAYOUT_OVERRIDE_VERSION,
+      positions: {},
+      tubeOverrides: { "vc-left|BL": { visualShiftY: 6 } },
+      fanoutOverrides: { "vc-left|BL": { shiftY: 6 } },
+      legOverrides: { conn3: { leftSegments: { 2: { dx: 10 } } } },
+    });
+
+    const merged = mergeLayoutOverrides("report-reset", {
+      tubeOverrides: {},
+      fanoutOverrides: {},
+      legOverrides: {},
+    });
+
+    expect(merged.tubeOverrides).toEqual({});
+    expect(merged.fanoutOverrides).toEqual({});
+    expect(merged.legOverrides).toEqual({});
+  });
+});
+
+describe("calloutsShouldShow", () => {
+  it("respects explicit calloutsVisible flag", () => {
+    expect(calloutsShouldShow({ calloutsVisible: false })).toBe(false);
+    expect(calloutsShouldShow({ calloutsVisible: true })).toBe(true);
+  });
+
+  it("shows when stored callouts exist and visibility is unset", () => {
+    expect(
+      calloutsShouldShow({
+        callouts: { "callout-c1": { targetCableNodeId: "c1", text: "A" } },
+      }),
+    ).toBe(true);
   });
 });

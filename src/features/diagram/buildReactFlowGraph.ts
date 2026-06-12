@@ -272,6 +272,7 @@ export function buildReactFlowGraph(
     );
   }
 
+  // Fan-out Y: tubeOverrides.visualShiftY first, then fanoutOverrides.shiftY wins on conflict.
   const lockedTubeKeys = applyPersistedTubeOverrides(
     visualCables,
     overrides?.tubeOverrides,

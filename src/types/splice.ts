@@ -165,6 +165,8 @@ export type LayoutOverrides = {
   layoutWidth?: number;
   /** Cable callout labels keyed by callout node id. */
   callouts?: Record<string, LayoutCalloutRecord>;
+  /** When false, callout nodes are hidden but stored text/positions are kept. */
+  calloutsVisible?: boolean;
   /** When false, cable drag and resize skip auto row/tube relayout (default true). */
   autoAdjustEnabled?: boolean;
   /** User-locked buffer tube tip / fan-out reach per tube key. */

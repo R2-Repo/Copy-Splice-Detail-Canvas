@@ -1,32 +1,24 @@
 import { useStore } from "@xyflow/react";
 import { useCallback, useMemo } from "react";
 
-import {
-  cableSheathCenter,
-  calloutAnchorPoint,
-} from "@/features/canvas/callouts/cableCalloutGeometry";
+import { pickLeaderAnchors } from "@/features/canvas/callouts/cableCalloutGeometry";
 import type { CableCalloutNodeData, CableNodeData } from "@/features/canvas/nodes/types";
 
-type LeaderSegment = {
+type LeaderLine = {
   id: string;
-  points: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
 };
-
-function leaderPolyline(
-  from: { x: number; y: number },
-  to: { x: number; y: number },
-): string {
-  const midX = (from.x + to.x) / 2;
-  return `${from.x},${from.y} ${midX},${from.y} ${midX},${to.y} ${to.x},${to.y}`;
-}
 
 export function CalloutLeaderLayer() {
   const nodes = useStore(useCallback((state) => state.nodes, []));
   const transform = useStore(useCallback((state) => state.transform, []));
 
-  const segments = useMemo((): LeaderSegment[] => {
+  const lines = useMemo((): LeaderLine[] => {
     const nodeById = new Map(nodes.map((n) => [n.id, n]));
-    const out: LeaderSegment[] = [];
+    const out: LeaderLine[] = [];
 
     for (const node of nodes) {
       if (node.type !== "cableCallout") continue;
@@ -35,18 +27,20 @@ export function CalloutLeaderLayer() {
       if (!target || target.type !== "cable") continue;
 
       const targetData = target.data as CableNodeData;
-      const sheath = cableSheathCenter(target, targetData);
-      const anchor = calloutAnchorPoint(node, sheath);
+      const { from, to } = pickLeaderAnchors(node, target, targetData);
       out.push({
         id: node.id,
-        points: leaderPolyline(anchor, sheath),
+        x1: from.x,
+        y1: from.y,
+        x2: to.x,
+        y2: to.y,
       });
     }
 
     return out;
   }, [nodes]);
 
-  if (segments.length === 0) return null;
+  if (lines.length === 0) return null;
 
   const [tx, ty, zoom] = transform;
 
@@ -58,12 +52,14 @@ export function CalloutLeaderLayer() {
         transform: `translate(${tx}px, ${ty}px) scale(${zoom})`,
       }}
     >
-      {segments.map((seg) => (
-        <polyline
-          key={seg.id}
+      {lines.map((line) => (
+        <line
+          key={line.id}
           className="callout-leader-layer__line"
-          points={seg.points}
-          fill="none"
+          x1={line.x1}
+          y1={line.y1}
+          x2={line.x2}
+          y2={line.y2}
         />
       ))}
     </svg>

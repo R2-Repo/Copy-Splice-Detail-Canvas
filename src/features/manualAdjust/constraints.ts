@@ -112,6 +112,37 @@ export function pathsWithinBendBudget(leftPath: string, rightPath: string): bool
   return countOrthogonalBends(leftPath, rightPath) <= MAX_SPLICE_BENDS;
 }
 
+export type LegPathValidationCode = "EDGE-004" | "DOT-001" | "DOT-003";
+
+export function validateLegPaths(
+  leftPath: string,
+  rightPath: string,
+  spliceX: number,
+  spliceY: number,
+): LegPathValidationCode | null {
+  if (!pathsWithinBendBudget(leftPath, rightPath)) {
+    return "EDGE-004";
+  }
+  if (!fusionDotOnHorizontalSegment(spliceX, spliceY, leftPath, rightPath)) {
+    return "DOT-001";
+  }
+  if (!fusionDotCornerClearanceOk(spliceX, spliceY, leftPath, rightPath)) {
+    return "DOT-003";
+  }
+  return null;
+}
+
+export function legCommitBlockedMessage(code: LegPathValidationCode): string {
+  switch (code) {
+    case "EDGE-004":
+      return "Move blocked — 2-corner bend limit (EDGE-004)";
+    case "DOT-001":
+      return "Move blocked — fusion dot must stay on horizontal leg (DOT-001)";
+    case "DOT-003":
+      return "Move blocked — fusion dot needs 48px corner clearance (DOT-003)";
+  }
+}
+
 export function clampFanoutShiftY(
   shiftY: number,
   maxShift = MAX_MANUAL_FANOUT_SHIFT_Y,

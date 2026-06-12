@@ -1,5 +1,6 @@
 import type { Node } from "@xyflow/react";
 
+import { CALLOUT_BOX } from "@/features/canvas/callouts/cableCalloutGeometry";
 import type { LayoutCalloutRecord } from "@/types/splice";
 
 export function mergeCalloutNodes(
@@ -16,8 +17,8 @@ export function mergeCalloutNodes(
     id,
     type: "cableCallout",
     position: positions?.[id] ?? { x: 0, y: 0 },
-    width: 200,
-    height: 52,
+    width: CALLOUT_BOX.width,
+    height: CALLOUT_BOX.minHeight,
     data: {
       targetCableNodeId: meta.targetCableNodeId,
       text: meta.text,

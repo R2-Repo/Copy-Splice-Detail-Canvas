@@ -1,101 +1,171 @@
 import type { Edge } from "@xyflow/react";
 
+import { countOrthogonalBends } from "@/features/canvas/edges/splicePathGeometry";
+import { SPLICE_LANE_SEP } from "@/features/diagram/cableLayoutMetrics";
 import {
-  buildButtSplicePath,
-  buildSplicePath,
-} from "@/features/canvas/edges/spliceEdgeRouting";
-import type { SpliceHandleEntry } from "@/features/diagram/centerRouter";
+  fusionDotCornerClearanceOk,
+  fusionDotOnHorizontalSegment,
+  pathsWithinBendBudget,
+} from "@/features/manualAdjust/constraints";
+import { pathToLegSegments } from "@/features/manualAdjust/legSegments";
 
-const MAX_SPLICE_BENDS = 2;
-const MIN_LANE_SEPARATION = 24;
+const MIN_LANE_SEPARATION = SPLICE_LANE_SEP;
+
+export type ManualLayoutWarningCode =
+  | "EDGE-004"
+  | "EDGE-012"
+  | "DOT-001"
+  | "DOT-003";
 
 export type ManualLayoutWarning = {
-  edgeId: string;
-  code: "EDGE-004" | "EDGE-012";
+  connectionId: string;
+  code: ManualLayoutWarningCode;
   message: string;
 };
 
-function bendCountForEdge(
-  entry: SpliceHandleEntry,
-  edge: Edge,
-  diagramCenterX: number,
-): number {
-  const data = (edge.data ?? {}) as Record<string, unknown>;
-  if (entry.fullButtSplice) {
-    return buildButtSplicePath(
-      entry.sourceX,
-      entry.sourceY,
-      entry.targetX,
-      entry.targetY,
-      (data.routingMidX as number | undefined) ?? diagramCenterX,
-      undefined,
-      diagramCenterX,
-    ).bendCount;
+export function connectionIdFromSpliceEdgeId(edgeId: string): string | null {
+  if (edgeId.startsWith("splice-left-")) {
+    return edgeId.slice("splice-left-".length);
   }
-  const midX = (data.routingMidX as number) ?? diagramCenterX;
-  return buildSplicePath(
-    entry.sourceX,
-    entry.sourceY,
-    entry.targetX,
-    entry.targetY,
-    midX,
-    data.routingJogX as number | undefined,
-    {
-      sourceHorizY: data.routingSourceHorizY as number | undefined,
-      targetHorizY: data.routingTargetHorizY as number | undefined,
-      sourceBendX: data.routingSourceBendX as number | undefined,
-      targetBendX: data.routingTargetBendX as number | undefined,
-    },
-    undefined,
-    diagramCenterX,
-  ).bendCount;
+  if (edgeId.startsWith("splice-right-")) {
+    return edgeId.slice("splice-right-".length);
+  }
+  if (edgeId.startsWith("splice-")) {
+    return edgeId.slice("splice-".length);
+  }
+  return null;
 }
 
-/** Advisory checks for touched splice edges after manual edits. */
-export function manualLayoutWarningsForEdges(
-  entries: SpliceHandleEntry[],
-  edges: Edge[],
+export function touchedConnectionIdsFromEdgeIds(
   touchedEdgeIds: Set<string>,
-  diagramCenterX: number,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const edgeId of touchedEdgeIds) {
+    const connId = connectionIdFromSpliceEdgeId(edgeId);
+    if (connId) ids.add(connId);
+  }
+  return ids;
+}
+
+function legPathsForConnection(
+  edges: Edge[],
+  connectionId: string,
+): {
+  leftPath: string;
+  rightPath: string;
+  spliceX: number;
+  spliceY: number;
+} | null {
+  const leftEdge = edges.find((e) => e.id === `splice-left-${connectionId}`);
+  if (!leftEdge) return null;
+  const data = (leftEdge.data ?? {}) as {
+    leftPath?: string;
+    rightPath?: string;
+    spliceX?: number;
+    spliceY?: number;
+  };
+  const leftPath = String(data.leftPath ?? "");
+  const rightPath = String(data.rightPath ?? "");
+  if (!leftPath || !rightPath) return null;
+  return {
+    leftPath,
+    rightPath,
+    spliceX: Number(data.spliceX ?? 0),
+    spliceY: Number(data.spliceY ?? 0),
+  };
+}
+
+function verticalLaneXsFromPaths(leftPath: string, rightPath: string): number[] {
+  const xs: number[] = [];
+  for (const path of [leftPath, rightPath]) {
+    for (const seg of pathToLegSegments(path)) {
+      if (seg.kind === "v" && Math.abs(seg.y1 - seg.y0) > 8) {
+        xs.push(seg.x);
+      }
+    }
+  }
+  return xs;
+}
+
+/** Path-based advisory checks for touched splice connections (nodes engine split edges). */
+export function manualLayoutWarningsForConnections(
+  edges: Edge[],
+  touchedConnectionIds: Set<string>,
 ): ManualLayoutWarning[] {
-  const edgeById = new Map(edges.map((e) => [e.id, e]));
   const warnings: ManualLayoutWarning[] = [];
-  const mids: { edgeId: string; midX: number }[] = [];
+  const laneXsByConnection: Array<{ connectionId: string; xs: number[] }> = [];
 
-  for (const entry of entries) {
-    if (!touchedEdgeIds.has(entry.id)) continue;
-    const edge = edgeById.get(entry.id);
-    if (!edge || edge.type !== "splice") continue;
+  for (const connectionId of touchedConnectionIds) {
+    const paths = legPathsForConnection(edges, connectionId);
+    if (!paths) continue;
 
-    const bends = bendCountForEdge(entry, edge, diagramCenterX);
-    if (bends > MAX_SPLICE_BENDS) {
+    const { leftPath, rightPath, spliceX, spliceY } = paths;
+
+    if (!pathsWithinBendBudget(leftPath, rightPath)) {
+      const bends = countOrthogonalBends(leftPath, rightPath);
       warnings.push({
-        edgeId: entry.id,
+        connectionId,
         code: "EDGE-004",
-        message: `${entry.id}: ${bends} bends (max ${MAX_SPLICE_BENDS})`,
+        message: `${connectionId}: ${bends} bends (max 2)`,
       });
     }
 
-    const data = (edge.data ?? {}) as Record<string, unknown>;
-    const midX = (data.routingMidX as number) ?? diagramCenterX;
-    mids.push({ edgeId: entry.id, midX });
+    if (!fusionDotOnHorizontalSegment(spliceX, spliceY, leftPath, rightPath)) {
+      warnings.push({
+        connectionId,
+        code: "DOT-001",
+        message: `${connectionId}: fusion dot not on horizontal segment`,
+      });
+    }
+
+    if (
+      !fusionDotCornerClearanceOk(spliceX, spliceY, leftPath, rightPath)
+    ) {
+      warnings.push({
+        connectionId,
+        code: "DOT-003",
+        message: `${connectionId}: fusion dot within 48px of leg corner`,
+      });
+    }
+
+    laneXsByConnection.push({
+      connectionId,
+      xs: verticalLaneXsFromPaths(leftPath, rightPath),
+    });
   }
 
-  for (let i = 0; i < mids.length; i++) {
-    for (let j = i + 1; j < mids.length; j++) {
-      const a = mids[i]!;
-      const b = mids[j]!;
-      if (Math.abs(a.midX - b.midX) < MIN_LANE_SEPARATION) {
-        warnings.push({
-          edgeId: a.edgeId,
-          code: "EDGE-012",
-          message: `Lanes ${a.edgeId} and ${b.edgeId} within ${MIN_LANE_SEPARATION}px`,
-        });
+  for (let i = 0; i < laneXsByConnection.length; i++) {
+    for (let j = i + 1; j < laneXsByConnection.length; j++) {
+      const a = laneXsByConnection[i]!;
+      const b = laneXsByConnection[j]!;
+      for (const xA of a.xs) {
+        for (const xB of b.xs) {
+          if (Math.abs(xA - xB) < MIN_LANE_SEPARATION) {
+            warnings.push({
+              connectionId: a.connectionId,
+              code: "EDGE-012",
+              message: `Lanes ${a.connectionId} and ${b.connectionId} within ${MIN_LANE_SEPARATION}px`,
+            });
+          }
+        }
       }
     }
   }
 
   return warnings;
+}
+
+/** @deprecated Use manualLayoutWarningsForConnections — kept for import stability. */
+export function manualLayoutWarningsForEdges(
+  _entries: unknown[],
+  edges: Edge[],
+  touchedEdgeIds: Set<string>,
+  _diagramCenterX: number,
+): ManualLayoutWarning[] {
+  return manualLayoutWarningsForConnections(
+    edges,
+    touchedConnectionIdsFromEdgeIds(touchedEdgeIds),
+  );
 }
 
 export function formatManualLayoutWarningBanner(
@@ -104,6 +174,8 @@ export function formatManualLayoutWarningBanner(
   if (warnings.length === 0) return null;
   const edge004 = warnings.filter((w) => w.code === "EDGE-004").length;
   const edge012 = warnings.filter((w) => w.code === "EDGE-012").length;
+  const dot001 = warnings.filter((w) => w.code === "DOT-001").length;
+  const dot003 = warnings.filter((w) => w.code === "DOT-003").length;
   const parts: string[] = [];
   if (edge004 > 0) {
     parts.push(
@@ -113,6 +185,16 @@ export function formatManualLayoutWarningBanner(
   if (edge012 > 0) {
     parts.push(
       `${edge012} lane overlap${edge012 === 1 ? "" : "s"} (<24px)`,
+    );
+  }
+  if (dot001 > 0) {
+    parts.push(
+      `${dot001} fusion dot${dot001 === 1 ? "" : "s"} off horizontal leg`,
+    );
+  }
+  if (dot003 > 0) {
+    parts.push(
+      `${dot003} fusion dot${dot003 === 1 ? "" : "s"} too close to corner`,
     );
   }
   return `${parts.join("; ")} — manual override kept`;

@@ -16,7 +16,7 @@ import "@xyflow/react/dist/style.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { SpliceReportOverlay } from "@/components/SpliceReportOverlay";
-import { defaultCalloutPosition } from "@/features/canvas/callouts/cableCalloutGeometry";
+import { CALLOUT_BOX, defaultCalloutPosition } from "@/features/canvas/callouts/cableCalloutGeometry";
 import { CalloutLeaderLayer } from "@/features/canvas/callouts/CalloutLeaderLayer";
 import { CalloutPersistContext } from "@/features/canvas/callouts/CalloutPersistContext";
 import {
@@ -38,6 +38,7 @@ import {
 import { ManualLayoutGuideOverlay } from "@/features/canvas/ManualLayoutGuideOverlay";
 import { spliceEdgeTypes } from "@/features/canvas/edgeTypes";
 import {
+  calloutsShouldShow,
   existingIdsFromEdges,
   loadLayoutOverrides,
   mergeLayoutOverrides,
@@ -51,14 +52,6 @@ import {
 } from "@/features/diagram/cableDisplaySide";
 import { spliceNodeTypes } from "@/features/canvas/nodeTypes";
 import {
-  assignSpliceRoutingLanesFromLiveHandles,
-  buildSpliceHandleEntries,
-  publishDragRoutingSnapshot,
-  routingLaneDataFromLane,
-  setActiveDragCableNodeId,
-} from "@/features/canvas/edges/spliceEdgeRouting";
-import { useNodesRoutingEngine } from "@/features/diagram/routingEngine";
-import {
   CABLE_LAYOUT,
   resolveCableDragStopX,
   type CableXBounds,
@@ -71,10 +64,10 @@ import {
   type LayoutExpansion,
 } from "@/features/diagram/layoutExpansion";
 import { resolveFeasibleImportLayout } from "@/features/diagram/layoutRules";
-import { computeSpliceEdgeLayout } from "@/features/diagram/computeSpliceLayout";
 import {
   formatManualLayoutWarningBanner,
-  manualLayoutWarningsForEdges,
+  manualLayoutWarningsForConnections,
+  touchedConnectionIdsFromEdgeIds,
 } from "@/features/diagram/manualLayoutWarnings";
 import { ManualAdjustOverlay } from "@/features/manualAdjust/ManualAdjustOverlay";
 import { syncSplicePointNodes } from "@/features/manualAdjust/syncSplicePointNodes";
@@ -140,8 +133,12 @@ function attachStoredCallouts(
   savedPositions?: Record<string, { x: number; y: number }>,
 ): Node[] {
   const overrides = loadLayoutOverrides(reportKey);
+  const withoutCallouts = nodes.filter((n) => n.type !== "cableCallout");
+  if (!calloutsShouldShow(overrides)) {
+    return withoutCallouts;
+  }
   const positions = { ...overrides?.positions, ...savedPositions };
-  return mergeCalloutNodes(nodes, overrides?.callouts, positions);
+  return mergeCalloutNodes(withoutCallouts, overrides?.callouts, positions);
 }
 
 function boundsForOutwardDrag(
@@ -196,6 +193,7 @@ function WorkflowCanvasInner() {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const stageWidthRef = useRef(0);
   const collapseRef = useRef(false);
+  const calloutsVisibleRef = useRef(false);
   const applyGraphRef = useRef<
     (
       graph: ConnectionGraph,
@@ -216,6 +214,7 @@ function WorkflowCanvasInner() {
   const [collapseFullButtSplices, setCollapseFullButtSplices] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [circuitPanelOpen, setCircuitPanelOpen] = useState(false);
+  const [calloutsVisible, setCalloutsVisible] = useState(false);
   const [circuitIndex, setCircuitIndex] = useState<CircuitIndex | null>(null);
   const [autoAdjustEnabled, setAutoAdjustEnabled] = useState(true);
   const [manualWarningBanner, setManualWarningBanner] = useState<string | null>(
@@ -232,6 +231,7 @@ function WorkflowCanvasInner() {
   const pendingManualCableNodeRef = useRef<Node | null>(null);
 
   collapseRef.current = collapseFullButtSplices;
+  calloutsVisibleRef.current = calloutsVisible;
   autoAdjustRef.current = autoAdjustEnabled;
 
   const applyManualCableDrag = useCallback(
@@ -320,25 +320,9 @@ function WorkflowCanvasInner() {
         syncManualCableDrag(draggedNode);
         return;
       }
-      if (useNodesRoutingEngine()) {
-        syncNodesEngineDrag(draggedNode);
-        return;
-      }
-      const graph = graphRef.current;
-      if (!graph || draggedNode.type !== "cable") return;
-      const allNodes = getNodes().map((n) =>
-        n.id === draggedNode.id ? draggedNode : n,
-      );
-      const allEdges = getEdges();
-      const { visualCables } = buildVisualCablesForLayout(graph);
-      const handleEntries = buildSpliceHandleEntries(
-        allNodes,
-        allEdges,
-        visualCables,
-      );
-      publishDragRoutingSnapshot(handleEntries, layoutWidthRef.current / 2);
+      syncNodesEngineDrag(draggedNode);
     },
-    [getEdges, getNodes, syncManualCableDrag, syncNodesEngineDrag, setNodes],
+    [syncManualCableDrag, syncNodesEngineDrag],
   );
 
   const stageWidthForLayout = useCallback((): number => {
@@ -421,6 +405,7 @@ function WorkflowCanvasInner() {
           existingEdgeIds: existingIdsFromEdges(nextEdges),
           collapseFullButtSplices,
           layoutWidth: layoutWidthRef.current,
+          calloutsVisible: calloutsVisibleRef.current,
           ...patch,
         }),
       );
@@ -644,6 +629,7 @@ function WorkflowCanvasInner() {
       const collapsed =
         saved?.collapseFullButtSplices ?? detected.length > 0;
       setCollapseFullButtSplices(collapsed);
+      setCalloutsVisible(calloutsShouldShow(saved));
       setAutoAdjustEnabled(saved?.autoAdjustEnabled !== false);
       setManualWarningBanner(null);
       userExpandedLayoutRef.current = false;
@@ -704,8 +690,8 @@ function WorkflowCanvasInner() {
 
   const updateManualWarnings = useCallback(
     (
-      graph: ConnectionGraph,
-      nextNodes: Node[],
+      _graph: ConnectionGraph,
+      _nextNodes: Node[],
       nextEdges: Edge[],
       touchedEdgeIds: Set<string>,
     ) => {
@@ -713,18 +699,10 @@ function WorkflowCanvasInner() {
         setManualWarningBanner(null);
         return;
       }
-      const { visualCables } = buildVisualCablesForLayout(graph);
-      const { handleEntries } = computeSpliceEdgeLayout(
-        nextNodes,
+      const connectionIds = touchedConnectionIdsFromEdgeIds(touchedEdgeIds);
+      const warnings = manualLayoutWarningsForConnections(
         nextEdges,
-        visualCables,
-        layoutWidthRef.current / 2,
-      );
-      const warnings = manualLayoutWarningsForEdges(
-        handleEntries,
-        nextEdges,
-        touchedEdgeIds,
-        layoutWidthRef.current / 2,
+        connectionIds,
       );
       setManualWarningBanner(formatManualLayoutWarningBanner(warnings));
     },
@@ -889,6 +867,7 @@ function WorkflowCanvasInner() {
     graph: graphRef.current,
     legOverrides: legOverridesForEngine,
     onLegOverridesCommit: handleLegOverridesCommit,
+    onLegCommitBlocked: setManualWarningBanner,
     setEdges,
     setNodes,
     getNodes,
@@ -940,6 +919,8 @@ function WorkflowCanvasInner() {
       mergeLayoutOverrides(reportKey, {
         autoAdjustEnabled: true,
         tubeOverrides: {},
+        fanoutOverrides: {},
+        legOverrides: {},
       }),
     );
     const width = resolveLayoutWidth(graph, false);
@@ -976,9 +957,6 @@ function WorkflowCanvasInner() {
         return;
       }
       if (node.type !== "cable") return;
-      if (!useNodesRoutingEngine()) {
-        setActiveDragCableNodeId(node.id);
-      }
       refreshDragRouting(node);
     },
     [manualAdjustEngine, refreshDragRouting],
@@ -1031,7 +1009,6 @@ function WorkflowCanvasInner() {
 
       let layoutWidth = layoutWidthRef.current;
       let bounds = xBoundsRef.current;
-      const prevCenterX = layoutWidth / 2;
       ({ layoutWidth, bounds } = boundsForOutwardDrag(
         node.position.x,
         newSide,
@@ -1056,7 +1033,7 @@ function WorkflowCanvasInner() {
       const finalX = resolveCableDragStopX(node.position.x, newSide, bounds);
       const finalY = node.position.y;
 
-      if (useNodesRoutingEngine() && graph && reportKeyRef.current) {
+      if (graph && reportKeyRef.current) {
         const existing = loadLayoutOverrides(reportKeyRef.current);
         const cableSides = {
           ...(existing?.cableSides ?? {}),
@@ -1161,83 +1138,7 @@ function WorkflowCanvasInner() {
         if (sideChanged) {
           requestAnimationFrame(() => updateNodeInternals(node.id));
         }
-        return;
       }
-
-      setNodes((current) => {
-        const nextNodes = current.map((n) =>
-          n.id === node.id
-            ? {
-                ...n,
-                position: {
-                  x: finalX,
-                  y: finalY,
-                },
-                data: { ...(n.data as CableNodeData), side: newSide },
-              }
-            : n,
-        );
-        setEdges((currentEdges) => {
-          const { visualCables } = graph
-            ? buildVisualCablesForLayout(graph)
-            : { visualCables: [] };
-          const allHandleEntries = buildSpliceHandleEntries(
-            nextNodes,
-            currentEdges,
-            visualCables,
-          );
-          const centerX = layoutWidth / 2;
-          const centerChanged = Math.abs(centerX - prevCenterX) > 0.5;
-          const { lanes: dragRouting, rowOffsets } =
-            assignSpliceRoutingLanesFromLiveHandles(
-              allHandleEntries,
-              centerX,
-            );
-          const nextEdges = currentEdges.map((edge) => {
-            const touchesDragged =
-              edge.source === node.id || edge.target === node.id;
-            if (!touchesDragged || edge.type !== "splice") {
-              if (edge.type === "splice" && centerChanged) {
-                return {
-                  ...edge,
-                  data: {
-                    ...(edge.data as Record<string, unknown>),
-                    diagramCenterX: centerX,
-                  },
-                };
-              }
-              return edge;
-            }
-
-            const rowOffset = rowOffsets.get(edge.id);
-            const lane = dragRouting.get(edge.id);
-            const data = edge.data as Record<string, unknown>;
-            return {
-              ...edge,
-              data: {
-                ...data,
-                diagramCenterX: centerX,
-                ...(rowOffset !== undefined ? { rowOffset } : {}),
-                ...(lane ? routingLaneDataFromLane(lane) : {}),
-              },
-            };
-          });
-          persistLayout(
-            nextNodes,
-            nextEdges,
-            {
-              layoutWidth,
-              ...(sideChanged ? { cableSides: { [visualId]: newSide } } : {}),
-            },
-          );
-          setActiveDragCableNodeId(null);
-          return nextEdges;
-        });
-        if (sideChanged) {
-          requestAnimationFrame(() => updateNodeInternals(node.id));
-        }
-        return nextNodes;
-      });
     },
     [
       edges,
@@ -1390,8 +1291,8 @@ function WorkflowCanvasInner() {
           id,
           type: "cableCallout",
           position,
-          width: 200,
-          height: 52,
+          width: CALLOUT_BOX.width,
+          height: CALLOUT_BOX.minHeight,
           data: { targetCableNodeId: cableNode.id, text },
           draggable: true,
           selectable: true,
@@ -1404,9 +1305,71 @@ function WorkflowCanvasInner() {
 
     const withoutCallouts = nodes.filter((n) => n.type !== "cableCallout");
     const nextNodes = [...withoutCallouts, ...calloutNodes];
+    setCalloutsVisible(true);
+    calloutsVisibleRef.current = true;
     setNodes(nextNodes);
-    persistLayout(nextNodes, edges, { callouts });
+    persistLayout(nextNodes, edges, { callouts, calloutsVisible: true });
   }, [edges, nodes, persistLayout, setNodes]);
+
+  const setCableCalloutsVisible = useCallback(
+    (visible: boolean) => {
+      const reportKey = reportKeyRef.current;
+      if (!reportKey || visible === calloutsVisibleRef.current) return;
+
+      setCalloutsVisible(visible);
+      calloutsVisibleRef.current = visible;
+
+      if (!visible) {
+        const engineNodes = nodes.filter((n) => n.type !== "cableCallout");
+        setNodes(engineNodes);
+        const existing = loadLayoutOverrides(reportKey);
+        saveLayoutOverrides(
+          mergeLayoutOverrides(reportKey, {
+            calloutsVisible: false,
+            positions: {
+              ...existing?.positions,
+              ...positionsFromNodes(engineNodes),
+            },
+            existingEdgeIds: existingIdsFromEdges(edges),
+            collapseFullButtSplices: collapseRef.current,
+            layoutWidth: layoutWidthRef.current,
+          }),
+        );
+        return;
+      }
+
+      const existing = loadLayoutOverrides(reportKey);
+      const storedCallouts = existing?.callouts;
+      const hasStored =
+        storedCallouts && Object.keys(storedCallouts).length > 0;
+
+      if (hasStored) {
+        const engineNodes = nodes.filter((n) => n.type !== "cableCallout");
+        const nextNodes = mergeCalloutNodes(
+          engineNodes,
+          storedCallouts,
+          existing?.positions,
+        );
+        setNodes(nextNodes);
+        saveLayoutOverrides(
+          mergeLayoutOverrides(reportKey, {
+            calloutsVisible: true,
+            positions: {
+              ...existing?.positions,
+              ...positionsFromNodes(nextNodes),
+            },
+            existingEdgeIds: existingIdsFromEdges(edges),
+            collapseFullButtSplices: collapseRef.current,
+            layoutWidth: layoutWidthRef.current,
+          }),
+        );
+        return;
+      }
+
+      generateCableCallouts();
+    },
+    [edges, generateCableCallouts, nodes, setNodes],
+  );
 
   const onEdgeClick = useCallback(
     (_: React.MouseEvent, edge: Edge) => {
@@ -1458,11 +1421,23 @@ function WorkflowCanvasInner() {
           disabled={!meta}
           onClick={() => setReportOpen(true)}
         />
-        <ToolbarActionButton
-          label="Add cable callouts"
-          icon={<CalloutIcon />}
+        <ToolbarSegmentedControl
+          ariaLabel="Cable callouts"
           disabled={!meta}
-          onClick={generateCableCallouts}
+          value={calloutsVisible ? "on" : "off"}
+          onChange={(next) => setCableCalloutsVisible(next === "on")}
+          options={[
+            {
+              value: "off",
+              label: "Hide cable callouts",
+              icon: <EyeOffIcon />,
+            },
+            {
+              value: "on",
+              label: "Show cable callouts",
+              icon: <CalloutIcon />,
+            },
+          ]}
         />
         <ToolbarSegmentedControl
           ariaLabel="Track circuits"

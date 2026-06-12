@@ -41,6 +41,29 @@ export function existingIdsFromEdges(
   return edges.filter((e) => e.data?.existing).map((e) => e.id);
 }
 
+function mergeOverrideMap<T extends Record<string, unknown>>(
+  existing: T | undefined,
+  patch: T | undefined,
+): T | undefined {
+  if (patch === undefined) {
+    return existing !== undefined ? { ...existing } : undefined;
+  }
+  if (Object.keys(patch).length === 0) {
+    return {} as T;
+  }
+  return { ...existing, ...patch };
+}
+
+export function calloutsShouldShow(
+  overrides?: LayoutOverrides,
+): boolean {
+  if (overrides?.calloutsVisible === true) return true;
+  if (overrides?.calloutsVisible === false) return false;
+  return Boolean(
+    overrides?.callouts && Object.keys(overrides.callouts).length > 0,
+  );
+}
+
 export function mergeLayoutOverrides(
   reportKey: string,
   patch: Partial<LayoutOverrides>,
@@ -57,8 +80,17 @@ export function mergeLayoutOverrides(
       patch.collapseFullButtSplices ?? existing?.collapseFullButtSplices,
     layoutWidth: patch.layoutWidth ?? existing?.layoutWidth,
     callouts: patch.callouts ?? existing?.callouts,
+    calloutsVisible: patch.calloutsVisible ?? existing?.calloutsVisible,
     autoAdjustEnabled:
       patch.autoAdjustEnabled ?? existing?.autoAdjustEnabled ?? true,
-    tubeOverrides: { ...existing?.tubeOverrides, ...patch.tubeOverrides },
+    tubeOverrides: mergeOverrideMap(
+      existing?.tubeOverrides,
+      patch.tubeOverrides,
+    ),
+    fanoutOverrides: mergeOverrideMap(
+      existing?.fanoutOverrides,
+      patch.fanoutOverrides,
+    ),
+    legOverrides: mergeOverrideMap(existing?.legOverrides, patch.legOverrides),
   };
 }

@@ -6,11 +6,7 @@ import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
 
 import { handleCoordsForConnection } from "./handleCoords";
 
-import {
-  fusionDotCornerClearanceOk,
-  fusionDotOnHorizontalSegment,
-  pathsWithinBendBudget,
-} from "./constraints";
+import { validateLegPaths } from "./constraints";
 import {
   applySegmentDelta,
   finalizeConnectedLegPaths,
@@ -80,26 +76,13 @@ export function applyLegOverridesToEdge(
     y: connected.spliceY,
   };
 
-  if (!pathsWithinBendBudget(connected.leftPath, connected.rightPath)) {
-    return null;
-  }
   if (
-    !fusionDotOnHorizontalSegment(
-      splicePoint.x,
-      splicePoint.y,
+    validateLegPaths(
       connected.leftPath,
       connected.rightPath,
-    )
-  ) {
-    return null;
-  }
-  if (
-    !fusionDotCornerClearanceOk(
       splicePoint.x,
       splicePoint.y,
-      connected.leftPath,
-      connected.rightPath,
-    )
+    ) !== null
   ) {
     return null;
   }
