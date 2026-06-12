@@ -4,10 +4,11 @@
 
 ## Last updated
 
-2026-06-10 — Vertical leg ↔ drag: handle pin + smooth preview (verified).
+2026-06-12 — New machine dev setup (Node + npm install + `start-dev.bat`).
 
 ## Done
 
+- **New PC setup** — Node.js LTS installed via winget; `npm install`; `npm run check` + `npm run build` pass; `start-dev.bat` at repo root (start/restart dev server on port 5173).
 - **Vertical leg ↔ drag fix** — `setPathStart`/`setPathEnd` pin path terminus to handles; nested same-side lanes use `shiftVerticalLane`; overlay uses live handle coords; commit persists preview (no re-apply jump); graph rebuild resolves handle coords for overrides.
 - **Leg segment drag detach fix** — preview pins left leg to source handle, right leg to target handle; `connectLegPathsAtSplice` keeps fusion dot junction; splice point node moves live during drag.
 - **Manual mode auto-off** — skip `resolveSameSideNodeCollisions` when `autoAdjustEnabled: false`; leg commit applies overrides in-place (no full graph reroute).

@@ -11,6 +11,8 @@ npm run dev
 
 Open the URL Vite prints (usually `http://localhost:5173`).
 
+**Windows:** double-click [`start-dev.bat`](./start-dev.bat) to start or restart the dev server and open it in a Chrome incognito window (installs dependencies on first run if needed).
+
 ## Scripts
 
 | Command | Purpose |
