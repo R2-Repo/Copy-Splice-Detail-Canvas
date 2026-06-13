@@ -724,34 +724,23 @@ export function packMidXLanes(
   const startMin = packLo;
   const startMax = packLo + Math.max(0, packSpan - totalSpan);
   const start = Math.min(Math.max(startUnclamped, startMin), startMax);
+  const clampedStart = clampMidXForMinHorizontalInset(
+    start,
+    sourceX,
+    targetX,
+    centerX,
+    sideSpans,
+  );
 
   for (let i = 0; i < upwardOrdered.length; i++) {
-    const raw = start + i * sep;
-    result.set(
-      upwardOrdered[i]!.id,
-      clampMidXForMinHorizontalInset(
-        raw,
-        upwardOrdered[i]!.sourceX,
-        upwardOrdered[i]!.targetX,
-        centerX,
-        sideSpans,
-      ),
-    );
+    result.set(upwardOrdered[i]!.id, clampedStart + i * sep);
   }
   for (let i = 0; i < downwardOrdered.length; i++) {
     const slot = upwardOrdered.length + downwardOrdered.length - 1 - i;
-    const raw = start + slot * sep;
-    result.set(
-      downwardOrdered[i]!.id,
-      clampMidXForMinHorizontalInset(
-        raw,
-        downwardOrdered[i]!.sourceX,
-        downwardOrdered[i]!.targetX,
-        centerX,
-        sideSpans,
-      ),
-    );
+    result.set(downwardOrdered[i]!.id, clampedStart + slot * sep);
   }
+
+  enforceDistinctMidXLanes(result, candidates, minSep);
 
   return result;
 }
@@ -824,6 +813,33 @@ function enforceDistinctMidXLanes(
     if (remainder.length > 0) {
       enforceDistinctMidXLanesForMembers(result, remainder, minSep);
     }
+  }
+}
+
+function shiftCoherentBundleMidXLanes(
+  bundle: MidXLaneCandidate[],
+  midXMap: Map<string, number>,
+  diagramCenterX: number,
+  sideSpans: SideCircuitLabelSpan,
+): void {
+  if (!isCoherentTubeBundle(bundle)) return;
+  let shift = 0;
+  for (const member of bundle) {
+    const raw = midXMap.get(member.id);
+    if (raw === undefined) continue;
+    const clamped = clampMidXForCandidate(
+      raw,
+      member,
+      diagramCenterX,
+      sideSpans,
+    );
+    const delta = clamped - raw;
+    if (Math.abs(delta) > Math.abs(shift)) shift = delta;
+  }
+  if (Math.abs(shift) <= SPLICE_PATH_EPS) return;
+  for (const member of bundle) {
+    const raw = midXMap.get(member.id);
+    if (raw !== undefined) midXMap.set(member.id, raw + shift);
   }
 }
 
@@ -1333,13 +1349,24 @@ export function assignSpliceRoutingLanes(
 ): Map<string, SpliceRoutingLane> {
   const diagramCenterX = globalDiagramCenterX(candidates);
   const midXMap = assignSpliceMidXLanes(candidates, sideSpans);
+  const coherentBundles = groupCandidatesByTubeBundle(
+    candidates.filter((candidate) => candidate.tubeBundleKey),
+  ).filter((bundle) => isCoherentTubeBundle(bundle));
+  const coherentBundleIds = new Set<string>();
+  for (const bundle of coherentBundles) {
+    for (const member of bundle) coherentBundleIds.add(member.id);
+  }
   for (const candidate of candidates) {
     const raw = midXMap.get(candidate.id);
     if (raw === undefined) continue;
+    if (coherentBundleIds.has(candidate.id)) continue;
     midXMap.set(
       candidate.id,
       clampMidXForCandidate(raw, candidate, diagramCenterX, sideSpans),
     );
+  }
+  for (const bundle of coherentBundles) {
+    shiftCoherentBundleMidXLanes(bundle, midXMap, diagramCenterX, sideSpans);
   }
   const result = new Map<string, SpliceRoutingLane>();
   const candidateById = new Map(candidates.map((c) => [c.id, c]));

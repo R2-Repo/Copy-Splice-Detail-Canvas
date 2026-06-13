@@ -133,7 +133,18 @@ export type LayoutNodePosition = {
 };
 
 /** Bump when override shape/semantics change — ignores stale localStorage. */
-export const LAYOUT_OVERRIDE_VERSION = 13;
+export const LAYOUT_OVERRIDE_VERSION = 14;
+
+export type ConnectionOverride = {
+  laneOffsetX?: number;
+  spliceRowOffsetY?: number;
+  dotOffsetX?: number;
+};
+
+export type BundleOverride = {
+  laneOffsetX?: number;
+  rowOffsetY?: number;
+};
 
 /** `${visualCableId}|${tubeColor}` — matches `TubeKey` in tubeRowShift.ts */
 export type TubeOverrideKey = `${string}|${string}`;
@@ -181,4 +192,8 @@ export type LayoutOverrides = {
       rightSegments?: Record<number, { dx?: number; dy?: number }>;
     }
   >;
+  /** Parameter-based splice routing offsets (v14; preferred over segment legOverrides). */
+  connectionOverrides?: Record<string, ConnectionOverride>;
+  /** Tube-bundle shared trunk / row offsets (v14). */
+  bundleOverrides?: Record<string, BundleOverride>;
 };

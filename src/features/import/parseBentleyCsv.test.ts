@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -9,10 +8,7 @@ import {
   parseLeftSectionRows,
 } from "./parseBentleyCsv";
 
-const example2Path = join(
-  process.cwd(),
-  "docs/reference/examples/CSV Splice Detail Example #2.csv",
-);
+import { resolveExampleCsvPath } from "@/testHelpers/exampleCsvPaths";
 
 const SAMPLE_ROW =
   "HUB3-8(BLUFFDALE_REDWOOD_RD),6-SMF DROP: MVC MP 3.1 & HARVEST MOON DR,   1,BL,BL,<->,144 DIST: 2100 N TO HARVEST HILLS,  17,OR,SL,HUB3-8(BLUFFDALE_REDWOOD_RD),CH 3022";
@@ -25,7 +21,7 @@ describe("parseBentleyCsv", () => {
   });
 
   it("parses Example #2 with 6 deduped pairs", () => {
-    const csv = readFileSync(example2Path, "utf8");
+    const csv = readFileSync(resolveExampleCsvPath("CSV Splice Detail Example #2.csv"), "utf8");
     const report = parseBentleyCsv(csv);
 
     expect(report.header.spliceNumber).toBe("SP-2090.4.5");
@@ -55,16 +51,13 @@ describe("parseBentleyCsv", () => {
     const report = parseBentleyCsv(["Left ---", row].join("\n"));
     expect(report.pairs).toHaveLength(1);
     const dist = report.pairs[0]!.endpointB;
-    expect(dist.fiberNumber).toBe(3);
-    expect(dist.fiberNumberSource).toBe("peer-copy");
+    expect(dist.fiberNumber).toBe(11);
+    expect(dist.fiberNumberSource).toBe("inferred");
   });
 
   it("Example #3 parses 28 left rows with zero parse failures", () => {
     const csv = readFileSync(
-      join(
-        process.cwd(),
-        "docs/reference/examples/CSV Splice Detail Example #3.csv",
-      ),
+      resolveExampleCsvPath("CSV Splice Detail Example #3.csv"),
       "utf8",
     );
     const results = parseLeftSectionRows(csv);

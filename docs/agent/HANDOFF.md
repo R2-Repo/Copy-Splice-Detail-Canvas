@@ -4,27 +4,41 @@
 
 ## Last updated
 
-2026-06-12 — DOT-003 fusion dot corner clearance fix.
+2026-06-13 — User manual QA: **no visible change** vs pre-stabilization.
 
-## Done
+## User QA result (important)
 
-- **DOT-003 measurement** — path-walking distance along left/right legs; removed &lt;96px span exemption and tube-bundle layout skip.
-- **Proactive placement** — `resolveFusionDotPosition` nudges dot 48px from `midX`/bend anchors; clearance-aware `reconcileBufferTubeDotColumns`; `buildSplicePath` post-check slides dot when needed.
-- **Manual drag** — live `clampVerticalLaneDeltaForCornerClearance` during vertical lane drag; removed debug `fetch` logs.
-- **Tests** — `constraints.test.ts` short-span regression; `spliceEdgeRouting.test.ts` DOT-003 build/column cases.
+- User tested on local dev server (`http://localhost:5173/`) after stabilization build.
+- **Report: app looks and behaves the same as before** — same issues, no perceptible improvement.
+- Do **not** assume stabilization fixed UX; treat open issues as still open.
 
-## Next
+## What this session actually changed (mostly non-visible)
 
-- Manual QA: `?fixture=example-2` → confirm fusion dots are visibly separated from corners on import; Manual → drag vertical leg near dot (live stop + commit rejection).
-- Run full verify when npm available: `npm run test:layout`, `npm run check`, `npm run test:ci`, `npm run build`.
+| Area | Change | User-visible? |
+|------|--------|---------------|
+| Layout contract | EDGE-010 / bundle `packMidXLanes` / `shiftCoherentBundleMidXLanes` — **114/114** `test:layout` | Maybe subtle on Example #2 crossover lanes only |
+| Manual coords | `fiberAnchorCenter()` + `useManualAdjustEngine` scale/stem | Only if Manual mode marquee/hit-test was wrong |
+| Overrides v14 | `connectionOverrides` / `bundleOverrides` persistence bridge | Only after reload/toggle with saved overrides |
+| Tests / CI | 422/422 `test:ci`, goldens, CSV helpers | No |
+| Frozen routing | Minimal bundle-shift in `assignSpliceRoutingLanes` | User-approved; may not match their pain points |
 
-## Commands verified
+## Verified (automated only)
 
 ```bash
-npm run check          # pass
-npm run build          # pass
-npm run test:layout    # 112/114 pass — Example #2 EDGE-010 only (pre-existing)
-npx vitest run src/features/manualAdjust/constraints.test.ts  # pass
+npm run verify         # pass
+npm run test:layout    # 114/114
+npm run test:ci        # 422/422
 ```
 
-Pre-existing failures unchanged: Example #2 `EDGE-010`, `packMidXLanes` / `assignSpliceRoutingLanes` unit tests in `spliceEdgeRouting.test.ts`.
+## Next agent — recommended start
+
+1. **Ask user for a prioritized issue list** (which fixture/CSV, which simple-term symptom: corners, tube bundle, manual select, drag jump, etc.).
+2. **One issue → one CSV → one rule ID** — reproduce in browser before coding.
+3. Do **not** re-run full stabilization phases unless a specific regression appears in `test:layout`.
+4. Read `SIMPLE_TERMS.md` + map to rule IDs; check `frozen-routing.mdc` before touching routing symbols.
+5. If user still sees old behavior: hard-refresh / clear site data (PWA cache) to rule out stale assets.
+
+## Dev server
+
+- App: `npm run dev` → `http://localhost:5173/`
+- Fixtures: `?fixture=example-1`, `example-2`, `example-3`

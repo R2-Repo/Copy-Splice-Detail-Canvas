@@ -1,7 +1,6 @@
 import type { Edge, Node, OnNodeDrag } from "@xyflow/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { fiberHandlePosition } from "@/features/canvas/edges/splicePathGeometry";
 import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
 
@@ -9,6 +8,7 @@ import {
   accumulateLegOverride,
   applyLegOverridesToEdge,
 } from "./applyManualAdjust";
+import { fiberAnchorCenter } from "./handleCoords";
 import {
   legCommitBlockedMessage,
   validateLegPaths,
@@ -130,10 +130,11 @@ export function useManualAdjustEngine({
           (c) => c.id === `cable-${data.visualCableId}`,
         );
         if (!cableNode) return null;
-        const pos = fiberHandlePosition(
-          vc,
+        const pos = fiberAnchorCenter(
           data.connectionId,
-          cableNode.position,
+          data.visualCableId,
+          vc,
+          cableNode,
         );
         return { connectionId: data.connectionId, x: pos.x, y: pos.y };
       })

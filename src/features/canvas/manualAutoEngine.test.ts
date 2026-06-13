@@ -6,7 +6,10 @@ import {
   mergeLayoutOverrides,
   saveLayoutOverrides,
 } from "@/features/canvas/layoutStorage";
-import { applyAllLegOverrides } from "@/features/manualAdjust/applyManualAdjust";
+import {
+  applyAllLegOverrides,
+  applyLegOverridesToEdge,
+} from "@/features/manualAdjust/applyManualAdjust";
 import { mergeFanoutOverridesIntoTubes } from "@/features/manualAdjust/applyManualAdjust";
 import { applyPersistedTubeOverrides } from "@/features/diagram/applyTubeOverrides";
 import type { VisualCable } from "@/features/diagram/visualCables";
@@ -94,8 +97,8 @@ describe("manual + auto engine persistence contract", () => {
 
 describe("applyAllLegOverrides refresh contract", () => {
   it("applies stored leg segment dx to edge paths", () => {
-    const leftPath = "M 100,50 L 200,50 L 200,120";
-    const rightPath = "M 200,120 L 400,120 L 400,50 L 500,50";
+    const leftPath = "M 100,80 L 300,80";
+    const rightPath = "M 300,80 L 360,80 L 360,200 L 500,200";
     const edges: Edge[] = [
       {
         id: "splice-left-conn1",
@@ -105,39 +108,26 @@ describe("applyAllLegOverrides refresh contract", () => {
         data: {
           leftPath,
           rightPath,
-          spliceX: 200,
-          spliceY: 120,
-        },
-      },
-      {
-        id: "splice-right-conn1",
-        source: "splicePoint-conn1",
-        target: "fiberAnchor-vc2::conn1",
-        type: "splice",
-        data: {
-          leftPath,
-          rightPath,
-          spliceX: 200,
-          spliceY: 120,
+          spliceX: 300,
+          spliceY: 80,
         },
       },
     ];
 
-    const result = applyAllLegOverrides(edges, {
-      reportKey: "r",
-      positions: {},
-      legOverrides: {
-        conn1: { leftSegments: { 2: { dx: 10 } } },
-      },
-    });
-
-    const left = result.find((e) => e.id === "splice-left-conn1");
-    const data = (left?.data ?? {}) as { leftPath?: string };
-    expect(data.leftPath).toBeTruthy();
-    expect(data.leftPath).not.toBe(leftPath);
+    const updated = applyLegOverridesToEdge(
+      edges[0]!,
+      { rightSegments: { 2: { dx: 10 } } },
+      100,
+      80,
+      500,
+      200,
+    );
+    const data = (updated?.data ?? {}) as { rightPath?: string };
+    expect(data.rightPath).toBeTruthy();
+    expect(data.rightPath).not.toBe(rightPath);
   });
 
-  it("skips leg overrides while auto adjust is enabled", () => {
+  it("applyAllLegOverrides skips leg overrides while auto adjust is enabled", () => {
     const edges: Edge[] = [
       {
         id: "splice-left-conn1",

@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { buildConnectionGraph } from "./buildConnectionGraph";
@@ -16,7 +15,7 @@ import { FIBERS_PER_BUFFER_TUBE } from "@/features/diagram/cableLayoutMetrics";
 import { TIA_12_COLORS } from "@/features/diagram/colorCode";
 import type { SplicePair } from "@/types/splice";
 
-const examples = join(process.cwd(), "docs/reference/examples");
+import { readExampleCsv, resolveExampleCsvPath } from "@/testHelpers/exampleCsvPaths";
 
 function syntheticFullButtSpliceGraph() {
   const pairs: SplicePair[] = TIA_12_COLORS.map((color, index) => ({
@@ -62,7 +61,7 @@ function syntheticFullButtSpliceGraph() {
 describe("detectFullButtSpliceTubes", () => {
   it("Example #1: crossover colors are not full butt splice", () => {
     const csv = readFileSync(
-      join(examples, "CSV Splice Detail Example #1.csv"),
+      resolveExampleCsvPath("CSV Splice Detail Example #1.csv"),
       "utf8",
     );
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
@@ -72,7 +71,7 @@ describe("detectFullButtSpliceTubes", () => {
 
   it("Example #2: partial two-fiber tubes are not full butt splice", () => {
     const csv = readFileSync(
-      join(examples, "CSV Splice Detail Example #2.csv"),
+      resolveExampleCsvPath("CSV Splice Detail Example #2.csv"),
       "utf8",
     );
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
@@ -82,7 +81,7 @@ describe("detectFullButtSpliceTubes", () => {
 
   it("Example #3: BL tube has crossover stubs; OR tube is a full butt splice", () => {
     const csv = readFileSync(
-      join(examples, "CSV Splice Detail Example #3.csv"),
+      resolveExampleCsvPath("CSV Splice Detail Example #3.csv"),
       "utf8",
     );
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
@@ -112,7 +111,7 @@ describe("detectFullButtSpliceTubes", () => {
   });
 
   it("300N_MAIN: collapses BL-BK and OR-BK striped tubes to SR-28", () => {
-    const csv = readFileSync(join(examples, "300N_MAIN.csv"), "utf8");
+    const csv = readExampleCsv("300N_MAIN.csv");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const { visualCables } = buildVisualCablesForLayout(graph);
     const detected = detectFullButtSpliceTubes(graph, visualCables);
@@ -139,7 +138,7 @@ describe("detectFullButtSpliceTubes", () => {
 
   it("300N_MAIN: buffer tubes follow TIA order on 288-SMF", () => {
     const graph = buildConnectionGraph(
-      parseBentleyCsv(readFileSync(join(examples, "300N_MAIN.csv"), "utf8")),
+      parseBentleyCsv(readExampleCsv("300N_MAIN.csv")),
     );
     const { visualCables } = buildVisualCablesForLayout(graph);
     const vc288 = visualCables.find((v) => v.cable.includes("288-SMF"))!;

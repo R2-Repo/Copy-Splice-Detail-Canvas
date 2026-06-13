@@ -104,3 +104,21 @@ export function handleCoordsForConnection(
     ),
   };
 }
+
+/** Canonical fiber-anchor center for manual hit-testing and marquee selection. */
+export function fiberAnchorCenter(
+  connectionId: string,
+  _visualCableId: string,
+  vc: VisualCable,
+  cableNode: Node,
+): { x: number; y: number } {
+  const cableData = cableNode.data as CableNodeData;
+  const liveVc = visualCableFromCableNode(vc, cableData);
+  return fiberHandlePosition(
+    liveVc,
+    connectionId,
+    cableNode.position,
+    cableData.diagramScale ?? 1,
+    cableData.alignedStemX,
+  );
+}

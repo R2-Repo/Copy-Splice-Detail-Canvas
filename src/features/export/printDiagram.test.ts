@@ -107,6 +107,7 @@ describe("createPrintDiagramHandler", () => {
 
     document.title = "Original title";
     handler();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(document.body.classList.contains(PRINT_BODY_CLASS)).toBe(true);
     expect(document.title).toBe("SP-TEST");

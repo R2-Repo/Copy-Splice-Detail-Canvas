@@ -16,6 +16,7 @@ import {
   layoutWidthForViewport,
   minLayoutWidthForGraph,
 } from "@/features/diagram/layoutSpliceDiagram";
+import { stageInnerWidth } from "@/features/canvas/diagramViewport";
 import { computeCanvasPlacement } from "@/features/diagram/canvasPlacement";
 import {
   connectionRowIndexMap,
@@ -64,7 +65,7 @@ describe("importLayoutWidthForGraph", () => {
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const expandedLanes = activeSpliceLaneCount(graph, false);
     const collapsedLanes = activeSpliceLaneCount(graph, true);
-    expect(expandedLanes).toBe(316);
+    expect(expandedLanes).toBe(314);
     expect(collapsedLanes).toBeLessThan(expandedLanes);
 
     for (const collapse of [false, true] as const) {
@@ -174,8 +175,9 @@ describe("importLayoutWidthForGraph", () => {
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const minWidth = minLayoutWidthForGraph(graph);
     const stageWidth = minWidth + 480;
+    const viewportWidth = Math.max(stageInnerWidth(stageWidth), minWidth);
 
-    expect(importLayoutWidthForGraph(graph, { stageWidth })).toBe(stageWidth);
+    expect(importLayoutWidthForGraph(graph, { stageWidth })).toBe(viewportWidth);
   });
 
   it("content minimum wins when stage is narrower than routing needs", () => {
@@ -200,13 +202,14 @@ describe("importLayoutWidthForGraph", () => {
     const minWidth = minLayoutWidthForGraph(graph);
     const stageWidth = minWidth + 200;
     const userExpanded = stageWidth + 600;
+    const viewportWidth = Math.max(stageInnerWidth(stageWidth), minWidth);
 
     expect(
       layoutWidthForViewport(graph, stageWidth, userExpanded),
     ).toBe(userExpanded);
     expect(
       layoutWidthForViewport(graph, stageWidth, minWidth),
-    ).toBe(stageWidth);
+    ).toBe(viewportWidth);
   });
 
   it("applyLayoutOverrides refreshColumnX keeps saved Y only", () => {

@@ -1,23 +1,16 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { buildConnectionGraph } from "./buildConnectionGraph";
 import { FIBER_ROW_PITCH, fiberRowOffsetInCable } from "./cableLayoutMetrics";
-import { buildVisualCables } from "./visualCables";
+import { buildVisualCablesForLayout } from "./visualCables";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
+import { readExampleCsv } from "@/testHelpers/exampleCsvPaths";
 
 describe("buildVisualCables", () => {
   it("Example #1: two 144 cylinders on right (ring cut), drop unchanged", () => {
-    const csv = readFileSync(
-      join(
-        process.cwd(),
-        "docs/reference/examples/CSV Splice Detail Example #1.csv",
-      ),
-      "utf8",
-    );
+    const csv = readExampleCsv("CSV Splice Detail Example #1.csv");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
-    const visual = buildVisualCables(graph);
+    const { visualCables: visual } = buildVisualCablesForLayout(graph);
 
     const drop = visual.filter((v) => v.cable.includes("DROP"));
     expect(drop).toHaveLength(1);

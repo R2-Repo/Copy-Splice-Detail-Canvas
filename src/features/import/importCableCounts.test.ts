@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
@@ -7,8 +6,7 @@ import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
 import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import { cableNameKey } from "@/features/import/cableLegIdentity";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
-
-const examples = join(process.cwd(), "docs/reference/examples");
+import { readExampleCsv, resolveExampleCsvPath } from "@/testHelpers/exampleCsvPaths";
 
 function cableNodeCount(csvPath: string): {
   uniqueNames: number;
@@ -34,7 +32,7 @@ function cableNodeCount(csvPath: string): {
 describe("import cable counts (one canvas node per physical cable name)", () => {
   it("Example #1: ring-cut keeps split 144 cylinders", () => {
     const counts = cableNodeCount(
-      join(examples, "CSV Splice Detail Example #1.csv"),
+      resolveExampleCsvPath("CSV Splice Detail Example #1.csv"),
     );
     expect(counts.uniqueNames).toBe(2);
     expect(counts.visualCables).toBe(3);
@@ -43,7 +41,7 @@ describe("import cable counts (one canvas node per physical cable name)", () => 
 
   it("Example #2: four physical cables → four nodes", () => {
     const counts = cableNodeCount(
-      join(examples, "CSV Splice Detail Example #2.csv"),
+      resolveExampleCsvPath("CSV Splice Detail Example #2.csv"),
     );
     expect(counts.uniqueNames).toBe(4);
     expect(counts.visualCables).toBe(4);
@@ -52,7 +50,7 @@ describe("import cable counts (one canvas node per physical cable name)", () => 
 
   it("Example #3: four physical cables → four nodes", () => {
     const counts = cableNodeCount(
-      join(examples, "CSV Splice Detail Example #3.csv"),
+      resolveExampleCsvPath("CSV Splice Detail Example #3.csv"),
     );
     expect(counts.uniqueNames).toBe(4);
     expect(counts.visualCables).toBe(4);
@@ -60,16 +58,14 @@ describe("import cable counts (one canvas node per physical cable name)", () => 
   });
 
   it("11400S: six physical cables → six nodes (not doubled)", () => {
-    const counts = cableNodeCount(join(examples, "SP-I-15_11400S.csv"));
+    const counts = cableNodeCount(resolveExampleCsvPath("SP-I-15_11400S.csv"));
     expect(counts.uniqueNames).toBe(6);
     expect(counts.visualCables).toBe(6);
     expect(counts.reactFlowCables).toBe(6);
   });
 
   it("11400S: 288 MP292 BK tube has 12 strands (not duplicated 24)", () => {
-    const report = parseBentleyCsv(
-      readFileSync(join(examples, "SP-I-15_11400S.csv"), "utf8"),
-    );
+    const report = parseBentleyCsv(readExampleCsv("SP-I-15_11400S.csv"));
     const graph = buildConnectionGraph(report);
     const { visualCables } = buildVisualCablesForLayout(graph);
     const { edges } = buildReactFlowGraph(graph);
@@ -88,9 +84,7 @@ describe("import cable counts (one canvas node per physical cable name)", () => 
   });
 
   it("aggregates cable appearances by name only", () => {
-    const report = parseBentleyCsv(
-      readFileSync(join(examples, "SP-I-15_11400S.csv"), "utf8"),
-    );
+    const report = parseBentleyCsv(readExampleCsv("SP-I-15_11400S.csv"));
     const names = new Set(report.cableAppearances.map((a) => a.cable));
     expect(report.cableAppearances.length).toBe(names.size);
     expect(names.size).toBe(6);

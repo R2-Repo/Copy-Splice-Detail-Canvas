@@ -72,3 +72,15 @@ npm run dev
 ```
 
 Vite dev server — typically http://localhost:5173
+
+## Drag vs import layout
+
+- **Import / drag-stop:** `buildReactFlowGraph` runs full placement — same-side cable stack collision, cross-side tube auto-align (`TUB-008`), and `routeCenterSplices` lane assignment.
+- **Live cable drag:** `syncNodesEngineDragLayout` calls `buildReactFlowGraph` with `dragSync: true`, which skips collision re-stack and tube auto-align until drag stop. Routing lanes and fiber anchors still refresh from live handle positions.
+- **`assignSpliceRoutingLanesFromLiveHandles`** in `spliceCenterLanes.ts` is reserved for future live bundle `rowOffset` refresh during drag; not wired in the canvas yet.
+
+## Manual overrides (v14)
+
+- `connectionOverrides` / `bundleOverrides` in `LayoutOverrides` — parameter-based routing offsets applied in `buildReactFlowGraph` before path precompute.
+- `legOverrides` (segment-index) still drives manual leg drag UX; `mergeLayoutOverrides` bridges segment deltas into `connectionOverrides` on save.
+- Canonical fiber-anchor coordinates: `manualAdjust/handleCoords.ts` → `fiberAnchorCenter()`.

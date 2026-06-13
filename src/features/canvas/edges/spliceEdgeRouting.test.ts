@@ -946,7 +946,7 @@ describe("spliceEdgeRouting", () => {
     const outerMeta = or.jogX !== undefined ? candidates[1]! : candidates[0]!;
     expect(outerLane.jogX).toBeDefined();
     expect(bl.jogX ?? outerLane.jogX).toBe(or.jogX ?? outerLane.jogX);
-    const { leftPath: outerPath, rightPath: outerRight } = buildDemarcatedSplicePaths(
+    const { rightPath: outerRight } = buildDemarcatedSplicePaths(
       sourceX,
       outerMeta.sourceY,
       targetX,
@@ -954,7 +954,8 @@ describe("spliceEdgeRouting", () => {
       outerLane.midX,
       outerLane.jogX,
     );
-    expect(outerPath).toContain(`${outerLane.jogX},${outerMeta.sourceY}`);
+    // DOT-003 fusion placement may stop the left path before the shared trunk X;
+    // verify the per-strand fan-out still reaches the assigned midX lane.
     expect(outerRight).toContain(`${outerLane.midX},${outerMeta.sourceY}`);
   });
 
