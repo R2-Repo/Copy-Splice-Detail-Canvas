@@ -401,6 +401,7 @@ export function CableNode({ id, data }: NodeProps) {
           tubes={tubesForRender}
           tubeGeoms={geo.tubes}
           collapsedTubes={collapsedTubes}
+          stemX={geo.stemX}
           tubeFaceX={tubeFaceX}
           defaultTubeLength={defaultTubeLength}
           alignedStemX={d.alignedStemX}

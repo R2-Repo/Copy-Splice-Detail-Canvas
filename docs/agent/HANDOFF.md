@@ -4,41 +4,32 @@
 
 ## Last updated
 
-2026-06-13 — Manual leg drag fixed + optimized. **User checkpoint:** best manual adjust / routing so far; use as rollback anchor.
+2026-06-13 — Fixed collapsed butt center vertical ↔ drag; removed all tube reach handles.
 
-## Checkpoint note
+## Session fix
 
-User marked this state **fixed** and requested it be recorded as the **best version of manual adjustment and routing done so far** — a good **jump-back point** if future work regresses drag feel, freezes, or leg path behavior.
+1. **Horizontal drag blocked** — fiber `applySegmentDelta` refused butt center verticals at splice X; new `applyButtCenterVerticalDelta` + no `preserveSplice` on butt reconnect so `routingMidX` moves with drag.
+2. **Reach handle removed** — deleted `tube-reach-drag` UI/CSS from all tubes (expanded + collapsed). Horizontal adjust is center vertical segment only.
+3. **Vertical** — tip handle ↕ unchanged (`visualShiftY` + `repinButtSpliceEdges`).
 
-To restore: find the git commit on `main` after this session (search log for leg drag / `simplifyOrthogonalPath` / absolute snapshot drag).
+Files: `buttLegAdjust.ts`, `legSegments.ts`, `useManualAdjustEngine.ts`, `applyManualAdjust.ts`, `TubeManualHandles.tsx`, `ManualAdjustOverlay.tsx`, `splice-diagram.css`.
 
-## Session fixes (manual leg drag)
+## User testing
 
-1. **Freeze fix** — `reconnectEditedLegPaths` + `preserveSplice` now runs `simplifyOrthogonalPath` after pin (stopped path point explosion 6 → 98k segments).
-2. **Smooth drag** — preview applies **total pointer delta** from **pre-drag path snapshot** (not incremental frames on mutated paths).
-3. **Perf** — overlay hit-targets **frozen during drag**; `buildHandleCoordsCache` in overlay recompute.
-
-Files: `legSegments.ts`, `legSegments.test.ts`, `useManualAdjustEngine.ts`, `ManualAdjustOverlay.tsx`, `WorkflowCanvas.tsx`.
-
-## User testing workflow
-
-1. `npm run dev` → `http://localhost:5173/`
-2. **Import** one of:
-   - `docs/reference/examples/Left-STATE_OFFICE.csv`
-   - `docs/reference/examples/Left-SPI-215_I-80.csv`
-   - `docs/reference/examples/Left-SP-3254.5.csv`
-3. Toggle **manual adjust**, drag leg corners and tube tips — leg drag should stay responsive.
+1. Import Left-* CSV, collapse full butt splices, enable **Manual adjust**.
+2. **Tip handle**: drag up/down on collapsed tube end.
+3. **Center vertical** on thick butt path: hover → highlight + ↔ → drag left/right (path should move).
+4. No second handle below the tip on any tube.
 
 ## Automated status
 
 ```bash
 npm run verify         # pass
 npm run test:layout    # 114/114
-npm run test:ci        # 423/423
+npm run test:ci        # 428/428
 ```
 
 ## Next agent
 
-1. Do **not** weaken leg drag / `preserveSplice` simplify without user approval and regression tests.
-2. Frozen routing symbols unchanged (see `.cursor/rules/frozen-routing.mdc`).
-3. Remaining backlog: PNG parity, callout toggle text, auto layout jumpiness if user reports again.
+- Do not weaken leg drag checkpoint or frozen routing without user approval.
+- `stemReachX` still in data model for legacy saved layouts; no UI to edit it.

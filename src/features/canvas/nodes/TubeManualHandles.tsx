@@ -1,5 +1,6 @@
 import { useCallback, useRef } from "react";
 
+import { collapsedTubeHandleLocalX } from "@/features/canvas/edges/splicePathGeometry";
 import { useManualLayout } from "@/features/canvas/ManualLayoutContext";
 import { clampFanoutShiftY } from "@/features/manualAdjust/constraints";
 import { tubeKeyFor } from "@/features/diagram/tubeRowShift";
@@ -18,6 +19,7 @@ type Props = {
   tubes: VisualTube[];
   tubeGeoms: TubeGeom[];
   collapsedTubes: Set<string>;
+  stemX: number;
   tubeFaceX: number;
   defaultTubeLength: number;
   alignedStemX?: number;
@@ -29,6 +31,7 @@ export function TubeManualHandles({
   tubes,
   tubeGeoms,
   collapsedTubes,
+  stemX,
   tubeFaceX: _tubeFaceX,
   defaultTubeLength: _defaultTubeLength,
   alignedStemX: _alignedStemX,
@@ -36,10 +39,8 @@ export function TubeManualHandles({
   const manual = useManualLayout();
   const dragRef = useRef<{
     tubeColor: TubeColorCode;
-    axis: "y" | "x";
-    startPointer: number;
+    startPointerY: number;
     startShiftY: number;
-    startReachX: number;
     baseTipY: number;
   } | null>(null);
 
@@ -50,9 +51,7 @@ export function TubeManualHandles({
         tubeKeyFor(visualCableId, tubeColor),
       );
       return {
-        visualShiftY:
-          preview?.visualShiftY ?? source?.visualShiftY ?? 0,
-        stemReachX: preview?.stemReachX ?? source?.stemReachX ?? 0,
+        visualShiftY: preview?.visualShiftY ?? source?.visualShiftY ?? 0,
         savedShiftY: source?.visualShiftY ?? 0,
         savedReachX: source?.stemReachX ?? 0,
       };
@@ -65,7 +64,6 @@ export function TubeManualHandles({
   const onPointerDown = (
     event: React.PointerEvent,
     tubeColor: TubeColorCode,
-    axis: "y" | "x",
     baseTipY: number,
   ) => {
     event.stopPropagation();
@@ -73,10 +71,8 @@ export function TubeManualHandles({
     const state = tubeState(tubeColor);
     dragRef.current = {
       tubeColor,
-      axis,
-      startPointer: axis === "y" ? event.clientY : event.clientX,
+      startPointerY: event.clientY,
       startShiftY: state.visualShiftY,
-      startReachX: state.stemReachX,
       baseTipY,
     };
     (event.target as HTMLElement).setPointerCapture(event.pointerId);
@@ -88,21 +84,11 @@ export function TubeManualHandles({
     event.stopPropagation();
 
     const tubeKey = tubeKeyFor(visualCableId, drag.tubeColor);
-
-    if (drag.axis === "y") {
-      const delta = event.clientY - drag.startPointer;
-      const next = clampFanoutShiftY(drag.startShiftY + delta);
-      manual.setTubePreview(tubeKey, { visualShiftY: next });
-      manual.setActiveGuides([]);
-    } else {
-      const next =
-        drag.startReachX +
-        (side === "left"
-          ? event.clientX - drag.startPointer
-          : drag.startPointer - event.clientX);
-      manual.setTubePreview(tubeKey, { stemReachX: next });
-      manual.setActiveGuides([]);
-    }
+    const prevPreview = manual.tubePreview.get(tubeKey);
+    const delta = event.clientY - drag.startPointerY;
+    const next = clampFanoutShiftY(drag.startShiftY + delta);
+    manual.setTubePreview(tubeKey, { ...prevPreview, visualShiftY: next });
+    manual.setActiveGuides([]);
   };
 
   const finishDrag = () => {
@@ -113,16 +99,11 @@ export function TubeManualHandles({
 
     const tubeKey = tubeKeyFor(visualCableId, drag.tubeColor);
     const state = tubeState(drag.tubeColor);
-    const patch: { visualShiftY?: number; stemReachX?: number } = {};
-
-    if (drag.axis === "y") {
-      const finalShift = clampFanoutShiftY(state.visualShiftY);
-      patch.visualShiftY =
-        Math.abs(finalShift) < 0.5 ? undefined : finalShift;
-    } else {
-      patch.stemReachX =
-        Math.abs(state.stemReachX) < 0.5 ? undefined : state.stemReachX;
-    }
+    const finalShift = clampFanoutShiftY(state.visualShiftY);
+    const patch = {
+      visualShiftY:
+        Math.abs(finalShift) < 0.5 ? undefined : finalShift,
+    };
 
     manual.setTubePreview(tubeKey, null);
     manual.onTubeOverrideCommit(tubeKey, patch);
@@ -142,33 +123,32 @@ export function TubeManualHandles({
       }}
     >
       {tubeGeoms.map((tube) => {
-        if (collapsedTubes.has(tube.tubeColor)) return null;
+        const collapsed = collapsedTubes.has(tube.tubeColor);
         const state = tubeState(tube.tubeColor);
         const baseTipY = tube.end.y - state.savedShiftY;
-        const baseEndX =
-          tube.end.x -
-          (side === "left" ? state.savedReachX : -state.savedReachX);
         const displayEndY = baseTipY + state.visualShiftY;
-        const displayEndX =
-          baseEndX +
-          (side === "left" ? state.stemReachX : -state.stemReachX);
+        const displayEndX = collapsed
+          ? collapsedTubeHandleLocalX(side, stemX)
+          : tube.end.x -
+            (side === "left" ? state.savedReachX : -state.savedReachX);
 
         return (
-          <div key={tube.tubeColor}>
-            <button
-              type="button"
-              className="cable-node__tube-tip-drag nodrag nopan"
-              style={{
-                left: displayEndX - 6,
-                top: displayEndY - 6,
-              }}
-              title="Drag tube tip (vertical)"
-              aria-label={`Adjust ${tube.tubeColor} tube tip`}
-              onPointerDown={(e) =>
-                onPointerDown(e, tube.tubeColor, "y", baseTipY)
-              }
-            />
-          </div>
+          <button
+            key={tube.tubeColor}
+            type="button"
+            className="cable-node__tube-tip-drag nodrag nopan"
+            style={{
+              left: displayEndX - 6,
+              top: displayEndY - 6,
+            }}
+            title={
+              collapsed
+                ? "Drag collapsed tube up/down"
+                : "Drag tube tip (vertical)"
+            }
+            aria-label={`Adjust ${tube.tubeColor} tube height`}
+            onPointerDown={(e) => onPointerDown(e, tube.tubeColor, baseTipY)}
+          />
         );
       })}
     </div>

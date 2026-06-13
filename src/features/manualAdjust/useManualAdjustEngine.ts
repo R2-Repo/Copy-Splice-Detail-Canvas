@@ -8,12 +8,22 @@ import {
   accumulateLegOverride,
   applyLegOverridesToEdge,
 } from "./applyManualAdjust";
-import { fiberAnchorCenter } from "./handleCoords";
+import {
+  applyButtCenterVerticalDelta,
+  buttLegPathsWithinBendBudget,
+  isButtEdgeId,
+} from "./buttLegAdjust";
 import {
   legCommitBlockedMessage,
   validateLegPaths,
   type LegPathValidationCode,
 } from "./constraints";
+import {
+  fiberAnchorCenter,
+  handleCoordsForButtEdge,
+  handleCoordsForConnection,
+  buildHandleCoordsCache,
+} from "./handleCoords";
 import {
   applySegmentDelta,
   legSegmentsFromPaths,
@@ -23,7 +33,6 @@ import {
   segmentsToPath,
   type SegmentDragAxis,
 } from "./legSegments";
-import { handleCoordsForConnection, buildHandleCoordsCache } from "./handleCoords";
 import { syncSplicePointNodes } from "./syncSplicePointNodes";
 import {
   connectionsInMarquee,
@@ -169,6 +178,7 @@ export function useManualAdjustEngine({
       segmentIndex: number,
       connectionId: string,
     ): SegmentDragAxis => {
+      if (isButtEdgeId(connectionId)) return "horizontal";
       const leftEdge = edges.find((e) => e.id === `splice-left-${connectionId}`);
       const data = (leftEdge?.data ?? {}) as {
         leftPath?: string;
@@ -250,6 +260,15 @@ export function useManualAdjustEngine({
       for (const connectionId of drag.connectionIds) {
         const paths = legPathDataFromEdges(currentEdges, connectionId);
         if (!paths) continue;
+        if (isButtEdgeId(connectionId)) {
+          if (
+            !buttLegPathsWithinBendBudget(paths.leftPath, paths.rightPath)
+          ) {
+            blockedCode = "EDGE-004";
+            break;
+          }
+          continue;
+        }
         blockedCode = validateLegPaths(
           paths.leftPath,
           paths.rightPath,
@@ -383,13 +402,31 @@ export function useManualAdjustEngine({
     (
       inputEdges: Edge[],
       overrides: LayoutOverrides | undefined,
-      _inputNodes: Node[],
-      _inputGraph: ConnectionGraph,
+      inputNodes: Node[],
+      inputGraph: ConnectionGraph,
     ): Edge[] => {
       const legMap = overrides?.legOverrides;
       if (!legMap) return inputEdges;
 
       return inputEdges.map((edge) => {
+        if (isButtEdgeId(edge.id) && legMap[edge.id]) {
+          const handles = handleCoordsForButtEdge(
+            edge.id,
+            inputNodes,
+            inputEdges,
+            inputGraph,
+          );
+          const updated = applyLegOverridesToEdge(
+            edge,
+            legMap[edge.id],
+            handles?.source.x ?? 0,
+            handles?.source.y ?? 0,
+            handles?.target.x ?? 0,
+            handles?.target.y ?? 0,
+          );
+          return updated ?? edge;
+        }
+
         const connId = edge.id.replace(/^splice-(?:left|right)-/, "");
         if (!legMap[connId]) return edge;
         const leftEdge = inputEdges.find((e) => e.id === `splice-left-${connId}`);
@@ -399,13 +436,18 @@ export function useManualAdjustEngine({
           targetX?: number;
           targetY?: number;
         };
+        const handles = handleCoordsForConnection(
+          connId,
+          inputNodes,
+          inputGraph,
+        );
         const updated = applyLegOverridesToEdge(
           edge,
           legMap[connId],
-          Number(data.sourceX ?? 0),
-          Number(data.sourceY ?? 0),
-          Number(data.targetX ?? 0),
-          Number(data.targetY ?? 0),
+          handles?.source.x ?? Number(data.sourceX ?? 0),
+          handles?.source.y ?? Number(data.sourceY ?? 0),
+          handles?.target.x ?? Number(data.targetX ?? 0),
+          handles?.target.y ?? Number(data.targetY ?? 0),
         );
         return updated ?? edge;
       });
@@ -431,6 +473,26 @@ function legPathDataFromEdges(
   edges: Edge[],
   connectionId: string,
 ): ConnectionLegPathData | null {
+  if (isButtEdgeId(connectionId)) {
+    const buttEdge = edges.find((e) => e.id === connectionId);
+    if (!buttEdge) return null;
+    const data = (buttEdge.data ?? {}) as {
+      leftPath?: string;
+      rightPath?: string;
+      spliceX?: number;
+      spliceY?: number;
+    };
+    const leftPath = String(data.leftPath ?? "");
+    const rightPath = String(data.rightPath ?? "");
+    if (!leftPath || !rightPath) return null;
+    return {
+      leftPath,
+      rightPath,
+      spliceX: Number(data.spliceX ?? 0),
+      spliceY: Number(data.spliceY ?? 0),
+    };
+  }
+
   const leftEdge = edges.find((e) => e.id === `splice-left-${connectionId}`);
   if (!leftEdge) return null;
   const data = (leftEdge.data ?? {}) as {
@@ -459,6 +521,20 @@ function applyLegPathSnapshots(
     for (const connectionId of connectionIds) {
       const snapshot = snapshots.get(connectionId);
       if (!snapshot) continue;
+      if (isButtEdgeId(connectionId)) {
+        if (edge.id !== connectionId) continue;
+        return {
+          ...edge,
+          data: {
+            ...(edge.data as Record<string, unknown>),
+            leftPath: snapshot.leftPath,
+            rightPath: snapshot.rightPath,
+            spliceX: snapshot.spliceX,
+            spliceY: snapshot.spliceY,
+            routingMidX: snapshot.spliceX,
+          },
+        };
+      }
       if (
         edge.id !== `splice-left-${connectionId}` &&
         edge.id !== `splice-right-${connectionId}`
@@ -494,6 +570,77 @@ function previewSegmentDrag(
   for (const connectionId of drag.connectionIds) {
     const snapshot = drag.preDragPaths.get(connectionId);
     if (!snapshot) continue;
+
+    if (isButtEdgeId(connectionId)) {
+      const edgeIdx = nextEdges.findIndex((e) => e.id === connectionId);
+      if (edgeIdx < 0) continue;
+      const handles =
+        graph != null
+          ? handleCoordsForButtEdge(
+              connectionId,
+              nodes,
+              nextEdges,
+              graph,
+              handleCache,
+            )
+          : null;
+      const paths = legSegmentsFromPaths(snapshot.leftPath, snapshot.rightPath);
+      const segments =
+        drag.side === "left" ? paths.left : paths.right;
+      const updatedSegments =
+        drag.axis === "horizontal"
+          ? applyButtCenterVerticalDelta(
+              segments,
+              drag.segmentIndex,
+              totalDelta,
+            )
+          : segments;
+      const pathStart =
+        drag.side === "left"
+          ? (handles?.source ?? pathStartPoint(snapshot.leftPath))
+          : pathStartPoint(snapshot.rightPath);
+      const nextLeft =
+        drag.side === "left"
+          ? segmentsToPath(updatedSegments, pathStart)
+          : snapshot.leftPath;
+      const nextRight =
+        drag.side === "right"
+          ? segmentsToPath(updatedSegments, pathStart)
+          : snapshot.rightPath;
+      const connected = reconnectEditedLegPaths(nextLeft, nextRight, drag.side, {
+        handles: handles ?? undefined,
+      });
+      const prev = nextEdges[edgeIdx]!;
+      const prevData = (prev.data ?? {}) as {
+        leftPath?: string;
+        rightPath?: string;
+        spliceX?: number;
+        spliceY?: number;
+      };
+      if (
+        prevData.leftPath === connected.leftPath &&
+        prevData.rightPath === connected.rightPath &&
+        prevData.spliceX === connected.spliceX &&
+        prevData.spliceY === connected.spliceY
+      ) {
+        continue;
+      }
+      changed = true;
+      nextEdges[edgeIdx] = {
+        ...prev,
+        data: {
+          ...(prev.data as Record<string, unknown>),
+          leftPath: connected.leftPath,
+          rightPath: connected.rightPath,
+          spliceX: connected.spliceX,
+          spliceY: connected.spliceY,
+          routingMidX: connected.spliceX,
+          routingPrecomputed: true,
+        },
+      };
+      continue;
+    }
+
     const leftId = `splice-left-${connectionId}`;
     const rightId = `splice-right-${connectionId}`;
     const leftEdge = nextEdges.find((e) => e.id === leftId);

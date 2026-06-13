@@ -215,8 +215,7 @@
   pointer-events: none;
 }
 
-.cable-node--manual-adjust .cable-node__tube-tip-drag,
-.cable-node--manual-adjust .cable-node__tube-reach-drag {
+.cable-node--manual-adjust .cable-node__tube-tip-drag {
   position: absolute;
   width: 12px;
   height: 12px;
@@ -231,11 +230,6 @@
 
 .cable-node__tube-tip-drag {
   cursor: ns-resize;
-}
-
-.cable-node__tube-reach-drag {
-  cursor: ew-resize;
-  width: 16px;
 }
 
 .manual-layout-guides {

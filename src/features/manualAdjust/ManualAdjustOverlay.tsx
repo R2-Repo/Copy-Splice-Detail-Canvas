@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { ConnectionGraph } from "@/types/splice";
 
 import { handleCoordsForConnection, buildHandleCoordsCache } from "./handleCoords";
+import { draggableButtCenterSegments, isButtSpliceEdge } from "./buttLegAdjust";
 import {
   allowedSegmentAxes,
   legSegmentsFromPaths,
@@ -47,6 +48,8 @@ type DraggableSegment = {
   segment: LegSegment;
   axes: SegmentDragAxis[];
   cursor: string;
+  /** Collapsed butt splice center vertical — same hit styling, different aria label. */
+  buttSegment?: boolean;
 };
 
 function cursorForAxes(segment: LegSegment, axes: SegmentDragAxis[]): string {
@@ -206,6 +209,23 @@ export function ManualAdjustOverlay({
         }
       }
     }
+
+    for (const edge of edges) {
+      if (!isButtSpliceEdge(edge)) continue;
+      for (const buttSeg of draggableButtCenterSegments(edge)) {
+        items.push({
+          key: `${buttSeg.edgeId}-${buttSeg.side}-${buttSeg.segment.index}`,
+          connectionId: buttSeg.edgeId,
+          side: buttSeg.side,
+          segmentIndex: buttSeg.segmentIndex,
+          segment: buttSeg.segment,
+          axes: ["horizontal"],
+          cursor: "ew-resize",
+          buttSegment: true,
+        });
+      }
+    }
+
     cachedSegmentsRef.current = items;
     return items;
   }, [enabled, graph, edges, nodes, legSegmentDragActive]);
@@ -300,8 +320,16 @@ export function ManualAdjustOverlay({
                 : ""
             }`}
             style={segmentHitStyle(item.segment, flowToPanelLocal, item.cursor)}
-            title={`Drag leg segment ${item.segmentIndex} (${item.axes.join(", ")})`}
-            aria-label={`Adjust ${item.side} leg segment ${item.segmentIndex}`}
+            title={
+              item.buttSegment
+                ? `Drag collapsed tube center leg (${item.axes.join(", ")})`
+                : `Drag leg segment ${item.segmentIndex} (${item.axes.join(", ")})`
+            }
+            aria-label={
+              item.buttSegment
+                ? `Adjust collapsed buffer tube center segment ${item.segmentIndex}`
+                : `Adjust ${item.side} leg segment ${item.segmentIndex}`
+            }
             onPointerDown={(event) => {
               event.stopPropagation();
               onSegmentPointerDown(

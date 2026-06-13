@@ -72,6 +72,10 @@ import {
 import { usePrintDiagram } from "@/features/export/usePrintDiagram";
 import { ManualAdjustOverlay } from "@/features/manualAdjust/ManualAdjustOverlay";
 import { syncSplicePointNodes } from "@/features/manualAdjust/syncSplicePointNodes";
+import {
+  isCollapsedTubeKey,
+  repinButtSpliceEdges,
+} from "@/features/manualAdjust/repinButtSpliceEdges";
 import { syncManualVisualCable } from "@/features/manualAdjust/syncManualVisualCable";
 import { useManualAdjustEngine } from "@/features/manualAdjust/useManualAdjustEngine";
 import { spliceEdgeIdsForTubeKey } from "@/features/diagram/snapGuides";
@@ -91,6 +95,7 @@ import {
 } from "@/features/diagram/layoutSpliceDiagram";
 import { estimatedCableNodeWidth } from "@/features/diagram/spliceRowLayout";
 import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
+import { tubeKeyFor } from "@/features/diagram/tubeRowShift";
 import {
   AutoIcon,
   CalloutIcon,
@@ -113,6 +118,7 @@ import type {
   ConnectionGraph,
   LayoutCalloutRecord,
   LayoutOverrides,
+  TubeColorCode,
   TubeManualOverride,
   TubeOverrideKey,
 } from "@/types/splice";
@@ -231,6 +237,7 @@ function WorkflowCanvasInner() {
   const [tubePreview, setTubePreviewState] = useState<
     Map<TubeOverrideKey, TubeManualOverride>
   >(() => new Map());
+  const tubePreviewRepinRafRef = useRef<number | null>(null);
   const autoAdjustRef = useRef(true);
   const manualCableDragRafRef = useRef<number | null>(null);
   const pendingManualCableNodeRef = useRef<Node | null>(null);
@@ -239,28 +246,80 @@ function WorkflowCanvasInner() {
   calloutsVisibleRef.current = calloutsVisible;
   autoAdjustRef.current = autoAdjustEnabled;
 
+  useEffect(() => {
+    if (autoAdjustEnabled || tubePreview.size === 0) return;
+    const graph = graphRef.current;
+    if (!graph) return;
+
+    const nodes = getNodes().filter((n) => n.type !== "cableCallout");
+    const collapsedKeys = [...tubePreview.keys()].filter((key) =>
+      isCollapsedTubeKey(nodes, key),
+    );
+    if (collapsedKeys.length === 0) return;
+
+    if (tubePreviewRepinRafRef.current != null) {
+      cancelAnimationFrame(tubePreviewRepinRafRef.current);
+    }
+    tubePreviewRepinRafRef.current = requestAnimationFrame(() => {
+      tubePreviewRepinRafRef.current = null;
+      const currentEdges = getEdges();
+      const { edges: repinned } = repinButtSpliceEdges(
+        nodes,
+        currentEdges,
+        graph,
+        { tubeKeys: collapsedKeys, tubePreview },
+      );
+      if (repinned !== currentEdges) {
+        setEdges(repinned);
+      }
+    });
+
+    return () => {
+      if (tubePreviewRepinRafRef.current != null) {
+        cancelAnimationFrame(tubePreviewRepinRafRef.current);
+        tubePreviewRepinRafRef.current = null;
+      }
+    };
+  }, [autoAdjustEnabled, getEdges, getNodes, setEdges, tubePreview]);
+
   const applyManualCableDrag = useCallback(
     (draggedNode: Node) => {
       const graph = graphRef.current;
       if (!graph || draggedNode.type !== "cable") return;
       const visualId = visualCableIdFromNodeId(draggedNode.id);
       if (!visualId) return;
+
       const current = getNodes();
       const callouts = current.filter((n) => n.type === "cableCallout");
       const engine = current.filter((n) => n.type !== "cableCallout");
       const currentEdges = getEdges();
-      const { nodes: synced, edges: nextEdges } = syncManualVisualCable(
+      const cableData = draggedNode.data as CableNodeData;
+      const { nodes: synced, edges: syncedEdges } = syncManualVisualCable(
         engine,
         currentEdges,
         graph,
         visualId,
         draggedNode,
       );
+      let finalEdges = syncedEdges;
+      const collapsedColors = cableData.collapsedTubes ?? [];
+      if (!autoAdjustRef.current && collapsedColors.length > 0) {
+        const tubeKeys = collapsedColors.map((tubeColor) =>
+          tubeKeyFor(visualId, tubeColor as TubeColorCode),
+        );
+        const repinned = repinButtSpliceEdges(
+          synced,
+          syncedEdges,
+          graph,
+          { tubeKeys },
+        );
+        finalEdges = repinned.edges;
+      }
       if (synced !== engine) {
         setNodes([...synced, ...callouts]);
       }
-      if (nextEdges !== currentEdges) {
-        setEdges(nextEdges);
+      if (finalEdges !== currentEdges) {
+        setEdges(finalEdges);
       }
     },
     [getEdges, getNodes, setEdges, setNodes],
@@ -758,7 +817,7 @@ function WorkflowCanvasInner() {
             },
           };
         });
-      const { nodes: synced, edges: nextEdges } = syncManualVisualCable(
+      const { nodes: synced, edges: syncedEdges } = syncManualVisualCable(
         engine,
         getEdges(),
         graph,
@@ -769,12 +828,19 @@ function WorkflowCanvasInner() {
         reportKey,
         positions,
       );
+      let finalEdges = syncedEdges;
+      if (isCollapsedTubeKey(mergedNodes, tubeKey)) {
+        const repinned = repinButtSpliceEdges(mergedNodes, syncedEdges, graph, {
+          tubeKeys: [tubeKey],
+        });
+        finalEdges = repinned.edges;
+      }
       setNodes(mergedNodes);
-      setEdges(nextEdges);
+      setEdges(finalEdges);
       saveLayoutOverrides(
         mergeLayoutOverrides(reportKey, {
           positions: positionsFromNodes(mergedNodes),
-          existingEdgeIds: existingIdsFromEdges(nextEdges),
+          existingEdgeIds: existingIdsFromEdges(finalEdges),
           collapseFullButtSplices: collapseRef.current,
           layoutWidth: layoutWidthRef.current,
           cableSides: existing?.cableSides,
@@ -788,7 +854,7 @@ function WorkflowCanvasInner() {
       updateManualWarnings(
         graph,
         mergedNodes,
-        nextEdges,
+        finalEdges,
         spliceEdgeIdsForTubeKey(graph, tubeKey),
       );
       requestAnimationFrame(() => {
@@ -1071,6 +1137,20 @@ function WorkflowCanvasInner() {
             visualId,
             draggedFinal,
           ));
+          const collapsedColors =
+            (draggedFinal.data as CableNodeData).collapsedTubes ?? [];
+          if (collapsedColors.length > 0) {
+            const tubeKeys = collapsedColors.map((tubeColor) =>
+              tubeKeyFor(visualId, tubeColor as TubeColorCode),
+            );
+            const repinned = repinButtSpliceEdges(
+              nextNodes,
+              nextEdges,
+              graph,
+              { tubeKeys },
+            );
+            nextEdges = repinned.edges;
+          }
           nextNodes = [...nextNodes, ...callouts];
         } else {
           ({ nodes: nextNodes, edges: nextEdges, autoLayoutY } =
@@ -1501,7 +1581,7 @@ function WorkflowCanvasInner() {
         <span className="workflow-canvas__hint">
           {autoAdjustEnabled
             ? "Drag cables to reposition; click edge for protect-in-place"
-            : "Manual mode: drag fan-out tips vertically; drag center vertical legs ↔; shift+click handles; box-select on canvas"}
+            : "Manual mode: tube tips ↕; collapsed tube center legs ↔ like fiber legs; shift+click handles; box-select"}
         </span>
         {manualWarningBanner ? (
           <span className="workflow-canvas__manual-warning" role="status">

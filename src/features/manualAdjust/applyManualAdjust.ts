@@ -4,8 +4,15 @@ import { parseOrthogonalPathPoints } from "@/features/canvas/edges/splicePathGeo
 import type { VisualCable } from "@/features/diagram/visualCables";
 import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
 
-import { handleCoordsForConnection } from "./handleCoords";
-
+import {
+  applyButtCenterVerticalDelta,
+  buttLegPathsWithinBendBudget,
+  isButtEdgeId,
+} from "./buttLegAdjust";
+import {
+  handleCoordsForButtEdge,
+  handleCoordsForConnection,
+} from "./handleCoords";
 import { validateLegPaths } from "./constraints";
 import {
   applySegmentDelta,
@@ -60,9 +67,13 @@ export function applyLegOverridesToEdge(
   const rightPath = String(data.rightPath ?? "");
   if (!leftPath || !rightPath) return edge;
 
+  const isButt =
+    data.fullButtSplice === true || isButtEdgeId(String(edge.id ?? ""));
   const template = routeTemplateForHandles(sourceX, sourceY, targetX, targetY);
   const preserveSplice =
-    Number.isFinite(Number(data.spliceX)) && Number.isFinite(Number(data.spliceY))
+    !isButt &&
+    Number.isFinite(Number(data.spliceX)) &&
+    Number.isFinite(Number(data.spliceY))
       ? { x: Number(data.spliceX), y: Number(data.spliceY) }
       : undefined;
   let { left, right } = legSegmentsFromPaths(leftPath, rightPath);
@@ -73,6 +84,7 @@ export function applyLegOverridesToEdge(
     template,
     "left",
     preserveSplice,
+    isButt,
   );
   right = applyStoredSegmentOverrides(
     right,
@@ -80,6 +92,7 @@ export function applyLegOverridesToEdge(
     template,
     "right",
     preserveSplice,
+    isButt,
   );
 
   const spliceStart = parseOrthogonalPathPoints(rightPath)[0] ?? {
@@ -102,6 +115,24 @@ export function applyLegOverridesToEdge(
     x: connected.spliceX,
     y: connected.spliceY,
   };
+
+  if (isButt) {
+    if (!buttLegPathsWithinBendBudget(connected.leftPath, connected.rightPath)) {
+      return null;
+    }
+    return {
+      ...edge,
+      data: {
+        ...data,
+        leftPath: connected.leftPath,
+        rightPath: connected.rightPath,
+        spliceX: splicePoint.x,
+        spliceY: splicePoint.y,
+        routingMidX: splicePoint.x,
+        routingPrecomputed: true,
+      },
+    };
+  }
 
   if (
     validateLegPaths(
@@ -132,13 +163,24 @@ function applyStoredSegmentOverrides(
   template: ReturnType<typeof routeTemplateForHandles>,
   side: LegSide,
   splice?: { x: number; y: number },
+  isButt = false,
 ): LegSegment[] {
   if (!overrides) return segments;
   let next = segments;
   for (const [indexRaw, patch] of Object.entries(overrides)) {
     const index = Number(indexRaw);
     if (patch.dx) {
-      next = applySegmentDelta(next, index, "horizontal", patch.dx, template, side, splice);
+      next = isButt
+        ? applyButtCenterVerticalDelta(next, index, patch.dx)
+        : applySegmentDelta(
+            next,
+            index,
+            "horizontal",
+            patch.dx,
+            template,
+            side,
+            splice,
+          );
     }
     if (patch.dy) {
       next = applySegmentDelta(next, index, "vertical", patch.dy, template, side, splice);
@@ -157,6 +199,22 @@ export function applyAllLegOverrides(
   const legMap = overrides?.legOverrides;
   if (!legMap) return edges;
   return edges.map((edge) => {
+    if (isButtEdgeId(edge.id) && legMap[edge.id]) {
+      const handles =
+        nodes != null && graph != null
+          ? handleCoordsForButtEdge(edge.id, nodes, edges, graph)
+          : null;
+      const updated = applyLegOverridesToEdge(
+        edge,
+        legMap[edge.id],
+        handles?.source.x ?? 0,
+        handles?.source.y ?? 0,
+        handles?.target.x ?? 0,
+        handles?.target.y ?? 0,
+      );
+      return updated ?? edge;
+    }
+
     const connId = edge.id.replace(/^splice-(?:left|right)-/, "");
     if (!legMap[connId]) return edge;
     const handles =

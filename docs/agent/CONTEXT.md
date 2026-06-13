@@ -5,7 +5,7 @@
 ## Baseline
 
 - Branch: `main`
-- Verified: **`npm run verify`** green — `test:layout` **114/114**, `test:ci` **423/423**
+- Verified: **`npm run verify`** green — `test:layout` **114/114**, `test:ci` **428/428**
 
 ## Checkpoint (user-approved — 2026-06-13)
 
@@ -19,7 +19,15 @@ Key symbols touched this session:
 
 ## Current phase
 
-**User-driven bug fixes** — manual leg drag stable; other layout items may remain.
+**User-driven bug fixes** — collapsed thick buffer tubes now manually adjustable in manual mode; leg drag checkpoint preserved.
+
+## Latest (2026-06-13)
+
+**Collapsed tube manual adjust** — vertical fan-out drag (tip handle ↕) + center vertical leg drag ↔ (same as fiber legs):
+
+- Tip handle only (↕) — **no reach handle** on any tube
+- `applyButtCenterVerticalDelta` bypasses fusion-dot guards that blocked drag at splice X
+- Butt horizontal drag moves `routingMidX` (no `preserveSplice` on butt reconnect)
 
 ## User testing (canonical)
 

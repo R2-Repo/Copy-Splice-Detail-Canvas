@@ -464,7 +464,7 @@ export function reconnectEditedLegPaths(
   return connectLegPathsAtSplice(left, right, editedSide);
 }
 
-function shiftVerticalLane(
+export function shiftVerticalLane(
   segments: LegSegment[],
   verticalIndex: number,
   delta: number,

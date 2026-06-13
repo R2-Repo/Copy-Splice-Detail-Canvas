@@ -1,7 +1,18 @@
 import type { Edge, Node } from "@xyflow/react";
 
 import type { CableNodeData } from "@/features/canvas/nodes/types";
-import { fiberHandlePosition } from "@/features/canvas/edges/splicePathGeometry";
+import {
+  buildSplicePath,
+  defaultSideCircuitLabelSpan,
+  fiberHandlePosition,
+  resolveSpliceMidX,
+  routingLaneFromData,
+  routingMidXForRender,
+} from "@/features/canvas/edges/splicePathGeometry";
+import {
+  formattedCircuitTagWidth,
+  type SideCircuitLabelSpan,
+} from "@/features/diagram/cableLabels";
 import type { ConnectionGraph } from "@/types/splice";
 import {
   buildVisualCablesForLayout,
@@ -12,8 +23,21 @@ import {
   buildHandleCoordsCache,
   handleCoordsForConnection,
 } from "./handleCoords";
-import { pinCableLegHandles } from "./legSegments";
 import { syncSplicePointNodes } from "./syncSplicePointNodes";
+
+type SpliceLaneData = {
+  leftPath?: string;
+  rightPath?: string;
+  spliceX?: number;
+  spliceY?: number;
+  laneIndex?: number;
+  laneOverride?: number;
+  laneCount?: number;
+  rowOffset?: number;
+  circuitName?: string;
+  diagramCenterX?: number;
+  sideCircuitSpan?: SideCircuitLabelSpan;
+};
 
 const ANCHOR_DOT = 6;
 
@@ -73,8 +97,11 @@ export function syncManualVisualCable(
   if (!vcRaw) return { nodes, edges, touchedConnections: [] };
 
   const vc = visualCableFromCableNode(vcRaw, cableData);
+  const collapsedOnCable = new Set(cableData.collapsedTubes ?? []);
   const connectionIds = vc.tubes.flatMap((t) =>
-    t.fibers.map((f) => f.connectionId),
+    collapsedOnCable.has(t.tubeColor)
+      ? []
+      : t.fibers.map((f) => f.connectionId),
   );
 
   const anchorPositions = new Map<string, { x: number; y: number }>();
@@ -136,19 +163,55 @@ export function syncManualVisualCable(
     const pinsTarget = targetVc === visualCableId;
     if (!pinsSource && !pinsTarget) continue;
 
-    const data = (leftEdge.data ?? {}) as {
-      leftPath?: string;
-      rightPath?: string;
-    };
-    let leftPath = String(data.leftPath ?? "");
-    let rightPath = String(data.rightPath ?? "");
+    const data = (leftEdge.data ?? {}) as SpliceLaneData;
 
-    const editedSide = pinsSource ? ("left" as const) : ("right" as const);
-    const connected = pinCableLegHandles(
-      leftPath,
-      rightPath,
-      editedSide,
-      handles,
+    // Rebuild legs with the same orthogonal router auto mode uses so manual
+    // drags follow identical rules and never produce diagonal fiber legs.
+    const sourceX = handles.source.x;
+    const sourceY = handles.source.y;
+    const targetX = handles.target.x;
+    const targetY = handles.target.y;
+    const fallbackLane = data.laneOverride ?? data.laneIndex ?? 0;
+    const laneCount = Math.max(1, data.laneCount ?? 1);
+    const sideSpans = data.sideCircuitSpan ?? defaultSideCircuitLabelSpan();
+    const diagramCenterX = data.diagramCenterX ?? (sourceX + targetX) / 2;
+    const sourceTagWidth = formattedCircuitTagWidth(data.circuitName);
+    const targetTagWidth = sourceTagWidth;
+    const storedLane = routingLaneFromData(data);
+    const resolvedMidX = routingMidXForRender(
+      storedLane?.midX ??
+        resolveSpliceMidX(sourceX, sourceY, targetX, targetY, {
+          rowOffset: data.rowOffset,
+          maxRowOffset: Math.max(0, data.rowOffset ?? 0),
+          routingLane: fallbackLane,
+          laneCount,
+          diagramCenterX,
+          sideCircuitSpan: sideSpans,
+        }),
+      sourceX,
+      targetX,
+      diagramCenterX,
+      sideSpans,
+      sourceTagWidth,
+      targetTagWidth,
+    );
+    const connected = buildSplicePath(
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+      resolvedMidX,
+      storedLane?.jogX,
+      {
+        sourceHorizY: storedLane?.sourceHorizY,
+        targetHorizY: storedLane?.targetHorizY,
+        sourceBendX: storedLane?.sourceBendX,
+        targetBendX: storedLane?.targetBendX,
+      },
+      sideSpans,
+      diagramCenterX,
+      sourceTagWidth,
+      targetTagWidth,
     );
 
     const prevEdgeData = (edgePatches.get(leftId) ?? leftEdge).data as {
