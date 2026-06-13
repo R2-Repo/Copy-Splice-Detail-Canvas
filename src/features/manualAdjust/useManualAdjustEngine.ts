@@ -23,8 +23,10 @@ import {
   handleCoordsForButtEdge,
   handleCoordsForConnection,
   buildHandleCoordsCache,
+  type HandleCoordsCache,
 } from "./handleCoords";
 import {
+  allowedSegmentAxes,
   applySegmentDelta,
   legSegmentsFromPaths,
   pathStartPoint,
@@ -58,6 +60,12 @@ type SegmentDragState = {
   latestPointer: number;
   baseOverrides: NonNullable<LayoutOverrides["legOverrides"]>;
   preDragPaths: Map<string, ConnectionLegPathData>;
+  /**
+   * Per-connection (side, segmentIndex) to move. For a single leg this holds
+   * just the grabbed leg. For a group drag each selected leg resolves its own
+   * center segment, so legs with different shapes still move together.
+   */
+  segmentTargets: Map<string, { side: LegSide; segmentIndex: number }>;
 };
 
 export type ManualAdjustEngine = {
@@ -299,10 +307,12 @@ export function useManualAdjustEngine({
 
       const nextOverrides = { ...drag.baseOverrides };
       for (const connectionId of drag.connectionIds) {
+        const target = drag.segmentTargets.get(connectionId);
+        if (!target) continue;
         nextOverrides[connectionId] = accumulateLegOverride(
           nextOverrides[connectionId],
-          drag.side,
-          drag.segmentIndex,
+          target.side,
+          target.segmentIndex,
           drag.axis,
           totalDelta,
         );
@@ -364,6 +374,30 @@ export function useManualAdjustEngine({
         const snapshot = legPathDataFromEdges(getEdges(), id);
         if (snapshot) preDragPaths.set(id, snapshot);
       }
+      const segmentTargets = new Map<
+        string,
+        { side: LegSide; segmentIndex: number }
+      >();
+      segmentTargets.set(connectionId, { side, segmentIndex });
+      if (ids.length > 1 && graph && !isButtEdgeId(connectionId)) {
+        const currentEdges = getEdges();
+        const currentNodes = getNodes();
+        const cache = buildHandleCoordsCache(currentNodes, graph);
+        for (const id of ids) {
+          if (id === connectionId || isButtEdgeId(id)) continue;
+          const resolvedIndex = resolveGroupSegmentIndex(
+            currentEdges,
+            currentNodes,
+            graph,
+            cache,
+            id,
+            side,
+          );
+          if (resolvedIndex != null) {
+            segmentTargets.set(id, { side, segmentIndex: resolvedIndex });
+          }
+        }
+      }
       const startPointer = axis === "horizontal" ? event.clientX : event.clientY;
       segmentDragRef.current = {
         connectionIds: ids,
@@ -374,6 +408,7 @@ export function useManualAdjustEngine({
         latestPointer: startPointer,
         baseOverrides: { ...(legOverrides ?? {}) },
         preDragPaths,
+        segmentTargets,
       };
       setLegSegmentDragActive(true);
       window.addEventListener("pointermove", segmentMoveListenerRef.current);
@@ -384,6 +419,8 @@ export function useManualAdjustEngine({
       detachSegmentDragListeners,
       enabled,
       getEdges,
+      getNodes,
+      graph,
       legOverrides,
       resolveSegmentAxis,
       selection.connectionIds,
@@ -556,6 +593,59 @@ function applyLegPathSnapshots(
   });
 }
 
+/**
+ * For a group drag, find the segment on `side` that the manual overlay would
+ * let the user drag horizontally (the leg's center vertical lane). Returns null
+ * when this leg has no draggable segment on that side, so it is simply left in
+ * place rather than shifting the wrong segment.
+ */
+function resolveGroupSegmentIndex(
+  edges: Edge[],
+  nodes: Node[],
+  graph: ConnectionGraph,
+  cache: HandleCoordsCache,
+  connectionId: string,
+  side: LegSide,
+): number | null {
+  const leftEdge = edges.find((e) => e.id === `splice-left-${connectionId}`);
+  if (!leftEdge) return null;
+  const data = (leftEdge.data ?? {}) as {
+    leftPath?: string;
+    rightPath?: string;
+    spliceX?: number;
+    spliceY?: number;
+  };
+  const leftPath = String(data.leftPath ?? "");
+  const rightPath = String(data.rightPath ?? "");
+  if (!leftPath || !rightPath) return null;
+  const handles = handleCoordsForConnection(connectionId, nodes, graph, cache);
+  if (!handles) return null;
+  const template = routeTemplateForHandles(
+    handles.source.x,
+    handles.source.y,
+    handles.target.x,
+    handles.target.y,
+  );
+  const { left, right } = legSegmentsFromPaths(leftPath, rightPath);
+  const segments = side === "left" ? left : right;
+  const spliceX = Number(data.spliceX ?? NaN);
+  const spliceY = Number(data.spliceY ?? NaN);
+  const splice =
+    Number.isFinite(spliceX) && Number.isFinite(spliceY)
+      ? { x: spliceX, y: spliceY }
+      : undefined;
+  for (const seg of segments) {
+    if (
+      allowedSegmentAxes(template, side, seg, segments.length, splice).includes(
+        "horizontal",
+      )
+    ) {
+      return seg.index;
+    }
+  }
+  return null;
+}
+
 function previewSegmentDrag(
   edges: Edge[],
   drag: SegmentDragState,
@@ -570,6 +660,9 @@ function previewSegmentDrag(
   for (const connectionId of drag.connectionIds) {
     const snapshot = drag.preDragPaths.get(connectionId);
     if (!snapshot) continue;
+    const target = drag.segmentTargets.get(connectionId);
+    if (!target) continue;
+    const { side, segmentIndex } = target;
 
     if (isButtEdgeId(connectionId)) {
       const edgeIdx = nextEdges.findIndex((e) => e.id === connectionId);
@@ -585,29 +678,24 @@ function previewSegmentDrag(
             )
           : null;
       const paths = legSegmentsFromPaths(snapshot.leftPath, snapshot.rightPath);
-      const segments =
-        drag.side === "left" ? paths.left : paths.right;
+      const segments = side === "left" ? paths.left : paths.right;
       const updatedSegments =
         drag.axis === "horizontal"
-          ? applyButtCenterVerticalDelta(
-              segments,
-              drag.segmentIndex,
-              totalDelta,
-            )
+          ? applyButtCenterVerticalDelta(segments, segmentIndex, totalDelta)
           : segments;
       const pathStart =
-        drag.side === "left"
+        side === "left"
           ? (handles?.source ?? pathStartPoint(snapshot.leftPath))
           : pathStartPoint(snapshot.rightPath);
       const nextLeft =
-        drag.side === "left"
+        side === "left"
           ? segmentsToPath(updatedSegments, pathStart)
           : snapshot.leftPath;
       const nextRight =
-        drag.side === "right"
+        side === "right"
           ? segmentsToPath(updatedSegments, pathStart)
           : snapshot.rightPath;
-      const connected = reconnectEditedLegPaths(nextLeft, nextRight, drag.side, {
+      const connected = reconnectEditedLegPaths(nextLeft, nextRight, side, {
         handles: handles ?? undefined,
       });
       const prev = nextEdges[edgeIdx]!;
@@ -662,33 +750,33 @@ function previewSegmentDrag(
       handles?.target.y ?? 0,
     );
     const paths = legSegmentsFromPaths(leftPathRaw, rightPathRaw);
-    const segments = drag.side === "left" ? paths.left : paths.right;
+    const segments = side === "left" ? paths.left : paths.right;
     const updatedSegments = applySegmentDelta(
       segments,
-      drag.segmentIndex,
+      segmentIndex,
       drag.axis,
       totalDelta,
       template,
-      drag.side,
+      side,
       preserveSplice,
     );
     const pathStart =
-      drag.side === "left"
+      side === "left"
         ? (handles?.source ?? pathStartPoint(leftPathRaw))
         : pathStartPoint(rightPathRaw);
     let nextLeft =
-      drag.side === "left"
+      side === "left"
         ? segmentsToPath(updatedSegments, pathStart)
         : leftPathRaw;
     let nextRight =
-      drag.side === "right"
+      side === "right"
         ? segmentsToPath(updatedSegments, pathStart)
         : rightPathRaw;
 
     const connected = reconnectEditedLegPaths(
       nextLeft,
       nextRight,
-      drag.side,
+      side,
       {
         handles: handles ?? undefined,
         preserveSplice,

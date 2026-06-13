@@ -46,10 +46,6 @@ import {
   mergeFanoutOverridesIntoTubes,
 } from "@/features/manualAdjust/applyManualAdjust";
 import {
-  applyConnectionOverridesToLanes,
-  resolveConnectionOverrides,
-} from "@/features/manualAdjust/connectionOverrides";
-import {
   applyTubeRowAlignmentShifts,
   cablePositionsFromNodePositions,
   type TubeRowShiftOptions,
@@ -467,11 +463,7 @@ export function buildReactFlowGraph(
   }
 
   const importHandleEntries = buildSpliceHandleEntries(nodes, edges, visualCables);
-  const connectionOverrides = resolveConnectionOverrides(overrides);
-  const importRouting = applyConnectionOverridesToLanes(
-    routeCenterSplices(importHandleEntries, centerX),
-    connectionOverrides,
-  );
+  const importRouting = routeCenterSplices(importHandleEntries, centerX);
   const routedEdges = edges.map((edge) => {
     const lane = importRouting.get(edge.id);
     if (!lane) return edge;

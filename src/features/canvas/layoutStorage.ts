@@ -3,8 +3,6 @@ import {
   type LayoutOverrides,
 } from "@/types/splice";
 
-import { bridgeLegOverridesToConnectionOverrides } from "@/features/manualAdjust/connectionOverrides";
-
 export function loadLayoutOverrides(
   reportKey: string,
 ): LayoutOverrides | undefined {
@@ -94,15 +92,5 @@ export function mergeLayoutOverrides(
       patch.fanoutOverrides,
     ),
     legOverrides: mergeOverrideMap(existing?.legOverrides, patch.legOverrides),
-    connectionOverrides: mergeOverrideMap(
-      existing?.connectionOverrides ??
-        bridgeLegOverridesToConnectionOverrides(existing?.legOverrides),
-      patch.connectionOverrides ??
-        bridgeLegOverridesToConnectionOverrides(patch.legOverrides),
-    ),
-    bundleOverrides: mergeOverrideMap(
-      existing?.bundleOverrides,
-      patch.bundleOverrides,
-    ),
   };
 }

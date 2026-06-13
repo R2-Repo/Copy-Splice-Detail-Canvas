@@ -10,6 +10,7 @@ import {
   isButtEdgeId,
 } from "./buttLegAdjust";
 import {
+  buildHandleCoordsCache,
   handleCoordsForButtEdge,
   handleCoordsForConnection,
 } from "./handleCoords";
@@ -224,6 +225,47 @@ export function applyAllLegOverrides(
     const updated = applyLegOverridesToEdge(
       edge,
       legMap[connId],
+      handles?.source.x ?? 0,
+      handles?.source.y ?? 0,
+      handles?.target.x ?? 0,
+      handles?.target.y ?? 0,
+    );
+    return updated ?? edge;
+  });
+}
+
+/**
+ * Manual cable drag re-routes legs with the auto router, dropping the user's
+ * saved per-segment shape. This restores that shape — but ONLY for the
+ * connections the drag actually rebuilt, so already-overridden edges elsewhere
+ * are never shifted twice. Non-butt edges keep their fusion dot via
+ * `preserveSplice`, so splice-point nodes stay valid without a re-sync.
+ */
+export function applyLegOverridesForConnections(
+  edges: Edge[],
+  legOverrides: LayoutOverrides["legOverrides"] | undefined,
+  nodes: Node[],
+  graph: ConnectionGraph,
+  connectionIds: Iterable<string>,
+): Edge[] {
+  if (!legOverrides) return edges;
+  const ids = new Set(connectionIds);
+  if (ids.size === 0) return edges;
+  const cache = buildHandleCoordsCache(nodes, graph);
+  return edges.map((edge) => {
+    const isButt = isButtEdgeId(edge.id);
+    const connId = isButt
+      ? edge.id
+      : edge.id.replace(/^splice-(?:left|right)-/, "");
+    if (!ids.has(connId)) return edge;
+    const override = legOverrides[connId];
+    if (!override) return edge;
+    const handles = isButt
+      ? handleCoordsForButtEdge(edge.id, nodes, edges, graph, cache)
+      : handleCoordsForConnection(connId, nodes, graph, cache);
+    const updated = applyLegOverridesToEdge(
+      edge,
+      override,
       handles?.source.x ?? 0,
       handles?.source.y ?? 0,
       handles?.target.x ?? 0,

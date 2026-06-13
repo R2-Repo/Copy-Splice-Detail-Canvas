@@ -10,5 +10,8 @@ describe("App", () => {
     expect(
       screen.getByRole("button", { name: "Import Bentley CSV" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open connection inspector" }),
+    ).toBeInTheDocument();
   });
 });

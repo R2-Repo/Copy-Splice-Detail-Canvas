@@ -758,6 +758,251 @@
   word-break: break-word;
 }
 
+.connection-inspector-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 52;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.connection-inspector-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.connection-inspector-overlay__panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(1220px, 100%);
+  height: 100%;
+  margin: 0 auto;
+  background: #fff;
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.2);
+}
+
+.connection-inspector-overlay__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.connection-inspector-overlay__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.connection-inspector-overlay__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.connection-inspector-overlay__empty {
+  margin: 0;
+  padding: 1.25rem;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.connection-inspector {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 1.25fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  flex: 1;
+  min-height: 0;
+  padding: 0.75rem;
+  background: #f8fafc;
+}
+
+.connection-inspector__panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid #dbe3ee;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.connection-inspector__panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.connection-inspector__panel-header h3 {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #0f172a;
+}
+
+.connection-inspector__select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: #475569;
+}
+
+.connection-inspector__select-wrap select {
+  min-width: 180px;
+  max-width: 300px;
+  padding: 0.3rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+  font-size: 0.75rem;
+}
+
+.connection-inspector__strand-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 0.6rem 0.6rem 0.25rem;
+}
+
+.connection-inspector__tube-group {
+  margin-bottom: 0.6rem;
+}
+
+.connection-inspector__tube-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.connection-inspector__strand-list {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.connection-inspector__strand {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: #f8fafc;
+  text-align: left;
+  font-size: 0.76rem;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.connection-inspector__strand:hover {
+  background: #eef2ff;
+}
+
+.connection-inspector__strand--active {
+  border-color: #6366f1;
+  background: #e0e7ff;
+}
+
+.connection-inspector__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  flex-shrink: 0;
+}
+
+.connection-inspector__strand-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.connection-inspector__count {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.connection-inspector__connections {
+  flex: 1;
+  overflow: auto;
+  padding: 0.6rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.connection-inspector__connection {
+  width: 100%;
+  text-align: left;
+  border: 1px solid #dbe3ee;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0.45rem 0.55rem;
+  cursor: pointer;
+}
+
+.connection-inspector__connection:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.connection-inspector__connection--active {
+  border-color: #6366f1;
+  background: #eef2ff;
+}
+
+.connection-inspector__connection-main {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.connection-inspector__arrow {
+  color: #64748b;
+}
+
+.connection-inspector__connection-sub {
+  margin-top: 0.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+  color: #475569;
+}
+
+.connection-inspector__badge {
+  padding: 0.05rem 0.3rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #1e293b;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+@media (max-width: 1080px) {
+  .connection-inspector {
+    grid-template-columns: 1fr;
+  }
+
+  .connection-inspector__select-wrap select {
+    min-width: 140px;
+  }
+}
+
 .cable-callout {
   box-sizing: border-box;
   border: 3px solid #dc2626;
@@ -862,7 +1107,8 @@
   body.printing-diagram .react-flow__background,
   body.printing-diagram .react-flow__panel,
   body.printing-diagram .diagram-inspector,
-  body.printing-diagram .splice-report-overlay {
+  body.printing-diagram .splice-report-overlay,
+  body.printing-diagram .connection-inspector-overlay {
     display: none !important;
   }
 

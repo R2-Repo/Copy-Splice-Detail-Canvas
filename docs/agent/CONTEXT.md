@@ -5,7 +5,7 @@
 ## Baseline
 
 - Branch: `main`
-- Verified: **`npm run verify`** green — `test:layout` **114/114**, `test:ci` **428/428**
+- Verified: **`npm run verify`** green — `test:layout` **114/114**, `test:ci` **430/430**, `tsc` + `build` clean (incl. 2026-06-13 manual/auto bug-fix + override unification).
 
 ## Checkpoint (user-approved — 2026-06-13)
 
@@ -21,13 +21,45 @@ Key symbols touched this session:
 
 **User-driven bug fixes** — collapsed thick buffer tubes now manually adjustable in manual mode; leg drag checkpoint preserved.
 
+## Manual/auto bug-fix pass (2026-06-13, verified)
+
+Code-review follow-up — `npm run verify` green (114 layout / 430 ci / build):
+
+- Leg fine-tuning now survives manual cable drag (`applyLegOverridesForConnections`, scoped re-apply; wired into `applyManualCableDrag` + manual `onNodeDragStop`).
+- Group leg move resolves each leg's own center segment (`segmentTargets`); single-leg drag unchanged.
+- `handleLegOverridesCommit` no longer nests `setState`.
+- **Override model unified on `legOverrides`** (H2 Direction A): removed dead `bundleOverrides`, `connectionOverrides` (+ bridge/persistence/legacy-branch wiring), `connectionOverrides.ts` (+ test), `snapTargets.ts`, `accumulateConnectionOverride`. `legOverrides` is now the single splice-override representation the nodes engine applies.
+- **C1:** nested `Splice-Detail-Canvas/` scaffold (19 tracked files, no `src`/`docs`, only duplicated `.cursor/rules` + `AGENTS.md`) staged for removal via `git rm -r` — **uncommitted, pending user commit**. No real backslash/shadow source files existed (Windows tooling artifact).
+- Still deferred: M1 auto-drag RAF throttle (frozen `refreshDragRouting`/`onNodeDrag`), H4 dead vertical-axis leg machinery.
+
 ## Latest (2026-06-13)
 
-**Collapsed tube manual adjust** — vertical fan-out drag (tip handle ↕) + center vertical leg drag ↔ (same as fiber legs):
+**Connection inspector modal (new non-diagram view):**
 
-- Tip handle only (↕) — **no reach handle** on any tube
-- `applyButtCenterVerticalDelta` bypasses fusion-dot guards that blocked drag at splice X
-- Butt horizontal drag moves `routingMidX` (no `preserveSplice` on butt reconnect)
+- Added toolbar action: **Open connection inspector** (read-only modal)
+- New overlay shows **left cable list / center connections / right cable list**
+- Click center connection highlights matching strands on both sides and auto-focuses cable dropdowns
+- Click left/right strand highlights matching center rows and opposite-side strands
+- Uses post-import graph model (`ConnectionGraph`) + existing/protect-in-place edge state; no CSV re-inspection UI
+
+Files added:
+
+- `src/features/report/connectionInspectorModel.ts`
+- `src/components/ConnectionInspectorOverlay.tsx`
+- `src/features/report/connectionInspectorModel.test.ts`
+- `src/components/ConnectionInspectorOverlay.test.tsx`
+
+Files updated:
+
+- `src/features/canvas/WorkflowCanvas.tsx`
+- `src/components/toolbar/ToolbarIcon.tsx`
+- `src/styles/splice-diagram.css`
+- `src/App.test.tsx`
+
+Validation command status this session:
+
+- Attempted `npm run test:layout`, `npm run check`, `npm run test:ci`, `npm run build`
+- Terminal returned unknown exit status for every command, so pass/fail could not be confirmed in-session
 
 ## User testing (canonical)
 

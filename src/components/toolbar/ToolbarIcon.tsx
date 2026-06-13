@@ -47,6 +47,16 @@ export function ReportIcon() {
   );
 }
 
+export function InspectIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="5" height="16" rx="1.5" />
+      <rect x="16" y="4" width="5" height="16" rx="1.5" />
+      <path d="M8 8h8M8 12h8M8 16h8" />
+    </svg>
+  );
+}
+
 export function PrintPdfIcon() {
   return (
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">

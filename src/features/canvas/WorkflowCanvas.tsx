@@ -15,6 +15,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { ConnectionInspectorOverlay } from "@/components/ConnectionInspectorOverlay";
 import { SpliceReportOverlay } from "@/components/SpliceReportOverlay";
 import { CALLOUT_BOX, defaultCalloutPosition } from "@/features/canvas/callouts/cableCalloutGeometry";
 import { CalloutLeaderLayer } from "@/features/canvas/callouts/CalloutLeaderLayer";
@@ -58,6 +59,7 @@ import {
 } from "@/features/diagram/cableLayoutMetrics";
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
 import { formatSpliceConnectionReport } from "@/features/report/formatSpliceConnectionReport";
+import { buildConnectionInspectorModel } from "@/features/report/connectionInspectorModel";
 import {
   DEFAULT_LAYOUT_EXPANSION,
   runWithLayoutExpansion,
@@ -72,6 +74,7 @@ import {
 import { usePrintDiagram } from "@/features/export/usePrintDiagram";
 import { ManualAdjustOverlay } from "@/features/manualAdjust/ManualAdjustOverlay";
 import { syncSplicePointNodes } from "@/features/manualAdjust/syncSplicePointNodes";
+import { applyLegOverridesForConnections } from "@/features/manualAdjust/applyManualAdjust";
 import {
   isCollapsedTubeKey,
   repinButtSpliceEdges,
@@ -103,6 +106,7 @@ import {
   ExpandIcon,
   EyeIcon,
   EyeOffIcon,
+  InspectIcon,
   ManualIcon,
   PrintPdfIcon,
   ReportIcon,
@@ -134,6 +138,19 @@ const FIT_WIDTH_OPTIONS = {
 
 /** Ignore sub-pixel resize noise from React Flow / scrollbar churn. */
 const STAGE_WIDTH_DELTA_PX = 16;
+
+function connectionIdFromEdgeId(edgeId: string): string | null {
+  if (edgeId.startsWith("splice-left-")) {
+    return edgeId.slice("splice-left-".length);
+  }
+  if (edgeId.startsWith("splice-right-")) {
+    return edgeId.slice("splice-right-".length);
+  }
+  if (edgeId.startsWith("splice-")) {
+    return edgeId.slice("splice-".length);
+  }
+  return null;
+}
 
 function attachStoredCallouts(
   nodes: Node[],
@@ -221,6 +238,7 @@ function WorkflowCanvasInner() {
   const [meta, setMeta] = useState<string | null>(null);
   const [collapseFullButtSplices, setCollapseFullButtSplices] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const [circuitPanelOpen, setCircuitPanelOpen] = useState(false);
   const [calloutsVisible, setCalloutsVisible] = useState(false);
   const [circuitIndex, setCircuitIndex] = useState<CircuitIndex | null>(null);
@@ -241,10 +259,12 @@ function WorkflowCanvasInner() {
   const autoAdjustRef = useRef(true);
   const manualCableDragRafRef = useRef<number | null>(null);
   const pendingManualCableNodeRef = useRef<Node | null>(null);
+  const legOverridesRef = useRef<LayoutOverrides["legOverrides"]>(undefined);
 
   collapseRef.current = collapseFullButtSplices;
   calloutsVisibleRef.current = calloutsVisible;
   autoAdjustRef.current = autoAdjustEnabled;
+  legOverridesRef.current = legOverridesState;
 
   useEffect(() => {
     if (autoAdjustEnabled || tubePreview.size === 0) return;
@@ -294,7 +314,11 @@ function WorkflowCanvasInner() {
       const engine = current.filter((n) => n.type !== "cableCallout");
       const currentEdges = getEdges();
       const cableData = draggedNode.data as CableNodeData;
-      const { nodes: synced, edges: syncedEdges } = syncManualVisualCable(
+      const {
+        nodes: synced,
+        edges: syncedEdges,
+        touchedConnections,
+      } = syncManualVisualCable(
         engine,
         currentEdges,
         graph,
@@ -314,6 +338,16 @@ function WorkflowCanvasInner() {
           { tubeKeys },
         );
         finalEdges = repinned.edges;
+      }
+      const overrides = legOverridesRef.current;
+      if (overrides && touchedConnections.length > 0) {
+        finalEdges = applyLegOverridesForConnections(
+          finalEdges,
+          overrides,
+          synced,
+          graph,
+          touchedConnections,
+        );
       }
       if (synced !== engine) {
         setNodes([...synced, ...callouts]);
@@ -875,37 +909,41 @@ function WorkflowCanvasInner() {
       const existing = loadLayoutOverrides(reportKey);
       const connectionIds = Object.keys(legOverrides ?? {});
 
-      setEdges((currentEdges) => {
-        setNodes((currentNodes) =>
-          syncSplicePointNodes(currentNodes, currentEdges, connectionIds),
-        );
-        setLegOverridesState(legOverrides);
-        saveLayoutOverrides(
-          mergeLayoutOverrides(reportKey, {
-            positions: positionsFromNodes(
-              getNodes().filter((n) => n.type === "cable"),
-            ),
-            existingEdgeIds: existingIdsFromEdges(currentEdges),
-            collapseFullButtSplices: collapseRef.current,
-            layoutWidth: layoutWidthRef.current,
-            cableSides: existing?.cableSides,
-            callouts: existing?.callouts,
-            autoAdjustEnabled: false,
-            tubeOverrides: existing?.tubeOverrides,
-            fanoutOverrides: existing?.fanoutOverrides,
-            legOverrides,
-          }),
-        );
-        updateManualWarnings(
-          graph,
-          getNodes(),
-          currentEdges,
-          new Set(connectionIds.map((id) => `splice-${id}`)),
-        );
-        return currentEdges;
-      });
+      // Segment-drag preview already committed the edge paths; here we only
+      // re-pin splice-point nodes, persist, and refresh warnings. Read live
+      // state via getEdges/getNodes instead of nesting setState in an updater.
+      const currentEdges = getEdges();
+      const syncedNodes = syncSplicePointNodes(
+        getNodes(),
+        currentEdges,
+        connectionIds,
+      );
+      setNodes(syncedNodes);
+      setLegOverridesState(legOverrides);
+      saveLayoutOverrides(
+        mergeLayoutOverrides(reportKey, {
+          positions: positionsFromNodes(
+            syncedNodes.filter((n) => n.type === "cable"),
+          ),
+          existingEdgeIds: existingIdsFromEdges(currentEdges),
+          collapseFullButtSplices: collapseRef.current,
+          layoutWidth: layoutWidthRef.current,
+          cableSides: existing?.cableSides,
+          callouts: existing?.callouts,
+          autoAdjustEnabled: false,
+          tubeOverrides: existing?.tubeOverrides,
+          fanoutOverrides: existing?.fanoutOverrides,
+          legOverrides,
+        }),
+      );
+      updateManualWarnings(
+        graph,
+        syncedNodes,
+        currentEdges,
+        new Set(connectionIds.map((id) => `splice-${id}`)),
+      );
     },
-    [getNodes, setEdges, setNodes, updateManualWarnings],
+    [getEdges, getNodes, setNodes, updateManualWarnings],
   );
 
   const manualAdjustEngine = useManualAdjustEngine({
@@ -1130,13 +1168,15 @@ function WorkflowCanvasInner() {
         } else if (manualMode) {
           const callouts = getNodes().filter((n) => n.type === "cableCallout");
           const engine = getNodes().filter((n) => n.type !== "cableCallout");
-          ({ nodes: nextNodes, edges: nextEdges } = syncManualVisualCable(
+          const syncResult = syncManualVisualCable(
             engine,
             getEdges(),
             graph,
             visualId,
             draggedFinal,
-          ));
+          );
+          nextNodes = syncResult.nodes;
+          nextEdges = syncResult.edges;
           const collapsedColors =
             (draggedFinal.data as CableNodeData).collapsedTubes ?? [];
           if (collapsedColors.length > 0) {
@@ -1150,6 +1190,15 @@ function WorkflowCanvasInner() {
               { tubeKeys },
             );
             nextEdges = repinned.edges;
+          }
+          if (existing?.legOverrides && syncResult.touchedConnections.length > 0) {
+            nextEdges = applyLegOverridesForConnections(
+              nextEdges,
+              existing.legOverrides,
+              nextNodes,
+              graph,
+              syncResult.touchedConnections,
+            );
           }
           nextNodes = [...nextNodes, ...callouts];
         } else {
@@ -1301,12 +1350,23 @@ function WorkflowCanvasInner() {
     const graph = graphRef.current;
     if (!graph || !reportOpen) return "";
     const existingConnectionIds = new Set(
-      existingIdsFromEdges(edges).map((id) =>
-        id.startsWith("splice-") ? id.slice("splice-".length) : id,
-      ),
+      existingIdsFromEdges(edges)
+        .map(connectionIdFromEdgeId)
+        .filter((id): id is string => id != null),
     );
     return formatSpliceConnectionReport(graph, { existingConnectionIds });
   }, [reportOpen, edges]);
+
+  const inspectorModel = useMemo(() => {
+    const graph = graphRef.current;
+    if (!graph || !inspectorOpen) return null;
+    const existingConnectionIds = new Set(
+      existingIdsFromEdges(edges)
+        .map(connectionIdFromEdgeId)
+        .filter((id): id is string => id != null),
+    );
+    return buildConnectionInspectorModel(graph, { existingConnectionIds });
+  }, [inspectorOpen, edges]);
 
   const handleCalloutTextChange = useCallback(
     (calloutId: string, text: string) => {
@@ -1507,6 +1567,13 @@ function WorkflowCanvasInner() {
           onClick={() => setReportOpen(true)}
         />
         <ToolbarActionButton
+          label="Open connection inspector"
+          icon={<InspectIcon />}
+          pressed={inspectorOpen}
+          disabled={!meta}
+          onClick={() => setInspectorOpen(true)}
+        />
+        <ToolbarActionButton
           label="Print to PDF"
           icon={<PrintPdfIcon />}
           disabled={!meta}
@@ -1649,6 +1716,11 @@ function WorkflowCanvasInner() {
         open={reportOpen}
         text={reportText}
         onClose={() => setReportOpen(false)}
+      />
+      <ConnectionInspectorOverlay
+        open={inspectorOpen}
+        model={inspectorModel}
+        onClose={() => setInspectorOpen(false)}
       />
     </div>
   );
