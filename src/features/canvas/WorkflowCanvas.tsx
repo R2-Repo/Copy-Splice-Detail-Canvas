@@ -675,26 +675,6 @@ function WorkflowCanvasInner() {
     [applyGraph, stageWidthForLayout],
   );
 
-  /** Dev-only: `?fixture=example-2` auto-imports from `public/fixtures/`. */
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    const fixture = new URLSearchParams(window.location.search).get("fixture");
-    if (!fixture) return;
-    let cancelled = false;
-    fetch(`${import.meta.env.BASE_URL}fixtures/${fixture}.csv`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`Fixture not found: ${fixture}`);
-        return r.text();
-      })
-      .then((text) => {
-        if (!cancelled) loadFromCsv(text, `${fixture}.csv`);
-      })
-      .catch((err) => console.warn("[fixture import]", err));
-    return () => {
-      cancelled = true;
-    };
-  }, [loadFromCsv]);
-
   const updateManualWarnings = useCallback(
     (
       _graph: ConnectionGraph,

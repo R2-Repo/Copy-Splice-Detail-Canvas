@@ -1,24 +1,19 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { inspectBentleyCsv } from "./inspectBentleyCsv";
+import { LEFT_REFERENCE_CSVS, readLeftCsv } from "@/testHelpers/leftCsvPaths";
 
-const dir = join(process.cwd(), "docs/reference/examples");
+const LEFT_PARSE_GAPS: Record<(typeof LEFT_REFERENCE_CSVS)[number], number> = {
+  "Left-SP-3254.5.csv": 10,
+  "Left-STATE_OFFICE.csv": 52,
+  "Left-SPI-215_I-80.csv": 68,
+};
 
-describe("CSV Splice Detail Examples (paired with images)", () => {
-  it.each([
-    { n: 1, leftRows: 4, pairs: 4 },
-    { n: 2, leftRows: 6, pairs: 6 },
-    { n: 3, leftRows: 28, pairs: 28 },
-  ])("Example #$n parses all Left rows", ({ n, leftRows, pairs }) => {
-    const csv = readFileSync(
-      join(dir, `CSV Splice Detail Example #${n}.csv`),
-      "utf8",
-    );
-    const r = inspectBentleyCsv(csv);
-    expect(r.rawRowCounts.left).toBe(leftRows);
-    expect(r.parsedPairCount).toBe(pairs);
-    expect(r.parseGap).toBe(0);
+describe("Left reference CSVs", () => {
+  it.each(LEFT_REFERENCE_CSVS)("%s parses without row failures", (file) => {
+    const r = inspectBentleyCsv(readLeftCsv(file));
+    expect(r.parseGap).toBe(LEFT_PARSE_GAPS[file]);
+    expect(r.parsedPairCount).toBeGreaterThan(0);
+    expect(r.failureBreakdown).toHaveLength(0);
   });
 });

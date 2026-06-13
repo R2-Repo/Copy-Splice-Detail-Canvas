@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { buildConnectionGraph } from "./buildConnectionGraph";
@@ -14,15 +12,12 @@ import { fiberRowOffsetInCable } from "./cableLayoutMetrics";
 import { computeAlignedLayout } from "./spliceRowLayout";
 import { buildVisualCables, buildVisualCablesForLayout } from "./visualCables";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
-
-const examples = join(process.cwd(), "docs/reference/examples");
+import { readReferenceCsv } from "@/testHelpers/layoutContractCsvPaths";
 
 describe("findDominantCablePair", () => {
   it("Example #2: picks a 2-strand pair; DROP↔3175 preferred on tie", () => {
     const graph = buildConnectionGraph(
-      parseBentleyCsv(
-        readFileSync(join(examples, "CSV Splice Detail Example #2.csv"), "utf8"),
-      ),
+      parseBentleyCsv(readReferenceCsv("CSV Splice Detail Example #2.csv")),
     );
     const pass1 = buildVisualCables(graph);
     const dominant = findDominantCablePair(graph, pass1)!;
@@ -34,9 +29,7 @@ describe("findDominantCablePair", () => {
 
   it("groups dominant pair splice rows before other pairs on Example #2", () => {
     const graph = buildConnectionGraph(
-      parseBentleyCsv(
-        readFileSync(join(examples, "CSV Splice Detail Example #2.csv"), "utf8"),
-      ),
+      parseBentleyCsv(readReferenceCsv("CSV Splice Detail Example #2.csv")),
     );
     const { visualCables, dominant } = buildVisualCablesForLayout(graph);
     expect(dominant).not.toBeNull();
@@ -63,9 +56,7 @@ describe("findDominantCablePair", () => {
 
   it("dominant pair handles share row Y on Example #2", () => {
     const graph = buildConnectionGraph(
-      parseBentleyCsv(
-        readFileSync(join(examples, "CSV Splice Detail Example #2.csv"), "utf8"),
-      ),
+      parseBentleyCsv(readReferenceCsv("CSV Splice Detail Example #2.csv")),
     );
     const { visualCables, dominant } = buildVisualCablesForLayout(graph);
     expect(dominant).not.toBeNull();

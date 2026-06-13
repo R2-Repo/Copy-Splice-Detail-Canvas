@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
-import { readExampleCsv } from "@/testHelpers/exampleCsvPaths";
+import { readReferenceCsv } from "@/testHelpers/layoutContractCsvPaths";
 
 describe("edge endpoint wiring", () => {
   for (const [name, file] of [
@@ -11,7 +11,7 @@ describe("edge endpoint wiring", () => {
     ["11400S", "SP-I-15_11400S.csv"],
   ] as const) {
     it(`${name}: splice edges connect two different cable nodes`, () => {
-      const graph = buildConnectionGraph(parseBentleyCsv(readExampleCsv(file)));
+      const graph = buildConnectionGraph(parseBentleyCsv(readReferenceCsv(file)));
       const { edges } = buildReactFlowGraph(graph);
       const splices = edges.filter((e) => e.type === "splice");
       expect(splices.length).toBeGreaterThan(0);

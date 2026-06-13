@@ -8,7 +8,7 @@ This folder is **not** bundled into the production app unless you explicitly imp
 
 | Folder | Use for |
 |--------|---------|
-| [`examples/`](./examples/) | Bentley CSV inputs, PDF visual references |
+| [`examples/README.md`](./examples/README.md) | Bentley **Left-*** CSVs for user QA and testing |
 | [`images/`](./images/) | PNG screenshots of splice detail layouts, 144ct color code chart |
 | [`resources/`](./resources/) | Other assets |
 

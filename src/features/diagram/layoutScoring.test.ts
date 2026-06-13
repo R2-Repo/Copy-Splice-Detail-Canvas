@@ -9,7 +9,7 @@ import { computeCableCanvasSides } from "@/features/import/cableLegIdentity";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
 import type { SplicePair } from "@/types/splice";
 
-import { readExampleCsv } from "@/testHelpers/exampleCsvPaths";
+import { readReferenceCsv } from "@/testHelpers/layoutContractCsvPaths";
 
 function pair(
   aCable: string,
@@ -90,7 +90,7 @@ describe("layoutScoring", () => {
   for (const file of ["300N_MAIN.csv", "SP-I-15_11400S.csv", "SPI-215_I-80.csv"] as const) {
     it(`${file} side assignment beats global mirror on crossings`, () => {
       const report = parseBentleyCsv(
-        readExampleCsv(file),
+        readReferenceCsv(file),
       );
       const sides = computeCableCanvasSides(report.pairs);
       const mirrored = mirrorSideAssignment(sides);

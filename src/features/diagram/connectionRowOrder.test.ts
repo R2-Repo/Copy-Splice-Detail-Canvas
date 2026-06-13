@@ -11,12 +11,12 @@ import {
 } from "./connectionRowOrder";
 import { buildVisualCablesForLayout } from "./visualCables";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
-import { readExampleCsv } from "@/testHelpers/exampleCsvPaths";
+import { readReferenceCsv } from "@/testHelpers/layoutContractCsvPaths";
 
 describe("connectionRowOffsets", () => {
   it("uses equal pitch within a buffer tube", () => {
     const graph = buildConnectionGraph(
-      parseBentleyCsv(readExampleCsv("CSV Splice Detail Example #1.csv")),
+      parseBentleyCsv(readReferenceCsv("CSV Splice Detail Example #1.csv")),
     );
     const offsets = connectionRowOffsets(graph);
     const values = [...offsets.values()].sort((a, b) => a - b);
@@ -25,7 +25,7 @@ describe("connectionRowOffsets", () => {
 
   it("places Example #3 crossover RD/BK in BL tube slot 7–8 on 24 DIST", () => {
     const graph = buildConnectionGraph(
-      parseBentleyCsv(readExampleCsv("CSV Splice Detail Example #3.csv")),
+      parseBentleyCsv(readReferenceCsv("CSV Splice Detail Example #3.csv")),
     );
     const rowIdx = connectionRowIndexMap(graph);
     const vc = buildVisualCablesForLayout(graph).visualCables.find((v) =>
@@ -45,7 +45,7 @@ describe("connectionRowOffsets", () => {
 
   it("adds extra gap at buffer-tube boundaries on Example #3", () => {
     const graph = buildConnectionGraph(
-      parseBentleyCsv(readExampleCsv("CSV Splice Detail Example #3.csv")),
+      parseBentleyCsv(readReferenceCsv("CSV Splice Detail Example #3.csv")),
     );
     const offsets = connectionRowOffsets(graph);
     const values = [...offsets.values()].sort((a, b) => a - b);
@@ -60,7 +60,7 @@ describe("connectionRowOffsets", () => {
 
   it("adds split-instance gap for Example #1 ring-cut 144 pair", () => {
     const graph = buildConnectionGraph(
-      parseBentleyCsv(readExampleCsv("CSV Splice Detail Example #1.csv")),
+      parseBentleyCsv(readReferenceCsv("CSV Splice Detail Example #1.csv")),
     );
     const visual = buildVisualCablesForLayout(graph).visualCables;
     const offsets = connectionRowOffsets(graph, visual);

@@ -1,7 +1,7 @@
 # Canvas component glossary
 
 > **Use this when talking to agents.** Say “the cable sheath” or “fusion splice dot” and we mean the same UI piece.  
-> Screenshots are from **live app** after importing Example #2 (`?fixture=example-2` in dev).
+> Screenshots are from **live app** after importing a reference CSV (see `docs/reference/examples/README.md`).
 
 ## Simple map — start here
 
@@ -306,16 +306,16 @@ Use **[`SIMPLE_TERMS.md`](./SIMPLE_TERMS.md)** for the canonical simple names. E
 
 ---
 
-## Dev: reload Example #2 for screenshots
+## Dev: reload a reference CSV for screenshots
 
 Glossary PNG crops live under `docs/reference/images/glossary/`. If missing, capture from the live app then run the crop script.
 
 ```bash
 npm run dev
-# open http://localhost:5173/?fixture=example-2
+# open http://localhost:5173/ → Import docs/reference/examples/Left-SP-3254.5.csv (or another Left-* file)
 ```
 
-Fixture CSV: `public/fixtures/example-2.csv` (copy of reference Example #2).
+See [`docs/reference/examples/README.md`](../reference/examples/README.md) for the canonical Left-* CSV list.
 
 **Regenerate crops** after retaking `00-full-diagram-example-2.png`:
 

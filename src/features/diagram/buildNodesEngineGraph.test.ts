@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { buildConnectionGraph } from "./buildConnectionGraph";
@@ -10,13 +9,13 @@ import {
 } from "./buildNodesEngineGraph";
 import { buildSpliceHandleEntries } from "@/features/canvas/edges/spliceEdgeRouting";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
-
-const examplesDir = join(process.cwd(), "docs/reference/examples");
+import { readLeftCsv } from "@/testHelpers/leftCsvPaths";
+import { resolveReferenceCsvPath } from "@/testHelpers/layoutContractCsvPaths";
 
 describe("wireSplitSpliceEdges", () => {
   it("splits fiber splices into anchor → splicePoint → anchor legs", () => {
     const csv = readFileSync(
-      join(examplesDir, "CSV Splice Detail Example #2.csv"),
+      resolveReferenceCsvPath("CSV Splice Detail Example #2.csv"),
       "utf8",
     );
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
@@ -44,10 +43,7 @@ describe("wireSplitSpliceEdges", () => {
   });
 
   it("preserves precomputed path data on both legs", () => {
-    const csv = readFileSync(
-      join(examplesDir, "Left-SP-3254.5.csv"),
-      "utf8",
-    );
+    const csv = readLeftCsv("Left-SP-3254.5.csv");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const { edges } = buildReactFlowGraph(graph);
 
@@ -65,7 +61,7 @@ describe("wireSplitSpliceEdges", () => {
 
   it("collapsed full butt splices omit hidden fiber anchors and butt splice points", () => {
     const csv = readFileSync(
-      join(process.cwd(), "public/fixtures/example-3.csv"),
+      resolveReferenceCsvPath("CSV Splice Detail Example #3.csv"),
       "utf8",
     );
     const graph = buildConnectionGraph(parseBentleyCsv(csv));

@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -10,8 +9,7 @@ import {
 } from "@/features/canvas/circuitIndex";
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
-
-const fixtures = join(process.cwd(), "public/fixtures");
+import { resolveReferenceCsvPath } from "@/testHelpers/layoutContractCsvPaths";
 
 describe("normalizeCircuitName", () => {
   it("trims and collapses whitespace", () => {
@@ -25,10 +23,13 @@ describe("normalizeCircuitName", () => {
 });
 
 describe("buildCircuitIndex", () => {
-  it("Example #2: single circuit CH 2090 across all pairs", () => {
+  it("layout contract CSV: single circuit CH 2090 across all pairs", () => {
     const graph = buildConnectionGraph(
       parseBentleyCsv(
-        readFileSync(join(fixtures, "example-2.csv"), "utf8"),
+        readFileSync(
+          resolveReferenceCsvPath("CSV Splice Detail Example #2.csv"),
+          "utf8",
+        ),
       ),
     );
     const index = buildCircuitIndex(graph);
@@ -36,9 +37,11 @@ describe("buildCircuitIndex", () => {
     expect(pairCountForCircuit(index, "CH 2090")).toBe(6);
   });
 
-  it("3161.4 fixture: multiple distinct circuits", () => {
+  it("3161.4 CSV: multiple distinct circuits", () => {
     const graph = buildConnectionGraph(
-      parseBentleyCsv(readFileSync(join(fixtures, "3161.4.csv"), "utf8")),
+      parseBentleyCsv(
+        readFileSync(resolveReferenceCsvPath("3161.4.csv"), "utf8"),
+      ),
     );
     const index = buildCircuitIndex(graph);
     expect(index.names.length).toBeGreaterThan(5);

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
 import { inspectBentleyCsv } from "./inspectBentleyCsv";
 import { parseBentleyCsv } from "./parseBentleyCsv";
-import { readExampleCsv } from "@/testHelpers/exampleCsvPaths";
+import { readReferenceCsv } from "@/testHelpers/layoutContractCsvPaths";
 
 type ReferenceCsvCase = {
   file: string;
@@ -47,7 +47,7 @@ describe("reference CSV parse contract", () => {
   it.each(REFERENCE_CSVS)(
     "$file parses with zero failures",
     ({ file, leftRows, pairs, uniqueCables, parseGap }) => {
-      const csv = readExampleCsv(file);
+      const csv = readReferenceCsv(file);
       const inspection = inspectBentleyCsv(csv);
       const report = parseBentleyCsv(csv);
 

@@ -4,11 +4,11 @@ import { buildConnectionGraph } from "./buildConnectionGraph";
 import { FIBER_ROW_PITCH, fiberRowOffsetInCable } from "./cableLayoutMetrics";
 import { buildVisualCablesForLayout } from "./visualCables";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
-import { readExampleCsv } from "@/testHelpers/exampleCsvPaths";
+import { readReferenceCsv } from "@/testHelpers/layoutContractCsvPaths";
 
 describe("buildVisualCables", () => {
   it("Example #1: two 144 cylinders on right (ring cut), drop unchanged", () => {
-    const csv = readExampleCsv("CSV Splice Detail Example #1.csv");
+    const csv = readReferenceCsv("CSV Splice Detail Example #1.csv");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const { visualCables: visual } = buildVisualCablesForLayout(graph);
 

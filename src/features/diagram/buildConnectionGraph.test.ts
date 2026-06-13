@@ -1,18 +1,18 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { buildConnectionGraph } from "./buildConnectionGraph";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
-
-const example2Path = join(
-  process.cwd(),
-  "docs/reference/examples/CSV Splice Detail Example #2.csv",
-);
+import { resolveReferenceCsvPath } from "@/testHelpers/layoutContractCsvPaths";
 
 describe("buildConnectionGraph", () => {
-  it("Example #2: six pairs, multiple cable legs", () => {
-    const report = parseBentleyCsv(readFileSync(example2Path, "utf8"));
+  it("layout contract CSV: six pairs, multiple cable legs", () => {
+    const report = parseBentleyCsv(
+      readFileSync(
+        resolveReferenceCsvPath("CSV Splice Detail Example #2.csv"),
+        "utf8",
+      ),
+    );
     const graph = buildConnectionGraph(report);
 
     expect(graph.report.pairs).toHaveLength(6);

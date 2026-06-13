@@ -17,7 +17,8 @@ Frontend-only React PWA: node/workflow canvas (React Flow). No backend unless th
 | `docs/agent/SIMPLE_TERMS.md` | **User simple names** (canonical chat vocabulary) — one-line diagram + simple ↔ official dictionary |
 | `docs/agent/CANVAS_GLOSSARY.md` | Expanded diagram part names + screenshots |
 | `docs/agent/CHANGELOG.md` | Archived session history (not active requirements) |
-| `docs/reference/` | User-provided examples, images, resources (when cited) |
+| `docs/reference/examples/README.md` | **Left-*** CSVs for user QA and testing (Import in app) |
+| `docs/reference/` | Images and other reference assets (when cited) |
 
 ## Workflow
 

@@ -4,41 +4,31 @@
 
 ## Last updated
 
-2026-06-13 — User manual QA: **no visible change** vs pre-stabilization.
+2026-06-13 — Removed dev `?fixture=` URLs; user QA uses **Left-*** CSVs only.
 
-## User QA result (important)
+## User testing workflow
 
-- User tested on local dev server (`http://localhost:5173/`) after stabilization build.
-- **Report: app looks and behaves the same as before** — same issues, no perceptible improvement.
-- Do **not** assume stabilization fixed UX; treat open issues as still open.
+1. `npm run dev` → `http://localhost:5173/`
+2. **Import** one of:
+   - `docs/reference/examples/Left-STATE_OFFICE.csv`
+   - `docs/reference/examples/Left-SPI-215_I-80.csv`
+   - `docs/reference/examples/Left-SP-3254.5.csv`
+3. No URL shortcuts — import only.
 
-## What this session actually changed (mostly non-visible)
+## User QA (2026-06-13)
 
-| Area | Change | User-visible? |
-|------|--------|---------------|
-| Layout contract | EDGE-010 / bundle `packMidXLanes` / `shiftCoherentBundleMidXLanes` — **114/114** `test:layout` | Maybe subtle on Example #2 crossover lanes only |
-| Manual coords | `fiberAnchorCenter()` + `useManualAdjustEngine` scale/stem | Only if Manual mode marquee/hit-test was wrong |
-| Overrides v14 | `connectionOverrides` / `bundleOverrides` persistence bridge | Only after reload/toggle with saved overrides |
-| Tests / CI | 422/422 `test:ci`, goldens, CSV helpers | No |
-| Frozen routing | Minimal bundle-shift in `assignSpliceRoutingLanes` | User-approved; may not match their pain points |
+Manual testing after stabilization: **no visible change** vs before. Same issues remain.
 
-## Verified (automated only)
+## Automated status
 
 ```bash
 npm run verify         # pass
-npm run test:layout    # 114/114
+npm run test:layout    # 114/114 (legacy contract CSVs — not Left-*)
 npm run test:ci        # 422/422
 ```
 
-## Next agent — recommended start
+## Next agent
 
-1. **Ask user for a prioritized issue list** (which fixture/CSV, which simple-term symptom: corners, tube bundle, manual select, drag jump, etc.).
-2. **One issue → one CSV → one rule ID** — reproduce in browser before coding.
-3. Do **not** re-run full stabilization phases unless a specific regression appears in `test:layout`.
-4. Read `SIMPLE_TERMS.md` + map to rule IDs; check `frozen-routing.mdc` before touching routing symbols.
-5. If user still sees old behavior: hard-refresh / clear site data (PWA cache) to rule out stale assets.
-
-## Dev server
-
-- App: `npm run dev` → `http://localhost:5173/`
-- Fixtures: `?fixture=example-1`, `example-2`, `example-3`
+1. Ask user which **Left-*** file and what symptom (simple terms from `SIMPLE_TERMS.md`).
+2. Reproduce via Import — not fixtures or Example #1–#3 language.
+3. One issue → one Left CSV → one rule ID.

@@ -8,7 +8,7 @@ import {
   parseLeftSectionRows,
 } from "./parseBentleyCsv";
 
-import { resolveExampleCsvPath } from "@/testHelpers/exampleCsvPaths";
+import { resolveReferenceCsvPath } from "@/testHelpers/layoutContractCsvPaths";
 
 const SAMPLE_ROW =
   "HUB3-8(BLUFFDALE_REDWOOD_RD),6-SMF DROP: MVC MP 3.1 & HARVEST MOON DR,   1,BL,BL,<->,144 DIST: 2100 N TO HARVEST HILLS,  17,OR,SL,HUB3-8(BLUFFDALE_REDWOOD_RD),CH 3022";
@@ -21,7 +21,7 @@ describe("parseBentleyCsv", () => {
   });
 
   it("parses Example #2 with 6 deduped pairs", () => {
-    const csv = readFileSync(resolveExampleCsvPath("CSV Splice Detail Example #2.csv"), "utf8");
+    const csv = readFileSync(resolveReferenceCsvPath("CSV Splice Detail Example #2.csv"), "utf8");
     const report = parseBentleyCsv(csv);
 
     expect(report.header.spliceNumber).toBe("SP-2090.4.5");
@@ -57,7 +57,7 @@ describe("parseBentleyCsv", () => {
 
   it("Example #3 parses 28 left rows with zero parse failures", () => {
     const csv = readFileSync(
-      resolveExampleCsvPath("CSV Splice Detail Example #3.csv"),
+      resolveReferenceCsvPath("CSV Splice Detail Example #3.csv"),
       "utf8",
     );
     const results = parseLeftSectionRows(csv);

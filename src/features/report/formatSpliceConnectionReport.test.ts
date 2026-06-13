@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
@@ -11,17 +10,16 @@ import {
   formatSpliceConnectionReport,
 } from "./formatSpliceConnectionReport";
 
-function graphFromFixture(name: string) {
-  const csv = readFileSync(
-    join(process.cwd(), "public/fixtures", name),
-    "utf8",
-  );
+import { resolveReferenceCsvPath } from "@/testHelpers/layoutContractCsvPaths";
+
+function graphFromReferenceCsv(file: string) {
+  const csv = readFileSync(resolveReferenceCsvPath(file), "utf8");
   return buildConnectionGraph(parseBentleyCsv(csv));
 }
 
 describe("formatSpliceConnectionReport", () => {
-  it("formats example-2 with cable / tube / strand hierarchy", () => {
-    const graph = graphFromFixture("example-2.csv");
+  it("formats layout-contract CSV with cable / tube / strand hierarchy", () => {
+    const graph = graphFromReferenceCsv("CSV Splice Detail Example #2.csv");
     const report = formatSpliceConnectionReport(graph);
 
     expect(report).toContain("SPLICE CONNECTION REPORT");
@@ -39,7 +37,7 @@ describe("formatSpliceConnectionReport", () => {
   });
 
   it("never uses left/right side labels", () => {
-    const graph = graphFromFixture("example-2.csv");
+    const graph = graphFromReferenceCsv("CSV Splice Detail Example #2.csv");
     const report = formatSpliceConnectionReport(graph);
 
     expect(/\bleft\b/i.test(report)).toBe(false);
@@ -47,7 +45,7 @@ describe("formatSpliceConnectionReport", () => {
   });
 
   it("marks existing connections when requested", () => {
-    const graph = graphFromFixture("example-2.csv");
+    const graph = graphFromReferenceCsv("CSV Splice Detail Example #2.csv");
     const firstId = graph.connections[0]!.id;
     const report = formatSpliceConnectionReport(graph, {
       existingConnectionIds: new Set([firstId]),
@@ -57,7 +55,7 @@ describe("formatSpliceConnectionReport", () => {
   });
 
   it("buildSpliceConnectionLines returns one row per connection", () => {
-    const graph = graphFromFixture("example-2.csv");
+    const graph = graphFromReferenceCsv("CSV Splice Detail Example #2.csv");
     const lines = buildSpliceConnectionLines(graph);
 
     expect(lines).toHaveLength(6);

@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
@@ -23,8 +21,7 @@ import {
 import { computeCanvasPlacement } from "@/features/diagram/canvasPlacement";
 import { connectionRowIndexMap } from "@/features/diagram/connectionRowOrder";
 import { computeAlignedLayout } from "@/features/diagram/spliceRowLayout";
-
-const examples = join(process.cwd(), "docs/reference/examples");
+import { readReferenceCsv } from "@/testHelpers/layoutContractCsvPaths";
 
 function syntheticFullButtSpliceGraph() {
   const pairs: SplicePair[] = TIA_12_COLORS.map((color, index) => ({
@@ -179,10 +176,7 @@ describe("applyTubeRowAlignmentShifts", () => {
     it(`Example #${n} alignable tube pairs pass TUB-008`, () => {
       const graph = buildConnectionGraph(
         parseBentleyCsv(
-          readFileSync(
-            join(examples, `CSV Splice Detail Example #${n}.csv`),
-            "utf8",
-          ),
+          readReferenceCsv(`CSV Splice Detail Example #${n}.csv`),
         ),
       );
       const { nodes } = buildReactFlowGraph(graph, {

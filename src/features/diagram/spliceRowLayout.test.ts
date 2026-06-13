@@ -14,7 +14,7 @@ import {
 } from "./spliceRowLayout";
 import { buildVisualCablesForLayout, type VisualCable } from "./visualCables";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
-import { readExampleCsv } from "@/testHelpers/exampleCsvPaths";
+import { readReferenceCsv } from "@/testHelpers/layoutContractCsvPaths";
 import type { ConnectionGraph } from "@/types/splice";
 
 function layoutFromGraph(graph: ConnectionGraph) {
@@ -54,7 +54,7 @@ describe("computeAlignedLayout", () => {
   it("Example #2: drop cable fibers are compact and in strand order", () => {
     const graph = buildConnectionGraph(
       parseBentleyCsv(
-        readExampleCsv("CSV Splice Detail Example #2.csv"),
+        readReferenceCsv("CSV Splice Detail Example #2.csv"),
       ),
     );
     const { visualCables: visual, placement, layout } = layoutFromGraph(graph);
@@ -101,7 +101,7 @@ describe("computeAlignedLayout", () => {
   it("Example #2: dominant pair cross-side handles share row Y", () => {
     const graph = buildConnectionGraph(
       parseBentleyCsv(
-        readExampleCsv("CSV Splice Detail Example #2.csv"),
+        readReferenceCsv("CSV Splice Detail Example #2.csv"),
       ),
     );
     const { visualCables: visual, dominant, placement, layout } =
@@ -142,7 +142,7 @@ describe("computeAlignedLayout", () => {
   it("Example #2: same-side cables stack without vertical overlap", () => {
     const graph = buildConnectionGraph(
       parseBentleyCsv(
-        readExampleCsv("CSV Splice Detail Example #2.csv"),
+        readReferenceCsv("CSV Splice Detail Example #2.csv"),
       ),
     );
     const { visualCables: visual, placement, layout } = layoutFromGraph(graph);
@@ -162,7 +162,7 @@ describe("computeAlignedLayout", () => {
   it("Example #1: ring-cut 144 cables on right do not overlap", () => {
     const graph = buildConnectionGraph(
       parseBentleyCsv(
-        readExampleCsv("CSV Splice Detail Example #1.csv"),
+        readReferenceCsv("CSV Splice Detail Example #1.csv"),
       ),
     );
     const { visualCables: visual, placement, layout } = layoutFromGraph(graph);
@@ -178,7 +178,7 @@ describe("computeAlignedLayout", () => {
   it("Example #3: multi-tube cables keep distinct fiber row offsets", () => {
     const graph = buildConnectionGraph(
       parseBentleyCsv(
-        readExampleCsv("CSV Splice Detail Example #3.csv"),
+        readReferenceCsv("CSV Splice Detail Example #3.csv"),
       ),
     );
     const { visualCables: visual, placement, dominant } = layoutFromGraph(graph);

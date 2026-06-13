@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { buildConnectionGraph } from "./buildConnectionGraph";
@@ -11,15 +9,12 @@ import { connectionRowIndexMap } from "./connectionRowOrder";
 import { parentVisualGroupKey } from "./dominantCablePair";
 import { buildVisualCablesForLayout } from "./visualCables";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
-
-const examples = join(process.cwd(), "docs/reference/examples");
+import { readReferenceCsv } from "@/testHelpers/layoutContractCsvPaths";
 
 describe("computeCanvasPlacement", () => {
   it("Example #2: dominant pair cables stack first on each side", () => {
     const graph = buildConnectionGraph(
-      parseBentleyCsv(
-        readFileSync(join(examples, "CSV Splice Detail Example #2.csv"), "utf8"),
-      ),
+      parseBentleyCsv(readReferenceCsv("CSV Splice Detail Example #2.csv")),
     );
     const { visualCables, dominant } = buildVisualCablesForLayout(graph);
     expect(dominant).not.toBeNull();
@@ -47,9 +42,7 @@ describe("computeCanvasPlacement", () => {
 
   it("Example #3: optimized stack order has no strand crossings", () => {
     const graph = buildConnectionGraph(
-      parseBentleyCsv(
-        readFileSync(join(examples, "CSV Splice Detail Example #3.csv"), "utf8"),
-      ),
+      parseBentleyCsv(readReferenceCsv("CSV Splice Detail Example #3.csv")),
     );
     const { visualCables, dominant } = buildVisualCablesForLayout(graph);
     const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);

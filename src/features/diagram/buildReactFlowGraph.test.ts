@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { buildConnectionGraph } from "./buildConnectionGraph";
@@ -7,14 +6,15 @@ import { buildReactFlowGraph } from "./buildReactFlowGraph";
 import { fiberSpliceRoutingEdges } from "./buildNodesEngineGraph";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
 
-const examples = join(process.cwd(), "docs/reference/examples");
+import { resolveReferenceCsvPath } from "@/testHelpers/layoutContractCsvPaths";
+
+function readContractCsv(name: string): string {
+  return readFileSync(resolveReferenceCsvPath(name), "utf8");
+}
 
 describe("buildReactFlowGraph", () => {
   it("Example #1 (ring cut): 1 drop left, two 144 cables right", () => {
-    const csv = readFileSync(
-      join(examples, "CSV Splice Detail Example #1.csv"),
-      "utf8",
-    );
+    const csv = readContractCsv("CSV Splice Detail Example #1.csv");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const { nodes, edges } = buildReactFlowGraph(graph);
 
@@ -50,10 +50,7 @@ describe("buildReactFlowGraph", () => {
   });
 
   it("Example #2: four cable nodes, six splice edges", () => {
-    const csv = readFileSync(
-      join(examples, "CSV Splice Detail Example #2.csv"),
-      "utf8",
-    );
+    const csv = readContractCsv("CSV Splice Detail Example #2.csv");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const { nodes, edges } = buildReactFlowGraph(graph);
 
@@ -63,10 +60,7 @@ describe("buildReactFlowGraph", () => {
   });
 
   it("display side follows saved position when cableSides override disagrees", () => {
-    const csv = readFileSync(
-      join(examples, "CSV Splice Detail Example #2.csv"),
-      "utf8",
-    );
+    const csv = readContractCsv("CSV Splice Detail Example #2.csv");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const base = buildReactFlowGraph(graph);
     const rightCable = base.nodes.find(
@@ -91,10 +85,7 @@ describe("buildReactFlowGraph", () => {
   });
 
   it("applies cableSides override to mirror dragged cables on reload", () => {
-    const csv = readFileSync(
-      join(examples, "CSV Splice Detail Example #2.csv"),
-      "utf8",
-    );
+    const csv = readContractCsv("CSV Splice Detail Example #2.csv");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const base = buildReactFlowGraph(graph);
     const leftDrop = base.nodes.find(
@@ -115,10 +106,7 @@ describe("buildReactFlowGraph", () => {
   });
 
   it("Example #3: slim cables, anchors, 28 connections × 2 leg edges", () => {
-    const csv = readFileSync(
-      join(examples, "CSV Splice Detail Example #3.csv"),
-      "utf8",
-    );
+    const csv = readContractCsv("CSV Splice Detail Example #3.csv");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const { nodes, edges } = buildReactFlowGraph(graph);
 
@@ -138,10 +126,7 @@ describe("buildReactFlowGraph", () => {
   });
 
   it("Example #2: wide layout keeps strands fanning toward center", () => {
-    const csv = readFileSync(
-      join(examples, "CSV Splice Detail Example #2.csv"),
-      "utf8",
-    );
+    const csv = readContractCsv("CSV Splice Detail Example #2.csv");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const wideWidth = 2200;
     const { nodes } = buildReactFlowGraph(graph, undefined, wideWidth);
@@ -159,10 +144,7 @@ describe("buildReactFlowGraph", () => {
   });
 
   it("Example #2: collapse is a no-op without 12-fiber full tubes", () => {
-    const csv = readFileSync(
-      join(examples, "CSV Splice Detail Example #2.csv"),
-      "utf8",
-    );
+    const csv = readContractCsv("CSV Splice Detail Example #2.csv");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const expanded = buildReactFlowGraph(graph);
     const collapsed = buildReactFlowGraph(graph, {
