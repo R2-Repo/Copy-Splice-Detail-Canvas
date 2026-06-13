@@ -59,4 +59,4 @@ npm run verify      # layout + check + test:ci + build
 
 ## Response style
 
-Short bullets; no long recaps. User can type **expand** for detail.
+See `.cursor/rules/concise-responses.mdc`. Short bullets; no filler or recaps. User types **expand** for detail.

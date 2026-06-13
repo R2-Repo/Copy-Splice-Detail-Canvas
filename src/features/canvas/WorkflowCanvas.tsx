@@ -1546,6 +1546,7 @@ function WorkflowCanvasInner() {
                 <CalloutLeaderLayer />
                 <ManualAdjustOverlay
                   enabled={!autoAdjustEnabled}
+                  legSegmentDragActive={manualAdjustEngine.legSegmentDragActive}
                   nodes={nodes}
                   edges={edges}
                   graph={graphRef.current}

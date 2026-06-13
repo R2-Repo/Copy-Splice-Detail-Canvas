@@ -5,11 +5,21 @@
 ## Baseline
 
 - Branch: `main`
-- Verified: **`npm run verify`** green — `test:layout` **114/114**, `test:ci` **422/422**
+- Verified: **`npm run verify`** green — `test:layout` **114/114**, `test:ci` **423/423**
+
+## Checkpoint (user-approved — 2026-06-13)
+
+**Best manual adjust + leg routing so far.** User confirmed leg drag fixed (no freeze, smooth enough). Treat this commit/state as a **jump-back point** if later manual/routing work regresses.
+
+Key symbols touched this session:
+
+- `legSegments.ts` — `simplifyOrthogonalPath` on `preserveSplice` reconnect
+- `useManualAdjustEngine.ts` — absolute drag from pre-drag snapshot; overlay freeze flag
+- `ManualAdjustOverlay.tsx` — cached hit-targets during leg drag; handle coord cache
 
 ## Current phase
 
-**User-driven bug fixes** — stabilization tests green; user reports no visible improvement.
+**User-driven bug fixes** — manual leg drag stable; other layout items may remain.
 
 ## User testing (canonical)
 
@@ -28,13 +38,13 @@ Import **Left-*** Bentley CSVs from `docs/reference/examples/`:
 
 ## Known issues
 
-1. **User QA (2026-06-13):** no visible change after stabilization — same diagram/routing/manual issues
-2. PNG visual parity incomplete
-3. Callout text does not auto-update when toggling existing splices
+1. PNG visual parity incomplete
+2. Callout text does not auto-update when toggling existing splices
+3. Auto layout jumpiness / cable column drag in manual mode (not reported broken after leg fix)
 
 ## Blockers
 
-None for automated tests. User-visible issues open.
+None for automated tests.
 
 ## Canonical docs (read order)
 

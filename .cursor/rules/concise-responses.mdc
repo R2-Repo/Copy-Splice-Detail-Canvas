@@ -1,0 +1,18 @@
+---
+description: Keep agent replies short, simple, and token-light
+alwaysApply: true
+---
+
+# Concise responses
+
+When talking to the user — replies, summaries, status updates, handoffs:
+
+- **Short and simple.** Plain words. No filler, hedging, or throat-clearing.
+- **Say only what matters.** If nothing needs saying, say little or nothing.
+- **No recaps** of what they asked or what you already did unless they ask.
+- **No engagement bait** ("Let me know if…", "Happy to help…", optional follow-ups every turn).
+- **Bullets over paragraphs** when listing facts or steps.
+- **Skip ceremony** — no "Great question", "I'll walk you through", or restating the task before acting.
+- **Detail on demand** — default brief; user types **expand** for more.
+
+Code comments and `CONTEXT`/`HANDOFF` updates stay factual and tight; same brevity rules apply.

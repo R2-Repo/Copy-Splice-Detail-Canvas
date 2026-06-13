@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 
 import type { ConnectionGraph } from "@/types/splice";
 
-import { handleCoordsForConnection } from "./handleCoords";
+import { handleCoordsForConnection, buildHandleCoordsCache } from "./handleCoords";
 import {
   allowedSegmentAxes,
   legSegmentsFromPaths,
@@ -18,6 +18,7 @@ const SEG_HIT = 14;
 
 type Props = {
   enabled: boolean;
+  legSegmentDragActive: boolean;
   nodes: Node[];
   edges: Edge[];
   graph: ConnectionGraph | null;
@@ -89,6 +90,7 @@ function segmentHitStyle(
 
 export function ManualAdjustOverlay({
   enabled,
+  legSegmentDragActive,
   nodes,
   edges,
   graph,
@@ -100,6 +102,7 @@ export function ManualAdjustOverlay({
 }: Props) {
   const { screenToFlowPosition, flowToScreenPosition } = useReactFlow();
   const viewport = useViewport();
+  const cachedSegmentsRef = useRef<DraggableSegment[]>([]);
   const [marquee, setMarquee] = useState<{
     x0: number;
     y0: number;
@@ -136,7 +139,11 @@ export function ManualAdjustOverlay({
 
   const draggableSegments = useMemo(() => {
     if (!enabled || !graph) return [];
+    if (legSegmentDragActive && cachedSegmentsRef.current.length > 0) {
+      return cachedSegmentsRef.current;
+    }
 
+    const handleCache = buildHandleCoordsCache(nodes, graph);
     const spliceEdges = edges.filter(
       (e) =>
         e.type === "splice" &&
@@ -160,7 +167,7 @@ export function ManualAdjustOverlay({
       const rightPath = String(leftData.rightPath ?? "");
       if (!leftPath || !rightPath) continue;
 
-      const handles = handleCoordsForConnection(connectionId, nodes, graph);
+      const handles = handleCoordsForConnection(connectionId, nodes, graph, handleCache);
       if (!handles) continue;
       const template = routeTemplateForHandles(
         handles.source.x,
@@ -199,8 +206,9 @@ export function ManualAdjustOverlay({
         }
       }
     }
+    cachedSegmentsRef.current = items;
     return items;
-  }, [enabled, graph, edges, nodes]);
+  }, [enabled, graph, edges, nodes, legSegmentDragActive]);
 
   useEffect(() => {
     if (!enabled) return;

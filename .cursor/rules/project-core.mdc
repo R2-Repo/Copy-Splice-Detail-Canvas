@@ -16,7 +16,7 @@ React 19 + Vite + TypeScript + `@xyflow/react`. Frontend PWA only.
 
 ## Rules
 
-- Short bullet responses; user can type **expand** for detail.
+- Concise user replies — see `.cursor/rules/concise-responses.mdc`; **expand** for detail.
 - No new npm deps without user approval.
 - No invented APIs or backends.
 - Use `@/` imports; keep features under `src/features/`.

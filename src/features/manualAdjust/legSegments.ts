@@ -451,8 +451,8 @@ export function reconnectEditedLegPaths(
 
   if (options?.preserveSplice) {
     const anchor = options.preserveSplice;
-    left = setPathEnd(left, anchor);
-    right = setPathStart(right, anchor);
+    left = simplifyOrthogonalPath(setPathEnd(left, anchor));
+    right = simplifyOrthogonalPath(setPathStart(right, anchor));
     return {
       leftPath: left,
       rightPath: right,

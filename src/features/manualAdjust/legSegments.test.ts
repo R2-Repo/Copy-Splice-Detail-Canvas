@@ -232,4 +232,34 @@ describe("legSegments", () => {
       expect(seg.kind === "v" && seg.x).toBeCloseTo(743, 0);
     }
   });
+
+  it("reconnectEditedLegPaths with preserveSplice does not explode path points across repeated drags", () => {
+    const splice = { x: 731, y: 262 };
+    let leftPath = "M 584,180 L 700,180 L 731,180 L 731,262";
+    let rightPath = "M 731,262 L 731,464 L 994,464";
+    const template = routeTemplateForHandles(584, 180, 994, 464);
+    const lane = pathToLegSegments(leftPath).find((s) => s.kind === "v");
+    expect(lane).toBeTruthy();
+
+    for (let frame = 0; frame < 20; frame++) {
+      const left = applySegmentDelta(
+        pathToLegSegments(leftPath),
+        lane!.index,
+        "horizontal",
+        2,
+        template,
+        "left",
+        splice,
+      );
+      leftPath = reconnectEditedLegPaths(
+        segmentsToPath(left, { x: 584, y: 180 }),
+        rightPath,
+        "left",
+        { preserveSplice: splice },
+      ).leftPath;
+    }
+
+    const pointCount = parseOrthogonalPathPoints(leftPath).length;
+    expect(pointCount).toBeLessThan(12);
+  });
 });

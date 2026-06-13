@@ -23,7 +23,7 @@ import {
   segmentsToPath,
   type SegmentDragAxis,
 } from "./legSegments";
-import { handleCoordsForConnection } from "./handleCoords";
+import { handleCoordsForConnection, buildHandleCoordsCache } from "./handleCoords";
 import { syncSplicePointNodes } from "./syncSplicePointNodes";
 import {
   connectionsInMarquee,
@@ -46,13 +46,14 @@ type SegmentDragState = {
   segmentIndex: number;
   axis: SegmentDragAxis;
   startPointer: number;
-  accumulatedDelta: number;
+  latestPointer: number;
   baseOverrides: NonNullable<LayoutOverrides["legOverrides"]>;
   preDragPaths: Map<string, ConnectionLegPathData>;
 };
 
 export type ManualAdjustEngine = {
   selection: ManualAdjustSelection;
+  legSegmentDragActive: boolean;
   onFiberAnchorClick: (
     connectionId: string,
     event: { shiftKey: boolean },
@@ -111,6 +112,7 @@ export function useManualAdjustEngine({
   const [selection, setSelection] = useState<ManualAdjustSelection>(
     emptySelection(),
   );
+  const [legSegmentDragActive, setLegSegmentDragActive] = useState(false);
   const segmentDragRef = useRef<SegmentDragState | null>(null);
 
   const anchorPositions = useCallback(() => {
@@ -185,7 +187,6 @@ export function useManualAdjustEngine({
   );
 
   const legDragRafRef = useRef<number | null>(null);
-  const legDragPendingDeltaRef = useRef(0);
   const segmentMoveListenerRef = useRef<(event: PointerEvent) => void>(() => {});
   const segmentUpListenerRef = useRef<(event: PointerEvent) => void>(() => {});
 
@@ -199,29 +200,27 @@ export function useManualAdjustEngine({
     (event: React.PointerEvent | PointerEvent) => {
       const drag = segmentDragRef.current;
       if (!drag || !enabled) return;
-      const pointer = drag.axis === "horizontal" ? event.clientX : event.clientY;
-      const frameDelta = pointer - drag.startPointer - drag.accumulatedDelta;
-      if (Math.abs(frameDelta) < 0.5) return;
-      drag.accumulatedDelta += frameDelta;
-      legDragPendingDeltaRef.current += frameDelta;
+      drag.latestPointer =
+        drag.axis === "horizontal" ? event.clientX : event.clientY;
 
       if (legDragRafRef.current != null) return;
       legDragRafRef.current = requestAnimationFrame(() => {
         legDragRafRef.current = null;
         const active = segmentDragRef.current;
-        const delta = legDragPendingDeltaRef.current;
-        legDragPendingDeltaRef.current = 0;
-        if (!active || Math.abs(delta) < 0.5) return;
+        if (!active) return;
+        const totalDelta = active.latestPointer - active.startPointer;
+        if (Math.abs(totalDelta) < 0.5) return;
         const currentEdges = getEdges();
         const currentNodes = getNodes();
         const nextEdges = previewSegmentDrag(
           currentEdges,
           active,
-          delta,
+          totalDelta,
           currentNodes,
           graph,
         );
-        if (nextEdges === currentEdges) return;
+        const edgeChanged = nextEdges !== currentEdges;
+        if (!edgeChanged) return;
         const nextNodes = syncSplicePointNodes(
           currentNodes,
           nextEdges,
@@ -239,10 +238,12 @@ export function useManualAdjustEngine({
   const onSegmentPointerUpNative = useCallback(
     (_event: PointerEvent) => {
       detachSegmentDragListeners();
+      setLegSegmentDragActive(false);
       const drag = segmentDragRef.current;
       if (!drag || !enabled) return;
       segmentDragRef.current = null;
-      if (Math.abs(drag.accumulatedDelta) < 0.5) return;
+      const totalDelta = drag.latestPointer - drag.startPointer;
+      if (Math.abs(totalDelta) < 0.5) return;
 
       const currentEdges = getEdges();
       let blockedCode: LegPathValidationCode | null = null;
@@ -284,7 +285,7 @@ export function useManualAdjustEngine({
           drag.side,
           drag.segmentIndex,
           drag.axis,
-          drag.accumulatedDelta,
+          totalDelta,
         );
       }
       onLegOverridesCommit(nextOverrides);
@@ -309,6 +310,7 @@ export function useManualAdjustEngine({
   useEffect(
     () => () => {
       detachSegmentDragListeners();
+      setLegSegmentDragActive(false);
       if (legDragRafRef.current != null) {
         cancelAnimationFrame(legDragRafRef.current);
       }
@@ -343,16 +345,18 @@ export function useManualAdjustEngine({
         const snapshot = legPathDataFromEdges(getEdges(), id);
         if (snapshot) preDragPaths.set(id, snapshot);
       }
+      const startPointer = axis === "horizontal" ? event.clientX : event.clientY;
       segmentDragRef.current = {
         connectionIds: ids,
         side,
         segmentIndex,
         axis,
-        startPointer: axis === "horizontal" ? event.clientX : event.clientY,
-        accumulatedDelta: 0,
+        startPointer,
+        latestPointer: startPointer,
         baseOverrides: { ...(legOverrides ?? {}) },
         preDragPaths,
       };
+      setLegSegmentDragActive(true);
       window.addEventListener("pointermove", segmentMoveListenerRef.current);
       window.addEventListener("pointerup", segmentUpListenerRef.current);
       window.addEventListener("pointercancel", segmentUpListenerRef.current);
@@ -411,6 +415,7 @@ export function useManualAdjustEngine({
 
   return {
     selection,
+    legSegmentDragActive,
     onFiberAnchorClick,
     onMarqueeComplete,
     onSegmentPointerDown,
@@ -478,29 +483,31 @@ function applyLegPathSnapshots(
 function previewSegmentDrag(
   edges: Edge[],
   drag: SegmentDragState,
-  delta: number,
+  totalDelta: number,
   nodes: Node[],
   graph: ConnectionGraph | null,
 ): Edge[] {
+  if (Math.abs(totalDelta) < 0.5) return edges;
+  const handleCache = graph != null ? buildHandleCoordsCache(nodes, graph) : undefined;
   const nextEdges = [...edges];
   let changed = false;
   for (const connectionId of drag.connectionIds) {
+    const snapshot = drag.preDragPaths.get(connectionId);
+    if (!snapshot) continue;
     const leftId = `splice-left-${connectionId}`;
     const rightId = `splice-right-${connectionId}`;
     const leftEdge = nextEdges.find((e) => e.id === leftId);
     if (!leftEdge) continue;
-    const data = (leftEdge.data ?? {}) as {
-      leftPath?: string;
-      rightPath?: string;
-      spliceX?: number;
-      spliceY?: number;
+    const leftPathRaw = snapshot.leftPath;
+    const rightPathRaw = snapshot.rightPath;
+    const preserveSplice = {
+      x: snapshot.spliceX,
+      y: snapshot.spliceY,
     };
     const handles =
       graph != null
-        ? handleCoordsForConnection(connectionId, nodes, graph)
+        ? handleCoordsForConnection(connectionId, nodes, graph, handleCache)
         : null;
-    const leftPathRaw = String(data.leftPath ?? "");
-    const rightPathRaw = String(data.rightPath ?? "");
     const template = routeTemplateForHandles(
       handles?.source.x ?? 0,
       handles?.source.y ?? 0,
@@ -513,12 +520,10 @@ function previewSegmentDrag(
       segments,
       drag.segmentIndex,
       drag.axis,
-      delta,
+      totalDelta,
       template,
       drag.side,
-      Number.isFinite(Number(data.spliceX)) && Number.isFinite(Number(data.spliceY))
-        ? { x: Number(data.spliceX), y: Number(data.spliceY) }
-        : undefined,
+      preserveSplice,
     );
     const pathStart =
       drag.side === "left"
@@ -539,11 +544,7 @@ function previewSegmentDrag(
       drag.side,
       {
         handles: handles ?? undefined,
-        preserveSplice:
-          Number.isFinite(Number(data.spliceX)) &&
-          Number.isFinite(Number(data.spliceY))
-            ? { x: Number(data.spliceX), y: Number(data.spliceY) }
-            : undefined,
+        preserveSplice,
       },
     );
 
