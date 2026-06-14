@@ -65,6 +65,7 @@ import {
   type VisualCable,
 } from "@/features/diagram/visualCables";
 import { orderedFiberConnections } from "@/features/diagram/buildConnectionGraph";
+import { buildQuadReactFlowGraph } from "@/features/diagram/quad/buildQuadReactFlowGraph";
 import type {
   ConnectionGraph,
   FiberColorAbbrev,
@@ -202,6 +203,11 @@ export function buildReactFlowGraph(
   xBounds: CableXBounds;
   autoLayoutY: Record<string, number>;
 } {
+  // Additive 4-side engine — fully isolated; horizontal pipeline below is untouched.
+  if (overrides?.layoutMode === "quad") {
+    return buildQuadReactFlowGraph(graph, overrides, layoutWidth, buildOptions);
+  }
+
   const collapseFullButtSplices = overrides?.collapseFullButtSplices ?? false;
   const effectiveWidth =
     layoutWidth ?? CABLE_LAYOUT.width;

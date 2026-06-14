@@ -113,10 +113,12 @@ import { tubeKeyFor } from "@/features/diagram/tubeRowShift";
 import {
   AutoIcon,
   ExportConfigIcon,
+  HorizontalLayoutIcon,
   InspectIcon,
   MapIcon,
   ManualIcon,
   PrintPdfIcon,
+  QuadLayoutIcon,
   ReportIcon,
   ResetIcon,
 } from "@/components/toolbar/ToolbarIcon";
@@ -130,6 +132,7 @@ import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
 import type {
   ConnectionGraph,
   LayoutCalloutRecord,
+  LayoutMode,
   LayoutOverrides,
   TubeColorCode,
   TubeManualOverride,
@@ -229,6 +232,7 @@ function WorkflowCanvasInner() {
   const stageWidthRef = useRef(0);
   const collapseRef = useRef(false);
   const calloutsVisibleRef = useRef(false);
+  const layoutModeRef = useRef<LayoutMode>("horizontal");
   const applyGraphRef = useRef<
     (
       graph: ConnectionGraph,
@@ -257,6 +261,7 @@ function WorkflowCanvasInner() {
   const [calloutsVisible, setCalloutsVisible] = useState(false);
   const [circuitIndex, setCircuitIndex] = useState<CircuitIndex | null>(null);
   const [autoAdjustEnabled, setAutoAdjustEnabled] = useState(true);
+  const [layoutMode, setLayoutModeState] = useState<LayoutMode>("horizontal");
   const [legOverridesState, setLegOverridesState] = useState<
     LayoutOverrides["legOverrides"]
   >();
@@ -280,6 +285,7 @@ function WorkflowCanvasInner() {
   collapseRef.current = collapseFullButtSplices;
   calloutsVisibleRef.current = calloutsVisible;
   autoAdjustRef.current = autoAdjustEnabled;
+  layoutModeRef.current = layoutMode;
 
   useEffect(() => {
     if (autoAdjustEnabled || tubePreview.size === 0) return;
@@ -413,15 +419,54 @@ function WorkflowCanvasInner() {
     [getNodes, setEdges, setNodes],
   );
 
+  const syncQuadCableDrag = useCallback(
+    (draggedNode: Node) => {
+      const graph = graphRef.current;
+      const reportKey = reportKeyRef.current;
+      if (!graph || !reportKey || draggedNode.type !== "cable") return;
+
+      const existing = loadLayoutOverrides(reportKey);
+      const positions = {
+        ...(existing?.positions ?? {}),
+        ...positionsFromNodes(getNodes().filter((n) => n.type === "cable")),
+        [draggedNode.id]: draggedNode.position,
+      };
+
+      const { nodes: nextNodes, edges: nextEdges } = buildReactFlowGraph(
+        graph,
+        {
+          reportKey,
+          layoutMode: "quad",
+          collapseFullButtSplices: collapseRef.current,
+          positions,
+          existingEdgeIds: existing?.existingEdgeIds,
+          quadCableSides: existing?.quadCableSides,
+          autoAdjustEnabled: autoAdjustRef.current,
+        },
+        layoutWidthRef.current,
+        { dragSync: true },
+      );
+      const callouts = getNodes().filter((n) => n.type === "cableCallout");
+      setNodes([...nextNodes, ...callouts]);
+      setEdges(nextEdges);
+    },
+    [getNodes, setEdges, setNodes],
+  );
+
   const refreshDragRouting = useCallback(
     (draggedNode: Node) => {
+      // Additive quad guard — early-return before any binary L/R drag handling.
+      if (layoutModeRef.current === "quad") {
+        syncQuadCableDrag(draggedNode);
+        return;
+      }
       if (!autoAdjustRef.current) {
         syncManualCableDrag(draggedNode);
         return;
       }
       syncNodesEngineDrag(draggedNode);
     },
-    [syncManualCableDrag, syncNodesEngineDrag],
+    [syncManualCableDrag, syncNodesEngineDrag, syncQuadCableDrag],
   );
 
   const stageWidthForLayout = useCallback((): number => {
@@ -743,6 +788,9 @@ function WorkflowCanvasInner() {
       setCalloutsVisible(calloutsShouldShow(saved));
       setAutoAdjustEnabled(saved?.autoAdjustEnabled !== false);
       setLegOverridesState(saved?.legOverrides);
+      const initialLayoutMode = saved?.layoutMode ?? "horizontal";
+      layoutModeRef.current = initialLayoutMode;
+      setLayoutModeState(initialLayoutMode);
       setManualWarningBanner(null);
       setConfigErrorBanner(null);
       userExpandedLayoutRef.current = Boolean(
@@ -1121,6 +1169,27 @@ function WorkflowCanvasInner() {
     );
   }, [setNodes]);
 
+  const setLayoutMode = useCallback(
+    (next: LayoutMode) => {
+      const graph = graphRef.current;
+      const reportKey = reportKeyRef.current;
+      if (!graph || !reportKey || next === layoutModeRef.current) return;
+      layoutModeRef.current = next;
+      setLayoutModeState(next);
+      saveLayoutOverrides(mergeLayoutOverrides(reportKey, { layoutMode: next }));
+      const width = resolveLayoutWidth(graph, false);
+      applyGraph(graph, reportKey, collapseRef.current, {
+        layoutWidth: width,
+        refreshLayout: true,
+        refreshColumnX: true,
+        refreshRowLayout: true,
+        fitView: true,
+        fitAtUnitZoom: true,
+      });
+    },
+    [applyGraph, resolveLayoutWidth],
+  );
+
   const resetToAutoLayout = useCallback(() => {
     const graph = graphRef.current;
     const reportKey = reportKeyRef.current;
@@ -1166,6 +1235,10 @@ function WorkflowCanvasInner() {
 
   const onNodeDragStart: OnNodeDrag<Node> = useCallback(
     (_, node) => {
+      if (layoutModeRef.current === "quad") {
+        if (node.type === "cable") refreshDragRouting(node);
+        return;
+      }
       if (!autoAdjustRef.current && node.type === "fiberAnchor") {
         manualAdjustEngine.onNodeDrag(_, node, nodes);
         return;
@@ -1173,11 +1246,32 @@ function WorkflowCanvasInner() {
       if (node.type !== "cable") return;
       refreshDragRouting(node);
     },
-    [manualAdjustEngine, refreshDragRouting],
+    [manualAdjustEngine, refreshDragRouting, nodes],
   );
 
   const onNodeDragStop: OnNodeDrag<Node> = useCallback(
     (_, node) => {
+      if (layoutModeRef.current === "quad") {
+        if (node.type === "cable") {
+          const reportKey = reportKeyRef.current;
+          if (reportKey) {
+            const existing = loadLayoutOverrides(reportKey);
+            saveLayoutOverrides(
+              mergeLayoutOverrides(reportKey, {
+                layoutMode: "quad",
+                positions: {
+                  ...(existing?.positions ?? {}),
+                  [node.id]: node.position,
+                },
+              }),
+            );
+          }
+          refreshDragRouting(node);
+        } else {
+          persistLayout(nodes, edges);
+        }
+        return;
+      }
       if (!autoAdjustRef.current && node.type === "fiberAnchor") {
         manualAdjustEngine.onNodeDragStop(_, node, nodes);
         return;
@@ -1401,6 +1495,7 @@ function WorkflowCanvasInner() {
       manualAdjustEngine,
       nodes,
       persistLayout,
+      refreshDragRouting,
       setNodes,
       updateManualWarnings,
       updateNodeInternals,
@@ -1409,6 +1504,10 @@ function WorkflowCanvasInner() {
 
   const onNodeDrag: OnNodeDrag<Node> = useCallback(
     (_, node) => {
+      if (layoutModeRef.current === "quad") {
+        if (node.type === "cable") refreshDragRouting(node);
+        return;
+      }
       if (!autoAdjustRef.current && node.type === "fiberAnchor") {
         manualAdjustEngine.onNodeDrag(_, node, nodes);
         return;
@@ -1708,6 +1807,25 @@ function WorkflowCanvasInner() {
                 value: "manual",
                 label: "Manual adjust",
                 icon: <ManualIcon />,
+              },
+            ]}
+          />
+          <ToolbarSegmentedControl
+            className="toolbar-segment--large"
+            ariaLabel="Layout mode"
+            disabled={!meta}
+            value={layoutMode}
+            onChange={(next) => setLayoutMode(next as LayoutMode)}
+            options={[
+              {
+                value: "horizontal",
+                label: "Left / right layout",
+                icon: <HorizontalLayoutIcon />,
+              },
+              {
+                value: "quad",
+                label: "4-side layout",
+                icon: <QuadLayoutIcon />,
               },
             ]}
           />

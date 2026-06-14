@@ -6,12 +6,30 @@ import { colorHex } from "@/features/diagram/colorCode";
 
 import type { FiberAnchorNodeData } from "./types";
 
+/** Inward (out) / outward (in) handle sides; quad top/bottom route vertically. */
+function anchorHandlePositions(d: FiberAnchorNodeData): {
+  outPos: Position;
+  inPos: Position;
+} {
+  switch (d.quadSide) {
+    case "top":
+      return { outPos: Position.Bottom, inPos: Position.Top };
+    case "bottom":
+      return { outPos: Position.Top, inPos: Position.Bottom };
+    case "right":
+      return { outPos: Position.Left, inPos: Position.Right };
+    default:
+      return d.side === "left"
+        ? { outPos: Position.Right, inPos: Position.Left }
+        : { outPos: Position.Left, inPos: Position.Right };
+  }
+}
+
 export function FiberAnchorNode({ data }: NodeProps) {
   const d = data as FiberAnchorNodeData;
   const manual = useManualLayout();
   const { isConnectionHighlighted } = useCircuitHighlight();
-  const outPos = d.side === "left" ? Position.Right : Position.Left;
-  const inPos = d.side === "left" ? Position.Left : Position.Right;
+  const { outPos, inPos } = anchorHandlePositions(d);
   const stroke = colorHex(d.fiberColor as import("@/types/splice").FiberColorAbbrev);
   const highlighted = isConnectionHighlighted(d.connectionId);
 

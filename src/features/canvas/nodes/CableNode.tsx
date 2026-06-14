@@ -19,6 +19,7 @@ import {
   fiberFanTailPathD,
   fiberFanTopPathD,
 } from "@/features/diagram/cableBreakoutGeometry";
+import { quadRenderTransform } from "@/features/diagram/quad/quadGeometry";
 import { useCircuitHighlight } from "@/features/canvas/CircuitHighlightContext";
 import {
   colorHex,
@@ -51,9 +52,12 @@ function tubeStroke(
 
 export function CableNode({ id, data }: NodeProps) {
   const d = data as CableNodeData;
+  // Quad mode: vertical (top/bottom) cables render the canonical left breakout
+  // rotated 90° (see quadRenderTransform); all inner geometry uses renderSide.
+  const renderSide = d.orientation === "vertical" ? "left" : d.side;
   const manual = useManualLayout();
   const { isFiberHighlighted } = useCircuitHighlight();
-  const handlePos = d.side === "left" ? Position.Right : Position.Left;
+  const handlePos = renderSide === "left" ? Position.Right : Position.Left;
   const pitch = d.fiberPitch ?? CABLE_LAYOUT.fiberRowH;
   const scale = d.diagramScale ?? 1;
   const updateNodeInternals = useUpdateNodeInternals();
@@ -83,7 +87,7 @@ export function CableNode({ id, data }: NodeProps) {
 
   const geo = computeCableBreakout(
     tubesForRender,
-    d.side,
+    renderSide,
     pitch,
     CABLE_LAYOUT.headerH,
     CABLE_LAYOUT.tubeLabelH,
@@ -95,7 +99,7 @@ export function CableNode({ id, data }: NodeProps) {
     updateNodeInternals(id);
   }, [
     id,
-    d.side,
+    renderSide,
     tubesForRender,
     d.collapsedTubes,
     geo.viewWidth,
@@ -124,16 +128,16 @@ export function CableNode({ id, data }: NodeProps) {
     geo.tubes[0] != null
       ? Math.abs(geo.tubes[0].end.x - geo.tubes[0].origin.x)
       : 52;
-  const tubeFaceX = d.side === "left" ? geo.sheath.width : geo.viewWidth - geo.sheath.width;
+  const tubeFaceX = renderSide === "left" ? geo.sheath.width : geo.viewWidth - geo.sheath.width;
   const stemAbsolute =
-    d.side === "left" ? geo.stemX : geo.viewWidth - geo.stemX;
+    renderSide === "left" ? geo.stemX : geo.viewWidth - geo.stemX;
 
   const localX = (x: number, width = 0): number =>
-    d.side === "left" ? x : geo.viewWidth - x - width;
+    renderSide === "left" ? x : geo.viewWidth - x - width;
 
-  return (
+  const content = (
     <div
-      className={`splice-node cable-node cable-node--composite cable-node--${d.side}${d.manualAdjustEnabled ? " cable-node--manual-adjust" : ""}`}
+      className={`splice-node cable-node cable-node--composite cable-node--${renderSide}${d.manualAdjustEnabled ? " cable-node--manual-adjust" : ""}`}
       style={
         {
           minHeight: d.nodeHeight,
@@ -177,7 +181,7 @@ export function CableNode({ id, data }: NodeProps) {
           const lineStart = tube.origin;
           const lineEnd = collapsed
             ? {
-                x: collapsedTubeHandleLocalX(d.side, geo.stemX),
+                x: collapsedTubeHandleLocalX(renderSide, geo.stemX),
                 y: collapsedHandleY,
               }
             : tube.end;
@@ -397,7 +401,7 @@ export function CableNode({ id, data }: NodeProps) {
       {d.manualAdjustEnabled ? (
         <TubeManualHandles
           visualCableId={visualCableId}
-          side={d.side}
+          side={renderSide}
           tubes={tubesForRender}
           tubeGeoms={geo.tubes}
           collapsedTubes={collapsedTubes}
@@ -409,4 +413,39 @@ export function CableNode({ id, data }: NodeProps) {
       ) : null}
     </div>
   );
+
+  if (
+    d.orientation === "vertical" &&
+    (d.quadSide === "top" || d.quadSide === "bottom")
+  ) {
+    const t = quadRenderTransform(d.quadSide, geo.viewWidth, geo.viewHeight);
+    if (t) {
+      return (
+        <div
+          className={`cable-node-quad-wrap cable-node-quad-wrap--${d.quadSide}`}
+          style={{
+            position: "relative",
+            width: t.boxWidth,
+            height: t.boxHeight,
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: geo.viewWidth,
+              height: geo.viewHeight,
+              transformOrigin: "0 0",
+              transform: t.transform,
+            }}
+          >
+            {content}
+          </div>
+        </div>
+      );
+    }
+  }
+
+  return content;
 }

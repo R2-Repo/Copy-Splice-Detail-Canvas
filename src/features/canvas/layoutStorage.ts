@@ -92,5 +92,7 @@ export function mergeLayoutOverrides(
       patch.fanoutOverrides,
     ),
     legOverrides: mergeOverrideMap(existing?.legOverrides, patch.legOverrides),
+    layoutMode: patch.layoutMode ?? existing?.layoutMode,
+    quadCableSides: { ...existing?.quadCableSides, ...patch.quadCableSides },
   };
 }

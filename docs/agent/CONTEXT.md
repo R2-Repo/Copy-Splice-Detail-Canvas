@@ -19,6 +19,8 @@ Key symbols touched this session:
 
 ## Current phase
 
+**Quad (4-side) layout mode** — additive toolbar toggle (Left/right ↔ 4-side); fully isolated from the frozen horizontal pipeline. See 2026-06-14 quad section below.
+
 **Diagram config export/import** — standalone `.sdc.json` backup + PDF companion; drop or toolbar import restores full diagram without CSV.
 
 ## Diagram config (2026-06-13, verified)
@@ -249,3 +251,17 @@ None for automated tests.
   - `npm run check` passed
   - `npm run test:ci` passed (`59 files`, `463 tests`)
   - `npm run build` passed
+
+## 2026-06-14 quad (4-side) layout mode — additive, isolated
+
+New optional engine: cables on **left / right / top / bottom**, fans pointing inward, orthogonal port-to-dot splice routing. Perpendicular cable pairs meet at an **L corner with 0 interior bends**; opposite pairs meet on a center lane; same-side pairs loop just inside the cables. **Horizontal L/R mode is unchanged** — gated entirely behind `overrides.layoutMode`.
+
+- **Toggle:** toolbar segmented control (Left/right ↔ 4-side), next to Auto/Manual. Per-diagram, persisted (`layoutMode`), survives `.sdc.json` export/import.
+- **Engine fork:** `buildReactFlowGraph` early-returns to `buildQuadReactFlowGraph` when `layoutMode === "quad"`. Reuses the slim-cable + `fiberAnchor` + `splicePoint` + precomputed `SpliceEdge` render contract — no frozen router changes.
+- **Geometry:** top/bottom cables render the canonical *left* breakout rotated ±90° (CSS) and their handle coords use the **same affine map** (`quadGeometry.ts`), so dots/legs land on the drawn strands.
+- **Placement (auto, v1):** dominant pair → left/right; remaining stubs spread top/bottom by connection weight (`quadPlacement.ts`). Cables draggable in auto mode (reroutes live); positions persist.
+- **Persistence:** `layoutMode` + `quadCableSides` added to `LayoutOverrides` **without bumping `LAYOUT_OVERRIDE_VERSION`** (back-compat); preserved in `mergeLayoutOverrides`; import de-overlap nudge skipped in quad mode.
+- New: `src/features/diagram/quad/{quadTypes,quadGeometry,quadPlacement,quadRouter,buildQuadReactFlowGraph}.ts` + `buildQuadReactFlowGraph.test.ts`.
+- Edited additively: `types/splice.ts`, `layoutStorage.ts`, `nodes/types.ts`, `CableNode.tsx`, `FiberAnchorNode.tsx`, `buildReactFlowGraph.ts`, `WorkflowCanvas.tsx`, `ToolbarIcon.tsx`, `restoreDiagramConfig.ts`.
+- **Deferred:** per-leg **manual** adjust in quad (auto-mode drag works); placement optimizer quality (v1 heuristic, not crossing-minimal); upright labels on rotated cables.
+- Validation: **`npm run verify` green** (layout 114/114, full ci + build).

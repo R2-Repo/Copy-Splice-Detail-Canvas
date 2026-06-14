@@ -153,3 +153,29 @@ export function ConfigImportIcon() {
     </svg>
   );
 }
+
+/** Left/right (horizontal) layout mode — two cables facing a center splice. */
+export function HorizontalLayoutIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="9" width="5" height="6" rx="1" />
+      <rect x="17" y="9" width="5" height="6" rx="1" />
+      <path d="M7 12h4M13 12h4" />
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** 4-side (quad) layout mode — cables on all four edges meeting at center. */
+export function QuadLayoutIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1.5" y="10" width="4" height="4" rx="1" />
+      <rect x="18.5" y="10" width="4" height="4" rx="1" />
+      <rect x="10" y="1.5" width="4" height="4" rx="1" />
+      <rect x="10" y="18.5" width="4" height="4" rx="1" />
+      <path d="M6 12h4M14 12h4M12 6v4M12 14v4" />
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}

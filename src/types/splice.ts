@@ -183,4 +183,17 @@ export type LayoutOverrides = {
       dotShiftX?: number;
     }
   >;
+  /**
+   * Layout engine for this diagram. `horizontal` (default) is the original
+   * left/right pipeline; `quad` is the additive 4-side mode. Absent = horizontal.
+   */
+  layoutMode?: LayoutMode;
+  /** Quad mode only: user-assigned canvas side per visual cable id. */
+  quadCableSides?: Record<string, QuadSide>;
 };
+
+/** Original (left/right) vs additive 4-side layout engine. */
+export type LayoutMode = "horizontal" | "quad";
+
+/** A canvas edge a cable can sit on in quad layout mode. */
+export type QuadSide = "left" | "right" | "top" | "bottom";

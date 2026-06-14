@@ -1,4 +1,5 @@
 import type { VisualTube } from "@/features/diagram/visualCables";
+import type { QuadSide } from "@/types/splice";
 
 export type CableNodeData = {
   /** Bentley count line, e.g. "006 SMFO (R2)". */
@@ -6,6 +7,14 @@ export type CableNodeData = {
   label: string;
   legId: string;
   side: "left" | "right";
+  /**
+   * Quad layout mode only: the actual canvas edge this cable sits on. When
+   * `top`/`bottom`, the cable renders transposed (vertical). Absent = horizontal
+   * left/right mode and `side` is authoritative.
+   */
+  quadSide?: QuadSide;
+  /** Quad mode: `vertical` cables (top/bottom) render the left breakout rotated 90°. */
+  orientation?: "horizontal" | "vertical";
   tubes: VisualTube[];
   nodeHeight: number;
   /** Center-to-center spacing between fiber rows (px). */
@@ -52,6 +61,8 @@ export type FiberAnchorNodeData = {
   fiberNumber: number;
   tubeColor: string;
   side: "left" | "right";
+  /** Quad mode: edge the parent cable sits on (drives handle in/out positions). */
+  quadSide?: QuadSide;
   visualCableId: string;
   circuitName?: string;
 };

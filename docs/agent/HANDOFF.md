@@ -10,7 +10,7 @@
 
 
 
-2026-06-13 — Multi-map embed popover. `test:layout` 114/114, `test:ci` 450/450, `tsc` + `build` clean.
+2026-06-14 — Quad (4-side) layout mode (additive). `npm run verify` green. See "2026-06-14 quad (4-side) layout mode" at the bottom.
 
 
 
@@ -223,4 +223,55 @@ Manual smoke test:
   - `npm run check` PASSED
   - `npm run test:ci` PASSED (`59 files`, `463 tests`)
   - `npm run build` PASSED
+
+## 2026-06-14 quad (4-side) layout mode — additive engine
+
+New optional layout: cables on **left/right/top/bottom**, fans inward, orthogonal port-to-dot routing (perpendicular pairs = L corner, 0 interior bends). **Horizontal L/R mode untouched** — everything gated behind `overrides.layoutMode`.
+
+- Toolbar segmented control toggles Left/right ↔ 4-side; persisted per diagram and through `.sdc.json`.
+- `buildReactFlowGraph` early-returns to new `buildQuadReactFlowGraph`; reuses slim-cable + `fiberAnchor` + `splicePoint` + precomputed `SpliceEdge` paths (no frozen router edits).
+- Top/bottom cables = canonical left breakout rotated ±90° (CSS); handle coords use the same affine map so dots/legs align.
+- Auto placement v1: dominant pair left/right, stubs spread top/bottom by weight. Auto-mode cable drag reroutes + persists.
+
+### Frozen-routing note
+
+- `WorkflowCanvas` drag wiring (`refreshDragRouting`, `onNodeDragStart/Drag/Stop`) got **additive quad guards** that early-return *before* any binary L/R handling. Horizontal behavior is byte-for-byte unchanged when `layoutMode !== "quad"`. No frozen routing symbols in `spliceEdgeRouting.ts` were modified.
+
+### Files
+
+Created:
+
+- `src/features/diagram/quad/quadTypes.ts`
+- `src/features/diagram/quad/quadGeometry.ts`
+- `src/features/diagram/quad/quadPlacement.ts`
+- `src/features/diagram/quad/quadRouter.ts`
+- `src/features/diagram/quad/buildQuadReactFlowGraph.ts`
+- `src/features/diagram/quad/buildQuadReactFlowGraph.test.ts`
+
+Edited (additive):
+
+- `src/types/splice.ts` — `LayoutMode`, `QuadSide`, `layoutMode`, `quadCableSides` (no version bump)
+- `src/features/canvas/layoutStorage.ts` — preserve quad fields in `mergeLayoutOverrides`
+- `src/features/canvas/nodes/types.ts` — `quadSide` / `orientation`
+- `src/features/canvas/nodes/CableNode.tsx` — rotated render for top/bottom
+- `src/features/canvas/nodes/FiberAnchorNode.tsx` — quad handle in/out positions
+- `src/features/diagram/buildReactFlowGraph.ts` — quad mode gate
+- `src/features/canvas/WorkflowCanvas.tsx` — layout-mode state/toggle + quad drag guards/sync
+- `src/components/toolbar/ToolbarIcon.tsx` — `HorizontalLayoutIcon`, `QuadLayoutIcon`
+- `src/features/export/restoreDiagramConfig.ts` — skip de-overlap nudge in quad
+
+### Verification
+
+- `npm run verify` PASSED (layout 114/114, check, full ci, build).
+
+### Not done (deferred)
+
+- Per-leg **manual** adjust in quad mode (parallel quad manual path) — auto-mode cable drag works today.
+- Placement optimizer quality — v1 is a connection-weight heuristic, not crossing-minimal.
+- Upright (counter-rotated) labels on rotated top/bottom cables.
+- **Positions are not namespaced per mode** — `overrides.positions` is shared, so toggling Left/right ↔ 4-side re-runs that mode's auto layout (manual position tweaks don't carry across a toggle). `cableSides` (L/R) and `quadCableSides` (quad) *are* separate, so side assignments don't clobber. Namespacing positions per mode is the clean fix.
+
+### Next agent
+
+- If improving quad: build the manual-adjust quad path (own handle-coords + de-stack), and a real crossing-minimizing placement (e.g. barycentric/median around the ring). Do **not** widen the binary `handleCoords.ts`.
 

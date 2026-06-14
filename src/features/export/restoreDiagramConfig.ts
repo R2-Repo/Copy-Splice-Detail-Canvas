@@ -65,7 +65,12 @@ export function layoutOverridesFromConfig(
   config: DiagramConfigFile,
   reportKey: string,
 ): LayoutOverrides {
-  const positions = normalizeImportedCablePositions(config.layout.positions);
+  // Quad placement spreads cables around the perimeter and owns de-overlap; the
+  // horizontal two-column nudge would only fight it, so skip it in quad mode.
+  const positions =
+    config.layout.layoutMode === "quad"
+      ? config.layout.positions
+      : normalizeImportedCablePositions(config.layout.positions);
   return {
     ...config.layout,
     positions,
