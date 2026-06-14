@@ -123,13 +123,13 @@ describe("legSegments", () => {
     expect(repinned).toBe("M 120,210 L 300,210 L 300,150");
   });
 
-  it("repinLegStart slides a multi-waypoint horizontal run (no diagonal on vertical cable move)", () => {
+  it("repinLegStart keeps a full horizontal run orthogonal while anchoring the far endpoint", () => {
     // source-row leg with an OS-clearance / jog waypoint, all on y=200
     const path = "M 100,200 L 160,200 L 400,200";
-    // move the cable up 50px (same x): the whole run shifts to y=150 — the
-    // earlier bug left interior waypoints behind, creating a diagonal.
+    // move the start up 50px: the run shifts to y=150, then drops vertically
+    // at the far endpoint so the opposite anchor stays pinned.
     expect(repinLegStart(path, { x: 100, y: 150 })).toBe(
-      "M 100,150 L 160,150 L 400,150",
+      "M 100,150 L 160,150 L 400,150 L 400,200",
     );
   });
 
@@ -175,6 +175,13 @@ describe("legSegments", () => {
     const path = "M 300,150 L 300,250 L 500,250";
     const repinned = repinLegEnd(path, { x: 520, y: 260 });
     expect(repinned).toBe("M 300,150 L 300,260 L 520,260");
+  });
+
+  it("repinLegEnd keeps a full horizontal run orthogonal while anchoring the near endpoint", () => {
+    const path = "M 300,200 L 360,200 L 500,200";
+    expect(repinLegEnd(path, { x: 520, y: 260 })).toBe(
+      "M 300,200 L 300,260 L 360,260 L 520,260",
+    );
   });
 
   it("reconnectEditedLegPaths pins fusion dot while legs reconnect", () => {

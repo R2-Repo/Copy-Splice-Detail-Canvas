@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
+import { FIBER_ROW_PITCH } from "@/features/diagram/cableLayoutMetrics";
 import { reportStorageKey } from "@/features/diagram/layoutSpliceDiagram";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
 import {
@@ -181,6 +182,57 @@ describe("diagram config roundtrip", () => {
       x: Math.round(cable.position.x + 20),
       y: Math.round(cable.position.y + 10),
     });
+  });
+
+  it("de-overlaps imported cable positions that collapse onto the same row", () => {
+    const graph = graphFromCsvFile("Left-SP-3254.5.csv");
+    const { reportKey, layoutOverrides, nodes, edges } =
+      buildExportReadyState(graph);
+    const cableIds = Object.keys(layoutOverrides.positions).sort();
+    expect(cableIds.length).toBeGreaterThan(1);
+    const firstCableId = cableIds[0]!;
+    const secondCableId = cableIds[1]!;
+
+    const overlapX = 1400;
+    const overlapY = 600;
+    const overlappingPositions = {
+      ...layoutOverrides.positions,
+      [firstCableId]: { x: overlapX, y: overlapY },
+      [secondCableId]: { x: overlapX, y: overlapY + 0.4 },
+    };
+
+    const config = buildDiagramConfig({
+      graph,
+      reportKey,
+      nodes,
+      edges,
+      collapseFullButtSplices: layoutOverrides.collapseFullButtSplices ?? false,
+      calloutsVisible: false,
+      autoAdjustEnabled: layoutOverrides.autoAdjustEnabled ?? true,
+      layoutWidth: layoutOverrides.layoutWidth,
+      legOverrides: layoutOverrides.legOverrides,
+    });
+    config.layout = {
+      ...config.layout,
+      positions: overlappingPositions,
+      existingEdgeIds: layoutOverrides.existingEdgeIds,
+      legOverrides: layoutOverrides.legOverrides,
+      layoutWidth: layoutOverrides.layoutWidth,
+      layoutVersion: LAYOUT_OVERRIDE_VERSION,
+    };
+
+    const parsed = parseDiagramConfig(diagramConfigToJson(config));
+    const restoredGraph = connectionGraphFromConfig(parsed);
+    const rebuiltOverrides = layoutOverridesFromConfig(
+      parsed,
+      reportStorageKey(restoredGraph),
+    );
+
+    const firstY = rebuiltOverrides.positions[firstCableId]!.y;
+    const secondY = rebuiltOverrides.positions[secondCableId]!.y;
+    expect(rebuiltOverrides.positions[firstCableId]!.x).toBe(overlapX);
+    expect(rebuiltOverrides.positions[secondCableId]!.x).toBe(overlapX);
+    expect(Math.abs(secondY - firstY)).toBeGreaterThanOrEqual(FIBER_ROW_PITCH - 1);
   });
 });
 

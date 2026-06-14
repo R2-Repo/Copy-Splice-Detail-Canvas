@@ -1,5 +1,6 @@
 import { saveLayoutOverrides } from "@/features/canvas/layoutStorage";
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
+import { FIBER_ROW_PITCH } from "@/features/diagram/cableLayoutMetrics";
 import { reportStorageKey } from "@/features/diagram/layoutSpliceDiagram";
 import {
   LAYOUT_OVERRIDE_VERSION,
@@ -8,6 +9,47 @@ import {
 } from "@/types/splice";
 
 import type { DiagramConfigFile } from "./diagramConfigTypes";
+
+const IMPORT_CABLE_OVERLAP_EPS = 1;
+
+function normalizeImportedCablePositions(
+  positions: Record<string, { x: number; y: number }>,
+): Record<string, { x: number; y: number }> {
+  const cableEntries = Object.entries(positions)
+    .filter(([id]) => id.startsWith("cable-"))
+    .map(([id, pos]) => ({
+      id,
+      x: pos.x,
+      y: pos.y,
+    }));
+  if (cableEntries.length < 2) return positions;
+
+  const sorted = [...cableEntries].sort(
+    (a, b) => a.x - b.x || a.y - b.y || a.id.localeCompare(b.id),
+  );
+  const placed: Array<{ x: number; y: number }> = [];
+  let nextPositions: Record<string, { x: number; y: number }> | undefined;
+
+  for (const entry of sorted) {
+    let y = entry.y;
+    while (
+      placed.some(
+        (p) =>
+          Math.abs(p.x - entry.x) <= IMPORT_CABLE_OVERLAP_EPS &&
+          Math.abs(p.y - y) <= IMPORT_CABLE_OVERLAP_EPS,
+      )
+    ) {
+      y += FIBER_ROW_PITCH;
+    }
+    placed.push({ x: entry.x, y });
+    if (Math.abs(y - entry.y) > IMPORT_CABLE_OVERLAP_EPS) {
+      nextPositions ??= { ...positions };
+      nextPositions[entry.id] = { x: entry.x, y };
+    }
+  }
+
+  return nextPositions ?? positions;
+}
 
 export function connectionGraphFromConfig(
   config: DiagramConfigFile,
@@ -23,8 +65,10 @@ export function layoutOverridesFromConfig(
   config: DiagramConfigFile,
   reportKey: string,
 ): LayoutOverrides {
+  const positions = normalizeImportedCablePositions(config.layout.positions);
   return {
     ...config.layout,
+    positions,
     reportKey,
     layoutVersion: config.layout.layoutVersion ?? LAYOUT_OVERRIDE_VERSION,
   };

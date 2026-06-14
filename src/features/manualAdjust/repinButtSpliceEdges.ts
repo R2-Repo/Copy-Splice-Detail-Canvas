@@ -30,6 +30,8 @@ function visualCableFromCableNode(
   const tubeByColor = new Map(cableData.tubes.map((t) => [t.tubeColor, t]));
   return {
     ...vc,
+    // Keep butt-handle repin aligned with the live rendered side in manual mode.
+    side: cableData.side ?? vc.side,
     tubes: vc.tubes.map((tube) => {
       const live = tubeByColor.get(tube.tubeColor);
       const preview = tubePreview?.get(tubeKeyFor(vcId, tube.tubeColor));

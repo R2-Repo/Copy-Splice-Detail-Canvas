@@ -134,3 +134,118 @@ None for automated tests.
 3. [`LAYOUT_RULES.md`](./LAYOUT_RULES.md)
 4. [`HANDOFF.md`](./HANDOFF.md)
 5. [`../reference/examples/README.md`](../reference/examples/README.md) — Left CSV list
+
+## 2026-06-14 manual mode mirror + bend pass
+
+- Reproduced 90-degree bend regression on checkpoint using deterministic guard (`checkpointRepro.test.ts`):
+  - cable move created vertical hook reversals (`...y0 -> yMid -> y1...` on same `x`)
+  - leg drag created horizontal hook reversals (`...x0 -> xMid -> x1...` on same `y`)
+- Fixed by adding endpoint-preserving `removeOrthogonalReversals()` in `legSegments.ts` and applying it in:
+  - `shiftVerticalLaneX()`
+  - `syncManualVisualCable()` after repin sequence
+- Mirror issue root cause from user config export:
+  - `graph.cableSides` can be stale relative to live node side/position
+  - manual handle and repin logic then mixed stale side with live render side
+- Fixes for stale side divergence:
+  - `handleCoords.ts`: resolve source/target side from `node.data.side` (live render truth), not persisted side map
+  - `syncManualVisualCable.ts`: `visualCableFromCableNode()` now copies `side` from `cableData.side`
+  - `repinButtSpliceEdges.ts`: same live-side copy for collapsed tube repin
+  - `WorkflowCanvas.tsx`: keep `graph.cableSides` synchronized during manual cable drag and on drag-stop; always persist dragged cable side on stop (even when unchanged vs node)
+- Added guards:
+  - `src/features/manualAdjust/checkpointRepro.test.ts`
+  - `src/features/manualAdjust/handleCoordsSide.test.ts`
+  - `src/features/manualAdjust/syncManualVisualCableSide.test.ts`
+- Validation:
+  - `npm run verify` passed (layout + check + test:ci + build)
+
+## 2026-06-14 mirror follow-up (user config 14:08)
+
+- User supplied `SP-3254.5-config-2026-06-14_140801.sdc.json`; mirror still partially broken with leg disconnect/disappear/color confusion.
+- Root cause: side source-of-truth still drifted in some live paths:
+  - handle math used live node side, but drag workflow could leave graph side + persisted side out of sync with final rebuilt node side.
+- Additional fixes:
+  - `WorkflowCanvas.tsx`
+    - removed live per-frame `graph.cableSides` mutation in `applyManualCableDrag`
+    - after drag-stop rebuild, derive `resolvedSide` from rebuilt cable node (`merged[node.id].data.side`)
+    - persist `cableSides[visualId] = resolvedSide` and sync `graph.cableSides` to `resolvedSide`
+  - `syncManualVisualCable.ts`
+    - `visualCableFromCableNode()` now carries `side: cableData.side ?? vc.side`
+  - `repinButtSpliceEdges.ts`
+    - same live-side carry for collapsed tube repin path
+- Added guard tests:
+  - `syncManualVisualCableSide.test.ts`
+  - `handleCoordsSide.test.ts`
+  - `checkpointRepro.test.ts` (90-degree regression guard)
+- Validation:
+  - `npm run verify` passed (`59 files`, `460 tests`, build OK)
+
+## 2026-06-14 manual drag endpoint-anchor + import overlap guard (user config 14:16)
+
+- User config `SP-3254.5-config-2026-06-14_141620.sdc.json` repro:
+  - manual cable drag still detached some same-side legs
+  - imported layout could reopen with two cable nodes effectively on top of each other
+- Root cause (detach):
+  - for straight same-side legs (`M ... L ...`), `repinLegStart/repinLegEnd` could slide the entire colinear run and move both endpoints during vertical drag
+  - this broke handle anchoring on the unmoved cable side
+- Fixes:
+  - `src/features/manualAdjust/legSegments.ts`
+    - updated `repinLegStart` and `repinLegEnd` full-run behavior
+    - when the whole leg is one colinear run, keep the opposite endpoint anchored and insert one orthogonal connector corner
+    - preserve interior waypoints in that run
+  - `src/features/manualAdjust/legSegments.test.ts`
+    - updated/added full-run anchor tests for `repinLegStart` + `repinLegEnd`
+  - `src/features/manualAdjust/handleCoords.ts`
+    - `handleCoordsForConnection` now returns `sourceVisualCableId` / `targetVisualCableId`
+  - `src/features/manualAdjust/syncManualVisualCable.ts`
+    - pin-side selection now uses the canonical IDs from `handleCoordsForConnection`, not split-edge anchor parsing
+- Import overlap guard:
+  - `src/features/export/restoreDiagramConfig.ts`
+    - normalize imported cable positions when two cable nodes share effectively the same `x/y` (within epsilon), spacing them by `FIBER_ROW_PITCH`
+  - `src/features/export/diagramConfig.test.ts`
+    - added regression test for de-overlapping imported cable rows
+- Validation:
+  - `npm run test:layout` passed (`114/114`)
+  - `npm run check` passed
+  - `npm run test:ci` passed (`59 files`, `462 tests`)
+  - `npm run build` passed
+
+## 2026-06-14 moved-leg vertical de-stack fix (auto/manual visible overlap)
+
+- User-reported regression after detach fix:
+  - vertical running leg segments could stack on top of each other after cable drag
+  - appeared in both manual + auto views (same in-memory edge geometry while toggling)
+- Root cause:
+  - manual cable drag could create long moved-leg vertical connectors on the same `x`
+  - overlapping connector intervals were not separated, so lines collapsed visually
+- Fix:
+  - `src/features/manualAdjust/syncManualVisualCable.ts`
+    - added moved-leg vertical run deconfliction pass after repin/reversal cleanup
+    - detects per-connection moved-side vertical runs and assigns non-overlapping `x` columns (`STACK_SEP_X`)
+    - applies separation via existing `shiftVerticalLaneX` (endpoint-preserving)
+    - keeps split left/right edge patch data synchronized through helper patching
+- Added regression:
+  - `src/features/manualAdjust/syncManualVisualCableSide.test.ts`
+    - `de-stacks moved-leg vertical runs after large cable drag`
+    - reproduces SP-3254.5 right-side scenario with explicit persisted positions/sides
+- Validation:
+  - `npm run test:layout` passed (`114/114`)
+  - `npm run check` passed
+  - `npm run test:ci` passed (`59 files`, `463 tests`)
+  - `npm run build` passed
+
+## 2026-06-14 spacing follow-up (manual mode vertical lanes too close)
+
+- User follow-up:
+  - vertical legs no longer stacked, but manual-mode lanes still too close (spacing-rule violation).
+- Root cause:
+  - de-stack pass used `STACK_SEP_X = 8`, which prevented overlap but violated EDGE-011 minimum lane separation.
+- Fix:
+  - `src/features/manualAdjust/syncManualVisualCable.ts`
+    - set `STACK_SEP_X` to canonical `SPLICE_LANE_SEP` (24px) from `cableLayoutMetrics`.
+  - `src/features/manualAdjust/syncManualVisualCableSide.test.ts`
+    - expanded de-stack regression to assert overlapping vertical intervals keep `dx >= FIBER_ROW_PITCH - 1`.
+- Validation:
+  - `npm run test:layout` passed (`114/114`)
+  - `npm run check` passed
+  - `npm run test:ci` passed (`59 files`, `463 tests`)
+  - `npm run build` passed

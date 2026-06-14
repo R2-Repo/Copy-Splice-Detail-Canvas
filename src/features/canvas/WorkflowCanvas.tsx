@@ -1249,9 +1249,9 @@ function WorkflowCanvasInner() {
 
       if (graph && reportKeyRef.current) {
         const existing = loadLayoutOverrides(reportKeyRef.current);
-        const cableSides = {
+        const requestedCableSides = {
           ...(existing?.cableSides ?? {}),
-          ...(sideChanged ? { [visualId]: newSide } : {}),
+          [visualId]: newSide,
         };
         const manualMode = !autoAdjustRef.current;
         const finalPositions = {
@@ -1278,7 +1278,7 @@ function WorkflowCanvasInner() {
               collapseFullButtSplices: collapseRef.current,
               positions: finalPositions,
               existingEdgeIds: existing?.existingEdgeIds,
-              cableSides,
+              cableSides: requestedCableSides,
               layoutWidth,
               autoAdjustEnabled: false,
               tubeOverrides: existing?.tubeOverrides,
@@ -1324,7 +1324,7 @@ function WorkflowCanvasInner() {
                 collapseFullButtSplices: collapseRef.current,
                 positions: finalPositions,
                 existingEdgeIds: existing?.existingEdgeIds,
-                cableSides,
+                cableSides: requestedCableSides,
                 layoutWidth,
                 autoAdjustEnabled: true,
                 tubeOverrides: existing?.tubeOverrides,
@@ -1340,6 +1340,14 @@ function WorkflowCanvasInner() {
           reportKeyRef.current,
           finalPositions,
         );
+        const mergedDragged = merged.find((n) => n.id === node.id);
+        const resolvedSide =
+          (mergedDragged?.data as CableNodeData | undefined)?.side ?? newSide;
+        const persistedCableSides = {
+          ...(existing?.cableSides ?? {}),
+          [visualId]: resolvedSide,
+        };
+        graph.cableSides.set(visualId, resolvedSide);
         setNodes(merged);
         setEdges(nextEdges);
         saveLayoutOverrides(
@@ -1349,7 +1357,7 @@ function WorkflowCanvasInner() {
             existingEdgeIds: existingIdsFromEdges(nextEdges),
             collapseFullButtSplices: collapseRef.current,
             layoutWidth,
-            cableSides,
+            cableSides: persistedCableSides,
             callouts: existing?.callouts,
             autoAdjustEnabled: autoAdjustRef.current,
             tubeOverrides: existing?.tubeOverrides,

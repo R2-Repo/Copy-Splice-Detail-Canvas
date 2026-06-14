@@ -219,17 +219,90 @@ export function repinLegStart(
   // several colinear waypoints (OS-clearance + bundle jog), all on the source
   // row — moving only the first one would leave the next segment diagonal.
   if (Math.abs(oldY - pts[1]!.y) <= SPLICE_PATH_EPS) {
-    for (let i = 1; i < pts.length; i++) {
-      if (Math.abs(pts[i]!.y - oldY) > SPLICE_PATH_EPS) break;
+    let runEnd = 1;
+    for (; runEnd < pts.length; runEnd++) {
+      if (Math.abs(pts[runEnd]!.y - oldY) > SPLICE_PATH_EPS) break;
+    }
+    runEnd--;
+    if (runEnd === pts.length - 1) {
+      const end = pts[pts.length - 1]!;
+      // Entire path is one horizontal run. Keep the far endpoint anchored by
+      // adding one connector corner instead of translating the whole segment.
+      return pointsToOrthogonalPath([
+        { x: next.x, y: next.y },
+        ...pts
+          .slice(1, -1)
+          .map((p) => ({ x: p.x, y: next.y })),
+        { x: end.x, y: next.y },
+        { ...end },
+      ]);
+    }
+    for (let i = 1; i <= runEnd; i++) {
       out[i] = { x: pts[i]!.x, y: next.y };
     }
   } else {
-    for (let i = 1; i < pts.length; i++) {
-      if (Math.abs(pts[i]!.x - oldX) > SPLICE_PATH_EPS) break;
+    let runEnd = 1;
+    for (; runEnd < pts.length; runEnd++) {
+      if (Math.abs(pts[runEnd]!.x - oldX) > SPLICE_PATH_EPS) break;
+    }
+    runEnd--;
+    if (runEnd === pts.length - 1) {
+      const end = pts[pts.length - 1]!;
+      // Entire path is one vertical run. Keep far endpoint fixed.
+      return pointsToOrthogonalPath([
+        { x: next.x, y: next.y },
+        ...pts
+          .slice(1, -1)
+          .map((p) => ({ x: next.x, y: p.y })),
+        { x: next.x, y: end.y },
+        { ...end },
+      ]);
+    }
+    for (let i = 1; i <= runEnd; i++) {
       out[i] = { x: next.x, y: pts[i]!.y };
     }
   }
   return pointsToOrthogonalPath(out);
+}
+
+/**
+ * Remove same-axis U-turn reversals (an out-and-back jog on one line) WITHOUT
+ * moving the endpoints. A dragged lane or a re-pinned corner can slide PAST a
+ * stale waypoint and leave such a hook (a broken-looking 90°); dropping the
+ * middle point restores a single clean bend. Because the first/last points are
+ * never touched, a leg can never detach from its handle or fusion dot.
+ */
+export function removeOrthogonalReversals(path: string): string {
+  const pts = parseOrthogonalPathPoints(path);
+  if (pts.length < 3) return path;
+  const out = pts.map((p) => ({ ...p }));
+  let changed = true;
+  while (changed && out.length > 2) {
+    changed = false;
+    for (let i = 1; i < out.length - 1; i++) {
+      const a = out[i - 1]!;
+      const b = out[i]!;
+      const c = out[i + 1]!;
+      const sameX =
+        Math.abs(a.x - b.x) <= SPLICE_PATH_EPS &&
+        Math.abs(b.x - c.x) <= SPLICE_PATH_EPS;
+      const sameY =
+        Math.abs(a.y - b.y) <= SPLICE_PATH_EPS &&
+        Math.abs(b.y - c.y) <= SPLICE_PATH_EPS;
+      const verticalReversal =
+        sameX && (a.y - b.y) * (b.y - c.y) < -SPLICE_PATH_EPS;
+      const horizontalReversal =
+        sameY && (a.x - b.x) * (b.x - c.x) < -SPLICE_PATH_EPS;
+      if (verticalReversal || horizontalReversal) {
+        out.splice(i, 1);
+        changed = true;
+        break;
+      }
+    }
+  }
+  return out
+    .map((p, i) => (i === 0 ? `M ${p.x},${p.y}` : `L ${p.x},${p.y}`))
+    .join(" ");
 }
 
 /**
@@ -267,11 +340,32 @@ export function shiftVerticalLaneX(
   ) {
     hi++;
   }
-  const out = pts.map((p) => ({ ...p }));
-  for (let i = lo; i <= hi; i++) {
-    out[i] = { x: pts[i]!.x + deltaX, y: pts[i]!.y };
+  const lastIdx = pts.length - 1;
+  const shiftedX = laneX + deltaX;
+  const out: Array<{ x: number; y: number }> = [];
+  for (let i = 0; i < pts.length; i++) {
+    if (i < lo || i > hi) {
+      out.push({ ...pts[i]! });
+      continue;
+    }
+    if (i === 0) {
+      // The leg START (fusion dot / cable handle) is anchored — keep it and add
+      // an orthogonal connector to the shifted lane instead of moving the
+      // endpoint, which would detach the leg from the splice/handle.
+      out.push({ ...pts[i]! });
+      out.push({ x: shiftedX, y: pts[i]!.y });
+    } else if (i === lastIdx) {
+      // The leg END is anchored — connector before it.
+      out.push({ x: shiftedX, y: pts[i]!.y });
+      out.push({ ...pts[i]! });
+    } else {
+      out.push({ x: shiftedX, y: pts[i]!.y });
+    }
   }
-  return pointsToOrthogonalPath(out);
+  // Dragging the lane past a stale waypoint on an adjacent horizontal leaves a
+  // U-turn hook; drop it so the bend stays a single clean 90°. Endpoints are
+  // preserved, so the leg stays joined to its handle and fusion dot.
+  return removeOrthogonalReversals(pointsToOrthogonalPath(out));
 }
 
 /** Rigid counterpart of {@link repinLegStart} for the leg END (last point). */
@@ -287,13 +381,50 @@ export function repinLegEnd(
   const oldY = pts[n]!.y;
   out[n] = { x: next.x, y: next.y };
   if (Math.abs(oldY - pts[n - 1]!.y) <= SPLICE_PATH_EPS) {
-    for (let i = n - 1; i >= 0; i--) {
-      if (Math.abs(pts[i]!.y - oldY) > SPLICE_PATH_EPS) break;
+    let runStart = n - 1;
+    while (
+      runStart - 1 >= 0 &&
+      Math.abs(pts[runStart - 1]!.y - oldY) <= SPLICE_PATH_EPS
+    ) {
+      runStart--;
+    }
+    if (runStart === 0) {
+      const start = pts[0]!;
+      // Entire path is one horizontal run. Keep near endpoint anchored by
+      // inserting one connector corner.
+      return pointsToOrthogonalPath([
+        { ...start },
+        { x: start.x, y: next.y },
+        ...pts
+          .slice(1, -1)
+          .map((p) => ({ x: p.x, y: next.y })),
+        { x: next.x, y: next.y },
+      ]);
+    }
+    for (let i = n - 1; i >= runStart; i--) {
       out[i] = { x: pts[i]!.x, y: next.y };
     }
   } else {
-    for (let i = n - 1; i >= 0; i--) {
-      if (Math.abs(pts[i]!.x - oldX) > SPLICE_PATH_EPS) break;
+    let runStart = n - 1;
+    while (
+      runStart - 1 >= 0 &&
+      Math.abs(pts[runStart - 1]!.x - oldX) <= SPLICE_PATH_EPS
+    ) {
+      runStart--;
+    }
+    if (runStart === 0) {
+      const start = pts[0]!;
+      // Entire path is one vertical run. Keep near endpoint fixed.
+      return pointsToOrthogonalPath([
+        { ...start },
+        { x: next.x, y: start.y },
+        ...pts
+          .slice(1, -1)
+          .map((p) => ({ x: next.x, y: p.y })),
+        { x: next.x, y: next.y },
+      ]);
+    }
+    for (let i = n - 1; i >= runStart; i--) {
       out[i] = { x: next.x, y: pts[i]!.y };
     }
   }

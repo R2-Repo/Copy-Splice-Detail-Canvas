@@ -22,6 +22,9 @@ function visualCableFromCableNode(
   const tubeByColor = new Map(cableData.tubes.map((t) => [t.tubeColor, t]));
   return {
     ...vc,
+    // Use the live rendered side (node data). graph.cableSides can be stale
+    // relative to a manually-dragged position, so the node side is the truth.
+    side: cableData.side ?? vc.side,
     tubes: vc.tubes.map((tube) => {
       const live = tubeByColor.get(tube.tubeColor);
       if (!live) return tube;
@@ -59,6 +62,8 @@ export function handleCoordsForConnection(
 ): {
   source: { x: number; y: number };
   target: { x: number; y: number };
+  sourceVisualCableId: string;
+  targetVisualCableId: string;
 } | null {
   const conn = graph.connections.find((c) => c.id === connectionId);
   if (!conn || !("pair" in conn)) return null;
@@ -69,19 +74,31 @@ export function handleCoordsForConnection(
   const csvRight = endpointOnVisualSide(conn, graph, visualCables, "right");
   if (!csvLeft || !csvRight) return null;
 
+  const cableNodeFor = (vcId: string) =>
+    cache?.cableById.get(`cable-${vcId}`) ??
+    nodes.find((n) => n.id === `cable-${vcId}`);
+
+  // The rendered cable side (node.data.side, placement-derived) is the source of
+  // truth for where the fiber handles sit. graph.cableSides can be stale after a
+  // manual drag (side persisted ≠ dragged position), which would pick the wrong
+  // source/target and detach the legs on a mirror. Prefer the live node side.
+  const leftNode = cableNodeFor(csvLeft.visualCableId);
+  const rightNode = cableNodeFor(csvRight.visualCableId);
+  const leftSide =
+    (leftNode?.data as CableNodeData | undefined)?.side ?? csvLeft.canvasSide;
+  const rightSide =
+    (rightNode?.data as CableNodeData | undefined)?.side ?? csvRight.canvasSide;
+
   let source = csvLeft;
   let target = csvRight;
-  if (csvLeft.canvasSide === "right" && csvRight.canvasSide === "left") {
+  let sourceCable = leftNode;
+  let targetCable = rightNode;
+  if (leftSide === "right" && rightSide === "left") {
     source = csvRight;
     target = csvLeft;
+    sourceCable = rightNode;
+    targetCable = leftNode;
   }
-
-  const sourceCable =
-    cache?.cableById.get(`cable-${source.visualCableId}`) ??
-    nodes.find((n) => n.id === `cable-${source.visualCableId}`);
-  const targetCable =
-    cache?.cableById.get(`cable-${target.visualCableId}`) ??
-    nodes.find((n) => n.id === `cable-${target.visualCableId}`);
   if (!sourceCable || !targetCable) return null;
 
   const sourceVcRaw = visualCables.find((vc) => vc.id === source.visualCableId);
@@ -108,6 +125,8 @@ export function handleCoordsForConnection(
       targetData.diagramScale ?? 1,
       targetData.alignedStemX,
     ),
+    sourceVisualCableId: source.visualCableId,
+    targetVisualCableId: target.visualCableId,
   };
 }
 
