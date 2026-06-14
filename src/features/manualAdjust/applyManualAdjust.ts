@@ -6,21 +6,22 @@ import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
 
 import {
   applyButtCenterVerticalDelta,
-  buttLegPathsWithinBendBudget,
   isButtEdgeId,
 } from "./buttLegAdjust";
 import {
-  buildHandleCoordsCache,
   handleCoordsForButtEdge,
   handleCoordsForConnection,
 } from "./handleCoords";
-import { validateLegPaths } from "./constraints";
 import {
   applySegmentDelta,
   reconnectEditedLegPaths,
   legSegmentsFromPaths,
+  pathEndPoint,
+  repinLegEnd,
+  repinLegStart,
   routeTemplateForHandles,
   segmentsToPath,
+  shiftVerticalLaneX,
   type LegSegment,
   type SegmentDragAxis,
 } from "./legSegments";
@@ -70,92 +71,99 @@ export function applyLegOverridesToEdge(
 
   const isButt =
     data.fullButtSplice === true || isButtEdgeId(String(edge.id ?? ""));
-  const template = routeTemplateForHandles(sourceX, sourceY, targetX, targetY);
-  const preserveSplice =
-    !isButt &&
-    Number.isFinite(Number(data.spliceX)) &&
-    Number.isFinite(Number(data.spliceY))
-      ? { x: Number(data.spliceX), y: Number(data.spliceY) }
-      : undefined;
-  let { left, right } = legSegmentsFromPaths(leftPath, rightPath);
-
-  left = applyStoredSegmentOverrides(
-    left,
-    legOverrides.leftSegments,
-    template,
-    "left",
-    preserveSplice,
-    isButt,
-  );
-  right = applyStoredSegmentOverrides(
-    right,
-    legOverrides.rightSegments,
-    template,
-    "right",
-    preserveSplice,
-    isButt,
-  );
-
-  const spliceStart = parseOrthogonalPathPoints(rightPath)[0] ?? {
-    x: Number(data.spliceX ?? sourceX),
-    y: Number(data.spliceY ?? sourceY),
-  };
-
-  const nextLeft = segmentsToPath(left, { x: sourceX, y: sourceY });
-  const nextRight = segmentsToPath(right, spliceStart);
-  const connected = reconnectEditedLegPaths(
-    nextLeft,
-    nextRight,
-    primaryEditedSide(legOverrides),
-    {
-      handles: { source: { x: sourceX, y: sourceY }, target: { x: targetX, y: targetY } },
-      preserveSplice,
-    },
-  );
-  const splicePoint = {
-    x: connected.spliceX,
-    y: connected.spliceY,
-  };
 
   if (isButt) {
-    if (!buttLegPathsWithinBendBudget(connected.leftPath, connected.rightPath)) {
-      return null;
-    }
+    // Butt (tube-to-tube) keeps the segment-based reshape + reconnect.
+    const template = routeTemplateForHandles(sourceX, sourceY, targetX, targetY);
+    let { left, right } = legSegmentsFromPaths(leftPath, rightPath);
+    left = applyStoredSegmentOverrides(
+      left,
+      legOverrides.leftSegments,
+      template,
+      "left",
+      undefined,
+      true,
+    );
+    right = applyStoredSegmentOverrides(
+      right,
+      legOverrides.rightSegments,
+      template,
+      "right",
+      undefined,
+      true,
+    );
+    const spliceStart = parseOrthogonalPathPoints(rightPath)[0] ?? {
+      x: Number(data.spliceX ?? sourceX),
+      y: Number(data.spliceY ?? sourceY),
+    };
+    const nextLeft = segmentsToPath(left, { x: sourceX, y: sourceY });
+    const nextRight = segmentsToPath(right, spliceStart);
+    const connected = reconnectEditedLegPaths(
+      nextLeft,
+      nextRight,
+      primaryEditedSide(legOverrides),
+      {
+        handles: {
+          source: { x: sourceX, y: sourceY },
+          target: { x: targetX, y: targetY },
+        },
+      },
+    );
     return {
       ...edge,
       data: {
         ...data,
         leftPath: connected.leftPath,
         rightPath: connected.rightPath,
-        spliceX: splicePoint.x,
-        spliceY: splicePoint.y,
-        routingMidX: splicePoint.x,
+        spliceX: connected.spliceX,
+        spliceY: connected.spliceY,
+        routingMidX: connected.spliceX,
         routingPrecomputed: true,
       },
     };
   }
 
-  if (
-    validateLegPaths(
-      connected.leftPath,
-      connected.rightPath,
-      splicePoint.x,
-      splicePoint.y,
-    ) !== null
-  ) {
-    return null;
+  // NON-BUTT fiber legs: clean point-based lane shifts (move only the dragged
+  // vertical's bend points) — direction preserved, splice preserved, and the
+  // lossy segment round-trip is avoided so a drag never adds an extra bend.
+  let finalLeftPath = applyLaneShiftsToPath(leftPath, legOverrides.leftSegments);
+  let finalRightPath = applyLaneShiftsToPath(rightPath, legOverrides.rightSegments);
+  const splice = pathEndPoint(finalLeftPath);
+  let dotX = splice.x;
+  const dotShiftX = legOverrides.dotShiftX ?? 0;
+  if (dotShiftX) {
+    // Fusion-dot slide (= leg color-transition point) along its leg.
+    dotX = splice.x + dotShiftX;
+    const dot = { x: dotX, y: splice.y };
+    finalLeftPath = repinLegEnd(finalLeftPath, dot);
+    finalRightPath = repinLegStart(finalRightPath, dot);
   }
 
+  // Manual mode is fully manual: apply even if it trips a readability rule
+  // (EDGE-004 / DOT-*) — the drag-time banner already flagged it.
   return {
     ...edge,
     data: {
       ...data,
-      leftPath: connected.leftPath,
-      rightPath: connected.rightPath,
-      spliceX: splicePoint.x,
-      spliceY: splicePoint.y,
+      leftPath: finalLeftPath,
+      rightPath: finalRightPath,
+      spliceX: dotX,
+      spliceY: splice.y,
     },
   };
+}
+
+/** Apply each stored vertical-lane dx to a leg path (point-based, no bend added). */
+function applyLaneShiftsToPath(
+  path: string,
+  segments: Record<number, { dx?: number; dy?: number }> | undefined,
+): string {
+  if (!segments) return path;
+  let next = path;
+  for (const [indexRaw, patch] of Object.entries(segments)) {
+    if (patch.dx) next = shiftVerticalLaneX(next, Number(indexRaw), patch.dx);
+  }
+  return next;
 }
 
 function applyStoredSegmentOverrides(
@@ -234,47 +242,6 @@ export function applyAllLegOverrides(
   });
 }
 
-/**
- * Manual cable drag re-routes legs with the auto router, dropping the user's
- * saved per-segment shape. This restores that shape — but ONLY for the
- * connections the drag actually rebuilt, so already-overridden edges elsewhere
- * are never shifted twice. Non-butt edges keep their fusion dot via
- * `preserveSplice`, so splice-point nodes stay valid without a re-sync.
- */
-export function applyLegOverridesForConnections(
-  edges: Edge[],
-  legOverrides: LayoutOverrides["legOverrides"] | undefined,
-  nodes: Node[],
-  graph: ConnectionGraph,
-  connectionIds: Iterable<string>,
-): Edge[] {
-  if (!legOverrides) return edges;
-  const ids = new Set(connectionIds);
-  if (ids.size === 0) return edges;
-  const cache = buildHandleCoordsCache(nodes, graph);
-  return edges.map((edge) => {
-    const isButt = isButtEdgeId(edge.id);
-    const connId = isButt
-      ? edge.id
-      : edge.id.replace(/^splice-(?:left|right)-/, "");
-    if (!ids.has(connId)) return edge;
-    const override = legOverrides[connId];
-    if (!override) return edge;
-    const handles = isButt
-      ? handleCoordsForButtEdge(edge.id, nodes, edges, graph, cache)
-      : handleCoordsForConnection(connId, nodes, graph, cache);
-    const updated = applyLegOverridesToEdge(
-      edge,
-      override,
-      handles?.source.x ?? 0,
-      handles?.source.y ?? 0,
-      handles?.target.x ?? 0,
-      handles?.target.y ?? 0,
-    );
-    return updated ?? edge;
-  });
-}
-
 export function accumulateLegOverride(
   existing: ConnectionLegOverrides | undefined,
   side: LegSide,
@@ -292,4 +259,12 @@ export function accumulateLegOverride(
       : { dy: (prev.dy ?? 0) + delta }),
   };
   return { ...existing, [key]: segments };
+}
+
+/** Accumulate a manual fusion-dot horizontal slide (= leg color transition). */
+export function accumulateDotShift(
+  existing: ConnectionLegOverrides | undefined,
+  deltaX: number,
+): ConnectionLegOverrides {
+  return { ...existing, dotShiftX: (existing?.dotShiftX ?? 0) + deltaX };
 }

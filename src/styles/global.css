@@ -7,8 +7,8 @@
     sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #0f172a;
-  background-color: #ffffff;
+  color: var(--neo-text-strong);
+  background-color: var(--neo-bg);
 }
 
 *,
@@ -29,6 +29,7 @@ body,
   display: flex;
   flex-direction: column;
   height: 100%;
+  background-color: var(--neo-bg);
 }
 
 .app-shell__main {
@@ -41,8 +42,8 @@ body,
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background-color: #ffffff;
-  color: #0f172a;
+  background-color: var(--neo-bg);
+  color: var(--neo-text-strong);
 }
 
 .workflow-canvas__body {

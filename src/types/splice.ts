@@ -179,6 +179,8 @@ export type LayoutOverrides = {
     {
       leftSegments?: Record<number, { dx?: number; dy?: number }>;
       rightSegments?: Record<number, { dx?: number; dy?: number }>;
+      /** Manual fusion-dot slide along the leg (= leg color transition point). */
+      dotShiftX?: number;
     }
   >;
 };

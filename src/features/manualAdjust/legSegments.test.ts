@@ -12,12 +12,28 @@ import {
   pathToLegSegments,
   pinCableLegHandles,
   reconnectEditedLegPaths,
+  repinLegEnd,
+  repinLegStart,
   routeTemplateForHandles,
   segmentsToPath,
   setPathEnd,
   setPathStart,
+  shiftVerticalLaneX,
   simplifyOrthogonalPath,
 } from "./legSegments";
+
+/** True if any segment of the path is neither horizontal nor vertical. */
+function hasDiagonalSegment(path: string): boolean {
+  const pts = parseOrthogonalPathPoints(path);
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1]!;
+    const b = pts[i]!;
+    const horizontal = Math.abs(a.y - b.y) <= 0.01;
+    const vertical = Math.abs(a.x - b.x) <= 0.01;
+    if (!horizontal && !vertical) return true;
+  }
+  return false;
+}
 
 describe("legSegments", () => {
   it("parses orthogonal path into numbered segments", () => {
@@ -97,6 +113,68 @@ describe("legSegments", () => {
     expect(pathEndPoint(pinned.rightPath)).toEqual({ x: 500, y: 60 });
     expect(pinned.spliceX).toBeCloseTo(pathEndPoint(pinned.leftPath).x, 0);
     expect(pinned.spliceY).toBeCloseTo(pathEndPoint(pinned.leftPath).y, 0);
+  });
+
+  it("repinLegStart moves start + first corner but preserves the rest", () => {
+    // source -> horizontal -> 90° up to fusion dot
+    const path = "M 100,200 L 300,200 L 300,150";
+    const repinned = repinLegStart(path, { x: 120, y: 210 });
+    // first horizontal moves to the new Y; the vertical corner is preserved
+    expect(repinned).toBe("M 120,210 L 300,210 L 300,150");
+  });
+
+  it("repinLegStart slides a multi-waypoint horizontal run (no diagonal on vertical cable move)", () => {
+    // source-row leg with an OS-clearance / jog waypoint, all on y=200
+    const path = "M 100,200 L 160,200 L 400,200";
+    // move the cable up 50px (same x): the whole run shifts to y=150 — the
+    // earlier bug left interior waypoints behind, creating a diagonal.
+    expect(repinLegStart(path, { x: 100, y: 150 })).toBe(
+      "M 100,150 L 160,150 L 400,150",
+    );
+  });
+
+  it("repinLegStart is idempotent (no path growth across drag frames)", () => {
+    const path = "M 100,200 L 300,200 L 300,150 L 360,150";
+    const once = repinLegStart(path, { x: 120, y: 210 });
+    const twice = repinLegStart(once, { x: 120, y: 210 });
+    expect(twice).toBe(once);
+    // never adds points (cause of the freeze regression)
+    expect(parseOrthogonalPathPoints(once).length).toBeLessThanOrEqual(
+      parseOrthogonalPathPoints(path).length,
+    );
+  });
+
+  it("shiftVerticalLaneX moves a lane without adding a bend (same-side loop leg)", () => {
+    // same-side loop right leg: fusion -> inward -> down -> back OUT to target
+    const path = "M 312,100 L 360,100 L 360,200 L 200,200";
+    const shifted = shiftVerticalLaneX(path, 2, 20); // segment 2 is the vertical
+    // the vertical + its two bends move +20; fusion (312,100) and target
+    // (200,200) stay; leftward last segment direction preserved; still 2 bends.
+    expect(shifted).toBe("M 312,100 L 380,100 L 380,200 L 200,200");
+  });
+
+  it("shiftVerticalLaneX keeps a MULTI-POINT vertical lane orthogonal (no diagonal)", () => {
+    // same-side leg whose center vertical is 3 colinear points at x=360
+    const path = "M 312,100 L 360,100 L 360,150 L 360,200 L 200,200";
+    // drag any segment of that lane (here segment 2)
+    const shifted = shiftVerticalLaneX(path, 2, 20);
+    // the WHOLE lane must move together — no segment may go diagonal
+    expect(hasDiagonalSegment(shifted)).toBe(false);
+    expect(shifted).toBe("M 312,100 L 380,100 L 380,150 L 380,200 L 200,200");
+    // dragging the other segment of the same lane gives the same result
+    expect(shiftVerticalLaneX(path, 3, 20)).toBe(shifted);
+  });
+
+  it("shiftVerticalLaneX ignores a non-vertical segment index", () => {
+    const path = "M 100,80 L 300,80";
+    expect(shiftVerticalLaneX(path, 1, 20)).toBe(path);
+  });
+
+  it("repinLegEnd moves end + last corner but preserves the rest", () => {
+    // fusion dot -> down -> horizontal to target
+    const path = "M 300,150 L 300,250 L 500,250";
+    const repinned = repinLegEnd(path, { x: 520, y: 260 });
+    expect(repinned).toBe("M 300,150 L 300,260 L 520,260");
   });
 
   it("reconnectEditedLegPaths pins fusion dot while legs reconnect", () => {

@@ -12,6 +12,7 @@ import {
 } from "@/features/manualAdjust/applyManualAdjust";
 import { mergeFanoutOverridesIntoTubes } from "@/features/manualAdjust/applyManualAdjust";
 import { applyPersistedTubeOverrides } from "@/features/diagram/applyTubeOverrides";
+import { parseOrthogonalPathPoints } from "@/features/canvas/edges/splicePathGeometry";
 import type { VisualCable } from "@/features/diagram/visualCables";
 import { LAYOUT_OVERRIDE_VERSION } from "@/types/splice";
 
@@ -125,6 +126,65 @@ describe("applyAllLegOverrides refresh contract", () => {
     const data = (updated?.data ?? {}) as { rightPath?: string };
     expect(data.rightPath).toBeTruthy();
     expect(data.rightPath).not.toBe(rightPath);
+  });
+
+  it("slides the fusion dot (= color transition) by dotShiftX", () => {
+    const leftPath = "M 100,80 L 300,80";
+    const rightPath = "M 300,80 L 360,80 L 360,200 L 500,200";
+    const edge: Edge = {
+      id: "splice-left-conn1",
+      source: "fiberAnchor-vc::conn1",
+      target: "splicePoint-conn1",
+      type: "splice",
+      data: { leftPath, rightPath, spliceX: 300, spliceY: 80 },
+    };
+    const updated = applyLegOverridesToEdge(
+      edge,
+      { dotShiftX: 40 },
+      100,
+      80,
+      500,
+      200,
+    );
+    const data = (updated?.data ?? {}) as {
+      spliceX?: number;
+      leftPath?: string;
+      rightPath?: string;
+    };
+    expect(data.spliceX).toBe(340);
+    // left leg now ends at the moved dot; right leg starts there — color split moved
+    expect(data.leftPath).toContain("340,80");
+    expect(data.rightPath).toContain("M 340,80");
+  });
+
+  it("keeps a multi-point same-side leg orthogonal when a lane override is applied (no diagonal)", () => {
+    // same-side loop: right leg's center lane is 3 colinear points at x=360
+    const leftPath = "M 100,100 L 312,100";
+    const rightPath = "M 312,100 L 360,100 L 360,150 L 360,200 L 100,200";
+    const edge: Edge = {
+      id: "splice-left-loop1",
+      source: "fiberAnchor-vc::loop1",
+      target: "splicePoint-loop1",
+      type: "splice",
+      data: { leftPath, rightPath, spliceX: 312, spliceY: 100 },
+    };
+    const updated = applyLegOverridesToEdge(
+      edge,
+      { rightSegments: { 2: { dx: 24 } } },
+      100,
+      100,
+      100,
+      200,
+    );
+    const out = (updated?.data ?? {}) as { rightPath?: string };
+    const pts = parseOrthogonalPathPoints(String(out.rightPath ?? ""));
+    let diagonal = false;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1]!;
+      const b = pts[i]!;
+      if (Math.abs(a.y - b.y) > 0.01 && Math.abs(a.x - b.x) > 0.01) diagonal = true;
+    }
+    expect(diagonal).toBe(false);
   });
 
   it("applyAllLegOverrides skips leg overrides while auto adjust is enabled", () => {

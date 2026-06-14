@@ -15,6 +15,8 @@ export type LegSegmentOverride = { dx?: number; dy?: number };
 export type ConnectionLegOverrides = {
   leftSegments?: Record<number, LegSegmentOverride>;
   rightSegments?: Record<number, LegSegmentOverride>;
+  /** Manual horizontal slide of the fusion dot (= leg color transition) along its leg. */
+  dotShiftX?: number;
 };
 
 export type FanoutOverride = { shiftY: number };

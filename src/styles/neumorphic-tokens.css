@@ -1,0 +1,53 @@
+:root {
+  /* Base surface — same color for bg and elements (molded look) */
+  --neo-bg: #e8ecf1;
+  --neo-shadow-dark: #b8bec7;
+  --neo-shadow-light: #ffffff;
+
+  /* Typography */
+  --neo-text: #4a5568;
+  --neo-text-strong: #2d3748;
+  --neo-text-muted: #718096;
+
+  /* Accent — reference orange (#ff5e13 → #ff2a00) */
+  --neo-accent: #ff5e13;
+  --neo-accent-deep: #ff2a00;
+  --neo-accent-hover: #ff2a00;
+  --neo-accent-shadow: #b43613;
+  --neo-accent-soft: #ffe8df;
+  --neo-accent-glow: rgba(255, 94, 19, 0.35);
+  --neo-active-gradient: linear-gradient(135deg, #ff5e13 0%, #ff2a00 100%);
+  --neo-active-ring: 0 0 0 2px #ff5e13;
+  --neo-shadow-active-inset: inset 3px 3px 10px #b43613;
+  --neo-shadow-active: var(--neo-active-ring), var(--neo-shadow-active-inset);
+
+  /* Radius */
+  --neo-radius-sm: 10px;
+  --neo-radius-md: 16px;
+  --neo-radius-pill: 999px;
+
+  /* Shadow presets (top-left light source) */
+  --neo-shadow-raised: 6px 6px 12px var(--neo-shadow-dark),
+    -6px -6px 12px var(--neo-shadow-light);
+  --neo-shadow-raised-sm: 1.5px 1.5px 3px var(--neo-shadow-dark),
+    -1.5px -1.5px 3px var(--neo-shadow-light);
+  --neo-shadow-raised-lg: 8px 8px 16px var(--neo-shadow-dark),
+    -8px -8px 16px var(--neo-shadow-light);
+  --neo-shadow-pressed: inset 4px 4px 8px var(--neo-shadow-dark),
+    inset -4px -4px 8px var(--neo-shadow-light);
+  --neo-shadow-inset: inset 3px 3px 6px var(--neo-shadow-dark),
+    inset -3px -3px 6px var(--neo-shadow-light);
+  --neo-shadow-toggle-track: -4px -2px 6px var(--neo-shadow-light),
+    4px 2px 8px var(--neo-shadow-dark),
+    2px 2px 4px var(--neo-shadow-dark) inset,
+    -2px -2px 4px var(--neo-shadow-light) inset;
+  --neo-shadow-knob: 0 2px 6px rgba(184, 190, 199, 0.85),
+    0 1px 4px rgba(160, 170, 185, 0.55);
+  --neo-shadow-flat: none;
+
+  /* Canvas dot grid (subtle on neo base) */
+  --neo-canvas-dot: rgba(197, 205, 216, 0.45);
+
+  /* Modal scrim */
+  --neo-scrim: rgba(232, 236, 241, 0.75);
+}

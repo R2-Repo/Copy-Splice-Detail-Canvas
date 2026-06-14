@@ -177,6 +177,129 @@ export function pathEndPoint(path: string): { x: number; y: number } {
   return points.at(-1) ?? { x: 0, y: 0 };
 }
 
+function pointsToOrthogonalPath(points: Array<{ x: number; y: number }>): string {
+  const out: Array<{ x: number; y: number }> = [];
+  for (const p of points) {
+    const prev = out[out.length - 1];
+    if (
+      prev &&
+      Math.abs(prev.x - p.x) <= SPLICE_PATH_EPS &&
+      Math.abs(prev.y - p.y) <= SPLICE_PATH_EPS
+    ) {
+      continue;
+    }
+    out.push(p);
+  }
+  if (out.length === 0) return "";
+  return out
+    .map((p, i) => (i === 0 ? `M ${p.x},${p.y}` : `L ${p.x},${p.y}`))
+    .join(" ");
+}
+
+/**
+ * Rigidly move a leg's START to `next`, adjusting ONLY the first corner so the
+ * first segment stays orthogonal. Every later point (including the fusion dot)
+ * is preserved exactly. Works directly on the point list — no lossy
+ * segment round-trip — so it never re-orders verticals and is idempotent
+ * (re-pinning to the same point returns an identical path, so it can run every
+ * drag frame without the path growing).
+ */
+export function repinLegStart(
+  path: string,
+  next: { x: number; y: number },
+): string {
+  const pts = parseOrthogonalPathPoints(path);
+  if (pts.length < 2) return `M ${next.x},${next.y}`;
+  const out = pts.map((p) => ({ ...p }));
+  const oldX = pts[0]!.x;
+  const oldY = pts[0]!.y;
+  out[0] = { x: next.x, y: next.y };
+  // Slide the ENTIRE leading run that shares the moved end's row/column to the
+  // new row/column, so the first turn stays orthogonal. A leading run may be
+  // several colinear waypoints (OS-clearance + bundle jog), all on the source
+  // row — moving only the first one would leave the next segment diagonal.
+  if (Math.abs(oldY - pts[1]!.y) <= SPLICE_PATH_EPS) {
+    for (let i = 1; i < pts.length; i++) {
+      if (Math.abs(pts[i]!.y - oldY) > SPLICE_PATH_EPS) break;
+      out[i] = { x: pts[i]!.x, y: next.y };
+    }
+  } else {
+    for (let i = 1; i < pts.length; i++) {
+      if (Math.abs(pts[i]!.x - oldX) > SPLICE_PATH_EPS) break;
+      out[i] = { x: next.x, y: pts[i]!.y };
+    }
+  }
+  return pointsToOrthogonalPath(out);
+}
+
+/**
+ * Shift a vertical lane horizontally by moving ONLY the two points that bound
+ * the vertical segment (1-based `segmentIndex`, matching `pathToLegSegments`).
+ * Works on raw points so segment direction is preserved and no extra bend is
+ * introduced — the adjacent horizontals just change length, the leg keeps its
+ * shape. Used by manual leg drag (the only leg edit is a horizontal lane shift).
+ */
+export function shiftVerticalLaneX(
+  path: string,
+  segmentIndex: number,
+  deltaX: number,
+): string {
+  if (Math.abs(deltaX) < SPLICE_PATH_EPS) return path;
+  const pts = parseOrthogonalPathPoints(path);
+  const a = segmentIndex - 1;
+  const b = segmentIndex;
+  if (a < 0 || b >= pts.length) return path;
+  const laneX = pts[a]!.x;
+  // Only a vertical segment (constant x) is a draggable lane.
+  if (Math.abs(laneX - pts[b]!.x) > SPLICE_PATH_EPS) return path;
+  // A lane can be several colinear points (e.g. fusion → y1 → y2 → target).
+  // Expand to the full consecutive run on this lane and move it as one — moving
+  // only the dragged segment's two points would leave a colinear neighbour
+  // behind and turn that segment diagonal.
+  let lo = a;
+  while (lo - 1 >= 0 && Math.abs(pts[lo - 1]!.x - laneX) <= SPLICE_PATH_EPS) {
+    lo--;
+  }
+  let hi = b;
+  while (
+    hi + 1 < pts.length &&
+    Math.abs(pts[hi + 1]!.x - laneX) <= SPLICE_PATH_EPS
+  ) {
+    hi++;
+  }
+  const out = pts.map((p) => ({ ...p }));
+  for (let i = lo; i <= hi; i++) {
+    out[i] = { x: pts[i]!.x + deltaX, y: pts[i]!.y };
+  }
+  return pointsToOrthogonalPath(out);
+}
+
+/** Rigid counterpart of {@link repinLegStart} for the leg END (last point). */
+export function repinLegEnd(
+  path: string,
+  next: { x: number; y: number },
+): string {
+  const pts = parseOrthogonalPathPoints(path);
+  if (pts.length < 2) return `M ${next.x},${next.y}`;
+  const out = pts.map((p) => ({ ...p }));
+  const n = out.length - 1;
+  const oldX = pts[n]!.x;
+  const oldY = pts[n]!.y;
+  out[n] = { x: next.x, y: next.y };
+  if (Math.abs(oldY - pts[n - 1]!.y) <= SPLICE_PATH_EPS) {
+    for (let i = n - 1; i >= 0; i--) {
+      if (Math.abs(pts[i]!.y - oldY) > SPLICE_PATH_EPS) break;
+      out[i] = { x: pts[i]!.x, y: next.y };
+    }
+  } else {
+    for (let i = n - 1; i >= 0; i--) {
+      if (Math.abs(pts[i]!.x - oldX) > SPLICE_PATH_EPS) break;
+      out[i] = { x: next.x, y: pts[i]!.y };
+    }
+  }
+  return pointsToOrthogonalPath(out);
+}
+
 function interiorHorizontalX(
   segment: Extract<LegSegment, { kind: "h" }>,
   anchorX: number,

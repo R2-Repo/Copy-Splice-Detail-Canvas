@@ -5,7 +5,7 @@
 ## Baseline
 
 - Branch: `main`
-- Verified: **`npm run verify`** green — `test:layout` **114/114**, `test:ci` **430/430**, `tsc` + `build` clean (incl. 2026-06-13 manual/auto bug-fix + override unification).
+- Verified: **`npm run verify`** green — `test:layout` **114/114**, `test:ci` **441/441**, `tsc` + `build` clean (incl. diagram config export/import).
 
 ## Checkpoint (user-approved — 2026-06-13)
 
@@ -19,13 +19,25 @@ Key symbols touched this session:
 
 ## Current phase
 
-**User-driven bug fixes** — collapsed thick buffer tubes now manually adjustable in manual mode; leg drag checkpoint preserved.
+**Diagram config export/import** — standalone `.sdc.json` backup + PDF companion; drop or toolbar import restores full diagram without CSV.
+
+## Diagram config (2026-06-13, verified)
+
+- **Export:** toolbar **Export diagram config** → `{splice}-config.sdc.json` (embedded `SpliceReport` + `LayoutOverrides` + `cableSides`; optional viewport).
+- **Import:** toolbar config button or canvas drop → `activateDiagram` (same path as CSV, preserves saved positions/routing overrides).
+- **Tests:** `src/features/export/diagramConfig.test.ts` — Left-* roundtrip + schema rejection.
+- **`npm run verify` green** — layout 114/114, ci 441/441.
 
 ## Manual/auto bug-fix pass (2026-06-13, verified)
 
-Code-review follow-up — `npm run verify` green (114 layout / 430 ci / build):
+Code-review follow-up — `npm run verify` green (114 layout / 450 ci / build):
 
-- Leg fine-tuning now survives manual cable drag (`applyLegOverridesForConnections`, scoped re-apply; wired into `applyManualCableDrag` + manual `onNodeDragStop`).
+- **Manual mode is fully rigid (no auto reroute).** `syncManualVisualCable` re-pins the moved cable/tube leg end(s) to the new handle and keeps the existing leg shape + fusion dot; lanes/midX are never recomputed on a manual move. Preserves hand-adjusted leg shapes through a cable drag (replaced the earlier `applyLegOverridesForConnections` re-apply, now removed).
+  - Re-pin uses point-based `repinLegStart`/`repinLegEnd` (`legSegments.ts`) — moves the leg end + slides the **whole leading/trailing run on that row**, preserves the rest exactly, **idempotent**. (Earlier attempts: `setPathStart`/`setPathEnd` round-trip collapsed legs/froze app; then a first-corner-only repin left multi-waypoint runs behind → diagonal on vertical cable moves. Both fixed.)
+- **Same-side loop-back: manual leg drag is warn-don't-revert.** On commit (`useManualAdjustEngine`) and on rebuild (`applyLegOverridesToEdge`), a rule trip shows the banner but keeps the drag — no snap-back. Unblocks loops that sit at the DOT/EDGE limits.
+- **Leg drag adds no bend.** A leg drag is only ever a horizontal lane shift, so it now uses point-based `shiftVerticalLaneX` (moves just the dragged vertical's two bend points; preserves direction + splice) instead of the lossy `applySegmentDelta`→`segmentsToPath`→reconnect round-trip (which redrew horizontals to max-x / verticals min→max and spawned a spurious bend on loops whose last run goes leftward). Used by both `previewSegmentDrag` and `applyLegOverridesToEdge` (non-butt); butt keeps the segment-based reshape.
+- **Movable fusion dots** (= leg color-transition point). New `onDotPointerDown` + dot hit-targets (`ManualAdjustOverlay`); drag along the leg (single or group via selection), warn-don't-revert; persisted via new `legOverrides.dotShiftX`, applied on rebuild by re-pinning both legs around the new dot.
+- **Toggle jitter fix.** `toggleManualAdjust` no longer forces `updateNodeInternals` — cable geometry is identical between modes (manual only mounts an absolute overlay), so the forced re-measure was causing a visible jump.
 - Group leg move resolves each leg's own center segment (`segmentTargets`); single-leg drag unchanged.
 - `handleLegOverridesCommit` no longer nests `setState`.
 - **Override model unified on `legOverrides`** (H2 Direction A): removed dead `bundleOverrides`, `connectionOverrides` (+ bridge/persistence/legacy-branch wiring), `connectionOverrides.ts` (+ test), `snapTargets.ts`, `accumulateConnectionOverride`. `legOverrides` is now the single splice-override representation the nodes engine applies.
@@ -33,6 +45,14 @@ Code-review follow-up — `npm run verify` green (114 layout / 430 ci / build):
 - Still deferred: M1 auto-drag RAF throttle (frozen `refreshDragRouting`/`onNodeDrag`), H4 dead vertical-axis leg machinery.
 
 ## Latest (2026-06-13)
+
+**Neumorphic theme (app chrome only):**
+
+- Token-based soft UI for toolbar, panels, modals, React Flow controls
+- Accent: neon burnt orange (`#FF6B2C`); diagram nodes/edges/callouts unchanged
+- New: `src/styles/neumorphic-tokens.css`, `src/styles/neumorphic.css`
+- Updated: `global.css`, `splice-diagram.css` (chrome zone), `main.tsx`, `index.html`
+- **`npm run verify` green** after theme pass
 
 **Connection inspector modal (new non-diagram view):**
 
@@ -56,10 +76,31 @@ Files updated:
 - `src/styles/splice-diagram.css`
 - `src/App.test.tsx`
 
+**Multi-map embed popover (ArcGIS + Earth + Street View):**
+
+- Added left-toolbar map button that opens a compact tabbed popover.
+- ArcGIS tab embeds the uPlan Web App centered on CSV `Location` with marker and tight zoom.
+- Earth tab opens a 3D Google Earth URL in a new tab and shows a maps satellite iframe preview.
+- Street View tab uses no-key experimental embed URL plus a fallback link to Google Maps panorama.
+- CSV `header.location` parsing stays model-safe (`parseSpliceLocation`) and does not affect layout/routing.
+
+Files added:
+
+- `src/features/maps/parseSpliceLocation.ts`
+- `src/features/maps/buildArcGisWebAppUrl.ts`
+- `src/features/maps/buildGoogleEarthUrl.ts`
+- `src/features/maps/buildGoogleMapsUrls.ts`
+- `src/features/maps/MapEmbedButton.tsx`
+- `src/features/maps/parseSpliceLocation.test.ts`
+- `src/features/maps/mapUrlBuilders.test.ts`
+- `src/features/maps/MapEmbedButton.test.tsx`
+
 Validation command status this session:
 
-- Attempted `npm run test:layout`, `npm run check`, `npm run test:ci`, `npm run build`
-- Terminal returned unknown exit status for every command, so pass/fail could not be confirmed in-session
+- `npm run test:layout` passed (`114/114`)
+- `npm run check` passed
+- `npm run test:ci` passed (`56 files`, `450 tests`)
+- `npm run build` passed
 
 ## User testing (canonical)
 

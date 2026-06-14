@@ -71,10 +71,21 @@ import {
   manualLayoutWarningsForConnections,
   touchedConnectionIdsFromEdgeIds,
 } from "@/features/diagram/manualLayoutWarnings";
+import { DiagramConfigImportButton } from "@/features/export/DiagramConfigImportButton";
+import {
+  DiagramConfigParseError,
+  looksLikeDiagramConfigText,
+  parseDiagramConfig,
+} from "@/features/export/parseDiagramConfig";
+import { restoreDiagramFromConfig } from "@/features/export/restoreDiagramConfig";
+import {
+  buildDiagramConfig,
+  downloadDiagramConfig,
+} from "@/features/export/serializeDiagramConfig";
 import { usePrintDiagram } from "@/features/export/usePrintDiagram";
+import { MapEmbedButton } from "@/features/maps/MapEmbedButton";
 import { ManualAdjustOverlay } from "@/features/manualAdjust/ManualAdjustOverlay";
 import { syncSplicePointNodes } from "@/features/manualAdjust/syncSplicePointNodes";
-import { applyLegOverridesForConnections } from "@/features/manualAdjust/applyManualAdjust";
 import {
   isCollapsedTubeKey,
   repinButtSpliceEdges,
@@ -101,12 +112,9 @@ import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import { tubeKeyFor } from "@/features/diagram/tubeRowShift";
 import {
   AutoIcon,
-  CalloutIcon,
-  CollapseIcon,
-  ExpandIcon,
-  EyeIcon,
-  EyeOffIcon,
+  ExportConfigIcon,
   InspectIcon,
+  MapIcon,
   ManualIcon,
   PrintPdfIcon,
   ReportIcon,
@@ -116,6 +124,7 @@ import {
   ToolbarActionButton,
   ToolbarSegmentedControl,
 } from "@/components/toolbar/ToolbarSegmentedControl";
+import { ToolbarPillToggle } from "@/components/toolbar/ToolbarPillToggle";
 import { CsvImportButton } from "@/features/import/CsvImportButton";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
 import type {
@@ -198,7 +207,8 @@ function boundsForOutwardDrag(
 }
 
 function WorkflowCanvasInner() {
-  const { getNodesBounds, setViewport, getNodes, getEdges } = useReactFlow();
+  const { getNodesBounds, setViewport, getNodes, getEdges, getViewport } =
+    useReactFlow();
   const nodesInitialized = useNodesInitialized();
   const updateNodeInternals = useUpdateNodeInternals();
   const fitViewRequestRef = useRef(0);
@@ -236,6 +246,10 @@ function WorkflowCanvasInner() {
     ) => void
   >(() => {});
   const [meta, setMeta] = useState<string | null>(null);
+  const [mapHeader, setMapHeader] = useState<{
+    location?: string;
+    spliceLabel?: string;
+  } | null>(null);
   const [collapseFullButtSplices, setCollapseFullButtSplices] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
@@ -249,6 +263,9 @@ function WorkflowCanvasInner() {
   const [manualWarningBanner, setManualWarningBanner] = useState<string | null>(
     null,
   );
+  const [configErrorBanner, setConfigErrorBanner] = useState<string | null>(
+    null,
+  );
   const [activeGuides, setActiveGuides] = useState<ManualLayoutGuideLine[]>(
     [],
   );
@@ -259,12 +276,10 @@ function WorkflowCanvasInner() {
   const autoAdjustRef = useRef(true);
   const manualCableDragRafRef = useRef<number | null>(null);
   const pendingManualCableNodeRef = useRef<Node | null>(null);
-  const legOverridesRef = useRef<LayoutOverrides["legOverrides"]>(undefined);
 
   collapseRef.current = collapseFullButtSplices;
   calloutsVisibleRef.current = calloutsVisible;
   autoAdjustRef.current = autoAdjustEnabled;
-  legOverridesRef.current = legOverridesState;
 
   useEffect(() => {
     if (autoAdjustEnabled || tubePreview.size === 0) return;
@@ -314,11 +329,7 @@ function WorkflowCanvasInner() {
       const engine = current.filter((n) => n.type !== "cableCallout");
       const currentEdges = getEdges();
       const cableData = draggedNode.data as CableNodeData;
-      const {
-        nodes: synced,
-        edges: syncedEdges,
-        touchedConnections,
-      } = syncManualVisualCable(
+      const { nodes: synced, edges: syncedEdges } = syncManualVisualCable(
         engine,
         currentEdges,
         graph,
@@ -338,16 +349,6 @@ function WorkflowCanvasInner() {
           { tubeKeys },
         );
         finalEdges = repinned.edges;
-      }
-      const overrides = legOverridesRef.current;
-      if (overrides && touchedConnections.length > 0) {
-        finalEdges = applyLegOverridesForConnections(
-          finalEdges,
-          overrides,
-          synced,
-          graph,
-          touchedConnections,
-        );
       }
       if (synced !== engine) {
         setNodes([...synced, ...callouts]);
@@ -714,15 +715,26 @@ function WorkflowCanvasInner() {
     });
   }, [nodesInitialized]);
 
-  const loadFromCsv = useCallback(
-    (text: string, fileName: string) => {
-      const report = parseBentleyCsv(text);
-      const graph = buildConnectionGraph(report);
-      const reportKey = reportStorageKey(graph);
+  const activateDiagram = useCallback(
+    (
+      graph: ConnectionGraph,
+      reportKey: string,
+      options: {
+        sourceLabel: string;
+        savedOverrides?: LayoutOverrides;
+        useSavedLayoutWidth?: boolean;
+        refreshLayout?: boolean;
+        viewport?: { x: number; y: number; zoom: number };
+      },
+    ) => {
       reportKeyRef.current = reportKey;
       graphRef.current = graph;
+      setMapHeader({
+        location: graph.report.header.location,
+        spliceLabel: graph.report.header.spliceNumber ?? graph.report.header.name,
+      });
       setCircuitIndex(buildCircuitIndex(graph));
-      const saved = loadLayoutOverrides(reportKey);
+      const saved = options.savedOverrides ?? loadLayoutOverrides(reportKey);
       const { visualCables } = buildVisualCablesForLayout(graph);
       const detected = detectFullButtSpliceTubes(graph, visualCables);
       const collapsed =
@@ -732,7 +744,12 @@ function WorkflowCanvasInner() {
       setAutoAdjustEnabled(saved?.autoAdjustEnabled !== false);
       setLegOverridesState(saved?.legOverrides);
       setManualWarningBanner(null);
-      userExpandedLayoutRef.current = false;
+      setConfigErrorBanner(null);
+      userExpandedLayoutRef.current = Boolean(
+        options.useSavedLayoutWidth &&
+          saved?.layoutWidth &&
+          saved.layoutWidth > CABLE_LAYOUT.width + 1,
+      );
 
       const importWhenStageReady = (attempt = 0) => {
         const measured = stageRef.current?.clientWidth ?? 0;
@@ -745,27 +762,137 @@ function WorkflowCanvasInner() {
         if (stageWidth > 0) {
           stageWidthRef.current = stageWidth;
         }
-        const width =
+        const stageDefaultWidth =
           stageWidth > 0
             ? stageLayoutWidthForGraph(graph, stageWidth)
             : CABLE_LAYOUT.width;
+        const layoutWidth =
+          options.useSavedLayoutWidth && saved?.layoutWidth
+            ? saved.layoutWidth
+            : stageDefaultWidth;
+
         applyGraph(graph, reportKey, collapsed, {
-          fitView: true,
-          fitAtUnitZoom: true,
-          layoutWidth: width,
-          refreshLayout: true,
+          fitView: options.viewport === undefined,
+          fitAtUnitZoom: options.viewport === undefined,
+          layoutWidth,
+          refreshLayout: options.refreshLayout ?? false,
           refreshColumnX: true,
           refreshRowLayout: true,
         });
-        const title =
-          report.header.spliceNumber ?? report.header.name ?? fileName;
+
+        if (options.viewport) {
+          void setViewport(options.viewport, { duration: 0 });
+        }
+
         setMeta(
-          `${title} — ${report.pairs.length} pair(s), ${graph.connections.length} connection(s)`,
+          `${options.sourceLabel} — ${graph.report.pairs.length} pair(s), ${graph.connections.length} connection(s)`,
         );
       };
       importWhenStageReady();
     },
-    [applyGraph, stageWidthForLayout],
+    [applyGraph, setViewport],
+  );
+
+  const loadFromCsv = useCallback(
+    (text: string, fileName: string) => {
+      const report = parseBentleyCsv(text);
+      const graph = buildConnectionGraph(report);
+      const reportKey = reportStorageKey(graph);
+      const title =
+        report.header.spliceNumber ?? report.header.name ?? fileName;
+      activateDiagram(graph, reportKey, {
+        sourceLabel: title,
+        refreshLayout: true,
+        useSavedLayoutWidth: false,
+      });
+    },
+    [activateDiagram],
+  );
+
+  const confirmReplaceDiagram = useCallback((): boolean => {
+    if (!meta) return true;
+    return window.confirm(
+      "Replace the current diagram with the imported config?",
+    );
+  }, [meta]);
+
+  const loadFromConfig = useCallback(
+    (text: string) => {
+      if (!confirmReplaceDiagram()) return;
+      try {
+        const config = parseDiagramConfig(text);
+        const restored = restoreDiagramFromConfig(config);
+        activateDiagram(restored.graph, restored.reportKey, {
+          sourceLabel: restored.sourceLabel,
+          savedOverrides: restored.overrides,
+          useSavedLayoutWidth: true,
+          refreshLayout: false,
+          viewport: restored.viewport,
+        });
+      } catch (err) {
+        const message =
+          err instanceof DiagramConfigParseError
+            ? err.message
+            : "Invalid config file";
+        setConfigErrorBanner(message);
+      }
+    },
+    [activateDiagram, confirmReplaceDiagram],
+  );
+
+  const exportDiagramConfig = useCallback(() => {
+    const graph = graphRef.current;
+    const reportKey = reportKeyRef.current;
+    if (!graph || !reportKey) return;
+    const config = buildDiagramConfig({
+      graph,
+      reportKey,
+      nodes,
+      edges,
+      collapseFullButtSplices,
+      calloutsVisible,
+      autoAdjustEnabled,
+      layoutWidth: layoutWidthRef.current,
+      legOverrides: legOverridesState,
+      appVersion: "0.0.1",
+      viewport: getViewport(),
+    });
+    downloadDiagramConfig(config, graph);
+    setConfigErrorBanner(null);
+  }, [
+    nodes,
+    edges,
+    collapseFullButtSplices,
+    calloutsVisible,
+    autoAdjustEnabled,
+    legOverridesState,
+    getViewport,
+  ]);
+
+  const handleStageDragOver = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes("Files")) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    }
+  }, []);
+
+  const handleStageDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+      void file.text().then((text) => {
+        if (looksLikeDiagramConfigText(text)) {
+          loadFromConfig(text);
+          return;
+        }
+        if (file.name.toLowerCase().endsWith(".csv")) {
+          if (!confirmReplaceDiagram()) return;
+          loadFromCsv(text, file.name);
+        }
+      });
+    },
+    [confirmReplaceDiagram, loadFromConfig, loadFromCsv],
   );
 
   const updateManualWarnings = useCallback(
@@ -984,17 +1111,15 @@ function WorkflowCanvasInner() {
         };
       }),
     );
-    requestAnimationFrame(() => {
-      for (const n of getNodes()) {
-        if (n.type === "cable") updateNodeInternals(n.id);
-      }
-    });
+    // No updateNodeInternals here: cable geometry/handles are identical between
+    // auto and manual modes (manual only mounts an absolutely-positioned overlay),
+    // so a forced re-measure just causes a visible jitter on toggle.
     saveLayoutOverrides(
       mergeLayoutOverrides(reportKey, {
         autoAdjustEnabled: next,
       }),
     );
-  }, [getNodes, setNodes, updateNodeInternals]);
+  }, [setNodes]);
 
   const resetToAutoLayout = useCallback(() => {
     const graph = graphRef.current;
@@ -1168,15 +1293,13 @@ function WorkflowCanvasInner() {
         } else if (manualMode) {
           const callouts = getNodes().filter((n) => n.type === "cableCallout");
           const engine = getNodes().filter((n) => n.type !== "cableCallout");
-          const syncResult = syncManualVisualCable(
+          ({ nodes: nextNodes, edges: nextEdges } = syncManualVisualCable(
             engine,
             getEdges(),
             graph,
             visualId,
             draggedFinal,
-          );
-          nextNodes = syncResult.nodes;
-          nextEdges = syncResult.edges;
+          ));
           const collapsedColors =
             (draggedFinal.data as CableNodeData).collapsedTubes ?? [];
           if (collapsedColors.length > 0) {
@@ -1190,15 +1313,6 @@ function WorkflowCanvasInner() {
               { tubeKeys },
             );
             nextEdges = repinned.edges;
-          }
-          if (existing?.legOverrides && syncResult.touchedConnections.length > 0) {
-            nextEdges = applyLegOverridesForConnections(
-              nextEdges,
-              existing.legOverrides,
-              nextNodes,
-              graph,
-              syncResult.touchedConnections,
-            );
           }
           nextNodes = [...nextNodes, ...callouts];
         } else {
@@ -1536,133 +1650,132 @@ function WorkflowCanvasInner() {
   return (
     <div className="workflow-canvas">
       <div className="workflow-canvas__toolbar">
-        <CsvImportButton onImport={loadFromCsv} />
-        <ToolbarSegmentedControl
-          ariaLabel="Full butt splices"
-          disabled={!meta}
-          value={collapseFullButtSplices ? "collapsed" : "expanded"}
-          onChange={(next) => {
-            if ((next === "collapsed") !== collapseFullButtSplices) {
-              toggleFullButtCollapse();
-            }
-          }}
-          options={[
-            {
-              value: "collapsed",
-              label: "Collapse full butt splices",
-              icon: <CollapseIcon />,
-            },
-            {
-              value: "expanded",
-              label: "Expand full butt splices",
-              icon: <ExpandIcon />,
-            },
-          ]}
-        />
-        <ToolbarActionButton
-          label="View connection report"
-          icon={<ReportIcon />}
-          pressed={reportOpen}
-          disabled={!meta}
-          onClick={() => setReportOpen(true)}
-        />
-        <ToolbarActionButton
-          label="Open connection inspector"
-          icon={<InspectIcon />}
-          pressed={inspectorOpen}
-          disabled={!meta}
-          onClick={() => setInspectorOpen(true)}
-        />
-        <ToolbarActionButton
-          label="Print to PDF"
-          icon={<PrintPdfIcon />}
-          disabled={!meta}
-          onClick={printDiagram}
-        />
-        <ToolbarSegmentedControl
-          ariaLabel="Cable callouts"
-          disabled={!meta}
-          value={calloutsVisible ? "on" : "off"}
-          onChange={(next) => setCableCalloutsVisible(next === "on")}
-          options={[
-            {
-              value: "off",
-              label: "Hide cable callouts",
-              icon: <EyeOffIcon />,
-            },
-            {
-              value: "on",
-              label: "Show cable callouts",
-              icon: <CalloutIcon />,
-            },
-          ]}
-        />
-        <ToolbarSegmentedControl
-          ariaLabel="Track circuits"
-          disabled={!meta}
-          value={circuitPanelOpen ? "on" : "off"}
-          onChange={(next) => setCircuitPanelOpen(next === "on")}
-          options={[
-            {
-              value: "off",
-              label: "Hide circuits",
-              icon: <EyeOffIcon />,
-            },
-            {
-              value: "on",
-              label: "Track circuits",
-              icon: <EyeIcon />,
-            },
-          ]}
-        />
-        <ToolbarSegmentedControl
-          ariaLabel="Adjust mode"
-          disabled={!meta}
-          value={autoAdjustEnabled ? "auto" : "manual"}
-          onChange={(next) => {
-            const wantManual = next === "manual";
-            if (wantManual !== !autoAdjustEnabled) {
-              toggleManualAdjust();
-            }
-          }}
-          options={[
-            {
-              value: "auto",
-              label: "Auto adjust",
-              icon: <AutoIcon />,
-            },
-            {
-              value: "manual",
-              label: "Manual adjust",
-              icon: <ManualIcon />,
-            },
-          ]}
-        />
-        {!autoAdjustEnabled && meta ? (
-          <ToolbarActionButton
-            label="Reset to auto layout"
-            icon={<ResetIcon />}
-            onClick={resetToAutoLayout}
+        <div className="workflow-canvas__toolbar-left">
+          <CsvImportButton onImport={loadFromCsv} active={!!meta} />
+          <div className="workflow-canvas__toolbar-toggles">
+            <ToolbarPillToggle
+              label="Buffer tubes"
+              ariaLabel="Collapse full butt splices when on, expand when off"
+              disabled={!meta}
+              checked={collapseFullButtSplices}
+              onChange={(next) => {
+                if (next !== collapseFullButtSplices) {
+                  toggleFullButtCollapse();
+                }
+              }}
+            />
+            <ToolbarPillToggle
+              label="Callouts"
+              ariaLabel="Show cable callouts when on, hide when off"
+              disabled={!meta}
+              checked={calloutsVisible}
+              onChange={(next) => setCableCalloutsVisible(next)}
+            />
+            <ToolbarPillToggle
+              label="Circuits"
+              ariaLabel="Show circuit panel when on, hide when off"
+              disabled={!meta}
+              checked={circuitPanelOpen}
+              onChange={(next) => setCircuitPanelOpen(next)}
+            />
+          </div>
+          <ToolbarSegmentedControl
+            className="toolbar-segment--large"
+            ariaLabel="Adjust mode"
+            disabled={!meta}
+            value={autoAdjustEnabled ? "auto" : "manual"}
+            onChange={(next) => {
+              const wantManual = next === "manual";
+              if (wantManual !== !autoAdjustEnabled) {
+                toggleManualAdjust();
+              }
+            }}
+            options={[
+              {
+                value: "auto",
+                label: "Auto adjust",
+                icon: <AutoIcon />,
+              },
+              {
+                value: "manual",
+                label: "Manual adjust",
+                icon: <ManualIcon />,
+              },
+            ]}
           />
-        ) : null}
-        <span className="workflow-canvas__hint">
-          {autoAdjustEnabled
-            ? "Drag cables to reposition; click edge for protect-in-place"
-            : "Manual mode: tube tips ↕; collapsed tube center legs ↔ like fiber legs; shift+click handles; box-select"}
-        </span>
-        {manualWarningBanner ? (
-          <span className="workflow-canvas__manual-warning" role="status">
-            {manualWarningBanner}
+          {!autoAdjustEnabled && meta ? (
+            <ToolbarActionButton
+              label="Reset to auto layout"
+              icon={<ResetIcon />}
+              onClick={resetToAutoLayout}
+            />
+          ) : null}
+        </div>
+        <div className="workflow-canvas__toolbar-center">
+          <span className="workflow-canvas__hint">
+            {autoAdjustEnabled
+              ? "Drag cables to reposition; click edge for protect-in-place"
+              : "Manual mode: tube tips ↕; collapsed tube center legs ↔ like fiber legs; shift+click handles; box-select"}
           </span>
-        ) : null}
-        {meta ? <span className="workflow-canvas__meta">{meta}</span> : null}
+          {configErrorBanner ? (
+            <span className="workflow-canvas__manual-warning" role="alert">
+              {configErrorBanner}
+            </span>
+          ) : null}
+          {manualWarningBanner ? (
+            <span className="workflow-canvas__manual-warning" role="status">
+              {manualWarningBanner}
+            </span>
+          ) : null}
+          {meta ? <span className="workflow-canvas__meta">{meta}</span> : null}
+        </div>
+        <div className="workflow-canvas__toolbar-export">
+          <MapEmbedButton
+            disabled={!meta}
+            location={mapHeader?.location}
+            spliceLabel={mapHeader?.spliceLabel}
+            icon={<MapIcon />}
+          />
+          <ToolbarActionButton
+            label="View connection report"
+            icon={<ReportIcon />}
+            pressed={reportOpen}
+            disabled={!meta}
+            onClick={() => setReportOpen(true)}
+          />
+          <ToolbarActionButton
+            label="Open connection inspector"
+            icon={<InspectIcon />}
+            pressed={inspectorOpen}
+            disabled={!meta}
+            onClick={() => setInspectorOpen(true)}
+          />
+          <ToolbarActionButton
+            label="Export diagram config"
+            icon={<ExportConfigIcon />}
+            disabled={!meta}
+            onClick={exportDiagramConfig}
+          />
+          <DiagramConfigImportButton onImport={loadFromConfig} />
+          <ToolbarActionButton
+            label="Print to PDF"
+            icon={<PrintPdfIcon />}
+            disabled={!meta}
+            onClick={printDiagram}
+          />
+        </div>
       </div>
       <div className="workflow-canvas__body">
         <CircuitHighlightProvider
           key={reportKeyRef.current ?? "empty"}
           circuitIndex={circuitIndex}
         >
-          <div className="workflow-canvas__stage" ref={stageRef}>
+          <div
+            className="workflow-canvas__stage"
+            ref={stageRef}
+            onDragOver={handleStageDragOver}
+            onDrop={handleStageDrop}
+          >
             <ManualLayoutGuideOverlay guides={activeGuides} />
             <CalloutPersistContext.Provider
               value={{ onTextChange: handleCalloutTextChange }}
@@ -1702,6 +1815,7 @@ function WorkflowCanvasInner() {
                   onSegmentPointerDown={manualAdjustEngine.onSegmentPointerDown}
                   onSegmentPointerMove={manualAdjustEngine.onSegmentPointerMove}
                   onSegmentPointerUp={manualAdjustEngine.onSegmentPointerUp}
+                  onDotPointerDown={manualAdjustEngine.onDotPointerDown}
                 />
               </ReactFlow>
               </ManualLayoutProvider>

@@ -12,6 +12,7 @@ type ToolbarSegmentedControlProps = {
   onChange: (value: string) => void;
   ariaLabel: string;
   disabled?: boolean;
+  className?: string;
 };
 
 export function ToolbarSegmentedControl({
@@ -20,15 +21,24 @@ export function ToolbarSegmentedControl({
   onChange,
   ariaLabel,
   disabled = false,
+  className,
 }: ToolbarSegmentedControlProps) {
   const selectedIndex = Math.max(
     0,
     options.findIndex((opt) => opt.value === value),
   );
 
+  const rootClass = [
+    "toolbar-segment",
+    disabled ? "toolbar-segment--disabled" : "",
+    className ?? "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <div
-      className={`toolbar-segment${disabled ? " toolbar-segment--disabled" : ""}`}
+      className={rootClass}
       role="radiogroup"
       aria-label={ariaLabel}
       aria-disabled={disabled}
@@ -64,6 +74,7 @@ type ToolbarActionButtonProps = {
   onClick: () => void;
   pressed?: boolean;
   disabled?: boolean;
+  expanded?: boolean;
 };
 
 export function ToolbarActionButton({
@@ -72,6 +83,7 @@ export function ToolbarActionButton({
   onClick,
   pressed = false,
   disabled = false,
+  expanded,
 }: ToolbarActionButtonProps) {
   return (
     <button
@@ -80,6 +92,7 @@ export function ToolbarActionButton({
       aria-label={label}
       title={label}
       aria-pressed={pressed}
+      aria-expanded={expanded}
       disabled={disabled}
       onClick={onClick}
     >

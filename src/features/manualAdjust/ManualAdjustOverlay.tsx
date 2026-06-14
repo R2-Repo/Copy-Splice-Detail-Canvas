@@ -16,6 +16,7 @@ import {
 import type { LegSide, ManualAdjustSelection } from "./types";
 
 const SEG_HIT = 14;
+const DOT_HIT = 16;
 
 type Props = {
   enabled: boolean;
@@ -38,6 +39,7 @@ type Props = {
   ) => void;
   onSegmentPointerMove: (event: React.PointerEvent) => void;
   onSegmentPointerUp: (event: React.PointerEvent) => void;
+  onDotPointerDown: (connectionId: string, event: React.PointerEvent) => void;
 };
 
 type DraggableSegment = {
@@ -102,10 +104,14 @@ export function ManualAdjustOverlay({
   onSegmentPointerDown,
   onSegmentPointerMove: _onSegmentPointerMove,
   onSegmentPointerUp: _onSegmentPointerUp,
+  onDotPointerDown,
 }: Props) {
   const { screenToFlowPosition, flowToScreenPosition } = useReactFlow();
   const viewport = useViewport();
   const cachedSegmentsRef = useRef<DraggableSegment[]>([]);
+  const cachedDotsRef = useRef<
+    Array<{ connectionId: string; x: number; y: number }>
+  >([]);
   const [marquee, setMarquee] = useState<{
     x0: number;
     y0: number;
@@ -229,6 +235,35 @@ export function ManualAdjustOverlay({
     cachedSegmentsRef.current = items;
     return items;
   }, [enabled, graph, edges, nodes, legSegmentDragActive]);
+
+  const fusionDots = useMemo(() => {
+    if (!enabled) return [];
+    if (legSegmentDragActive && cachedDotsRef.current.length > 0) {
+      return cachedDotsRef.current;
+    }
+    const dots: Array<{ connectionId: string; x: number; y: number }> = [];
+    for (const edge of edges) {
+      if (edge.type !== "splice" || !edge.id.startsWith("splice-left-")) {
+        continue;
+      }
+      const data = (edge.data ?? {}) as {
+        spliceX?: number;
+        spliceY?: number;
+        fullButtSplice?: boolean;
+      };
+      if (data.fullButtSplice) continue;
+      const x = Number(data.spliceX ?? NaN);
+      const y = Number(data.spliceY ?? NaN);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      dots.push({
+        connectionId: edge.id.slice("splice-left-".length),
+        x,
+        y,
+      });
+    }
+    cachedDotsRef.current = dots;
+    return dots;
+  }, [enabled, edges, legSegmentDragActive]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -359,6 +394,31 @@ export function ManualAdjustOverlay({
               />
             );
           })}
+        {fusionDots.map((dot) => {
+          const panel = flowToPanelLocal(dot.x, dot.y);
+          const selected = selection.connectionIds.has(dot.connectionId);
+          return (
+            <button
+              key={`dot-${dot.connectionId}`}
+              type="button"
+              className={`manual-adjust-dot nodrag nopan${
+                selected ? " manual-adjust-dot--selected" : ""
+              }`}
+              style={{
+                left: panel.x - DOT_HIT / 2,
+                top: panel.y - DOT_HIT / 2,
+                width: DOT_HIT,
+                height: DOT_HIT,
+              }}
+              title="Drag fusion splice dot (color transition) along the leg"
+              aria-label={`Move fusion splice dot for ${dot.connectionId}`}
+              onPointerDown={(event) => {
+                event.stopPropagation();
+                onDotPointerDown(dot.connectionId, event);
+              }}
+            />
+          );
+        })}
         {marqueePanel ? (
           <div
             className="manual-adjust-marquee"

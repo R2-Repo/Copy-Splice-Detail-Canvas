@@ -5,6 +5,7 @@ import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
 
 import {
+  accumulateDotShift,
   accumulateLegOverride,
   applyLegOverridesToEdge,
 } from "./applyManualAdjust";
@@ -27,12 +28,14 @@ import {
 } from "./handleCoords";
 import {
   allowedSegmentAxes,
-  applySegmentDelta,
   legSegmentsFromPaths,
   pathStartPoint,
   reconnectEditedLegPaths,
+  repinLegEnd,
+  repinLegStart,
   routeTemplateForHandles,
   segmentsToPath,
+  shiftVerticalLaneX,
   type SegmentDragAxis,
 } from "./legSegments";
 import { syncSplicePointNodes } from "./syncSplicePointNodes";
@@ -68,6 +71,14 @@ type SegmentDragState = {
   segmentTargets: Map<string, { side: LegSide; segmentIndex: number }>;
 };
 
+type DotDragState = {
+  connectionIds: string[];
+  startPointerX: number;
+  latestPointerX: number;
+  baseOverrides: NonNullable<LayoutOverrides["legOverrides"]>;
+  preDragPaths: Map<string, ConnectionLegPathData>;
+};
+
 export type ManualAdjustEngine = {
   selection: ManualAdjustSelection;
   legSegmentDragActive: boolean;
@@ -89,6 +100,7 @@ export type ManualAdjustEngine = {
   ) => void;
   onSegmentPointerMove: (event: React.PointerEvent) => void;
   onSegmentPointerUp: (event: React.PointerEvent) => void;
+  onDotPointerDown: (connectionId: string, event: React.PointerEvent) => void;
   onNodeDrag: OnNodeDrag<Node>;
   onNodeDragStop: OnNodeDrag<Node>;
   applyLegOverridesToEdges: (
@@ -214,6 +226,131 @@ export function useManualAdjustEngine({
     window.removeEventListener("pointercancel", segmentUpListenerRef.current);
   }, []);
 
+  // --- Fusion-dot drag (= leg color-transition point) -----------------------
+  const dotDragRef = useRef<DotDragState | null>(null);
+  const dotMoveListenerRef = useRef<(event: PointerEvent) => void>(() => {});
+  const dotUpListenerRef = useRef<(event: PointerEvent) => void>(() => {});
+
+  const detachDotDragListeners = useCallback(() => {
+    window.removeEventListener("pointermove", dotMoveListenerRef.current);
+    window.removeEventListener("pointerup", dotUpListenerRef.current);
+    window.removeEventListener("pointercancel", dotUpListenerRef.current);
+  }, []);
+
+  const onDotPointerMove = useCallback(
+    (event: React.PointerEvent | PointerEvent) => {
+      const drag = dotDragRef.current;
+      if (!drag || !enabled) return;
+      drag.latestPointerX = event.clientX;
+      if (legDragRafRef.current != null) return;
+      legDragRafRef.current = requestAnimationFrame(() => {
+        legDragRafRef.current = null;
+        const active = dotDragRef.current;
+        if (!active) return;
+        const deltaX = active.latestPointerX - active.startPointerX;
+        if (Math.abs(deltaX) < 0.5) return;
+        const currentEdges = getEdges();
+        const currentNodes = getNodes();
+        const nextEdges = previewDotDrag(currentEdges, active, deltaX);
+        if (nextEdges === currentEdges) return;
+        const nextNodes = syncSplicePointNodes(
+          currentNodes,
+          nextEdges,
+          active.connectionIds,
+        );
+        setEdges(nextEdges);
+        if (nextNodes !== currentNodes) setNodes(nextNodes);
+      });
+    },
+    [enabled, getEdges, getNodes, setEdges, setNodes],
+  );
+
+  const onDotPointerUpNative = useCallback(
+    (_event: PointerEvent) => {
+      detachDotDragListeners();
+      setLegSegmentDragActive(false);
+      const drag = dotDragRef.current;
+      if (!drag || !enabled) return;
+      dotDragRef.current = null;
+      const deltaX = drag.latestPointerX - drag.startPointerX;
+      if (Math.abs(deltaX) < 0.5) return;
+
+      const currentEdges = getEdges();
+      let blockedCode: LegPathValidationCode | null = null;
+      for (const connectionId of drag.connectionIds) {
+        const paths = legPathDataFromEdges(currentEdges, connectionId);
+        if (!paths) continue;
+        blockedCode = validateLegPaths(
+          paths.leftPath,
+          paths.rightPath,
+          paths.spliceX,
+          paths.spliceY,
+        );
+        if (blockedCode) break;
+      }
+      // Warn, don't revert (manual mode is fully manual).
+      if (blockedCode) onLegCommitBlocked?.(legCommitBlockedMessage(blockedCode));
+
+      const nextOverrides = { ...drag.baseOverrides };
+      for (const connectionId of drag.connectionIds) {
+        nextOverrides[connectionId] = accumulateDotShift(
+          nextOverrides[connectionId],
+          deltaX,
+        );
+      }
+      onLegOverridesCommit(nextOverrides);
+    },
+    [
+      detachDotDragListeners,
+      enabled,
+      getEdges,
+      onLegCommitBlocked,
+      onLegOverridesCommit,
+    ],
+  );
+
+  dotMoveListenerRef.current = (event: PointerEvent) => {
+    onDotPointerMove(event);
+  };
+  dotUpListenerRef.current = onDotPointerUpNative;
+
+  const onDotPointerDown = useCallback(
+    (connectionId: string, event: React.PointerEvent) => {
+      if (!enabled || isButtEdgeId(connectionId)) return;
+      event.stopPropagation();
+      event.preventDefault();
+      detachDotDragListeners();
+      const ids = (
+        selection.connectionIds.has(connectionId)
+          ? [...selection.connectionIds]
+          : [connectionId]
+      ).filter((id) => !isButtEdgeId(id));
+      const preDragPaths = new Map<string, ConnectionLegPathData>();
+      for (const id of ids) {
+        const snapshot = legPathDataFromEdges(getEdges(), id);
+        if (snapshot) preDragPaths.set(id, snapshot);
+      }
+      dotDragRef.current = {
+        connectionIds: ids,
+        startPointerX: event.clientX,
+        latestPointerX: event.clientX,
+        baseOverrides: { ...(legOverrides ?? {}) },
+        preDragPaths,
+      };
+      setLegSegmentDragActive(true);
+      window.addEventListener("pointermove", dotMoveListenerRef.current);
+      window.addEventListener("pointerup", dotUpListenerRef.current);
+      window.addEventListener("pointercancel", dotUpListenerRef.current);
+    },
+    [
+      detachDotDragListeners,
+      enabled,
+      getEdges,
+      legOverrides,
+      selection.connectionIds,
+    ],
+  );
+
   const onSegmentPointerMove = useCallback(
     (event: React.PointerEvent | PointerEvent) => {
       const drag = segmentDragRef.current;
@@ -287,22 +424,10 @@ export function useManualAdjustEngine({
       }
 
       if (blockedCode) {
-        const revertedEdges = applyLegPathSnapshots(
-          currentEdges,
-          drag.connectionIds,
-          drag.preDragPaths,
-        );
-        const revertedNodes = syncSplicePointNodes(
-          getNodes(),
-          revertedEdges,
-          drag.connectionIds,
-        );
-        setEdges(revertedEdges);
-        if (revertedNodes !== getNodes()) {
-          setNodes(revertedNodes);
-        }
+        // Manual mode is fully manual: surface the rule as a warning banner but
+        // KEEP the user's drag (no snap-back). They retain full control and can
+        // fine-tune freely; the banner just flags the readability rule.
         onLegCommitBlocked?.(legCommitBlockedMessage(blockedCode));
-        return;
       }
 
       const nextOverrides = { ...drag.baseOverrides };
@@ -339,12 +464,13 @@ export function useManualAdjustEngine({
   useEffect(
     () => () => {
       detachSegmentDragListeners();
+      detachDotDragListeners();
       setLegSegmentDragActive(false);
       if (legDragRafRef.current != null) {
         cancelAnimationFrame(legDragRafRef.current);
       }
     },
-    [detachSegmentDragListeners],
+    [detachSegmentDragListeners, detachDotDragListeners],
   );
 
   const onSegmentPointerUp = useCallback(
@@ -500,10 +626,60 @@ export function useManualAdjustEngine({
     onSegmentPointerDown,
     onSegmentPointerMove,
     onSegmentPointerUp,
+    onDotPointerDown,
     onNodeDrag,
     onNodeDragStop,
     applyLegOverridesToEdges,
   };
+}
+
+function previewDotDrag(
+  edges: Edge[],
+  drag: DotDragState,
+  deltaX: number,
+): Edge[] {
+  if (Math.abs(deltaX) < 0.5) return edges;
+  const nextEdges = [...edges];
+  let changed = false;
+  for (const connectionId of drag.connectionIds) {
+    const snapshot = drag.preDragPaths.get(connectionId);
+    if (!snapshot) continue;
+    const dot = { x: snapshot.spliceX + deltaX, y: snapshot.spliceY };
+    const nextLeft = repinLegEnd(snapshot.leftPath, dot);
+    const nextRight = repinLegStart(snapshot.rightPath, dot);
+    for (const edgeId of [
+      `splice-left-${connectionId}`,
+      `splice-right-${connectionId}`,
+    ]) {
+      const idx = nextEdges.findIndex((e) => e.id === edgeId);
+      if (idx < 0) continue;
+      const prev = nextEdges[idx]!;
+      const prevData = (prev.data ?? {}) as {
+        leftPath?: string;
+        rightPath?: string;
+        spliceX?: number;
+      };
+      if (
+        prevData.leftPath === nextLeft &&
+        prevData.rightPath === nextRight &&
+        prevData.spliceX === dot.x
+      ) {
+        continue;
+      }
+      changed = true;
+      nextEdges[idx] = {
+        ...prev,
+        data: {
+          ...(prev.data as Record<string, unknown>),
+          leftPath: nextLeft,
+          rightPath: nextRight,
+          spliceX: dot.x,
+          spliceY: dot.y,
+        },
+      };
+    }
+  }
+  return changed ? nextEdges : edges;
 }
 
 function legPathDataFromEdges(
@@ -547,50 +723,6 @@ function legPathDataFromEdges(
     spliceX: Number(data.spliceX ?? 0),
     spliceY: Number(data.spliceY ?? 0),
   };
-}
-
-function applyLegPathSnapshots(
-  edges: Edge[],
-  connectionIds: string[],
-  snapshots: Map<string, ConnectionLegPathData>,
-): Edge[] {
-  return edges.map((edge) => {
-    for (const connectionId of connectionIds) {
-      const snapshot = snapshots.get(connectionId);
-      if (!snapshot) continue;
-      if (isButtEdgeId(connectionId)) {
-        if (edge.id !== connectionId) continue;
-        return {
-          ...edge,
-          data: {
-            ...(edge.data as Record<string, unknown>),
-            leftPath: snapshot.leftPath,
-            rightPath: snapshot.rightPath,
-            spliceX: snapshot.spliceX,
-            spliceY: snapshot.spliceY,
-            routingMidX: snapshot.spliceX,
-          },
-        };
-      }
-      if (
-        edge.id !== `splice-left-${connectionId}` &&
-        edge.id !== `splice-right-${connectionId}`
-      ) {
-        continue;
-      }
-      return {
-        ...edge,
-        data: {
-          ...(edge.data as Record<string, unknown>),
-          leftPath: snapshot.leftPath,
-          rightPath: snapshot.rightPath,
-          spliceX: snapshot.spliceX,
-          spliceY: snapshot.spliceY,
-        },
-      };
-    }
-    return edge;
-  });
 }
 
 /**
@@ -733,56 +865,18 @@ function previewSegmentDrag(
     const rightId = `splice-right-${connectionId}`;
     const leftEdge = nextEdges.find((e) => e.id === leftId);
     if (!leftEdge) continue;
-    const leftPathRaw = snapshot.leftPath;
-    const rightPathRaw = snapshot.rightPath;
-    const preserveSplice = {
-      x: snapshot.spliceX,
-      y: snapshot.spliceY,
+    // A leg drag is always a horizontal lane shift: move only the dragged
+    // vertical segment's two bend points. The leg endpoints (fiber handle +
+    // fusion dot) and the other leg stay put — so the splice is preserved, no
+    // reconnect is needed, and no extra bend is introduced.
+    const draggedPath = side === "left" ? snapshot.leftPath : snapshot.rightPath;
+    const shifted = shiftVerticalLaneX(draggedPath, segmentIndex, totalDelta);
+    const connected = {
+      leftPath: side === "left" ? shifted : snapshot.leftPath,
+      rightPath: side === "right" ? shifted : snapshot.rightPath,
+      spliceX: snapshot.spliceX,
+      spliceY: snapshot.spliceY,
     };
-    const handles =
-      graph != null
-        ? handleCoordsForConnection(connectionId, nodes, graph, handleCache)
-        : null;
-    const template = routeTemplateForHandles(
-      handles?.source.x ?? 0,
-      handles?.source.y ?? 0,
-      handles?.target.x ?? 0,
-      handles?.target.y ?? 0,
-    );
-    const paths = legSegmentsFromPaths(leftPathRaw, rightPathRaw);
-    const segments = side === "left" ? paths.left : paths.right;
-    const updatedSegments = applySegmentDelta(
-      segments,
-      segmentIndex,
-      drag.axis,
-      totalDelta,
-      template,
-      side,
-      preserveSplice,
-    );
-    const pathStart =
-      side === "left"
-        ? (handles?.source ?? pathStartPoint(leftPathRaw))
-        : pathStartPoint(rightPathRaw);
-    let nextLeft =
-      side === "left"
-        ? segmentsToPath(updatedSegments, pathStart)
-        : leftPathRaw;
-    let nextRight =
-      side === "right"
-        ? segmentsToPath(updatedSegments, pathStart)
-        : rightPathRaw;
-
-    const connected = reconnectEditedLegPaths(
-      nextLeft,
-      nextRight,
-      side,
-      {
-        handles: handles ?? undefined,
-        preserveSplice,
-      },
-    );
-
     for (const edgeId of [leftId, rightId]) {
       const idx = nextEdges.findIndex((e) => e.id === edgeId);
       if (idx < 0) continue;

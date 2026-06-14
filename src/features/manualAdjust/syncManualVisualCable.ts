@@ -1,18 +1,7 @@
 import type { Edge, Node } from "@xyflow/react";
 
 import type { CableNodeData } from "@/features/canvas/nodes/types";
-import {
-  buildSplicePath,
-  defaultSideCircuitLabelSpan,
-  fiberHandlePosition,
-  resolveSpliceMidX,
-  routingLaneFromData,
-  routingMidXForRender,
-} from "@/features/canvas/edges/splicePathGeometry";
-import {
-  formattedCircuitTagWidth,
-  type SideCircuitLabelSpan,
-} from "@/features/diagram/cableLabels";
+import { fiberHandlePosition } from "@/features/canvas/edges/splicePathGeometry";
 import type { ConnectionGraph } from "@/types/splice";
 import {
   buildVisualCablesForLayout,
@@ -23,6 +12,12 @@ import {
   buildHandleCoordsCache,
   handleCoordsForConnection,
 } from "./handleCoords";
+import {
+  pathEndPoint,
+  pathStartPoint,
+  repinLegEnd,
+  repinLegStart,
+} from "./legSegments";
 import { syncSplicePointNodes } from "./syncSplicePointNodes";
 
 type SpliceLaneData = {
@@ -30,13 +25,6 @@ type SpliceLaneData = {
   rightPath?: string;
   spliceX?: number;
   spliceY?: number;
-  laneIndex?: number;
-  laneOverride?: number;
-  laneCount?: number;
-  rowOffset?: number;
-  circuitName?: string;
-  diagramCenterX?: number;
-  sideCircuitSpan?: SideCircuitLabelSpan;
 };
 
 const ANCHOR_DOT = 6;
@@ -165,72 +153,38 @@ export function syncManualVisualCable(
 
     const data = (leftEdge.data ?? {}) as SpliceLaneData;
 
-    // Rebuild legs with the same orthogonal router auto mode uses so manual
-    // drags follow identical rules and never produce diagonal fiber legs.
-    const sourceX = handles.source.x;
-    const sourceY = handles.source.y;
-    const targetX = handles.target.x;
-    const targetY = handles.target.y;
-    const fallbackLane = data.laneOverride ?? data.laneIndex ?? 0;
-    const laneCount = Math.max(1, data.laneCount ?? 1);
-    const sideSpans = data.sideCircuitSpan ?? defaultSideCircuitLabelSpan();
-    const diagramCenterX = data.diagramCenterX ?? (sourceX + targetX) / 2;
-    const sourceTagWidth = formattedCircuitTagWidth(data.circuitName);
-    const targetTagWidth = sourceTagWidth;
-    const storedLane = routingLaneFromData(data);
-    const resolvedMidX = routingMidXForRender(
-      storedLane?.midX ??
-        resolveSpliceMidX(sourceX, sourceY, targetX, targetY, {
-          rowOffset: data.rowOffset,
-          maxRowOffset: Math.max(0, data.rowOffset ?? 0),
-          routingLane: fallbackLane,
-          laneCount,
-          diagramCenterX,
-          sideCircuitSpan: sideSpans,
-        }),
-      sourceX,
-      targetX,
-      diagramCenterX,
-      sideSpans,
-      sourceTagWidth,
-      targetTagWidth,
-    );
-    const connected = buildSplicePath(
-      sourceX,
-      sourceY,
-      targetX,
-      targetY,
-      resolvedMidX,
-      storedLane?.jogX,
-      {
-        sourceHorizY: storedLane?.sourceHorizY,
-        targetHorizY: storedLane?.targetHorizY,
-        sourceBendX: storedLane?.sourceBendX,
-        targetBendX: storedLane?.targetBendX,
-      },
-      sideSpans,
-      diagramCenterX,
-      sourceTagWidth,
-      targetTagWidth,
-    );
-
+    // Manual mode is fully manual: re-pin only the moved cable's leg end(s) to
+    // the new handle position and keep the existing leg shape + fusion dot.
+    // No auto rerouting — lanes / midX are never recomputed here.
     const prevEdgeData = (edgePatches.get(leftId) ?? leftEdge).data as {
       leftPath?: string;
       rightPath?: string;
     };
     const prevLeft = String(prevEdgeData.leftPath ?? data.leftPath ?? "");
     const prevRight = String(prevEdgeData.rightPath ?? data.rightPath ?? "");
+    if (!prevLeft || !prevRight) continue;
 
-    if (prevLeft === connected.leftPath && prevRight === connected.rightPath) {
+    let nextLeft = prevLeft;
+    let nextRight = prevRight;
+    if (pinsSource) nextLeft = repinLegStart(nextLeft, handles.source);
+    if (pinsTarget) nextRight = repinLegEnd(nextRight, handles.target);
+    // Keep both legs joined at the (otherwise unchanged) fusion dot.
+    const splice = pinsSource
+      ? pathEndPoint(nextLeft)
+      : pathStartPoint(nextRight);
+    if (pinsSource) nextRight = repinLegStart(nextRight, splice);
+    else nextLeft = repinLegEnd(nextLeft, splice);
+
+    if (prevLeft === nextLeft && prevRight === nextRight) {
       continue;
     }
 
     touchedConnections.push(connectionId);
     const patchData = {
-      leftPath: connected.leftPath,
-      rightPath: connected.rightPath,
-      spliceX: connected.spliceX,
-      spliceY: connected.spliceY,
+      leftPath: nextLeft,
+      rightPath: nextRight,
+      spliceX: splice.x,
+      spliceY: splice.y,
     };
     edgePatches.set(leftId, {
       ...leftEdge,

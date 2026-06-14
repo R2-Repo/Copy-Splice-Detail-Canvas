@@ -1,35 +1,36 @@
 import { useRef } from "react";
 
-import { FolderPlusIcon } from "@/components/toolbar/ToolbarIcon";
+import { ConfigImportIcon } from "@/components/toolbar/ToolbarIcon";
 
-type CsvImportButtonProps = {
+type DiagramConfigImportButtonProps = {
   onImport: (text: string, fileName: string) => void;
   disabled?: boolean;
-  /** Orange active styling when a diagram is loaded */
-  active?: boolean;
 };
 
-const IMPORT_LABEL = "Import Bentley CSV";
+const IMPORT_LABEL = "Import diagram config";
 
-export function CsvImportButton({ onImport, disabled, active = false }: CsvImportButtonProps) {
+export function DiagramConfigImportButton({
+  onImport,
+  disabled,
+}: DiagramConfigImportButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="csv-import">
       <button
         type="button"
-        className={`toolbar-icon-btn${active ? " toolbar-icon-btn--primary" : ""}`}
+        className="toolbar-icon-btn"
         disabled={disabled}
         aria-label={IMPORT_LABEL}
         title={IMPORT_LABEL}
         onClick={() => inputRef.current?.click()}
       >
-        <FolderPlusIcon />
+        <ConfigImportIcon />
       </button>
       <input
         ref={inputRef}
         type="file"
-        accept=".csv,text/csv"
+        accept=".json,.sdc.json,application/json"
         hidden
         onChange={(e) => {
           const file = e.target.files?.[0];
