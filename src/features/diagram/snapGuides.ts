@@ -1,6 +1,9 @@
 import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import { applyPersistedTubeOverrides } from "@/features/diagram/applyTubeOverrides";
-import { FIBER_ROW_PITCH } from "@/features/diagram/cableLayoutMetrics";
+import {
+  FIBER_ROW_PITCH,
+  fiberRowOffsetInCable,
+} from "@/features/diagram/cableLayoutMetrics";
 import { tubeHandleAbsoluteY } from "@/features/diagram/tubeRowShift";
 import type {
   ConnectionGraph,
@@ -105,6 +108,30 @@ export function collectGlobalTubeTipSnapTargets(
     if (!pos) continue;
     for (const tube of vc.tubes) {
       targets.push(tubeHandleAbsoluteY(vc, tube, pos.y));
+    }
+  }
+  return targets;
+}
+
+/**
+ * Absolute canvas Y targets for **every** fiber handle across the diagram, so
+ * manual tube/fan-out drags can snap a strand leg flat (not just tube centers).
+ */
+export function collectGlobalFiberHandleSnapTargets(
+  graph: ConnectionGraph,
+  positions: Record<string, { x: number; y: number }>,
+  tubeOverrides?: Record<TubeOverrideKey, TubeManualOverride>,
+): number[] {
+  const { visualCables } = buildVisualCablesForLayout(graph);
+  applyPersistedTubeOverrides(visualCables, tubeOverrides);
+  const targets: number[] = [];
+  for (const vc of visualCables) {
+    const pos = positions[`cable-${vc.id}`];
+    if (!pos) continue;
+    for (const tube of vc.tubes) {
+      for (const fiber of tube.fibers) {
+        targets.push(pos.y + fiberRowOffsetInCable(vc, fiber.connectionId));
+      }
     }
   }
   return targets;

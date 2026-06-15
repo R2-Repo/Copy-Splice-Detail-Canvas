@@ -189,7 +189,7 @@ function SpliceEdgeBody({
           <circle
             cx={spliceX}
             cy={spliceY}
-            r={4}
+            r={4.5}
             fill="#000"
             className="splice-edge__dot"
           />

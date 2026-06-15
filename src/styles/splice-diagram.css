@@ -442,6 +442,52 @@
   cursor: not-allowed;
 }
 
+/* Empty-canvas cue: pulse icon + glow so import stands out on light neo surface */
+@keyframes import-hint-color {
+  0%,
+  100% {
+    color: var(--neo-text);
+  }
+
+  50% {
+    color: var(--neo-accent);
+  }
+}
+
+@keyframes import-hint-glow {
+  0%,
+  100% {
+    box-shadow: var(--neo-shadow-raised-sm);
+  }
+
+  50% {
+    box-shadow:
+      var(--neo-shadow-raised-sm),
+      0 0 0 2px var(--neo-accent-glow),
+      0 0 10px var(--neo-accent-glow);
+  }
+}
+
+.toolbar-icon-btn--hint {
+  animation:
+    import-hint-color 2s ease-in-out infinite,
+    import-hint-glow 2s ease-in-out infinite;
+}
+
+.toolbar-icon-btn--hint:hover:not(:disabled) {
+  animation: none;
+  color: var(--neo-accent);
+  box-shadow: var(--neo-shadow-raised);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toolbar-icon-btn--hint {
+    animation: none;
+    color: var(--neo-accent);
+    box-shadow: var(--neo-shadow-raised-sm), var(--neo-active-ring);
+  }
+}
+
 .toolbar-icon-btn--primary {
   background: var(--neo-active-gradient);
   color: #ffffff;
@@ -957,7 +1003,7 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 0.5rem;
+  font-size: 0.55rem;
   font-weight: 500;
   color: #000000;
   background: #ffffff;
@@ -1034,10 +1080,16 @@
   position: relative;
 }
 
-.fiber-anchor-node__dot,
-.splice-point-node__dot {
+.fiber-anchor-node__dot {
   width: 6px;
   height: 6px;
+  border-radius: 50%;
+  background: #171717;
+}
+
+.splice-point-node__dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: #171717;
 }
@@ -1049,8 +1101,8 @@
 }
 
 .splice-point-node {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
 }
 
 .fiber-anchor-node .react-flow__handle,
@@ -1903,64 +1955,70 @@
   stroke-linecap: round;
 }
 
-/* Tabloid print prep — hide canvas chrome and size stage to printable area. */
-body.printing-diagram {
-  background: #fff;
-}
+/* Tabloid print prep (screen only) — center + size the stage to the printable
+   area so React Flow measures it before we capture the print viewport. These
+   rules must stay screen-scoped: a position:fixed element repeats on every
+   printed page (causes duplicate sheets), so print layout lives in @media print. */
+@media screen {
+  body.printing-diagram {
+    background: #fff;
+  }
 
-body.printing-diagram .app-shell,
-body.printing-diagram .app-shell__main,
-body.printing-diagram .workflow-canvas,
-body.printing-diagram .workflow-canvas__body {
-  background: #fff !important;
-}
+  body.printing-diagram .app-shell,
+  body.printing-diagram .app-shell__main,
+  body.printing-diagram .workflow-canvas,
+  body.printing-diagram .workflow-canvas__body {
+    background: #fff !important;
+  }
 
-body.printing-diagram .workflow-canvas {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: visible;
-}
+  body.printing-diagram .workflow-canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
 
-body.printing-diagram .workflow-canvas__toolbar,
-body.printing-diagram .workflow-canvas__hint,
-body.printing-diagram .workflow-canvas__meta,
-body.printing-diagram .workflow-canvas__manual-warning,
-body.printing-diagram .react-flow__controls,
-body.printing-diagram .react-flow__background,
-body.printing-diagram .react-flow__background pattern,
-body.printing-diagram .manual-adjust-panel,
-body.printing-diagram .manual-layout-guides,
-body.printing-diagram .diagram-inspector,
-body.printing-diagram .splice-report-overlay,
-body.printing-diagram .connection-inspector-overlay,
-body.printing-diagram .help-guide-overlay {
-  display: none !important;
-}
+  body.printing-diagram .workflow-canvas__toolbar,
+  body.printing-diagram .workflow-canvas__hint,
+  body.printing-diagram .workflow-canvas__meta,
+  body.printing-diagram .workflow-canvas__manual-warning,
+  body.printing-diagram .react-flow__controls,
+  body.printing-diagram .react-flow__background,
+  body.printing-diagram .react-flow__background pattern,
+  body.printing-diagram .manual-adjust-panel,
+  body.printing-diagram .manual-layout-guides,
+  body.printing-diagram .cable-node__manual-handles,
+  body.printing-diagram .diagram-inspector,
+  body.printing-diagram .splice-report-overlay,
+  body.printing-diagram .connection-inspector-overlay,
+  body.printing-diagram .help-guide-overlay {
+    display: none !important;
+  }
 
-body.printing-diagram .workflow-canvas__body {
-  width: auto !important;
-  height: auto !important;
-  overflow: visible !important;
-}
+  body.printing-diagram .workflow-canvas__body {
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
 
-body.printing-diagram .workflow-canvas__stage,
-body.printing-diagram .react-flow {
-  width: var(--print-stage-width, 1536px) !important;
-  height: var(--print-stage-height, 960px) !important;
-  max-width: var(--print-stage-width, 1536px) !important;
-  max-height: var(--print-stage-height, 960px) !important;
-  margin: 0 !important;
-  overflow: visible !important;
-  background: #fff !important;
-}
+  body.printing-diagram .workflow-canvas__stage,
+  body.printing-diagram .react-flow {
+    width: var(--print-stage-width, 1536px) !important;
+    height: var(--print-stage-height, 960px) !important;
+    max-width: var(--print-stage-width, 1536px) !important;
+    max-height: var(--print-stage-height, 960px) !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    background: #fff !important;
+  }
 
-body.printing-diagram .react-flow__viewport,
-body.printing-diagram .react-flow__pane {
-  background: #fff !important;
+  body.printing-diagram .react-flow__viewport,
+  body.printing-diagram .react-flow__pane {
+    background: #fff !important;
+  }
 }
 
 .diagram-title {
@@ -2027,8 +2085,8 @@ body.printing-diagram .react-flow__pane {
 
 @media print {
   @page {
-    size: 17in 11in;
-    margin: 0.5in;
+    size: tabloid landscape;
+    margin: 0;
   }
 
   html,
@@ -2037,8 +2095,11 @@ body.printing-diagram .react-flow__pane {
     height: 11in;
     margin: 0;
     padding: 0;
+    overflow: hidden;
+    background: #fff;
   }
 
+  /* Connection report keeps its own text-only print path */
   body:not(.printing-diagram) * {
     visibility: hidden;
   }
@@ -2068,14 +2129,11 @@ body.printing-diagram .react-flow__pane {
     overflow: visible;
   }
 
+  /* Diagram print: show only the stage subtree, centered on a single page */
   body.printing-diagram * {
     visibility: hidden;
   }
 
-  body.printing-diagram .app-shell,
-  body.printing-diagram .app-shell__main,
-  body.printing-diagram .workflow-canvas,
-  body.printing-diagram .workflow-canvas__body,
   body.printing-diagram .workflow-canvas__stage,
   body.printing-diagram .workflow-canvas__stage *,
   body.printing-diagram .react-flow,
@@ -2093,6 +2151,7 @@ body.printing-diagram .react-flow__pane {
   body.printing-diagram .react-flow__panel:not(.callout-leader-panel),
   body.printing-diagram .manual-adjust-panel,
   body.printing-diagram .manual-layout-guides,
+  body.printing-diagram .cable-node__manual-handles,
   body.printing-diagram .diagram-inspector,
   body.printing-diagram .splice-report-overlay,
   body.printing-diagram .connection-inspector-overlay,
@@ -2100,38 +2159,51 @@ body.printing-diagram .react-flow__pane {
     display: none !important;
   }
 
-  body.printing-diagram .workflow-canvas,
-  body.printing-diagram .workflow-canvas__body,
+  /* Flatten wrappers so the stage is the only flow box on the page */
+  body.printing-diagram .app-shell,
+  body.printing-diagram .app-shell__main,
+  body.printing-diagram .workflow-canvas__body {
+    display: contents !important;
+  }
+
+  /* Static flex centering — never position:fixed (repeats on every page) */
+  body.printing-diagram .workflow-canvas {
+    position: static !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 17in !important;
+    height: 11in !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #fff !important;
+  }
+
   body.printing-diagram .workflow-canvas__stage,
   body.printing-diagram .react-flow {
+    position: relative !important;
     width: var(--print-stage-width, 1536px) !important;
     height: var(--print-stage-height, 960px) !important;
     max-width: var(--print-stage-width, 1536px) !important;
     max-height: var(--print-stage-height, 960px) !important;
-    margin: 0 auto !important;
-    overflow: visible !important;
-    background: #fff !important;
-  }
-
-  body.printing-diagram .app-shell,
-  body.printing-diagram .app-shell__main {
-    width: auto !important;
-    height: auto !important;
     margin: 0 !important;
-    padding: 0 !important;
-    overflow: visible !important;
+    overflow: hidden !important;
     background: #fff !important;
   }
 
   body.printing-diagram .react-flow__viewport,
   body.printing-diagram .react-flow__pane,
-  body.printing-diagram .react-flow__background {
+  body.printing-diagram .react-flow__renderer {
     background: #fff !important;
   }
 
+  /* Callout leader (anchor) lines must print with the diagram */
   body.printing-diagram .react-flow__panel.callout-leader-panel,
-  body.printing-diagram .callout-leader-panel .callout-leader-layer,
-  body.printing-diagram .callout-leader-panel .callout-leader-layer__line {
+  body.printing-diagram .callout-leader-panel,
+  body.printing-diagram .callout-leader-panel *,
+  body.printing-diagram .callout-leader-layer,
+  body.printing-diagram .callout-leader-layer__line {
     visibility: visible !important;
   }
 

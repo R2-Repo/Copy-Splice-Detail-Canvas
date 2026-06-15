@@ -9,7 +9,7 @@ export function usePrintDiagram(
   graph: ConnectionGraph | null,
   stageRef: RefObject<HTMLElement | null>,
 ): () => void {
-  const { getViewport, setViewport, getNodesBounds } = useReactFlow();
+  const { getViewport, setViewport, getNodesBounds, getNodes } = useReactFlow();
 
   return useCallback(() => {
     createPrintDiagramHandler({
@@ -19,6 +19,7 @@ export function usePrintDiagram(
       getViewport,
       setViewport,
       getNodesBounds,
+      getNodes,
     })();
-  }, [nodes, graph, stageRef, getViewport, setViewport, getNodesBounds]);
+  }, [nodes, graph, stageRef, getViewport, setViewport, getNodesBounds, getNodes]);
 }

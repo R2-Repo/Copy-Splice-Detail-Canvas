@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Splice Detail Canvas maskable icon</title>
+  <desc id="desc">A centered fiber splice workflow mark with safe padding for adaptive icon masks.</desc>
+  <defs>
+    <linearGradient id="bg" x1="72" y1="48" x2="440" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1e293b"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="214" fill="#0f172a" opacity=".78"/>
+
+  <g transform="translate(38 38) scale(.85)">
+    <circle cx="132" cy="256" r="58" fill="#f8fafc"/>
+    <circle cx="132" cy="256" r="38" fill="#0f172a"/>
+    <circle cx="132" cy="256" r="20" fill="#38bdf8"/>
+
+    <circle cx="392" cy="156" r="44" fill="#f8fafc"/>
+    <circle cx="392" cy="156" r="25" fill="#7dd3fc"/>
+    <circle cx="392" cy="256" r="48" fill="#f8fafc"/>
+    <circle cx="392" cy="256" r="28" fill="#ff6b2c"/>
+    <circle cx="392" cy="356" r="44" fill="#f8fafc"/>
+    <circle cx="392" cy="356" r="25" fill="#34d399"/>
+
+    <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M160 256H220" stroke="#64748b" stroke-width="20"/>
+      <path d="M184 208c44 0 54 44 88 44" stroke="#38bdf8" stroke-width="20"/>
+      <path d="M184 256h88" stroke="#ff6b2c" stroke-width="22"/>
+      <path d="M184 304c44 0 54-44 88-44" stroke="#34d399" stroke-width="20"/>
+      <path d="M285 256h50c24 0 38-14 38-38v-36" stroke="#38bdf8" stroke-width="20"/>
+      <path d="M285 256h60" stroke="#ff6b2c" stroke-width="22"/>
+      <path d="M285 256h50c24 0 38 14 38 38v36" stroke="#34d399" stroke-width="20"/>
+    </g>
+
+    <circle cx="272" cy="256" r="28" fill="#020617"/>
+    <circle cx="272" cy="256" r="14" fill="#ff6b2c"/>
+    <circle cx="272" cy="256" r="6" fill="#f8fafc"/>
+  </g>
+</svg>

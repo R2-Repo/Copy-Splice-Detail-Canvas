@@ -84,8 +84,8 @@ export function injectPrintPageStyle(doc: Document = document): void {
   style.media = "print";
   style.textContent = `
     @page {
-      size: 17in 11in;
-      margin: 0.5in;
+      size: tabloid landscape;
+      margin: 0;
     }
   `;
   doc.head.appendChild(style);
@@ -143,11 +143,15 @@ export type PrintDiagramDeps = {
     options?: { duration?: number },
   ) => Promise<boolean>;
   getNodesBounds: (nodes: Node[]) => DiagramBounds | null;
+  /** Fresh store nodes; preferred over `nodes` so bounds reflect print-scale callouts. */
+  getNodes?: () => Node[];
   print?: () => void;
   requestAnimationFrame?: (cb: FrameRequestCallback) => number;
   addEventListener?: typeof window.addEventListener;
   removeEventListener?: typeof window.removeEventListener;
   dispatchResize?: () => void;
+  /** Switches callouts to fixed print scale before measuring + fitting. */
+  dispatchBeforePrint?: () => void;
 };
 
 export function createPrintDiagramHandler(deps: PrintDiagramDeps): () => void {
@@ -157,8 +161,12 @@ export function createPrintDiagramHandler(deps: PrintDiagramDeps): () => void {
 }
 
 export async function runDiagramPrint(deps: PrintDiagramDeps): Promise<boolean> {
-  const bounds = boundsFromNodesOrNull(deps.nodes, deps.getNodesBounds);
-  if (!bounds || bounds.width <= 0 || bounds.height <= 0) return false;
+  const getNodesList = deps.getNodes ?? (() => deps.nodes);
+
+  const initialBounds = boundsFromNodesOrNull(getNodesList(), deps.getNodesBounds);
+  if (!initialBounds || initialBounds.width <= 0 || initialBounds.height <= 0) {
+    return false;
+  }
 
   const stage = deps.getStageElement();
   if (!stage) return false;
@@ -173,6 +181,13 @@ export async function runDiagramPrint(deps: PrintDiagramDeps): Promise<boolean> 
   const raf = deps.requestAnimationFrame ?? requestAnimationFrame.bind(window);
   const dispatchResize =
     deps.dispatchResize ?? (() => window.dispatchEvent(new Event("resize")));
+  const dispatchBeforePrint =
+    deps.dispatchBeforePrint ??
+    (() => window.dispatchEvent(new Event("beforeprint")));
+  const addEventListener =
+    deps.addEventListener ?? window.addEventListener.bind(window);
+  const removeEventListener =
+    deps.removeEventListener ?? window.removeEventListener.bind(window);
 
   let cleanedUp = false;
   const cleanup = () => {
@@ -183,16 +198,25 @@ export async function runDiagramPrint(deps: PrintDiagramDeps): Promise<boolean> 
     removePrintPageStyle();
     restorePrintStageSize(stage, savedStageStyle);
     void deps.setViewport(savedViewport, { duration: 0 });
-    deps.removeEventListener?.("afterprint", cleanup);
+    removeEventListener("afterprint", cleanup);
   };
 
   document.title = exportTitleFromGraph(deps.graph);
   injectPrintPageStyle();
   document.body.classList.add(PRINT_BODY_CLASS);
-  deps.addEventListener?.("afterprint", cleanup);
+  addEventListener("afterprint", cleanup);
 
+  // Lock callouts to their fixed print scale (no zoom compensation) and resize
+  // the stage to the printable area, then let React settle so callout node
+  // dimensions are final before we measure bounds.
+  dispatchBeforePrint();
   dispatchResize();
-  await flushRenderFrames(raf, 2);
+  await flushRenderFrames(raf, 3);
+
+  // Measure AFTER the print scale settles so the fit includes callouts at the
+  // exact size they print at — otherwise callouts get cut off.
+  const bounds =
+    boundsFromNodesOrNull(getNodesList(), deps.getNodesBounds) ?? initialBounds;
 
   await deps.setViewport(printViewportForBounds(bounds), { duration: 0 });
   await flushRenderFrames(raf, 3);

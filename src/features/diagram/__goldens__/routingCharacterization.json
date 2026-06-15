@@ -96,12 +96,12 @@
       {
         "connectionId": "6 DROP (TSC): I-15 NB & 1600 S|3|BL|GR::72-SMF 4800 S DIST: MAIN ST - I-15|5|BL|SL",
         "laneIndex": 6,
-        "routingMidX": 772
+        "routingMidX": 760
       },
       {
         "connectionId": "6 DROP (TSC): I-15 NB & 1600 S|4|BL|BR::72-SMF 4800 S DIST: MAIN ST - I-15|6|BL|WH",
         "laneIndex": 7,
-        "routingMidX": 796
+        "routingMidX": 784
       }
     ]
   },

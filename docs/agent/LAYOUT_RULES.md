@@ -91,7 +91,7 @@ When EDGE rules conflict, see [`RULE_PRIORITY.md`](./RULE_PRIORITY.md) — EDGE-
 | **EDGE-010** | Fibers from the **same buffer tube** to the **same target cable** use **24px-spaced** vertical lanes plus a **shared horizontal trunk** (`jogX`) before each lane turns vertical — stay grouped without stacking. **Exception:** same-side downward loop bundles omit `jogX` so the source bend can cross while preserving color order. |
 | **EDGE-011** | Parallel splice segments never **stack on the same track** (same X for vertical, same Y for horizontal); distinct lanes stay ≥24px apart. Side horizontal legs use **offset Y tracks** (`sourceHorizY` / `targetHorizY`) when aligned rows would overlap in the gap. **Global** — applies across all routing zones, not just within a single source/target cable pair. |
 | **EDGE-012** | When vertical center legs overlap in Y, they use **distinct midX lanes** (≥24px apart). **Global** — applies across all routing zones. |
-| **EDGE-013** | **Horizontal leg alignment.** On import (and on auto drag-stop, same layout path), near-straight legs snap to a single flat horizontal line by nudging the whole cable's Y. A cable is shifted only when a uniform move of **≤ half pitch (12px, `HORIZONTAL_ALIGN_TOLERANCE`)** flattens **more** legs than it un-flattens, and only within its same-side stack slack (never breaks CBL-001/002, FBR-002 pitch, or tube/fiber order). Dominant / high-count pairs (CBL-004, DOM-003/004) stay pinned and are never snapped. The pass iterates to a **fixpoint**: no unlocked cable has a remaining in-slack improving shift. Manual mode applies the same 12px snap to collapsed buffer-tube + fan-out tip drags (`TubeManualHandles`, with a guide line). |
+| **EDGE-013** | **Horizontal leg alignment.** On import (and on auto drag-stop, same layout path), near-straight legs snap to a single flat horizontal line by nudging the whole cable's Y. A cable is shifted only when a uniform move of **≤ half pitch (12px, `HORIZONTAL_ALIGN_TOLERANCE`)** flattens **more** legs than it un-flattens, and only within its same-side stack slack (never breaks CBL-001/002, FBR-002 pitch, or tube/fiber order). Dominant / high-count pairs (CBL-004, DOM-003/004) stay pinned and are never snapped. The pass iterates to a **fixpoint**: no unlocked cable has a remaining in-slack improving shift. Manual mode snaps the **handle/row** (the only way a leg renders truly flat) on a wider grab band (`MANUAL_ALIGN_SNAP_TOLERANCE` ≈18px): (a) **cable drag-release** snaps cable Y to flatten the most legs vs partner cables (`nearStraightCableShift`, manual `onNodeDragStop`); (b) **collapsed-tube + fan-out tip** drag snaps to nearest partner handle/fiber-row Y (`TubeManualHandles`, guide line). |
 
 ### Fusion splice dots (`DOT`)
 
@@ -121,7 +121,8 @@ Defined in `src/features/diagram/cableLayoutMetrics.ts`:
 | `MIN_SPLICE_HORIZONTAL_INSET` | 60px | Inward jog after the OS/circuit label column before vertical legs |
 | `TUBE_GROUP_GAP` | 8px | Extra gap at buffer-tube boundaries in global row layout |
 | `CABLE_LAYOUT.cableGap` | 32px | Vertical gap between stacked same-side cables |
-| `HORIZONTAL_ALIGN_TOLERANCE` | 12px (½ pitch) | EDGE-013 near-straight snap band (`horizontalAlign.ts`) — matches `BUTT_SPLICE_STRAIGHT_Y_TOLERANCE` |
+| `HORIZONTAL_ALIGN_TOLERANCE` | 12px (½ pitch) | EDGE-013 import/auto near-straight snap band (`horizontalAlign.ts`) — matches `BUTT_SPLICE_STRAIGHT_Y_TOLERANCE` |
+| `MANUAL_ALIGN_SNAP_TOLERANCE` | ≈18px (¾ pitch) | EDGE-013 interactive manual grab band — cable drag-release + tube/fan-out tip (`horizontalAlign.ts`) |
 | `CABLE_LAYOUT.tubeCountXOffset` | _(unused — column alignment policy)_ | Reserved; CBL-003 uses shared column X |
 
 ---

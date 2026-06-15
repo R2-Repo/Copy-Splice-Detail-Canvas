@@ -16,7 +16,7 @@ import type {
 } from "@/features/canvas/nodes/types";
 
 const ANCHOR_DOT = 6;
-const SPLICE_DOT = 8;
+const SPLICE_DOT = 9;
 
 function connectionIdFromSpliceEdgeId(edgeId: string): string {
   if (edgeId.startsWith("splice-left-")) {

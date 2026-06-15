@@ -41,7 +41,7 @@ import { createQuadRouter } from "./quadRouter";
 import { isVerticalSide } from "./quadTypes";
 
 const ANCHOR_DOT = 6;
-const SPLICE_DOT = 8;
+const SPLICE_DOT = 9;
 
 function horizontalProxySide(side: QuadSide): "left" | "right" {
   return side === "right" ? "right" : "left";

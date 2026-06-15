@@ -2,6 +2,16 @@
 
 > Agents: keep this file current-only. History lives in git log and [`CHANGELOG.md`](./CHANGELOG.md).
 
+## Import file hint animation (2026-06-15)
+
+- Empty canvas: **Import file** toolbar icon pulses gray ↔ orange (`toolbar-icon-btn--hint`) with a soft accent glow so it stands out on the light neo surface while other controls stay disabled.
+- Stops after import (`active` → primary orange fill). Respects `prefers-reduced-motion` (static orange ring instead).
+
+## OS circuit label size (2026-06-15)
+
+- Fan-out **circuit tags** `(CH …)` on each strand: `0.5rem` → `0.55rem` (`.cable-node__circuit` + `CIRCUIT_TAG_FONT` in `cableLabels.ts`).
+- **Fusion splice dot** slightly larger: SVG `r` 4→4.5, node dot 6→7px, `SPLICE_DOT` 8→9.
+
 ## Canvas lock context menu — v1 (2026-06-15)
 
 Right-click context menu (`src/features/canvas/contextMenu/`). First lock tier, top-down:
@@ -16,10 +26,13 @@ Right-click context menu (`src/features/canvas/contextMenu/`). First lock tier, 
 Near-straight legs/collapsed tubes snap to a single flat horizontal line.
 
 - **Import + auto:** new fixpoint pass in `spliceRowLayout.ts` (`snapNearStraightCables`) nudges each unlocked cable's Y by ≤12px (`HORIZONTAL_ALIGN_TOLERANCE`, `horizontalAlign.ts`) when it flattens more legs than it breaks, within same-side stack slack (never breaks CBL-001/002, FBR-002, tube/fiber order). Dominant/high-count pairs stay pinned. Runs on the same path auto drag-stop re-runs, so auto stops fighting near-straight rows.
-- **Manual:** `TubeManualHandles` snaps collapsed-tube + fan-out tip drag to the nearest partner handle Y within 12px, with a guide line. `snapTipTargets` now populated in `WorkflowCanvas` (was empty); `CableNode` passes `positionAbsoluteY`.
+- **Manual:** two snaps, both moving the handle/row (the only way a leg renders truly flat):
+  - **Cable drag-release:** on manual `onNodeDragStop`, the cable Y snaps to flatten the most cross-side legs against partner cables' live Ys (`nearStraightCableShift`, `horizontalAlign.ts`). This is the main fine-tune gesture — release near-flat and it locks (auto branch untouched; live cable-drag snap avoided to not fight React Flow).
+  - **Collapsed-tube + fan-out tip drag:** `TubeManualHandles` snaps to nearest partner handle **or fiber-row** Y, with a guide line. `snapTipTargets` = tube tips + every fiber handle (`collectGlobalFiberHandleSnapTargets`); `CableNode` passes `positionAbsoluteY`.
+  - **Tolerance:** interactive snaps use wider `MANUAL_ALIGN_SNAP_TOLERANCE` (≈18px, ¾ pitch) — import/auto stays at 12px.
 - **Rule:** EDGE-013 added (`layoutRules.ts` + `LAYOUT_RULES.md`), verified at fixpoint via `maxNearStraightResidual`. Unit tests `horizontalAlign.test.ts`.
-- **Not done (frozen):** manual *cable*-drag vertical snap — would touch frozen `onNodeDrag*`/`applyManualCableDrag`; collapsed-tube + fan-out tip snap covers the manual need. Ask before editing frozen wiring.
-- **Validation:** `test:layout` 117/117, `check`, `build` green. `test:ci` 528/530 — the 2 failures (`titleBox/titleBoxLayout.test.ts`, `parseBentleyCsv.test.ts`) are **pre-existing, unrelated** in-progress work in the tree, not touched here.
+- **Manual cable snap is release-only** (not live) — chosen to avoid fighting React Flow's drag controller mid-drag. Snap added in the manual branch of `onNodeDragStop`; the frozen auto lane logic is untouched. Frozen tests (`spliceEdgeRouting.test.ts`, 56) still green.
+- **Validation:** `test:layout` 117/117, `check`, `build` green; frozen `spliceEdgeRouting` + `layoutRules` + `horizontalAlign` tests pass.
 
 ## Baseline
 
@@ -37,9 +50,12 @@ Near-straight legs/collapsed tubes snap to a single flat horizontal line.
 ## Print diagram (2026-06-15)
 
 - **Single Print button** → system print dialog (`window.print()`). User picks printer or Save as PDF there (fewest steps).
-- **Tabloid:** `@page 17×11 in`; stage resized to 1536×960 px printable area; diagram fit centered (max size, 2% padding).
-- **Print prep hides:** grid background, zoom controls, toolbar, manual-adjust overlay, layout guides.
-- **Removed:** in-app html2canvas/jspdf export (was broken — small crop, visible chrome).
+- **Tabloid:** `@page 17×11 in landscape, margin 0` (margin 0 removes browser header/footer/URL/date). Stage sized to 1536×960 px (16×10 in) so it centers on the page with a 0.5in white self-margin and never overflows to a 2nd page.
+- **Single page / no duplicate:** screen prep (centering, `position:fixed`) is `@media screen` only — a fixed element repeats on every printed page. Print layout uses static flex centering; wrappers `display:contents`; `html/body overflow:hidden`.
+- **Restore after dialog:** `runDiagramPrint` defaults `addEventListener`/`removeEventListener` to `window` (the hook didn't pass them, so `afterprint` cleanup never ran → toolbar/controls stayed hidden). Now removes `printing-diagram`, restores title/stage size/viewport on `afterprint`.
+- **Callouts in fit:** print dispatches `beforeprint` first (locks callouts to fixed `userScale`, no zoom compensation), flushes, then measures fresh bounds via `getNodes()` so the fit includes callouts at their exact print size (was cutting callouts off because bounds were measured at the on-screen zoom before the scale changed).
+- **Callout leaders:** `callout-leader-panel` kept visible in print; diagram centered+fit so center fiber strands aren't clipped.
+- **Print prep hides:** grid background, zoom controls, toolbar, manual-adjust overlay, layout guides, inspectors.
 - **Files:** `printDiagram.ts`, `usePrintDiagram.ts`, `splice-diagram.css`.
 
 ## Callout dynamic scaling (2026-06-15)

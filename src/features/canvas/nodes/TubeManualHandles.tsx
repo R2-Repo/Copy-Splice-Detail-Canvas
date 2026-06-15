@@ -4,7 +4,7 @@ import { useViewport } from "@xyflow/react";
 import { collapsedTubeHandleLocalX } from "@/features/canvas/edges/splicePathGeometry";
 import { useManualLayout } from "@/features/canvas/ManualLayoutContext";
 import { clampFanoutShiftY } from "@/features/manualAdjust/constraints";
-import { HORIZONTAL_ALIGN_TOLERANCE } from "@/features/diagram/horizontalAlign";
+import { MANUAL_ALIGN_SNAP_TOLERANCE } from "@/features/diagram/horizontalAlign";
 import { snapToNearestTarget } from "@/features/diagram/snapGuides";
 import { tubeKeyFor } from "@/features/diagram/tubeRowShift";
 import type { VisualTube } from "@/features/diagram/visualCables";
@@ -109,7 +109,7 @@ export function TubeManualHandles({
       const snappedAbsY = snapToNearestTarget(
         candidateAbsY,
         manual.snapTipTargets,
-        HORIZONTAL_ALIGN_TOLERANCE,
+        MANUAL_ALIGN_SNAP_TOLERANCE,
       );
       if (snappedAbsY !== candidateAbsY) {
         next = clampFanoutShiftY(next + (snappedAbsY - candidateAbsY));

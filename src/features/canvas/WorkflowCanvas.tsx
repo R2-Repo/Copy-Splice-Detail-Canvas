@@ -124,6 +124,7 @@ import { syncManualVisualCable } from "@/features/manualAdjust/syncManualVisualC
 import { useManualAdjustEngine } from "@/features/manualAdjust/useManualAdjustEngine";
 import {
   collectGlobalTubeTipSnapTargets,
+  collectGlobalFiberHandleSnapTargets,
   spliceEdgeIdsForTubeKey,
 } from "@/features/diagram/snapGuides";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
@@ -142,6 +143,7 @@ import {
   stageLayoutWidthForGraph,
 } from "@/features/diagram/layoutSpliceDiagram";
 import { estimatedCableNodeWidth } from "@/features/diagram/spliceRowLayout";
+import { nearStraightCableShift } from "@/features/diagram/horizontalAlign";
 import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import { tubeKeyFor } from "@/features/diagram/tubeRowShift";
 import {
@@ -1469,7 +1471,7 @@ function WorkflowCanvasInner() {
       }
 
       const finalX = resolveCableDragStopX(node.position.x, newSide, bounds);
-      const finalY = node.position.y;
+      let finalY = node.position.y;
 
       if (graph && reportKeyRef.current) {
         const existing = loadLayoutOverrides(reportKeyRef.current);
@@ -1478,6 +1480,25 @@ function WorkflowCanvasInner() {
           [visualId]: newSide,
         };
         const manualMode = !autoAdjustRef.current;
+
+        // EDGE-013 horizontal leg alignment — on manual release, snap the cable
+        // to flatten near-straight legs against the partner cables' live Ys.
+        if (manualMode) {
+          const { visualCables } = buildVisualCablesForLayout(graph);
+          const yByVc = new Map<string, number>();
+          for (const n of getNodes()) {
+            if (n.type !== "cable") continue;
+            const vid = visualCableIdFromNodeId(n.id);
+            if (vid && vid !== visualId) yByVc.set(vid, n.position.y);
+          }
+          const snapDelta = nearStraightCableShift(
+            visualCables,
+            visualId,
+            finalY,
+            (vid) => yByVc.get(vid),
+          );
+          if (Math.abs(snapDelta) > 0.5) finalY += snapDelta;
+        }
         const finalPositions = {
           ...(existing?.positions ?? {}),
           [node.id]: { x: finalX, y: finalY },
@@ -1692,7 +1713,10 @@ function WorkflowCanvasInner() {
     const tubeOverrides = reportKey
       ? loadLayoutOverrides(reportKey)?.tubeOverrides
       : undefined;
-    return collectGlobalTubeTipSnapTargets(graph, positions, tubeOverrides);
+    return [
+      ...collectGlobalTubeTipSnapTargets(graph, positions, tubeOverrides),
+      ...collectGlobalFiberHandleSnapTargets(graph, positions, tubeOverrides),
+    ];
   }, [autoAdjustEnabled, nodes]);
 
   const manualLayoutContextValue = useMemo(

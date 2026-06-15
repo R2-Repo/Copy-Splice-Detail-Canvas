@@ -1,6 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 
-const SPLICE_DOT_HALF = 4;
+const SPLICE_DOT_HALF = 4.5;
 
 export function syncSplicePointNodes(
   nodes: Node[],

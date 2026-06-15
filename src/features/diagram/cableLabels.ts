@@ -35,13 +35,13 @@ export function formatCircuitTag(circuitName?: string, fiberColor?: string): str
 }
 
 const CIRCUIT_TAG_FONT =
-  '500 0.5rem system-ui, -apple-system, "Segoe UI", sans-serif';
+  '500 0.55rem system-ui, -apple-system, "Segoe UI", sans-serif';
 
 let measureCanvas: HTMLCanvasElement | null = null;
 const circuitTagWidthCache = new Map<string, number>();
 
 function estimateCircuitTagWidth(tag: string): number {
-  return Math.min(tag.length * 4.5, FIBER_CIRCUIT_MAX_WIDTH);
+  return Math.min(tag.length * 5, FIBER_CIRCUIT_MAX_WIDTH);
 }
 
 /** Rendered width of a circuit/OS tag (matches `.cable-node__circuit`). */

@@ -18,7 +18,9 @@ export function CsvImportButton({ onImport, disabled, active = false }: CsvImpor
     <div className="csv-import">
       <button
         type="button"
-        className={`toolbar-icon-btn${active ? " toolbar-icon-btn--primary" : ""}`}
+        className={`toolbar-icon-btn${
+          active ? " toolbar-icon-btn--primary" : " toolbar-icon-btn--hint"
+        }`}
         disabled={disabled}
         aria-label={IMPORT_LABEL}
         title={IMPORT_LABEL}

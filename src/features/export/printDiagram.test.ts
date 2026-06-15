@@ -34,30 +34,35 @@ function buildPrintDeps() {
   const listeners = new Map<string, EventListener>();
   const stage = document.createElement("div");
   const dispatchResize = vi.fn();
+  const dispatchBeforePrint = vi.fn();
+  const nodes = [
+    {
+      id: "cable-1",
+      position: { x: 0, y: 0 },
+      width: 200,
+      height: 100,
+      data: {},
+    },
+  ] as Node[];
 
   return {
     setViewport,
     print,
     stage,
     dispatchResize,
+    dispatchBeforePrint,
     listeners,
     deps: {
-      nodes: [
-        {
-          id: "cable-1",
-          position: { x: 0, y: 0 },
-          width: 200,
-          height: 100,
-          data: {},
-        },
-      ] as Node[],
+      nodes,
       graph: graphWithHeader({ spliceNumber: "SP-TEST" }),
       getStageElement: () => stage,
       getViewport: () => ({ x: 5, y: 10, zoom: 0.8 }),
       setViewport,
       getNodesBounds: () => ({ x: 0, y: 0, width: 500, height: 300 }),
+      getNodes: () => nodes,
       print,
       dispatchResize,
+      dispatchBeforePrint,
       requestAnimationFrame: (cb: FrameRequestCallback) => {
         cb(0);
         return 1;
@@ -145,7 +150,7 @@ describe("print page style injection", () => {
   it("injects and removes tabloid @page rules", () => {
     injectPrintPageStyle();
     const style = document.getElementById(PRINT_PAGE_STYLE_ID);
-    expect(style?.textContent).toContain("17in 11in");
+    expect(style?.textContent).toContain("tabloid landscape");
 
     removePrintPageStyle();
     expect(document.getElementById(PRINT_PAGE_STYLE_ID)).toBeNull();
@@ -153,14 +158,22 @@ describe("print page style injection", () => {
 });
 
 describe("runDiagramPrint", () => {
-  it("sizes stage, prepares print state, and restores on afterprint", async () => {
-    const { deps, print, setViewport, stage, dispatchResize, listeners } =
-      buildPrintDeps();
+  it("locks print scale, sizes stage, and restores on afterprint", async () => {
+    const {
+      deps,
+      print,
+      setViewport,
+      stage,
+      dispatchResize,
+      dispatchBeforePrint,
+      listeners,
+    } = buildPrintDeps();
     const { width, height } = printableAreaCssPx();
 
     document.title = "Original title";
     await runDiagramPrint(deps);
 
+    expect(dispatchBeforePrint).toHaveBeenCalledTimes(1);
     expect(dispatchResize).toHaveBeenCalledTimes(1);
     expect(stage.style.width).toBe(`${width}px`);
     expect(stage.style.height).toBe(`${height}px`);
