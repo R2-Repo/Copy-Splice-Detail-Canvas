@@ -21,6 +21,35 @@ import { isVerticalSide } from "./quadTypes";
  */
 export type QuadBoxSize = { width: number; height: number };
 
+/**
+ * Mirror a cable's stack vertically (fiber `rowYOffset` -> max - offset).
+ * Geometry is positioned purely from `rowYOffset`, so this is a clean reflection
+ * that preserves pitch and box size.
+ */
+function flipTubesVertically(tubes: VisualTube[]): VisualTube[] {
+  const offsets = tubes.flatMap((t) => t.fibers.map((f) => f.rowYOffset));
+  if (offsets.length === 0) return tubes;
+  const maxY = Math.max(...offsets);
+  return tubes.map((t) => ({
+    ...t,
+    fibers: t.fibers.map((f) => ({ ...f, rowYOffset: maxY - f.rowYOffset })),
+  }));
+}
+
+/**
+ * Top cables render the canonical left breakout rotated +90°, which reverses
+ * fiber/tube order along the screen X axis (blue would land on the right).
+ * Pre-flipping the stack makes the rotated result read blue->orange->green
+ * left->right (matching bottom cables) without mirroring any label text.
+ * Left/right/bottom are already correct, so they pass through unchanged.
+ */
+export function orientTubesForQuadSide(
+  tubes: VisualTube[],
+  side: QuadSide,
+): VisualTube[] {
+  return side === "top" ? flipTubesVertically(tubes) : tubes;
+}
+
 function leftGeo(vc: VisualCable, scale: number, alignedStemX?: number) {
   return computeCableBreakout(
     vc.tubes,

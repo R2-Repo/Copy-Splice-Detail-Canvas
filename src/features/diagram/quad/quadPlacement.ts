@@ -65,10 +65,65 @@ function totalWeight(row: Map<string, number> | undefined): number {
   return sum;
 }
 
+/** Sides perpendicular to a given side — the short-L target for a stub. */
+const PERPENDICULAR_SIDES: Record<QuadSide, QuadSide[]> = {
+  left: ["top", "bottom"],
+  right: ["top", "bottom"],
+  top: ["left", "right"],
+  bottom: ["left", "right"],
+};
+
+/** Side that the heaviest already-placed neighbor of `cableId` sits on. */
+function dominantNeighborSide(
+  cableId: string,
+  adj: Map<string, Map<string, number>>,
+  assigned: Map<string, QuadSide>,
+): QuadSide | null {
+  const row = adj.get(cableId);
+  if (!row) return null;
+  const bySide: Record<QuadSide, number> = {
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  };
+  let resolved = false;
+  for (const [neighborId, weight] of row) {
+    const side = assigned.get(neighborId);
+    if (!side) continue;
+    bySide[side] += weight;
+    resolved = true;
+  }
+  if (!resolved) return null;
+  let best: QuadSide = "left";
+  let bestWeight = -1;
+  for (const side of ["top", "right", "bottom", "left"] as QuadSide[]) {
+    if (bySide[side] > bestWeight) {
+      bestWeight = bySide[side];
+      best = side;
+    }
+  }
+  return bestWeight > 0 ? best : null;
+}
+
+function pickLeastLoaded(
+  candidates: QuadSide[],
+  load: Record<QuadSide, number>,
+): QuadSide {
+  let best = candidates[0]!;
+  for (const side of candidates) {
+    if (load[side] < load[best]) best = side;
+  }
+  return best;
+}
+
 /**
- * Auto side assignment (v1): anchor the dominant cable pair on left/right, then
- * spread remaining cables across top/bottom to keep their splice legs short L's
- * instead of long center crossings. User pins (overrides) win.
+ * Auto side assignment: anchor the dominant cable pair on left/right, then place
+ * each remaining stub on a side *perpendicular* to its heaviest neighbor. This
+ * keeps splice legs short L's and — critically — never drops a stub on the same
+ * side as the cable it mostly talks to, so a cable whose fibers all go to a top
+ * cable is no longer parked on top (which produced a pointless same-side loop).
+ * User pins (overrides) always win.
  */
 function assignSides(
   graph: ConnectionGraph,
@@ -82,17 +137,23 @@ function assignSides(
   const leftKey = dominant?.leftGroupKey;
   const rightKey = dominant?.rightGroupKey;
 
+  const load: Record<QuadSide, number> = { left: 0, right: 0, top: 0, bottom: 0 };
   const remaining: VisualCable[] = [];
   for (const vc of visualCables) {
     const pin = pinned?.[vc.id];
     if (pin) {
       sides.set(vc.id, pin);
+      load[pin] += 1;
       continue;
     }
     const group = parentVisualGroupKey(vc.id);
-    if (leftKey && group === leftKey) sides.set(vc.id, "left");
-    else if (rightKey && group === rightKey) sides.set(vc.id, "right");
-    else remaining.push(vc);
+    if (leftKey && group === leftKey) {
+      sides.set(vc.id, "left");
+      load.left += 1;
+    } else if (rightKey && group === rightKey) {
+      sides.set(vc.id, "right");
+      load.right += 1;
+    } else remaining.push(vc);
   }
 
   // No dominant pair (tiny graph): fall back to the cable's CSV side.
@@ -103,11 +164,34 @@ function assignSides(
     return sides;
   }
 
-  // Heaviest stubs first, alternating top/bottom for balance.
-  remaining.sort((a, b) => totalWeight(adj.get(b.id)) - totalWeight(adj.get(a.id)));
-  remaining.forEach((vc, i) => {
-    sides.set(vc.id, i % 2 === 0 ? "top" : "bottom");
-  });
+  // Heaviest stubs first: they connect closest to the dominant pair, so they
+  // resolve a concrete neighbor side and anchor the lighter stubs after them.
+  remaining.sort(
+    (a, b) => totalWeight(adj.get(b.id)) - totalWeight(adj.get(a.id)),
+  );
+
+  const deferred: VisualCable[] = [];
+  for (const vc of remaining) {
+    const dom = dominantNeighborSide(vc.id, adj, sides);
+    if (!dom) {
+      deferred.push(vc);
+      continue;
+    }
+    const side = pickLeastLoaded(PERPENDICULAR_SIDES[dom], load);
+    sides.set(vc.id, side);
+    load[side] += 1;
+  }
+
+  // Stubs that only talk to other stubs: resolve against the now-richer map,
+  // else balance across top/bottom.
+  for (const vc of deferred) {
+    const dom = dominantNeighborSide(vc.id, adj, sides);
+    const candidates = dom ? PERPENDICULAR_SIDES[dom] : (["top", "bottom"] as QuadSide[]);
+    const side = pickLeastLoaded(candidates, load);
+    sides.set(vc.id, side);
+    load[side] += 1;
+  }
+
   return sides;
 }
 

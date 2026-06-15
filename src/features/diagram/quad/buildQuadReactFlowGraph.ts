@@ -31,9 +31,13 @@ import type {
   SplicePointNodeData,
 } from "@/features/canvas/nodes/types";
 
-import { quadFiberHandleCenter } from "./quadGeometry";
+import { computeQuadFrontiers, type QuadAnchorRef } from "./quadChannels";
+import {
+  orientTubesForQuadSide,
+  quadFiberHandleCenter,
+} from "./quadGeometry";
 import { computeQuadPlacement } from "./quadPlacement";
-import { routeQuadSplice } from "./quadRouter";
+import { createQuadRouter } from "./quadRouter";
 import { isVerticalSide } from "./quadTypes";
 
 const ANCHOR_DOT = 6;
@@ -72,19 +76,29 @@ export function buildQuadReactFlowGraph(
   const scale = computeDiagramScale(connections.length);
   const autoAdjustOn = overrides?.autoAdjustEnabled !== false;
 
-  const { placement, stemAlign, width, centerX, centerY } = computeQuadPlacement(
-    graph,
-    visualCables,
-    scale,
-    {
+  const { placement, stemAlign, width, height, centerX, centerY } =
+    computeQuadPlacement(graph, visualCables, scale, {
       layoutWidth,
       pinnedSides: overrides?.quadCableSides,
       savedPositions: overrides?.positions,
-    },
-  );
+    });
 
   const sideOf = (vcId: string): QuadSide => placement.get(vcId)!.side;
   const posOf = (vcId: string) => placement.get(vcId)!.position;
+
+  // Orient each cable for its side (top cables flip so colors read blue-first
+  // left->right). Render + handle math share the oriented tubes, so dots stay
+  // on the drawn strands.
+  const orientedTubesById = new Map(
+    visualCables.map((vc) => [
+      vc.id,
+      orientTubesForQuadSide(vc.tubes, sideOf(vc.id)),
+    ]),
+  );
+  const orientedCableFor = (vc: VisualCable): VisualCable => ({
+    ...vc,
+    tubes: orientedTubesById.get(vc.id) ?? vc.tubes,
+  });
 
   const cableNodes: Node[] = visualCables.map((vc) => {
     const p = placement.get(vc.id)!;
@@ -101,7 +115,7 @@ export function buildQuadReactFlowGraph(
         side: horizontalProxySide(p.side),
         quadSide: p.side,
         orientation: isVerticalSide(p.side) ? "vertical" : "horizontal",
-        tubes: vc.tubes,
+        tubes: orientedTubesById.get(vc.id) ?? vc.tubes,
         nodeHeight: p.boxHeight,
         fiberPitch: FIBER_ROW_PITCH,
         diagramScale: scale,
@@ -126,8 +140,9 @@ export function buildQuadReactFlowGraph(
     if (cached) return cached;
 
     const side = sideOf(vc.id);
+    const orientedVc = orientedCableFor(vc);
     const center = quadFiberHandleCenter(
-      vc,
+      orientedVc,
       connectionId,
       posOf(vc.id),
       side,
@@ -136,7 +151,7 @@ export function buildQuadReactFlowGraph(
     );
     anchorCenter.set(key, center);
 
-    const fiber = vc.tubes
+    const fiber = orientedVc.tubes
       .flatMap((t) => t.fibers)
       .find((f) => f.connectionId === connectionId);
 
@@ -163,7 +178,20 @@ export function buildQuadReactFlowGraph(
   const edges: Edge[] = [];
   const spliceNodes: Node[] = [];
 
-  connections.forEach((conn, index) => {
+  // Phase 1: materialize every fiber handle so the router can see the full set
+  // of port positions before it allocates lanes (placement -> handles -> lanes).
+  type RoutePlan = {
+    conn: (typeof connections)[number];
+    vcAId: string;
+    vcBId: string;
+    sCenter: { x: number; y: number };
+    tCenter: { x: number; y: number };
+    sourceColor: string;
+    targetColor: string;
+  };
+  const routePlans: RoutePlan[] = [];
+
+  for (const conn of connections) {
     const epA = conn.pair.endpointA;
     const epB = conn.pair.endpointB;
     const vcA = findVisualCableForConnection(visualCables, conn.id, {
@@ -172,20 +200,38 @@ export function buildQuadReactFlowGraph(
     const vcB = findVisualCableForConnection(visualCables, conn.id, {
       cable: epB.cable,
     });
-    if (!vcA || !vcB) return;
+    if (!vcA || !vcB) continue;
 
-    const sCenter = ensureAnchor(vcA, conn.id);
-    const tCenter = ensureAnchor(vcB, conn.id);
+    routePlans.push({
+      conn,
+      vcAId: vcA.id,
+      vcBId: vcB.id,
+      sCenter: ensureAnchor(vcA, conn.id),
+      tCenter: ensureAnchor(vcB, conn.id),
+      sourceColor: colorHex(epA.fiberColor),
+      targetColor: colorHex(epB.fiberColor),
+    });
+  }
 
-    const routed = routeQuadSplice(
-      { x: sCenter.x, y: sCenter.y, side: sideOf(vcA.id) },
-      { x: tCenter.x, y: tCenter.y, side: sideOf(vcB.id) },
-      index,
-      { x: centerX, y: centerY },
+  // Phase 2: frontiers from the full handle set, then a lane router that keeps
+  // splices out of the dead center and minimizes bends.
+  const frontierAnchors: QuadAnchorRef[] = [];
+  for (const [key, center] of anchorCenter) {
+    const vcId = key.slice(0, key.indexOf("::"));
+    frontierAnchors.push({ x: center.x, y: center.y, side: sideOf(vcId) });
+  }
+  const frontiers = computeQuadFrontiers(frontierAnchors, { width, height });
+  const router = createQuadRouter(frontiers, { x: centerX, y: centerY });
+
+  for (const plan of routePlans) {
+    const { conn, vcAId, vcBId, sCenter, tCenter, sourceColor, targetColor } =
+      plan;
+
+    const routed = router.route(
+      { x: sCenter.x, y: sCenter.y, side: sideOf(vcAId) },
+      { x: tCenter.x, y: tCenter.y, side: sideOf(vcBId) },
     );
 
-    const sourceColor = colorHex(epA.fiberColor);
-    const targetColor = colorHex(epB.fiberColor);
     const spliceId = `splicePoint-${conn.id}`;
 
     spliceNodes.push({
@@ -219,7 +265,7 @@ export function buildQuadReactFlowGraph(
 
     edges.push({
       id: `splice-left-${conn.id}`,
-      source: `fiberAnchor-${vcA.id}::${conn.id}`,
+      source: `fiberAnchor-${vcAId}::${conn.id}`,
       target: spliceId,
       sourceHandle: "out",
       targetHandle: "in",
@@ -229,13 +275,13 @@ export function buildQuadReactFlowGraph(
     edges.push({
       id: `splice-right-${conn.id}`,
       source: spliceId,
-      target: `fiberAnchor-${vcB.id}::${conn.id}`,
+      target: `fiberAnchor-${vcBId}::${conn.id}`,
       sourceHandle: "out",
       targetHandle: "in",
       type: "splice",
       data: { ...shared, splitLeg: "right" as const },
     });
-  });
+  }
 
   const cablePositions = new Map<
     string,

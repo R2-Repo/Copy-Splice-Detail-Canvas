@@ -8,101 +8,44 @@
 
 ## Last updated
 
-
-
-2026-06-14 — Quad (4-side) layout mode (additive). `npm run verify` green. See "2026-06-14 quad (4-side) layout mode" at the bottom.
-
-
+2026-06-14 — **Quad (4-side) layout paused.** Final handoff doc added: [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md). MVP auto engine verified (`npm run verify` green). User resuming other project work; pick up quad from backlog in that file.
 
 ## Session changes
 
-
-
-1. Added map popover button in left toolbar (`CsvImportButton` neighbor) wired to CSV header location.
-2. New tabbed popover UI:
-   - `uPlan` ArcGIS iframe (`center`, `level=20`, `marker`)
-   - `Earth` link-out to Google Earth 3D + embedded Google Maps satellite preview
-   - `Street View` no-key experimental iframe + fallback open-link
-3. Added map URL builder utilities and robust `header.location` parser.
-4. Added focused tests for location parsing, map URL builders, and tab rendering behavior.
-
-
+1. Created **`docs/agent/QUAD_LAYOUT.md`** — canonical quad feature doc: architecture, module map, persistence, routing/placement behavior, known gaps, prioritized backlog, manual QA checklist, do-not-touch list.
+2. Updated **`CONTEXT.md`** — current phase = quad paused; pointer to `QUAD_LAYOUT.md`.
+3. Updated **`ARCHITECTURE.md`** — quad module section.
+4. Updated **`AGENTS.md`** — read `QUAD_LAYOUT.md` when working on 4-side layout.
 
 ## Frozen-routing note
 
-
-
-No frozen symbols touched.
-
-
+No code changes this session. Quad work remains isolated from frozen horizontal routing (`spliceEdgeRouting.ts`, `manualAdjust/*`).
 
 ## Files
 
-
-
 Created:
 
-- `src/features/maps/parseSpliceLocation.ts`
-- `src/features/maps/buildArcGisWebAppUrl.ts`
-- `src/features/maps/buildGoogleEarthUrl.ts`
-- `src/features/maps/buildGoogleMapsUrls.ts`
-- `src/features/maps/MapEmbedButton.tsx`
-- `src/features/maps/parseSpliceLocation.test.ts`
-- `src/features/maps/mapUrlBuilders.test.ts`
-- `src/features/maps/MapEmbedButton.test.tsx`
+- `docs/agent/QUAD_LAYOUT.md`
 
 Edited:
 
-- `src/features/canvas/WorkflowCanvas.tsx`
-- `src/components/toolbar/ToolbarIcon.tsx`
-- `src/components/toolbar/ToolbarSegmentedControl.tsx`
-- `src/styles/splice-diagram.css`
 - `docs/agent/CONTEXT.md`
 - `docs/agent/HANDOFF.md`
-
-
+- `docs/agent/ARCHITECTURE.md`
+- `AGENTS.md`
 
 ## Verification
 
-
+No code changes — prior baseline still valid:
 
 ```bash
-npm run test:layout   # PASSED — 114/114
-npm run check         # PASSED
-npm run test:ci       # PASSED — 56 files, 450 tests
-npm run build         # PASSED
+npm run verify   # layout 114/114, ci 475/475, build OK
 ```
-
-
-
-Manual smoke test:
-
-
-
-1. Import `docs/reference/examples/Left-SP-3254.5.csv`.
-2. Click new map button in toolbar.
-3. Verify tabs:
-   - `uPlan`: map centers on splice point and shows marker
-   - `Earth`: link opens Google Earth 3D view
-   - `Street View`: iframe attempts pano; fallback link opens Maps pano route
-
-
-
-## Not done (deferred)
-
-
-
-- Earth Web iframe is still expected to be unreliable/cross-origin blocked; use link-out as primary UX.
-- Street View no-key iframe is unofficial and may fail at locations without imagery.
-
-
 
 ## Next agent
 
-
-
-- If the user wants stricter provider behavior, add a setting to hide Street View tab when panorama lookup fails.
-- Experience Builder migration should only require swapping ArcGIS URL builder constants/format.
+- **If user returns to quad:** read [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md) first; start from P0 backlog (real-import smoke, gap-band routing).
+- **If user works elsewhere:** ignore quad unless they toggle 4-side or cite quad symptoms — horizontal + manual adjust are the production path.
 
 ## 2026-06-14 manual mode mirror + bend fixes
 
@@ -226,6 +169,8 @@ Manual smoke test:
 
 ## 2026-06-14 quad (4-side) layout mode — additive engine
 
+> **Canonical doc (2026-06-14):** [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md) — use that file when resuming quad work; sections below are session history.
+
 New optional layout: cables on **left/right/top/bottom**, fans inward, orthogonal port-to-dot routing (perpendicular pairs = L corner, 0 interior bends). **Horizontal L/R mode untouched** — everything gated behind `overrides.layoutMode`.
 
 - Toolbar segmented control toggles Left/right ↔ 4-side; persisted per diagram and through `.sdc.json`.
@@ -274,4 +219,44 @@ Edited (additive):
 ### Next agent
 
 - If improving quad: build the manual-adjust quad path (own handle-coords + de-stack), and a real crossing-minimizing placement (e.g. barycentric/median around the ring). Do **not** widen the binary `handleCoords.ts`.
+
+## 2026-06-14 quad refinement — placement + channel router + color order
+
+Auto-engine-only refinement of quad mode (per-leg manual adjust still deferred). The router is a pure, self-contained quad module — no `spliceEdgeRouting.ts` / `manualAdjust/*` edits, horizontal mode byte-identical.
+
+### Changes
+
+1. **Placement** — `quad/quadPlacement.ts` `assignSides` now places each remaining stub on a side **perpendicular to its heaviest already-placed neighbor**, never the same side when one neighbor strictly dominates (kills the "all fibers go to a top cable yet parked on top" same-side loop). Balanced across candidate sides; pins (`quadCableSides`) still win; tiny-graph CSV fallback kept.
+2. **Channel/lane router** — new `quad/quadChannels.ts` (`computeQuadFrontiers`, `LaneAllocator`) + rewritten `quad/quadRouter.ts` (`createQuadRouter`). Splices ride open lanes between the side frontiers instead of the dead center; overlapping jogs/loops pack onto nearest free lanes (`SPLICE_LANE_SEP`). Bends minimized: perpendicular = single L, aligned opposite = straight, offset = one jog, same-side = tight inward loop. `quad/buildQuadReactFlowGraph.ts` is two-phase (materialize all handles → frontiers → route).
+3. **Top-cable color order** — `quad/quadGeometry.ts` `orientTubesForQuadSide` pre-flips top-cable stacks so the existing +90° render reads blue→orange→green left→right (matches bottom), no text mirroring. Render + handle math share the oriented tubes (dots stay on strands).
+
+### Files
+
+Created:
+
+- `src/features/diagram/quad/quadChannels.ts`
+- `src/features/diagram/quad/quadRouter.test.ts`
+
+Edited:
+
+- `src/features/diagram/quad/quadPlacement.ts`
+- `src/features/diagram/quad/quadRouter.ts` (rewritten)
+- `src/features/diagram/quad/quadGeometry.ts`
+- `src/features/diagram/quad/buildQuadReactFlowGraph.ts`
+- `src/features/diagram/quad/buildQuadReactFlowGraph.test.ts`
+- `docs/agent/CONTEXT.md`, `docs/agent/HANDOFF.md`
+
+### Frozen-routing note
+
+- No frozen symbols touched. `spliceEdgeRouting.ts` and `manualAdjust/*` unchanged.
+
+### Verification
+
+- `npm run verify` PASSED — layout 114/114, check, ci 475/475 (61 files), build.
+
+### Not done (still deferred)
+
+- Per-leg manual adjust in quad mode.
+- Crossing-minimal placement (current rule is perpendicular-to-dominant-neighbor, not global crossing minimization).
+- Positions still shared across modes (not namespaced).
 

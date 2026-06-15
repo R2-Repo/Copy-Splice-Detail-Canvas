@@ -12,6 +12,7 @@ Frontend-only React PWA: node/workflow canvas (React Flow). No backend unless th
 | `docs/agent/HANDOFF.md` | Last session summary for the next agent |
 | `docs/agent/ARCHITECTURE.md` | Folders, patterns, extension points |
 | `docs/agent/LAYOUT_RULES.md` | **Must-keep** cable/tube/fiber layout invariants + test contract |
+| `docs/agent/QUAD_LAYOUT.md` | **4-side (quad) layout** — architecture, backlog, handoff (**read before quad work**) |
 | `.cursor/rules/frozen-routing.mdc` | **Frozen** splice routing symbols — user approval required |
 | `docs/agent/RULE_DICTIONARY.md` | Plain-English rule IDs for chat (`Rule ID: TUB-001`) |
 | `docs/agent/SIMPLE_TERMS.md` | **User simple names** (canonical chat vocabulary) — one-line diagram + simple ↔ official dictionary |

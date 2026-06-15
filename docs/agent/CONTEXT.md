@@ -5,7 +5,7 @@
 ## Baseline
 
 - Branch: `main`
-- Verified: **`npm run verify`** green — `test:layout` **114/114**, `test:ci` **441/441**, `tsc` + `build` clean (incl. diagram config export/import).
+- Verified: **`npm run verify`** green — `test:layout` **114/114**, `test:ci` **475/475**, `tsc` + `build` clean (incl. quad tests under `src/features/diagram/quad/`).
 
 ## Checkpoint (user-approved — 2026-06-13)
 
@@ -19,7 +19,9 @@ Key symbols touched this session:
 
 ## Current phase
 
-**Quad (4-side) layout mode** — additive toolbar toggle (Left/right ↔ 4-side); fully isolated from the frozen horizontal pipeline. See 2026-06-14 quad section below.
+**Quad (4-side) layout — paused (MVP auto engine).** Usable for exploration; not production-complete. Canonical handoff: [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md). Resume from backlog there (manual adjust, gap-band routing, placement polish).
+
+**Other project work** — user moving focus off quad for now; horizontal two-sided mode + manual adjust remain the primary production path.
 
 **Diagram config export/import** — standalone `.sdc.json` backup + PDF companion; drop or toolbar import restores full diagram without CSV.
 
@@ -135,7 +137,8 @@ None for automated tests.
 2. [`RULE_PRIORITY.md`](./RULE_PRIORITY.md)
 3. [`LAYOUT_RULES.md`](./LAYOUT_RULES.md)
 4. [`HANDOFF.md`](./HANDOFF.md)
-5. [`../reference/examples/README.md`](../reference/examples/README.md) — Left CSV list
+5. [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md) — **4-side layout** (paused; read before any quad work)
+6. [`../reference/examples/README.md`](../reference/examples/README.md) — Left CSV list
 
 ## 2026-06-14 manual mode mirror + bend pass
 
@@ -254,6 +257,8 @@ None for automated tests.
 
 ## 2026-06-14 quad (4-side) layout mode — additive, isolated
 
+> **Canonical doc:** [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md) (paused MVP — resume from backlog there).
+
 New optional engine: cables on **left / right / top / bottom**, fans pointing inward, orthogonal port-to-dot splice routing. Perpendicular cable pairs meet at an **L corner with 0 interior bends**; opposite pairs meet on a center lane; same-side pairs loop just inside the cables. **Horizontal L/R mode is unchanged** — gated entirely behind `overrides.layoutMode`.
 
 - **Toggle:** toolbar segmented control (Left/right ↔ 4-side), next to Auto/Manual. Per-diagram, persisted (`layoutMode`), survives `.sdc.json` export/import.
@@ -265,3 +270,13 @@ New optional engine: cables on **left / right / top / bottom**, fans pointing in
 - Edited additively: `types/splice.ts`, `layoutStorage.ts`, `nodes/types.ts`, `CableNode.tsx`, `FiberAnchorNode.tsx`, `buildReactFlowGraph.ts`, `WorkflowCanvas.tsx`, `ToolbarIcon.tsx`, `restoreDiagramConfig.ts`.
 - **Deferred:** per-leg **manual** adjust in quad (auto-mode drag works); placement optimizer quality (v1 heuristic, not crossing-minimal); upright labels on rotated cables.
 - Validation: **`npm run verify` green** (layout 114/114, full ci + build).
+
+## 2026-06-14 quad refinement — placement + channel router + color order
+
+Auto-engine-only refinement (manual stays deferred; router is a pure quad module, fully separate from `spliceEdgeRouting`/`manualAdjust`). Horizontal mode untouched.
+
+- **Placement** (`quad/quadPlacement.ts` `assignSides`): each stub now lands on a side **perpendicular to its heaviest neighbor**, never the same side when one neighbor dominates. Fixes the "all-fibers-to-a-top-cable but parked on top" pointless same-side loop. Pins (`quadCableSides`) still win; balanced across candidate sides by load.
+- **Channel/lane router** (new `quad/quadChannels.ts` + rewritten `quad/quadRouter.ts`): `createQuadRouter(frontiers, center)` keeps splices out of the dead center. Frontiers = inner edges of the placed handles; `LaneAllocator` packs jogs/loops onto nearest free lanes spaced by `SPLICE_LANE_SEP`. Bends minimized — perpendicular = single L (0 interior), aligned opposite = straight, offset = one jog, same-side = tight inward loop. `buildQuadReactFlowGraph` is two-phase now (materialize handles → frontiers → route).
+- **Top-cable color order** (`quad/quadGeometry.ts` `orientTubesForQuadSide`): top cables pre-flip their stack so the +90° render reads blue→orange→green left→right (matching bottom), no text mirroring. Render (`CableNode` `d.tubes`) + handle math (`quadFiberHandleCenter`) share the oriented tubes.
+- **Tests:** new `quad/quadRouter.test.ts` (LaneAllocator + router bends/spread); extended `quad/buildQuadReactFlowGraph.test.ts` (placement same-side invariant + top-cable blue-first) on `Left-SPI-215_I-80.csv`.
+- Validation: **`npm run verify` green** — layout 114/114, ci 475/475, build OK.
