@@ -7,6 +7,8 @@ import {
 import { useEffect, useMemo, type CSSProperties } from "react";
 
 import { useManualLayout } from "@/features/canvas/ManualLayoutContext";
+import { useCanvasContextMenu } from "@/features/canvas/contextMenu/CanvasContextMenuContext";
+import { LockGlyph } from "@/features/canvas/contextMenu/LockGlyph";
 
 import {
   CABLE_LAYOUT,
@@ -50,12 +52,13 @@ function tubeStroke(
   };
 }
 
-export function CableNode({ id, data }: NodeProps) {
+export function CableNode({ id, data, positionAbsoluteY }: NodeProps) {
   const d = data as CableNodeData;
   // Quad mode: vertical (top/bottom) cables render the canonical left breakout
   // rotated 90° (see quadRenderTransform); all inner geometry uses renderSide.
   const renderSide = d.orientation === "vertical" ? "left" : d.side;
   const manual = useManualLayout();
+  const ctxMenu = useCanvasContextMenu();
   const { isFiberHighlighted } = useCircuitHighlight();
   const handlePos = renderSide === "left" ? Position.Right : Position.Left;
   const pitch = d.fiberPitch ?? CABLE_LAYOUT.fiberRowH;
@@ -63,6 +66,17 @@ export function CableNode({ id, data }: NodeProps) {
   const updateNodeInternals = useUpdateNodeInternals();
   const collapsedTubes = new Set(d.collapsedTubes ?? []);
   const visualCableId = id.replace(/^cable-/, "");
+  const lockedTubeSet = new Set(d.lockedTubes ?? []);
+
+  const openTubeMenu = (e: React.MouseEvent, tubeColor: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    ctxMenu.openMenu(
+      { kind: "tubeGroup", visualCableId, tubeColor },
+      e.clientX,
+      e.clientY,
+    );
+  };
 
   const tubesForRender = useMemo(() => {
     const preview = manual?.tubePreview;
@@ -162,6 +176,11 @@ export function CableNode({ id, data }: NodeProps) {
             <span className="cable-node__smfo">{d.smfoLabel}</span>
           ) : null}
           <span className="cable-node__label">{d.label}</span>
+          {d.locked ? (
+            <span className="cable-node__lock-badge" aria-label="Cable locked">
+              <LockGlyph size={11} />
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -235,7 +254,11 @@ export function CableNode({ id, data }: NodeProps) {
               : null;
 
           return (
-            <g key={tube.tubeColor}>
+            <g
+              key={tube.tubeColor}
+              onContextMenu={(e) => openTubeMenu(e, tube.tubeColor)}
+              style={{ pointerEvents: "auto" }}
+            >
               {renderFanLayer("tail", "under")}
               <ContrastSvgLine
                 x1={lineStart.x}
@@ -259,10 +282,11 @@ export function CableNode({ id, data }: NodeProps) {
 
       {geo.tubes.map((tube) => {
         if (isTubeCollapsed(tube.tubeColor)) return null;
+        const tubeLocked = lockedTubeSet.has(tube.tubeColor);
         return (
           <span
             key={`label-${tube.tubeColor}`}
-            className="cable-node__tube-label"
+            className={`cable-node__tube-label${tubeLocked ? " cable-node__tube-label--locked" : ""}`}
             style={{
               left: tube.labelPos.x,
               top: tube.labelPos.y,
@@ -271,8 +295,14 @@ export function CableNode({ id, data }: NodeProps) {
                   ? "translate(-50%, 0)"
                   : "translate(-50%, -100%)",
             }}
+            onContextMenu={(e) => openTubeMenu(e, tube.tubeColor)}
           >
             {tube.tubeColor}
+            {tubeLocked ? (
+              <span className="cable-node__tube-lock" aria-label="Fan-out group locked">
+                <LockGlyph size={10} />
+              </span>
+            ) : null}
           </span>
         );
       })}
@@ -405,10 +435,13 @@ export function CableNode({ id, data }: NodeProps) {
           tubes={tubesForRender}
           tubeGeoms={geo.tubes}
           collapsedTubes={collapsedTubes}
+          lockedTubes={lockedTubeSet}
           stemX={geo.stemX}
           tubeFaceX={tubeFaceX}
           defaultTubeLength={defaultTubeLength}
           alignedStemX={d.alignedStemX}
+          nodeAbsoluteY={positionAbsoluteY}
+          onTubeContextMenu={openTubeMenu}
         />
       ) : null}
     </div>

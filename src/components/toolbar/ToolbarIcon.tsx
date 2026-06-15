@@ -98,6 +98,16 @@ export function PrintPdfIcon() {
   );
 }
 
+export function PrintIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <path d="M6 9V2h12v7" />
+      <rect x="6" y="14" width="12" height="8" rx="1" />
+    </svg>
+  );
+}
+
 export function CalloutIcon() {
   return (
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -160,17 +170,6 @@ export function ExportConfigIcon() {
       <path d="M12 3v12" />
       <path d="M8 11l4 4 4-4" />
       <path d="M4 19h16" />
-    </svg>
-  );
-}
-
-export function ConfigImportIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 21V9" />
-      <path d="M8 13l4-4 4 4" />
-      <path d="M4 5h16" />
-      <rect x="6" y="3" width="12" height="4" rx="1" />
     </svg>
   );
 }

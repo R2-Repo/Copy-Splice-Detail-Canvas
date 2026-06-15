@@ -55,7 +55,21 @@ export type SpliceReportHeader = {
   id?: string;
   reportDate?: string;
   location?: string;
+  street?: string;
+  cityState?: string;
+  poleNumber?: string;
+  /** CSV "Desc:" field (before Splice#). */
+  description?: string;
   spliceNumber?: string;
+};
+
+export type DiagramTitleBlock = {
+  street?: string;
+  cityState?: string;
+  poleNumber?: string;
+  reportDate?: string;
+  description?: string;
+  location?: string;
 };
 
 export type CableAppearanceSummary = {
@@ -150,6 +164,18 @@ export type LayoutCalloutRecord = {
   text: string;
 };
 
+/**
+ * User-locked diagram elements — frozen across auto/manual mode switches and
+ * across other elements moving. Absence of a key = unlocked. Additive: new
+ * tiers (legs, dots, buffer tubes) extend this shape without a version bump.
+ */
+export type DiagramLocks = {
+  /** Locked whole cable nodes, keyed by visual cable id (no `cable-` prefix). */
+  cables?: Record<string, true>;
+  /** Locked per-tube fan-out groups, keyed by `${visualCableId}|${tubeColor}`. */
+  tubeGroups?: Record<TubeOverrideKey, true>;
+};
+
 export type LayoutOverrides = {
   reportKey: string;
   layoutVersion?: number;
@@ -165,8 +191,14 @@ export type LayoutOverrides = {
   layoutWidth?: number;
   /** Cable callout labels keyed by callout node id. */
   callouts?: Record<string, LayoutCalloutRecord>;
+  /** Editable diagram title block (upper-left); defaults from CSV header on import. */
+  titleBlock?: DiagramTitleBlock;
   /** When false, callout nodes are hidden but stored text/positions are kept. */
   calloutsVisible?: boolean;
+  /** User-controlled callout size multiplier (0.5–3.0). */
+  calloutScale?: number;
+  /** When true, callouts compensate for canvas zoom so they stay readable. */
+  calloutAutoZoom?: boolean;
   /** When false, cable drag and resize skip auto row/tube relayout (default true). */
   autoAdjustEnabled?: boolean;
   /** User-locked buffer tube tip / fan-out reach per tube key. */
@@ -190,6 +222,8 @@ export type LayoutOverrides = {
   layoutMode?: LayoutMode;
   /** Quad mode only: user-assigned canvas side per visual cable id. */
   quadCableSides?: Record<string, QuadSide>;
+  /** User-locked elements (frozen across auto/manual + other moves). */
+  locks?: DiagramLocks;
 };
 
 /** Original (left/right) vs additive 4-side layout engine. */

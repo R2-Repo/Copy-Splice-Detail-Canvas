@@ -27,6 +27,7 @@ import {
 import {
   computeAlignedLayout,
   computeCableXBounds,
+  maxNearStraightResidual,
   type AlignedDiagramLayout,
 } from "@/features/diagram/spliceRowLayout";
 import { computeSideCircuitLabelSpans } from "@/features/diagram/cableLabels";
@@ -164,6 +165,7 @@ export const LAYOUT_RULE_IDS = [
   "EDGE-010",
   "EDGE-011",
   "EDGE-012",
+  "EDGE-013",
   "DOT-001",
   "DOT-002",
   "DOT-003",
@@ -256,6 +258,11 @@ export const LAYOUT_RULES: LayoutRuleMeta[] = [
   {
     id: "EDGE-012",
     title: "Overlapping vertical center legs use distinct midX lanes",
+    category: "edge",
+  },
+  {
+    id: "EDGE-013",
+    title: "Near-straight legs snap to a flat horizontal line on import",
     category: "edge",
   },
   {
@@ -2142,6 +2149,19 @@ export function checkLayoutRule(
         id,
         ok: verticalCenterLegsSpaced(ctx),
         detail: "Overlapping vertical center legs share the same midX lane",
+      };
+    case "EDGE-013":
+      return {
+        id,
+        ok:
+          maxNearStraightResidual(
+            ctx.visualCables,
+            ctx.placement,
+            ctx.layout.cablePositions,
+            ctx.layout.alignmentLocked,
+          ) <= 0.5,
+        detail:
+          "A near-straight leg could still be snapped flat (alignment not at fixpoint)",
       };
     case "DOT-001":
       return {

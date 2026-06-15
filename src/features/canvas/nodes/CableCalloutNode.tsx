@@ -1,23 +1,28 @@
-import { type NodeProps, useReactFlow, useUpdateNodeInternals } from "@xyflow/react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type NodeProps, useReactFlow, useUpdateNodeInternals, useViewport } from "@xyflow/react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 
 import {
   CALLOUT_BOX,
   CALLOUT_BOX_CHROME_Y,
 } from "@/features/canvas/callouts/cableCalloutGeometry";
 import { useCalloutPersist } from "@/features/canvas/callouts/CalloutPersistContext";
+import { useCalloutScale } from "@/features/canvas/callouts/CalloutScaleContext";
 import type { CableCalloutNodeData } from "@/features/canvas/nodes/types";
 
 export function CableCalloutNode({ id, data }: NodeProps) {
   const d = data as CableCalloutNodeData;
   const { onTextChange } = useCalloutPersist();
+  const { effectiveScale } = useCalloutScale();
+  const viewport = useViewport();
   const { setNodes, getNode } = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
   const [text, setText] = useState(d.text);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [contentHeight, setContentHeight] = useState<number>(
-    CALLOUT_BOX.minHeight,
-  );
+  const scale = effectiveScale(viewport.zoom);
+  const scaledWidth = CALLOUT_BOX.width * scale;
+  const scaledMinHeight = CALLOUT_BOX.minHeight * scale;
+  const scaledChromeY = CALLOUT_BOX_CHROME_Y * scale;
+  const [contentHeight, setContentHeight] = useState<number>(scaledMinHeight);
 
   useEffect(() => {
     setText(d.text);
@@ -30,22 +35,24 @@ export function CableCalloutNode({ id, data }: NodeProps) {
     [id, onTextChange],
   );
 
-  const syncNodeHeight = useCallback(
+  const syncNodeDimensions = useCallback(
     (nextHeight: number) => {
-      const clamped = Math.max(CALLOUT_BOX.minHeight, nextHeight);
+      const clamped = Math.max(scaledMinHeight, nextHeight);
       setContentHeight(clamped);
 
       const current = getNode(id);
-      if (current?.height === clamped) return;
+      if (current?.width === scaledWidth && current?.height === clamped) return;
 
       setNodes((nodes) =>
         nodes.map((node) =>
-          node.id === id ? { ...node, height: clamped } : node,
+          node.id === id
+            ? { ...node, width: scaledWidth, height: clamped }
+            : node,
         ),
       );
       updateNodeInternals(id);
     },
-    [getNode, id, setNodes, updateNodeInternals],
+    [getNode, id, scaledMinHeight, scaledWidth, setNodes, updateNodeInternals],
   );
 
   useLayoutEffect(() => {
@@ -55,17 +62,20 @@ export function CableCalloutNode({ id, data }: NodeProps) {
     el.style.height = "0px";
     const textHeight = el.scrollHeight;
     el.style.height = `${textHeight}px`;
-    syncNodeHeight(textHeight + CALLOUT_BOX_CHROME_Y);
-  }, [text, syncNodeHeight]);
+    syncNodeDimensions(textHeight + scaledChromeY);
+  }, [text, scale, scaledChromeY, syncNodeDimensions]);
 
   return (
     <div
       className="cable-callout"
-      style={{
-        width: CALLOUT_BOX.width,
-        minHeight: CALLOUT_BOX.minHeight,
-        height: contentHeight,
-      }}
+      style={
+        {
+          width: scaledWidth,
+          minHeight: scaledMinHeight,
+          height: contentHeight,
+          "--callout-scale": scale,
+        } as CSSProperties
+      }
     >
       <textarea
         ref={textareaRef}

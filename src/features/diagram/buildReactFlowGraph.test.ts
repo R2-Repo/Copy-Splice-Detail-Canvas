@@ -143,6 +143,72 @@ describe("buildReactFlowGraph", () => {
     }
   });
 
+  it("locked cable stays pinned to its saved position through refresh + dragSync", () => {
+    const csv = readContractCsv("CSV Splice Detail Example #2.csv");
+    const graph = buildConnectionGraph(parseBentleyCsv(csv));
+    const base = buildReactFlowGraph(graph);
+    const cable = base.nodes.find((n) => n.type === "cable")!;
+    const visualId = cable.id.replace(/^cable-/, "");
+
+    // Lock the cable at an off-auto coordinate; collect every other cable's
+    // current position so the merge has a full positions map.
+    const pinned = { x: cable.position.x + 137, y: cable.position.y + 211 };
+    const positions: Record<string, { x: number; y: number }> = {};
+    for (const n of base.nodes) {
+      if (n.type === "cable") {
+        positions[n.id] = { x: n.position.x, y: n.position.y };
+      }
+    }
+    positions[cable.id] = pinned;
+
+    const overrides = {
+      reportKey: "test",
+      positions,
+      locks: { cables: { [visualId]: true as const } },
+    };
+
+    for (const buildOptions of [
+      { refreshColumnX: true, refreshRowLayout: true },
+      { dragSync: true },
+      undefined,
+    ]) {
+      const { nodes } = buildReactFlowGraph(
+        graph,
+        overrides,
+        base.layout.layoutWidth,
+        buildOptions,
+      );
+      const locked = nodes.find((n) => n.id === cable.id)!;
+      expect(locked.position).toEqual(pinned);
+      expect((locked.data as { locked?: boolean }).locked).toBe(true);
+      expect(locked.draggable).toBe(false);
+    }
+  });
+
+  it("locked fan-out group surfaces on the cable node data", () => {
+    const csv = readContractCsv("CSV Splice Detail Example #2.csv");
+    const graph = buildConnectionGraph(parseBentleyCsv(csv));
+    const base = buildReactFlowGraph(graph);
+    const cable = base.nodes.find(
+      (n) =>
+        n.type === "cable" &&
+        ((n.data as { tubes: { tubeColor: string }[] }).tubes.length ?? 0) > 0,
+    )!;
+    const visualId = cable.id.replace(/^cable-/, "");
+    const tubeColor = (cable.data as { tubes: { tubeColor: string }[] }).tubes[0]!
+      .tubeColor;
+
+    const { nodes } = buildReactFlowGraph(graph, {
+      reportKey: "test",
+      positions: {},
+      locks: { tubeGroups: { [`${visualId}|${tubeColor}`]: true as const } },
+    });
+    const locked = nodes.find((n) => n.id === cable.id)!;
+    expect((locked.data as { lockedTubes?: string[] }).lockedTubes).toContain(
+      tubeColor,
+    );
+  });
+
   it("Example #2: collapse is a no-op without 12-fiber full tubes", () => {
     const csv = readContractCsv("CSV Splice Detail Example #2.csv");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));

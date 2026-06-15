@@ -25,6 +25,12 @@ describe("parseBentleyCsv", () => {
     const report = parseBentleyCsv(csv);
 
     expect(report.header.spliceNumber).toBe("SP-2090.4.5");
+    expect(report.header.street).toBe("3300 S & 3175 E");
+    expect(report.header.cityState).toBe("COTTONWOOD HEIGHTS");
+    expect(report.header.poleNumber).toBe("");
+    expect(report.header.description).toBe("UDOT");
+    expect(report.header.reportDate).toBe("Wed May 20 13:11:52 2026");
+    expect(report.header.location).toBe("40.699735 -111.803808");
     expect(report.pairs).toHaveLength(6);
 
     const cables = new Set(
@@ -66,6 +72,15 @@ describe("parseBentleyCsv", () => {
     expect(results.filter((r) => r.ok)).toHaveLength(28);
     const report = parseBentleyCsv(csv);
     expect(report.pairs).toHaveLength(28);
+  });
+
+  it("parses street/city/pole/desc from 3161.4 header", () => {
+    const csv = readFileSync(resolveReferenceCsvPath("3161.4.csv"), "utf8");
+    const report = parseBentleyCsv(csv);
+    expect(report.header.street).toBe("PROVO - UNIVERSITY AVE & 1230N");
+    expect(report.header.cityState).toBe("3161; 4-TSC CCTV");
+    expect(report.header.poleNumber).toBe("LONG111658422");
+    expect(report.header.description).toBe("LAT. 40.250826");
   });
 
   it("legEndpointKey distinguishes through-cable from/to legs", () => {

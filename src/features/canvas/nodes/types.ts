@@ -30,6 +30,10 @@ export type CableNodeData = {
   slim?: boolean;
   /** Show buffer-tube manual drag handles (manual adjust mode). */
   manualAdjustEnabled?: boolean;
+  /** User-locked whole cable: position/side frozen, node not draggable. */
+  locked?: boolean;
+  /** Tube colors whose fan-out group is locked (tip handle disabled, badge shown). */
+  lockedTubes?: string[];
 };
 
 export type BufferTubeNodeData = {
@@ -77,4 +81,15 @@ export type SplicePointNodeData = {
 export type CableCalloutNodeData = {
   targetCableNodeId: string;
   text: string;
+};
+
+export type DiagramTitleNodeData = {
+  street?: string;
+  cityState?: string;
+  poleNumber?: string;
+  reportDate?: string;
+  description?: string;
+  location?: string;
+  diagramScale?: number;
+  boxWidth?: number;
 };

@@ -154,6 +154,251 @@
   box-shadow: var(--neo-shadow-pressed);
 }
 
+/* --- Callouts toolbar control + scale popover --- */
+
+.callouts-toolbar-control {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.callouts-toolbar-control--disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.callouts-toolbar-control__pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.callouts-toolbar-control__row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.callouts-toolbar-control__menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--neo-radius-sm);
+  background: var(--neo-bg);
+  color: var(--neo-text-muted);
+  box-shadow: var(--neo-shadow-raised-sm);
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.callouts-toolbar-control__menu-btn:hover:not(:disabled) {
+  color: var(--neo-text-strong);
+  box-shadow: var(--neo-shadow-raised);
+}
+
+.callouts-toolbar-control__menu-btn:focus-visible {
+  outline: 2px solid var(--neo-accent);
+  outline-offset: 2px;
+}
+
+.callouts-toolbar-control__menu-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.callouts-scale-popover {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 220px;
+  padding: 0.65rem 0.75rem;
+  background: var(--neo-bg);
+  border-radius: var(--neo-radius-md);
+  box-shadow: var(--neo-shadow-raised-lg);
+}
+
+.callouts-scale-popover__slider-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--neo-text);
+}
+
+.callouts-scale-popover__label {
+  white-space: nowrap;
+}
+
+.callouts-scale-popover__value {
+  min-width: 2.75rem;
+  text-align: right;
+  color: var(--neo-text-muted);
+}
+
+.callouts-scale-popover__range {
+  width: 100%;
+  accent-color: var(--neo-accent);
+  cursor: pointer;
+}
+
+.callouts-scale-popover__range:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.callouts-scale-popover__check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--neo-text);
+  cursor: pointer;
+}
+
+.callouts-scale-popover__check input {
+  accent-color: var(--neo-accent);
+  cursor: pointer;
+}
+
+.callouts-scale-popover__check input:disabled {
+  cursor: not-allowed;
+}
+
+.callouts-scale-popover__reset {
+  align-self: flex-start;
+  border: none;
+  background: var(--neo-bg);
+  color: var(--neo-text-muted);
+  border-radius: var(--neo-radius-sm);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  box-shadow: var(--neo-shadow-raised-sm);
+  cursor: pointer;
+}
+
+.callouts-scale-popover__reset:hover:not(:disabled) {
+  color: var(--neo-text-strong);
+}
+
+.callouts-scale-popover__reset:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* --- Print toolbar control --- */
+
+.print-toolbar-control {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.print-toolbar-control--disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.print-toolbar-control__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.print-toolbar-control__main {
+  width: 36px;
+  height: 36px;
+}
+
+.print-toolbar-control__menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--neo-radius-sm);
+  background: var(--neo-bg);
+  color: var(--neo-text-muted);
+  box-shadow: var(--neo-shadow-raised-sm);
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.print-toolbar-control__menu-btn:hover:not(:disabled) {
+  color: var(--neo-text-strong);
+  box-shadow: var(--neo-shadow-raised);
+}
+
+.print-toolbar-control__menu-btn:focus-visible {
+  outline: 2px solid var(--neo-accent);
+  outline-offset: 2px;
+}
+
+.print-toolbar-control__menu-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.print-toolbar-control__menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 45;
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem;
+  min-width: 200px;
+  background: var(--neo-bg);
+  border-radius: var(--neo-radius-md);
+  box-shadow: var(--neo-shadow-raised-lg);
+}
+
+.print-toolbar-control__menu-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: none;
+  border-radius: var(--neo-radius-sm);
+  background: transparent;
+  color: var(--neo-text-strong);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.print-toolbar-control__menu-item:hover {
+  background: var(--neo-surface);
+}
+
+.print-toolbar-control__menu-hint {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--neo-text-muted);
+}
+
 /* --- Toolbar icon + segmented controls --- */
 
 .toolbar-icon-btn,
@@ -479,6 +724,76 @@
 
 .cable-node__tube-tip-drag {
   cursor: ns-resize;
+}
+
+.cable-node--manual-adjust .cable-node__tube-tip-drag--locked,
+.cable-node__tube-tip-drag--locked {
+  cursor: not-allowed;
+  border-color: var(--neo-accent, #ff6b2c);
+  background: var(--neo-accent, #ff6b2c);
+  box-shadow: 0 0 0 1px #fff;
+}
+
+/* Lock badges / indicators */
+.cable-node__lock-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  color: var(--neo-accent, #ff6b2c);
+  vertical-align: middle;
+}
+
+.cable-node__tube-lock {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 3px;
+  color: var(--neo-accent, #ff6b2c);
+  vertical-align: middle;
+}
+
+.cable-node__tube-label--locked {
+  pointer-events: auto;
+  cursor: context-menu;
+}
+
+/* Right-click canvas context menu */
+.canvas-context-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 200px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--neo-surface, #f4f6fb);
+  border: 1px solid var(--neo-border, rgba(15, 23, 42, 0.08));
+  box-shadow:
+    0 10px 30px rgba(15, 23, 42, 0.18),
+    0 1px 0 rgba(255, 255, 255, 0.6) inset;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.canvas-context-menu__item {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-size: 0.8rem;
+  color: var(--neo-text-strong, #0f172a);
+  padding: 7px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.canvas-context-menu__item:hover:not(:disabled) {
+  background: var(--neo-accent, #ff6b2c);
+  color: #fff;
+}
+
+.canvas-context-menu__item:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .manual-layout-guides {
@@ -1217,6 +1532,13 @@
   justify-content: center;
 }
 
+.help-guide-overlay__toolbar-note {
+  margin: 0.75rem 0 0;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--neo-text-muted, #64748b);
+}
+
 .help-guide-overlay__toolbar-item {
   display: flex;
   flex-direction: column;
@@ -1531,10 +1853,10 @@
 
 .cable-callout {
   box-sizing: border-box;
-  border: 3px solid #dc2626;
-  border-radius: 8px;
+  border: calc(3px * var(--callout-scale, 1)) solid #dc2626;
+  border-radius: calc(8px * var(--callout-scale, 1));
   background: #fff;
-  padding: 8px 10px;
+  padding: calc(8px * var(--callout-scale, 1)) calc(10px * var(--callout-scale, 1));
   pointer-events: all;
 }
 
@@ -1551,10 +1873,17 @@
   background: transparent;
   color: #dc2626;
   font-family: inherit;
-  font-size: 0.9375rem;
+  font-size: calc(0.9375rem * var(--callout-scale, 1));
   font-weight: 600;
   line-height: 1.35;
   outline: none;
+}
+
+.callout-leader-panel {
+  margin: 0 !important;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 .callout-leader-layer {
@@ -1570,14 +1899,144 @@
 
 .callout-leader-layer__line {
   stroke: #dc2626;
-  stroke-width: 2.5;
+  stroke-width: calc(2.5px * var(--callout-scale, 1));
   stroke-linecap: round;
+}
+
+/* Tabloid print prep — hide canvas chrome and size stage to printable area. */
+body.printing-diagram {
+  background: #fff;
+}
+
+body.printing-diagram .app-shell,
+body.printing-diagram .app-shell__main,
+body.printing-diagram .workflow-canvas,
+body.printing-diagram .workflow-canvas__body {
+  background: #fff !important;
+}
+
+body.printing-diagram .workflow-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+body.printing-diagram .workflow-canvas__toolbar,
+body.printing-diagram .workflow-canvas__hint,
+body.printing-diagram .workflow-canvas__meta,
+body.printing-diagram .workflow-canvas__manual-warning,
+body.printing-diagram .react-flow__controls,
+body.printing-diagram .react-flow__background,
+body.printing-diagram .react-flow__background pattern,
+body.printing-diagram .manual-adjust-panel,
+body.printing-diagram .manual-layout-guides,
+body.printing-diagram .diagram-inspector,
+body.printing-diagram .splice-report-overlay,
+body.printing-diagram .connection-inspector-overlay,
+body.printing-diagram .help-guide-overlay {
+  display: none !important;
+}
+
+body.printing-diagram .workflow-canvas__body {
+  width: auto !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+body.printing-diagram .workflow-canvas__stage,
+body.printing-diagram .react-flow {
+  width: var(--print-stage-width, 1536px) !important;
+  height: var(--print-stage-height, 960px) !important;
+  max-width: var(--print-stage-width, 1536px) !important;
+  max-height: var(--print-stage-height, 960px) !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  background: #fff !important;
+}
+
+body.printing-diagram .react-flow__viewport,
+body.printing-diagram .react-flow__pane {
+  background: #fff !important;
+}
+
+.diagram-title {
+  box-sizing: border-box;
+  border: 1px solid var(--neo-text-muted);
+  border-radius: var(--neo-radius-sm);
+  background: transparent;
+  padding: 8px 10px;
+  pointer-events: all;
+  color: var(--neo-text-strong);
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  line-height: 1.4;
+  box-shadow: none;
+}
+
+.diagram-title__line {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-height: 1.4em;
+  white-space: nowrap;
+}
+
+.diagram-title__line + .diagram-title__line {
+  margin-top: 0.12rem;
+}
+
+.diagram-title__line--triple {
+  flex-wrap: wrap;
+  column-gap: 1rem;
+  row-gap: 0.12rem;
+}
+
+.diagram-title__label {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--neo-text-strong);
+}
+
+.diagram-title__value {
+  flex: 0 1 auto;
+  min-width: 2ch;
+  outline: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  cursor: text;
+}
+
+.diagram-title__value:focus {
+  outline: none;
+  background: transparent;
+  text-decoration: underline;
+  text-decoration-color: var(--neo-text-muted);
+  text-underline-offset: 2px;
+}
+
+.diagram-title__value:empty::before {
+  content: "\00a0";
 }
 
 @media print {
   @page {
-    size: landscape;
+    size: 17in 11in;
     margin: 0.5in;
+  }
+
+  html,
+  body {
+    width: 17in;
+    height: 11in;
+    margin: 0;
+    padding: 0;
   }
 
   body:not(.printing-diagram) * {
@@ -1631,7 +2090,9 @@
   body.printing-diagram .workflow-canvas__manual-warning,
   body.printing-diagram .react-flow__controls,
   body.printing-diagram .react-flow__background,
-  body.printing-diagram .react-flow__panel,
+  body.printing-diagram .react-flow__panel:not(.callout-leader-panel),
+  body.printing-diagram .manual-adjust-panel,
+  body.printing-diagram .manual-layout-guides,
   body.printing-diagram .diagram-inspector,
   body.printing-diagram .splice-report-overlay,
   body.printing-diagram .connection-inspector-overlay,
@@ -1643,12 +2104,41 @@
   body.printing-diagram .workflow-canvas__body,
   body.printing-diagram .workflow-canvas__stage,
   body.printing-diagram .react-flow {
-    height: auto !important;
+    width: var(--print-stage-width, 1536px) !important;
+    height: var(--print-stage-height, 960px) !important;
+    max-width: var(--print-stage-width, 1536px) !important;
+    max-height: var(--print-stage-height, 960px) !important;
+    margin: 0 auto !important;
     overflow: visible !important;
+    background: #fff !important;
+  }
+
+  body.printing-diagram .app-shell,
+  body.printing-diagram .app-shell__main {
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  body.printing-diagram .react-flow__viewport,
+  body.printing-diagram .react-flow__pane,
+  body.printing-diagram .react-flow__background {
+    background: #fff !important;
+  }
+
+  body.printing-diagram .react-flow__panel.callout-leader-panel,
+  body.printing-diagram .callout-leader-panel .callout-leader-layer,
+  body.printing-diagram .callout-leader-panel .callout-leader-layer__line {
+    visibility: visible !important;
   }
 
   .cable-callout,
   .cable-callout__text,
+  .diagram-title,
+  .diagram-title__value,
   .callout-leader-layer,
   .callout-leader-layer__line,
   body.printing-diagram .react-flow__node,

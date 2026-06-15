@@ -2,14 +2,66 @@
 
 > Agents: keep this file current-only. History lives in git log and [`CHANGELOG.md`](./CHANGELOG.md).
 
+## Canvas lock context menu — v1 (2026-06-15)
+
+Right-click context menu (`src/features/canvas/contextMenu/`). First lock tier, top-down:
+
+- **Cable node:** right-click → Lock/Unlock cable position. Frozen across auto/manual + other elements moving (its buffer tubes/fan-outs can still move). Enforced in `buildReactFlowGraph` (pin saved x/y, immovable anchor in `resolveSameSideNodeCollisions`, `draggable:false`).
+- **Fan-out group (per tube):** right-click the fan-out/tube label/tip handle → Lock/Unlock. Locks fan-out + label + color abbreviation + handle as one unit (merged into `lockedTubeKeys`, tip handle disabled). Moves with its cable (relative).
+- **Model:** `LayoutOverrides.locks` (`{ cables, tubeGroups }`), persisted in localStorage + `.sdc.json`. Additive (no version bump).
+- **Deferred tiers:** buffer-tube position, individual leg/segment/bend, fusion dot (touch frozen routing).
+
+## Horizontal leg alignment — EDGE-013 (2026-06-15)
+
+Near-straight legs/collapsed tubes snap to a single flat horizontal line.
+
+- **Import + auto:** new fixpoint pass in `spliceRowLayout.ts` (`snapNearStraightCables`) nudges each unlocked cable's Y by ≤12px (`HORIZONTAL_ALIGN_TOLERANCE`, `horizontalAlign.ts`) when it flattens more legs than it breaks, within same-side stack slack (never breaks CBL-001/002, FBR-002, tube/fiber order). Dominant/high-count pairs stay pinned. Runs on the same path auto drag-stop re-runs, so auto stops fighting near-straight rows.
+- **Manual:** `TubeManualHandles` snaps collapsed-tube + fan-out tip drag to the nearest partner handle Y within 12px, with a guide line. `snapTipTargets` now populated in `WorkflowCanvas` (was empty); `CableNode` passes `positionAbsoluteY`.
+- **Rule:** EDGE-013 added (`layoutRules.ts` + `LAYOUT_RULES.md`), verified at fixpoint via `maxNearStraightResidual`. Unit tests `horizontalAlign.test.ts`.
+- **Not done (frozen):** manual *cable*-drag vertical snap — would touch frozen `onNodeDrag*`/`applyManualCableDrag`; collapsed-tube + fan-out tip snap covers the manual need. Ask before editing frozen wiring.
+- **Validation:** `test:layout` 117/117, `check`, `build` green. `test:ci` 528/530 — the 2 failures (`titleBox/titleBoxLayout.test.ts`, `parseBentleyCsv.test.ts`) are **pre-existing, unrelated** in-progress work in the tree, not touched here.
+
 ## Baseline
 
 - Branch: `main`
-- Verified: **`npm run verify`** green — `test:layout` **114/114**, `test:ci` **503/503**, `tsc` + `build` clean.
+- Verified: **`npm run test:layout`** green (114/114). **`npm run check`** currently fails on pre-existing WIP in `CableNode.tsx` / `TubeManualHandles.tsx` (unrelated to callout scaling).
+
+## Unified diagram import (2026-06-15)
+
+- **Import file** toolbar button (folder icon, left toolbar) accepts Bentley `.csv` and saved `.sdc.json` configs via `routeImportFile` content sniff.
+- **Canvas drop** uses the same router (`importDiagramFile`); config restores layout, CSV runs fresh layout.
+- **Removed** separate **Import diagram config** button next to Export.
+- **Files:** `routeImportFile.ts`, `CsvImportButton.tsx`, `WorkflowCanvas.tsx`; deleted `DiagramConfigImportButton.tsx`.
+- **Tests:** `routeImportFile.test.ts`, `App.test.tsx` updated.
+
+## Print diagram (2026-06-15)
+
+- **Single Print button** → system print dialog (`window.print()`). User picks printer or Save as PDF there (fewest steps).
+- **Tabloid:** `@page 17×11 in`; stage resized to 1536×960 px printable area; diagram fit centered (max size, 2% padding).
+- **Print prep hides:** grid background, zoom controls, toolbar, manual-adjust overlay, layout guides.
+- **Removed:** in-app html2canvas/jspdf export (was broken — small crop, visible chrome).
+- **Files:** `printDiagram.ts`, `usePrintDiagram.ts`, `splice-diagram.css`.
+
+## Callout dynamic scaling (2026-06-15)
+
+- **Toolbar:** Callouts pill now has a ▾ submenu — size slider (50–300%) + “Keep readable when zoomed” toggle (default on).
+- **Auto zoom:** Flow-space box/text/leader stroke scale by `userScale / zoom` so callouts stay readable when zoomed out on large imports.
+- **Print:** Zoom compensation disabled during print — callouts stay proportional to the diagram.
+- **Persistence:** `LayoutOverrides.calloutScale`, `calloutAutoZoom`; included in `.sdc.json` export.
+- **Files:** `calloutScale.ts`, `CalloutScaleContext.tsx`, `CalloutsToolbarControl.tsx`, `CableCalloutNode.tsx`, `CalloutLeaderLayer.tsx`.
+
+## Diagram title box (2026-06-14, verified)
+
+- **Canvas:** upper-left bordered info box (`diagramTitle` React Flow node) — Street / City/St / Pole #, Report Date, Desc, Location.
+- **UI:** single flat border box; plain monospace text (contentEditable values, no form inputs / neumorphic chrome).
+- **Position:** anchored above diagram content bounds (`boundsFromFlowNodes` on engine nodes) with 24px gap; repositions on layout/drag.
+- **CSV:** `parseHeader` extracts street/city/pole/desc; empty Desc falls back to `Splice#`.
+- **Scaling:** flow-space; width/font scale with layout; print fit-width includes title in bounds.
+- **Persistence:** `LayoutOverrides.titleBlock` — editable on blur.
 
 ## Help & guide modal (2026-06-14, verified)
 
-- **Toolbar:** far-right **Help and guide** button (`HelpIcon`) after Print to PDF in `workflow-canvas__toolbar-export`.
+- **Toolbar:** far-right **Help and guide** button (`HelpIcon`) after Print diagram in `workflow-canvas__toolbar-export`.
 - **Modal:** `HelpGuideOverlay` — visual-first cards (inline SVG gestures, toolbar icon map, key badges); Escape / backdrop / Close dismiss.
 - **Files:** `src/components/help/*`, styles in `splice-diagram.css`, `ListIcon` + `HelpIcon` in `ToolbarIcon.tsx`.
 - **Tests:** `HelpGuideOverlay.test.tsx` (3).
@@ -30,12 +82,12 @@ Key symbols touched this session:
 
 **Other project work** — user moving focus off quad for now; horizontal two-sided mode + manual adjust remain the primary production path.
 
-**Diagram config export/import** — standalone `.sdc.json` backup + PDF companion; drop or toolbar import restores full diagram without CSV.
+**Diagram config export/import** — `.sdc.json` via **Import file** button or canvas drop; Export unchanged.
 
 ## Diagram config (2026-06-13, verified)
 
 - **Export:** toolbar **Export diagram config** → `{splice}-config.sdc.json` (embedded `SpliceReport` + `LayoutOverrides` + `cableSides`; optional viewport).
-- **Import:** toolbar config button or canvas drop → `activateDiagram` (same path as CSV, preserves saved positions/routing overrides).
+- **Import:** **Import file** toolbar button or canvas drop → `activateDiagram` (config preserves saved positions/routing; CSV fresh layout).
 - **Tests:** `src/features/export/diagramConfig.test.ts` — Left-* roundtrip + schema rejection.
 - **`npm run verify` green** — layout 114/114, ci 441/441.
 

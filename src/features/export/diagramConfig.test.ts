@@ -157,6 +157,43 @@ describe("diagram config roundtrip", () => {
     );
   });
 
+  it("roundtrips element locks through export → import", () => {
+    const graph = graphFromCsvFile("Left-STATE_OFFICE.csv");
+    const { reportKey, layoutOverrides, nodes, edges } =
+      buildExportReadyState(graph);
+    const firstCableId = Object.keys(layoutOverrides.positions).sort()[0]!;
+    const visualId = firstCableId.replace(/^cable-/, "");
+    const locks = {
+      cables: { [visualId]: true as const },
+      tubeGroups: { [`${visualId}|BL`]: true as const },
+    };
+
+    const config = buildDiagramConfig({
+      graph,
+      reportKey,
+      nodes,
+      edges,
+      collapseFullButtSplices: false,
+      calloutsVisible: false,
+      autoAdjustEnabled: true,
+      layoutWidth: layoutOverrides.layoutWidth,
+    });
+    config.layout = {
+      ...config.layout,
+      locks,
+      layoutVersion: LAYOUT_OVERRIDE_VERSION,
+    };
+
+    const parsed = parseDiagramConfig(diagramConfigToJson(config));
+    const restoredGraph = connectionGraphFromConfig(parsed);
+    const rebuilt = layoutOverridesFromConfig(
+      parsed,
+      reportStorageKey(restoredGraph),
+    );
+
+    expect(rebuilt.locks).toEqual(locks);
+  });
+
   it("serializes live node positions from input nodes", () => {
     const graph = graphFromCsvFile("Left-STATE_OFFICE.csv");
     const { nodes, edges, layout } = buildReactFlowGraph(graph);

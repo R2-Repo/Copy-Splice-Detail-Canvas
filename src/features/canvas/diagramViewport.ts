@@ -95,6 +95,35 @@ export function viewportForFitWidth(
 }
 
 /**
+ * Fit diagram bounds inside a page-sized area, centered on both axes.
+ * Used for print export where the full diagram must fit one tabloid page.
+ */
+export function viewportForFitPage(
+  bounds: DiagramBounds,
+  pageWidth: number,
+  pageHeight: number,
+  options?: ViewportFitOptions,
+): { x: number; y: number; zoom: number } {
+  const paddingRatio = options?.paddingRatio ?? VIEWPORT_EDGE_PADDING_RATIO;
+  const padX = pageWidth * paddingRatio;
+  const padY = pageHeight * paddingRatio;
+  const innerW = Math.max(1, pageWidth - 2 * padX);
+  const innerH = Math.max(1, pageHeight - 2 * padY);
+
+  const zoom = clampZoom(Math.min(innerW / bounds.width, innerH / bounds.height), {
+    ...options,
+    maxZoom: options?.maxZoom ?? 1,
+  });
+
+  const contentW = bounds.width * zoom;
+  const contentH = bounds.height * zoom;
+  const x = (pageWidth - contentW) / 2 - bounds.x * zoom;
+  const y = (pageHeight - contentH) / 2 - bounds.y * zoom;
+
+  return { x, y, zoom };
+}
+
+/**
  * Place the diagram at zoom 1 so canvas pixels map 1:1 to screen pixels.
  * Use when layout width is sized to `stageInnerWidth` — avoids zooming out a
  * wide canvas until cables look unchanged on screen.

@@ -48,6 +48,18 @@ function parseHeader(lines: string[]): SpliceReportHeader {
   const location = /Location:\s*(.+)/.exec(text);
   if (location) header.location = location[1]!.trim();
 
+  const streetLine = /Street:\s*(.*?)\s+City\/St:\s*(.*?)\s+Pole #:\s*(.*)/.exec(
+    text,
+  );
+  if (streetLine) {
+    header.street = streetLine[1]!.trim();
+    header.cityState = streetLine[2]!.trim();
+    header.poleNumber = streetLine[3]!.trim();
+  }
+
+  const description = /Desc:\s*(.*?)\s+Splice#:/.exec(text);
+  if (description) header.description = description[1]!.trim();
+
   const spliceNumber = /Splice#:\s*(.+)/.exec(text);
   if (spliceNumber) header.spliceNumber = spliceNumber[1]!.trim();
 

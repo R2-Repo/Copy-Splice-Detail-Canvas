@@ -7,8 +7,14 @@ import {
   boundsFromNodesOrNull,
   createPrintDiagramHandler,
   exportTitleFromGraph,
+  flushRenderFrames,
+  injectPrintPageStyle,
   PRINT_BODY_CLASS,
+  PRINT_PAGE_STYLE_ID,
+  printableAreaCssPx,
   printViewportForBounds,
+  removePrintPageStyle,
+  runDiagramPrint,
 } from "./printDiagram";
 
 function graphWithHeader(
@@ -19,6 +25,50 @@ function graphWithHeader(
     legs: [],
     connections: [],
     cableSides: new Map(),
+  };
+}
+
+function buildPrintDeps() {
+  const setViewport = vi.fn().mockResolvedValue(true);
+  const print = vi.fn();
+  const listeners = new Map<string, EventListener>();
+  const stage = document.createElement("div");
+  const dispatchResize = vi.fn();
+
+  return {
+    setViewport,
+    print,
+    stage,
+    dispatchResize,
+    listeners,
+    deps: {
+      nodes: [
+        {
+          id: "cable-1",
+          position: { x: 0, y: 0 },
+          width: 200,
+          height: 100,
+          data: {},
+        },
+      ] as Node[],
+      graph: graphWithHeader({ spliceNumber: "SP-TEST" }),
+      getStageElement: () => stage,
+      getViewport: () => ({ x: 5, y: 10, zoom: 0.8 }),
+      setViewport,
+      getNodesBounds: () => ({ x: 0, y: 0, width: 500, height: 300 }),
+      print,
+      dispatchResize,
+      requestAnimationFrame: (cb: FrameRequestCallback) => {
+        cb(0);
+        return 1;
+      },
+      addEventListener: ((type: string, listener: EventListenerOrEventListenerObject) => {
+        listeners.set(type, listener as EventListener);
+      }) as typeof window.addEventListener,
+      removeEventListener: ((type: string) => {
+        listeners.delete(type);
+      }) as typeof window.removeEventListener,
+    },
   };
 }
 
@@ -56,59 +106,64 @@ describe("boundsFromNodesOrNull", () => {
   });
 });
 
-describe("printViewportForBounds", () => {
-  it("fits diagram width with max zoom 1", () => {
-    const viewport = printViewportForBounds(
-      { x: 0, y: 0, width: 1000, height: 800 },
-      1200,
-      900,
-    );
-
-    expect(viewport.zoom).toBeLessThanOrEqual(1);
-    expect(viewport.x).toBeGreaterThan(0);
-    expect(viewport.y).toBeGreaterThan(0);
+describe("printableAreaCssPx", () => {
+  it("derives tabloid landscape printable area from margins", () => {
+    expect(printableAreaCssPx()).toEqual({ width: 1536, height: 960 });
   });
 });
 
-describe("createPrintDiagramHandler", () => {
-  it("prepares print state and restores on afterprint", async () => {
-    const setViewport = vi.fn().mockResolvedValue(true);
-    const print = vi.fn();
-    const listeners = new Map<string, EventListener>();
-
-    const handler = createPrintDiagramHandler({
-      nodes: [
-        {
-          id: "cable-1",
-          position: { x: 0, y: 0 },
-          width: 200,
-          height: 100,
-          data: {},
-        },
-      ] as Node[],
-      graph: graphWithHeader({ spliceNumber: "SP-TEST" }),
-      stageWidth: 1200,
-      stageHeight: 800,
-      getViewport: () => ({ x: 5, y: 10, zoom: 0.8 }),
-      setViewport,
-      getNodesBounds: () => ({ x: 0, y: 0, width: 500, height: 300 }),
-      print,
-      requestAnimationFrame: (cb) => {
-        cb(0);
-        return 1;
-      },
-      addEventListener: ((type: string, listener: EventListenerOrEventListenerObject) => {
-        listeners.set(type, listener as EventListener);
-      }) as typeof window.addEventListener,
-      removeEventListener: ((type: string) => {
-        listeners.delete(type);
-      }) as typeof window.removeEventListener,
+describe("printViewportForBounds", () => {
+  it("fits diagram on tabloid printable area centered", () => {
+    const { width, height } = printableAreaCssPx();
+    const viewport = printViewportForBounds({
+      x: 0,
+      y: 0,
+      width: 1000,
+      height: 800,
     });
 
-    document.title = "Original title";
-    handler();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    const contentW = 1000 * viewport.zoom;
+    const contentH = 800 * viewport.zoom;
+    expect(viewport.x).toBeCloseTo((width - contentW) / 2, 1);
+    expect(viewport.y).toBeCloseTo((height - contentH) / 2, 1);
+  });
+});
 
+describe("flushRenderFrames", () => {
+  it("waits for the requested animation frame count", async () => {
+    let frames = 0;
+    await flushRenderFrames((cb) => {
+      frames += 1;
+      cb(0);
+      return frames;
+    }, 2);
+    expect(frames).toBe(2);
+  });
+});
+
+describe("print page style injection", () => {
+  it("injects and removes tabloid @page rules", () => {
+    injectPrintPageStyle();
+    const style = document.getElementById(PRINT_PAGE_STYLE_ID);
+    expect(style?.textContent).toContain("17in 11in");
+
+    removePrintPageStyle();
+    expect(document.getElementById(PRINT_PAGE_STYLE_ID)).toBeNull();
+  });
+});
+
+describe("runDiagramPrint", () => {
+  it("sizes stage, prepares print state, and restores on afterprint", async () => {
+    const { deps, print, setViewport, stage, dispatchResize, listeners } =
+      buildPrintDeps();
+    const { width, height } = printableAreaCssPx();
+
+    document.title = "Original title";
+    await runDiagramPrint(deps);
+
+    expect(dispatchResize).toHaveBeenCalledTimes(1);
+    expect(stage.style.width).toBe(`${width}px`);
+    expect(stage.style.height).toBe(`${height}px`);
     expect(document.body.classList.contains(PRINT_BODY_CLASS)).toBe(true);
     expect(document.title).toBe("SP-TEST");
     expect(setViewport).toHaveBeenCalledTimes(1);
@@ -118,9 +173,19 @@ describe("createPrintDiagramHandler", () => {
 
     expect(document.body.classList.contains(PRINT_BODY_CLASS)).toBe(false);
     expect(document.title).toBe("Original title");
+    expect(stage.style.width).toBe("");
     expect(setViewport).toHaveBeenCalledWith(
       { x: 5, y: 10, zoom: 0.8 },
       { duration: 0 },
     );
+  });
+});
+
+describe("createPrintDiagramHandler", () => {
+  it("delegates to runDiagramPrint", async () => {
+    const { deps, print } = buildPrintDeps();
+    createPrintDiagramHandler(deps)();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(print).toHaveBeenCalledTimes(1);
   });
 });

@@ -4,7 +4,6 @@ import {
   AutoIcon,
   CalloutIcon,
   CollapseIcon,
-  ConfigImportIcon,
   ExportConfigIcon,
   FolderPlusIcon,
   HorizontalLayoutIcon,
@@ -12,7 +11,7 @@ import {
   ListIcon,
   ManualIcon,
   MapIcon,
-  PrintPdfIcon,
+  PrintIcon,
   QuadLayoutIcon,
   ReportIcon,
 } from "@/components/toolbar/ToolbarIcon";
@@ -87,7 +86,7 @@ export function HelpGuideContent() {
     <div className="help-guide-overlay__content">
       <HelpSection title="Get started">
         <div className="help-guide-overlay__step-flow">
-          <HelpCard visual={<FolderPlusIcon />} caption="Import CSV" />
+          <HelpCard visual={<FolderPlusIcon />} caption="Import file" />
           <StepArrow />
           <HelpCard visual={<MiniSpliceDiagram />} caption="Diagram builds" />
           <StepArrow />
@@ -102,7 +101,7 @@ export function HelpGuideContent() {
           />
         </div>
         <div className="help-guide-overlay__card-grid help-guide-overlay__card-grid--compact">
-          <HelpCard visual={<DropFileIllustration />} caption="Drop CSV on canvas" />
+          <HelpCard visual={<DropFileIllustration />} caption="Drop file on canvas" />
         </div>
       </HelpSection>
 
@@ -156,9 +155,13 @@ export function HelpGuideContent() {
           <ToolbarMapItem icon={<ReportIcon />} label="Report" />
           <ToolbarMapItem icon={<InspectIcon />} label="Inspect" />
           <ToolbarMapItem icon={<ExportConfigIcon />} label="Export" />
-          <ToolbarMapItem icon={<ConfigImportIcon />} label="Import" />
-          <ToolbarMapItem icon={<PrintPdfIcon />} label="PDF" />
+          <ToolbarMapItem icon={<FolderPlusIcon />} label="Import" />
+          <ToolbarMapItem icon={<PrintIcon />} label="Print" />
         </div>
+        <p className="help-guide-overlay__toolbar-note">
+          Print diagram opens your system print dialog — choose tabloid landscape
+          and Save as PDF or your printer.
+        </p>
       </HelpSection>
 
       <HelpSection title="Circuits">

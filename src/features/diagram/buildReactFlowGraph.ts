@@ -48,6 +48,7 @@ import {
 import {
   applyTubeRowAlignmentShifts,
   cablePositionsFromNodePositions,
+  type TubeKey,
   type TubeRowShiftOptions,
 } from "@/features/diagram/tubeRowShift";
 import {
@@ -145,6 +146,8 @@ function buildCableNode(
     diagramScale: number;
     sideStemAlign: ReturnType<typeof computeSideStemAlignment>;
     manualAdjustEnabled?: boolean;
+    locked?: boolean;
+    lockedTubes?: string[];
   },
 ): Node {
   const nodeId = `cable-${vc.id}`;
@@ -177,8 +180,13 @@ function buildCableNode(
       spliceNumber: graph.report.header.spliceNumber,
       collapsedTubes: options.collapsedTubes,
       manualAdjustEnabled: options.manualAdjustEnabled,
+      locked: options.locked,
+      lockedTubes:
+        options.lockedTubes && options.lockedTubes.length > 0
+          ? options.lockedTubes
+          : undefined,
     } satisfies CableNodeData,
-    draggable: true,
+    draggable: !options.locked,
   };
 }
 
@@ -267,6 +275,16 @@ export function buildReactFlowGraph(
     refreshRowLayout: buildOptions?.refreshRowLayout,
   });
 
+  // User-locked whole cables: pin to their saved coordinates (x + y), overriding
+  // any refresh pass, so they stay frozen across auto/manual + other moves.
+  const lockedCableIds = new Set<string>(
+    Object.keys(overrides?.locks?.cables ?? {}),
+  );
+  for (const vcId of lockedCableIds) {
+    const saved = overrides?.positions?.[`cable-${vcId}`];
+    if (saved) positions[`cable-${vcId}`] = { x: saved.x, y: saved.y };
+  }
+
   const autoAdjustOn = overrides?.autoAdjustEnabled !== false;
 
   if (buildOptions?.dragSync !== true && autoAdjustOn) {
@@ -275,6 +293,7 @@ export function buildReactFlowGraph(
       placement,
       positions,
       diagramScale,
+      lockedCableIds,
     );
   }
 
@@ -283,6 +302,11 @@ export function buildReactFlowGraph(
     visualCables,
     overrides?.tubeOverrides,
   );
+  // User-locked fan-out groups also skip auto tube-row alignment (frozen shape).
+  const userLockedTubeKeys = Object.keys(
+    overrides?.locks?.tubeGroups ?? {},
+  ) as TubeKey[];
+  for (const key of userLockedTubeKeys) lockedTubeKeys.add(key);
   mergeFanoutOverridesIntoTubes(visualCables, overrides);
 
   const tubeShiftOptions: TubeRowShiftOptions = {
@@ -341,6 +365,17 @@ export function buildReactFlowGraph(
     manualAdjustEnabled: !autoAdjustOn,
   };
 
+  const lockedTubesByVc = new Map<string, string[]>();
+  for (const key of userLockedTubeKeys) {
+    const sep = key.indexOf("|");
+    if (sep < 0) continue;
+    const vcId = key.slice(0, sep);
+    const tubeColor = key.slice(sep + 1);
+    const list = lockedTubesByVc.get(vcId) ?? [];
+    list.push(tubeColor);
+    lockedTubesByVc.set(vcId, list);
+  }
+
   const nodes: Node[] = visualCables.map((vc) => {
     const nodeId = `cable-${vc.id}`;
     const pos = positions[nodeId] ?? { x: 0, y: 0 };
@@ -350,6 +385,8 @@ export function buildReactFlowGraph(
     return buildCableNode(vc, pos, graph, {
       ...nodeBuildOptions,
       collapsedTubes,
+      locked: lockedCableIds.has(vc.id),
+      lockedTubes: lockedTubesByVc.get(vc.id),
     });
   });
 

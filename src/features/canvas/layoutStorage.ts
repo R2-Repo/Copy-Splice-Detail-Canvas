@@ -95,6 +95,12 @@ export function mergeLayoutOverrides(
     layoutWidth: patch.layoutWidth ?? existing?.layoutWidth,
     callouts: patch.callouts ?? existing?.callouts,
     calloutsVisible: patch.calloutsVisible ?? existing?.calloutsVisible,
+    calloutScale: patch.calloutScale ?? existing?.calloutScale,
+    calloutAutoZoom: patch.calloutAutoZoom ?? existing?.calloutAutoZoom,
+    titleBlock:
+      patch.titleBlock !== undefined
+        ? { ...existing?.titleBlock, ...patch.titleBlock }
+        : existing?.titleBlock,
     autoAdjustEnabled:
       patch.autoAdjustEnabled ?? existing?.autoAdjustEnabled ?? true,
     tubeOverrides: mergeOverrideMap(
@@ -108,5 +114,8 @@ export function mergeLayoutOverrides(
     legOverrides: mergeOverrideMap(existing?.legOverrides, patch.legOverrides),
     layoutMode: patch.layoutMode ?? existing?.layoutMode,
     quadCableSides: { ...existing?.quadCableSides, ...patch.quadCableSides },
+    // Replace-when-provided: lock toggles pass the complete desired `locks`
+    // object (so a removed key actually unlocks); other patches preserve it.
+    locks: patch.locks !== undefined ? patch.locks : existing?.locks,
   };
 }

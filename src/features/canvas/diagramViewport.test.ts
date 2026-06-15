@@ -5,6 +5,7 @@ import {
   stageInnerWidth,
   viewportAtUnitZoom,
   viewportAtUnitZoomFocused,
+  viewportForFitPage,
   viewportForFitWidth,
 } from "@/features/canvas/diagramViewport";
 
@@ -24,6 +25,22 @@ describe("diagramViewport", () => {
 
     expect(vp.zoom).toBeLessThan(1);
     expect(vp.zoom).toBeCloseTo(960 / 8000, 3);
+  });
+
+  it("fitPage centers bounds and uses the tighter zoom axis", () => {
+    const bounds = { x: 24, y: 100, width: 1000, height: 4000 };
+    const pageW = 1536;
+    const pageH = 960;
+    const vp = viewportForFitPage(bounds, pageW, pageH, { paddingRatio: 0.08 });
+
+    const innerW = pageW * (1 - 2 * 0.08);
+    const innerH = pageH * (1 - 2 * 0.08);
+    expect(vp.zoom).toBeCloseTo(Math.min(innerW / 1000, innerH / 4000), 3);
+
+    const contentW = bounds.width * vp.zoom;
+    const contentH = bounds.height * vp.zoom;
+    expect(vp.x).toBeCloseTo((pageW - contentW) / 2 - bounds.x * vp.zoom, 1);
+    expect(vp.y).toBeCloseTo((pageH - contentH) / 2 - bounds.y * vp.zoom, 1);
   });
 
   it("stageInnerWidth matches fit padding band", () => {

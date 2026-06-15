@@ -9,7 +9,7 @@ type CsvImportButtonProps = {
   active?: boolean;
 };
 
-const IMPORT_LABEL = "Import Bentley CSV";
+const IMPORT_LABEL = "Import file";
 
 export function CsvImportButton({ onImport, disabled, active = false }: CsvImportButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -29,7 +29,7 @@ export function CsvImportButton({ onImport, disabled, active = false }: CsvImpor
       <input
         ref={inputRef}
         type="file"
-        accept=".csv,text/csv"
+        accept=".csv,.sdc.json,.json,text/csv,application/json"
         hidden
         onChange={(e) => {
           const file = e.target.files?.[0];

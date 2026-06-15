@@ -23,6 +23,8 @@ export type SerializeDiagramConfigInput = {
   edges: Edge[];
   collapseFullButtSplices: boolean;
   calloutsVisible: boolean;
+  calloutScale?: number;
+  calloutAutoZoom?: boolean;
   autoAdjustEnabled: boolean;
   layoutWidth: number;
   legOverrides?: LayoutOverrides["legOverrides"];
@@ -41,6 +43,8 @@ export function buildDiagramConfig(
     collapseFullButtSplices: input.collapseFullButtSplices,
     layoutWidth: input.layoutWidth,
     calloutsVisible: input.calloutsVisible,
+    calloutScale: input.calloutScale,
+    calloutAutoZoom: input.calloutAutoZoom,
     autoAdjustEnabled: input.autoAdjustEnabled,
     autoLayoutY: stored?.autoLayoutY,
     cableSides: stored?.cableSides,

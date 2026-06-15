@@ -16,17 +16,41 @@ import "@xyflow/react/dist/style.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ConnectionInspectorOverlay } from "@/components/ConnectionInspectorOverlay";
+import {
+  CanvasContextMenu,
+  type CanvasContextMenuState,
+  type ContextMenuItem,
+} from "@/features/canvas/contextMenu/CanvasContextMenu";
+import {
+  CanvasContextMenuProvider,
+  type CanvasContextMenuValue,
+  type ContextMenuTarget,
+} from "@/features/canvas/contextMenu/CanvasContextMenuContext";
 import { HelpGuideOverlay } from "@/components/help/HelpGuideOverlay";
 import { SpliceReportOverlay } from "@/components/SpliceReportOverlay";
+import { CalloutsToolbarControl } from "@/components/toolbar/CalloutsToolbarControl";
 import { CALLOUT_BOX, defaultCalloutPosition } from "@/features/canvas/callouts/cableCalloutGeometry";
 import { CalloutLeaderLayer } from "@/features/canvas/callouts/CalloutLeaderLayer";
 import { CalloutPersistContext } from "@/features/canvas/callouts/CalloutPersistContext";
+import {
+  CALLOUT_AUTO_ZOOM_DEFAULT,
+  CALLOUT_SCALE_DEFAULT,
+  clampCalloutScale,
+  effectiveCalloutScale,
+} from "@/features/canvas/callouts/calloutScale";
+import {
+  CalloutScaleProvider,
+  type CalloutScaleContextValue,
+} from "@/features/canvas/callouts/CalloutScaleContext";
 import {
   calloutIdForCable,
   fibersFromCableTubes,
   formatCableCalloutText,
 } from "@/features/canvas/callouts/formatCableCalloutText";
 import { mergeCalloutNodes } from "@/features/canvas/callouts/mergeCalloutNodes";
+import { mergeTitleNode } from "@/features/canvas/titleBox/mergeTitleNode";
+import { TitlePersistContext } from "@/features/canvas/titleBox/TitlePersistContext";
+import { DIAGRAM_TITLE_NODE_ID } from "@/features/canvas/titleBox/titleBoxLayout";
 import {
   buildCircuitIndex,
   type CircuitIndex,
@@ -49,7 +73,12 @@ import {
   positionsFromNodes,
   saveLayoutOverrides,
 } from "@/features/canvas/layoutStorage";
-import type { CableCalloutNodeData, CableNodeData } from "@/features/canvas/nodes/types";
+import type {
+  CableCalloutNodeData,
+  CableNodeData,
+  DiagramTitleNodeData,
+} from "@/features/canvas/nodes/types";
+import { computeDiagramScale } from "@/features/diagram/cableBreakoutGeometry";
 import {
   displaySideFromCanvasX,
   visualCableIdFromNodeId,
@@ -74,10 +103,8 @@ import {
   manualLayoutWarningsForConnections,
   touchedConnectionIdsFromEdgeIds,
 } from "@/features/diagram/manualLayoutWarnings";
-import { DiagramConfigImportButton } from "@/features/export/DiagramConfigImportButton";
 import {
   DiagramConfigParseError,
-  looksLikeDiagramConfigText,
   parseDiagramConfig,
 } from "@/features/export/parseDiagramConfig";
 import { restoreDiagramFromConfig } from "@/features/export/restoreDiagramConfig";
@@ -95,7 +122,10 @@ import {
 } from "@/features/manualAdjust/repinButtSpliceEdges";
 import { syncManualVisualCable } from "@/features/manualAdjust/syncManualVisualCable";
 import { useManualAdjustEngine } from "@/features/manualAdjust/useManualAdjustEngine";
-import { spliceEdgeIdsForTubeKey } from "@/features/diagram/snapGuides";
+import {
+  collectGlobalTubeTipSnapTargets,
+  spliceEdgeIdsForTubeKey,
+} from "@/features/diagram/snapGuides";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
 import { syncNodesEngineDragLayout } from "@/features/diagram/syncNodesEngineDragLayout";
 import { detectFullButtSpliceTubes } from "@/features/diagram/fullButtSplice";
@@ -105,6 +135,7 @@ import {
   viewportForFitWidth,
 } from "@/features/canvas/diagramViewport";
 import {
+  activeSpliceLaneCount,
   importLayoutWidthForGraph,
   reportStorageKey,
   resolveLayoutWidthForStage,
@@ -121,7 +152,7 @@ import {
   InspectIcon,
   MapIcon,
   ManualIcon,
-  PrintPdfIcon,
+  PrintIcon,
   QuadLayoutIcon,
   ReportIcon,
   ResetIcon,
@@ -133,8 +164,13 @@ import {
 import { ToolbarPillToggle } from "@/components/toolbar/ToolbarPillToggle";
 import { CsvImportButton } from "@/features/import/CsvImportButton";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
+import {
+  routeImportFile,
+  UNSUPPORTED_IMPORT_FILE_MESSAGE,
+} from "@/features/import/routeImportFile";
 import type {
   ConnectionGraph,
+  DiagramTitleBlock,
   LayoutCalloutRecord,
   LayoutMode,
   LayoutOverrides,
@@ -145,6 +181,14 @@ import type {
 
 const emptyNodes: Node[] = [];
 const emptyEdges: Edge[] = [];
+
+function isDiagramOverlayNode(node: Node): boolean {
+  return node.type === "cableCallout" || node.type === "diagramTitle";
+}
+
+function engineNodesFrom(nodes: Node[]): Node[] {
+  return nodes.filter((n) => !isDiagramOverlayNode(n));
+}
 
 const FIT_WIDTH_OPTIONS = {
   paddingRatio: 0.08,
@@ -168,18 +212,32 @@ function connectionIdFromEdgeId(edgeId: string): string | null {
   return null;
 }
 
-function attachStoredCallouts(
+function attachDiagramOverlayNodes(
   nodes: Node[],
+  graph: ConnectionGraph,
   reportKey: string,
+  layoutWidth: number,
+  collapse: boolean,
   savedPositions?: Record<string, { x: number; y: number }>,
 ): Node[] {
   const overrides = loadLayoutOverrides(reportKey);
-  const withoutCallouts = nodes.filter((n) => n.type !== "cableCallout");
-  if (!calloutsShouldShow(overrides)) {
-    return withoutCallouts;
+  let result = nodes.filter(
+    (n) => n.type !== "cableCallout" && n.type !== "diagramTitle",
+  );
+  if (calloutsShouldShow(overrides)) {
+    const positions = { ...overrides?.positions, ...savedPositions };
+    result = mergeCalloutNodes(result, overrides?.callouts, positions);
   }
-  const positions = { ...overrides?.positions, ...savedPositions };
-  return mergeCalloutNodes(withoutCallouts, overrides?.callouts, positions);
+  const diagramScale = computeDiagramScale(
+    activeSpliceLaneCount(graph, collapse),
+  );
+  return mergeTitleNode(
+    result,
+    graph.report.header,
+    layoutWidth,
+    diagramScale,
+    overrides?.titleBlock,
+  );
 }
 
 function boundsForOutwardDrag(
@@ -236,6 +294,8 @@ function WorkflowCanvasInner() {
   const stageWidthRef = useRef(0);
   const collapseRef = useRef(false);
   const calloutsVisibleRef = useRef(false);
+  const calloutScaleRef = useRef(CALLOUT_SCALE_DEFAULT);
+  const calloutAutoZoomRef = useRef(CALLOUT_AUTO_ZOOM_DEFAULT);
   const layoutModeRef = useRef<LayoutMode>("horizontal");
   const applyGraphRef = useRef<
     (
@@ -264,6 +324,11 @@ function WorkflowCanvasInner() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [circuitPanelOpen, setCircuitPanelOpen] = useState(false);
   const [calloutsVisible, setCalloutsVisible] = useState(false);
+  const [calloutScale, setCalloutScaleState] = useState(CALLOUT_SCALE_DEFAULT);
+  const [calloutAutoZoom, setCalloutAutoZoomState] = useState(
+    CALLOUT_AUTO_ZOOM_DEFAULT,
+  );
+  const [isPrinting, setIsPrinting] = useState(false);
   const [circuitIndex, setCircuitIndex] = useState<CircuitIndex | null>(null);
   const [autoAdjustEnabled, setAutoAdjustEnabled] = useState(true);
   const [layoutMode, setLayoutModeState] = useState<LayoutMode>("horizontal");
@@ -289,6 +354,8 @@ function WorkflowCanvasInner() {
 
   collapseRef.current = collapseFullButtSplices;
   calloutsVisibleRef.current = calloutsVisible;
+  calloutScaleRef.current = calloutScale;
+  calloutAutoZoomRef.current = calloutAutoZoom;
   autoAdjustRef.current = autoAdjustEnabled;
   layoutModeRef.current = layoutMode;
 
@@ -297,7 +364,7 @@ function WorkflowCanvasInner() {
     const graph = graphRef.current;
     if (!graph) return;
 
-    const nodes = getNodes().filter((n) => n.type !== "cableCallout");
+    const nodes = engineNodesFrom(getNodes());
     const collapsedKeys = [...tubePreview.keys()].filter((key) =>
       isCollapsedTubeKey(nodes, key),
     );
@@ -411,6 +478,7 @@ function WorkflowCanvasInner() {
           tubeOverrides: existing?.tubeOverrides,
           fanoutOverrides: existing?.fanoutOverrides,
           legOverrides: existing?.legOverrides,
+          locks: existing?.locks,
         },
         layoutWidth: layoutWidthRef.current,
         positions,
@@ -555,6 +623,8 @@ function WorkflowCanvasInner() {
           collapseFullButtSplices,
           layoutWidth: layoutWidthRef.current,
           calloutsVisible: calloutsVisibleRef.current,
+          calloutScale: calloutScaleRef.current,
+          calloutAutoZoom: calloutAutoZoomRef.current,
           ...patch,
         }),
       );
@@ -577,6 +647,7 @@ function WorkflowCanvasInner() {
         tubeOverrides: existing?.tubeOverrides,
         fanoutOverrides: existing?.fanoutOverrides,
         legOverrides: existing?.legOverrides,
+        titleBlock: existing?.titleBlock,
       });
       const stageWidth = stageWidthForLayout();
       const viewportLayoutWidth =
@@ -651,7 +722,14 @@ function WorkflowCanvasInner() {
           ),
         );
       xBoundsRef.current = xBounds;
-      const merged = attachStoredCallouts(nextNodes, reportKey, savedPositions);
+      const merged = attachDiagramOverlayNodes(
+        nextNodes,
+        graph,
+        reportKey,
+        layoutWidthArg,
+        collapse,
+        savedPositions,
+      );
       setNodes(merged);
       setEdges(nextEdges);
       setLegOverridesState(overrides.legOverrides);
@@ -791,6 +869,13 @@ function WorkflowCanvasInner() {
         saved?.collapseFullButtSplices ?? detected.length > 0;
       setCollapseFullButtSplices(collapsed);
       setCalloutsVisible(calloutsShouldShow(saved));
+      const loadedCalloutScale = saved?.calloutScale ?? CALLOUT_SCALE_DEFAULT;
+      const loadedCalloutAutoZoom =
+        saved?.calloutAutoZoom ?? CALLOUT_AUTO_ZOOM_DEFAULT;
+      setCalloutScaleState(loadedCalloutScale);
+      setCalloutAutoZoomState(loadedCalloutAutoZoom);
+      calloutScaleRef.current = loadedCalloutScale;
+      calloutAutoZoomRef.current = loadedCalloutAutoZoom;
       setAutoAdjustEnabled(saved?.autoAdjustEnabled !== false);
       setLegOverridesState(saved?.legOverrides);
       const initialLayoutMode = saved?.layoutMode ?? "horizontal";
@@ -904,6 +989,8 @@ function WorkflowCanvasInner() {
       edges,
       collapseFullButtSplices,
       calloutsVisible,
+      calloutScale,
+      calloutAutoZoom,
       autoAdjustEnabled,
       layoutWidth: layoutWidthRef.current,
       legOverrides: legOverridesState,
@@ -917,10 +1004,29 @@ function WorkflowCanvasInner() {
     edges,
     collapseFullButtSplices,
     calloutsVisible,
+    calloutScale,
+    calloutAutoZoom,
     autoAdjustEnabled,
     legOverridesState,
     getViewport,
   ]);
+
+  const importDiagramFile = useCallback(
+    (text: string, fileName: string, options?: { fromDrop?: boolean }) => {
+      const route = routeImportFile(text, fileName);
+      if (route === "config") {
+        loadFromConfig(text);
+        return;
+      }
+      if (route === "csv") {
+        if (options?.fromDrop && !confirmReplaceDiagram()) return;
+        loadFromCsv(text, fileName);
+        return;
+      }
+      setConfigErrorBanner(UNSUPPORTED_IMPORT_FILE_MESSAGE);
+    },
+    [confirmReplaceDiagram, loadFromConfig, loadFromCsv],
+  );
 
   const handleStageDragOver = useCallback((e: React.DragEvent) => {
     if (e.dataTransfer.types.includes("Files")) {
@@ -935,17 +1041,10 @@ function WorkflowCanvasInner() {
       const file = e.dataTransfer.files[0];
       if (!file) return;
       void file.text().then((text) => {
-        if (looksLikeDiagramConfigText(text)) {
-          loadFromConfig(text);
-          return;
-        }
-        if (file.name.toLowerCase().endsWith(".csv")) {
-          if (!confirmReplaceDiagram()) return;
-          loadFromCsv(text, file.name);
-        }
+        importDiagramFile(text, file.name, { fromDrop: true });
       });
     },
-    [confirmReplaceDiagram, loadFromConfig, loadFromCsv],
+    [importDiagramFile],
   );
 
   const updateManualWarnings = useCallback(
@@ -1004,9 +1103,7 @@ function WorkflowCanvasInner() {
       const tubeColor = tubeKey.split("|")[1]!;
       const current = getNodes();
       const callouts = current.filter((n) => n.type === "cableCallout");
-      const engine = current
-        .filter((n) => n.type !== "cableCallout")
-        .map((n) => {
+      const engine = engineNodesFrom(current).map((n) => {
           if (n.id !== `cable-${vcId}`) return n;
           const data = n.data as CableNodeData;
           return {
@@ -1037,9 +1134,12 @@ function WorkflowCanvasInner() {
         graph,
         vcId,
       );
-      const mergedNodes = attachStoredCallouts(
+      const mergedNodes = attachDiagramOverlayNodes(
         [...synced, ...callouts],
+        graph,
         reportKey,
+        layoutWidthRef.current,
+        collapseRef.current,
         positions,
       );
       let finalEdges = syncedEdges;
@@ -1161,7 +1261,11 @@ function WorkflowCanvasInner() {
     ],
   );
 
-  const printDiagram = usePrintDiagram(nodes, graphRef.current, stageRef);
+  const printDiagram = usePrintDiagram(
+    nodes,
+    graphRef.current,
+    stageRef,
+  );
 
   const toggleManualAdjust = useCallback(() => {
     const reportKey = reportKeyRef.current;
@@ -1404,6 +1508,7 @@ function WorkflowCanvasInner() {
               tubeOverrides: existing?.tubeOverrides,
               fanoutOverrides: existing?.fanoutOverrides,
               legOverrides: existing?.legOverrides,
+              locks: existing?.locks,
             },
             layoutWidth,
             { skipTubeAutoAlign: true },
@@ -1412,7 +1517,7 @@ function WorkflowCanvasInner() {
           nextNodes = [...nextNodes, ...callouts];
         } else if (manualMode) {
           const callouts = getNodes().filter((n) => n.type === "cableCallout");
-          const engine = getNodes().filter((n) => n.type !== "cableCallout");
+          const engine = engineNodesFrom(getNodes());
           ({ nodes: nextNodes, edges: nextEdges } = syncManualVisualCable(
             engine,
             getEdges(),
@@ -1450,14 +1555,18 @@ function WorkflowCanvasInner() {
                 tubeOverrides: existing?.tubeOverrides,
                 fanoutOverrides: existing?.fanoutOverrides,
                 legOverrides: existing?.legOverrides,
+                locks: existing?.locks,
               },
               layoutWidth,
             ));
         }
 
-        const merged = attachStoredCallouts(
+        const merged = attachDiagramOverlayNodes(
           nextNodes,
+          graph,
           reportKeyRef.current,
+          layoutWidth,
+          collapseRef.current,
           finalPositions,
         );
         const mergedDragged = merged.find((n) => n.id === node.id);
@@ -1569,7 +1678,22 @@ function WorkflowCanvasInner() {
     [],
   );
 
-  const snapTipTargets = useMemo(() => [], []);
+  const snapTipTargets = useMemo(() => {
+    if (autoAdjustEnabled) return [] as number[];
+    const graph = graphRef.current;
+    if (!graph) return [] as number[];
+    const positions: Record<string, { x: number; y: number }> = {};
+    for (const n of nodes) {
+      if (n.type === "cable") {
+        positions[n.id] = { x: n.position.x, y: n.position.y };
+      }
+    }
+    const reportKey = reportKeyRef.current;
+    const tubeOverrides = reportKey
+      ? loadLayoutOverrides(reportKey)?.tubeOverrides
+      : undefined;
+    return collectGlobalTubeTipSnapTargets(graph, positions, tubeOverrides);
+  }, [autoAdjustEnabled, nodes]);
 
   const manualLayoutContextValue = useMemo(
     () => ({
@@ -1615,6 +1739,42 @@ function WorkflowCanvasInner() {
     return buildConnectionInspectorModel(graph, { existingConnectionIds });
   }, [inspectorOpen, edges]);
 
+  const handleTitleFieldChange = useCallback(
+    (field: keyof DiagramTitleBlock, value: string) => {
+      setNodes((current) => {
+        const next = current.map((n) =>
+          n.id === DIAGRAM_TITLE_NODE_ID
+            ? {
+                ...n,
+                data: { ...(n.data as DiagramTitleNodeData), [field]: value },
+              }
+            : n,
+        );
+        const key = reportKeyRef.current;
+        if (key) {
+          const existing = loadLayoutOverrides(key);
+          const titleBlock: DiagramTitleBlock = {
+            ...(existing?.titleBlock ?? {}),
+            [field]: value,
+          };
+          saveLayoutOverrides(
+            mergeLayoutOverrides(key, {
+              titleBlock,
+              positions: positionsFromNodes(next),
+              existingEdgeIds: existingIdsFromEdges(getEdges()),
+              collapseFullButtSplices: collapseRef.current,
+              layoutWidth: layoutWidthRef.current,
+              cableSides: existing?.cableSides,
+              callouts: existing?.callouts,
+            }),
+          );
+        }
+        return next;
+      });
+    },
+    [getEdges, setNodes],
+  );
+
   const handleCalloutTextChange = useCallback(
     (calloutId: string, text: string) => {
       setNodes((current) => {
@@ -1652,6 +1812,68 @@ function WorkflowCanvasInner() {
     },
     [getEdges, setNodes],
   );
+
+  const setCalloutUserScale = useCallback((scale: number) => {
+    const clamped = clampCalloutScale(scale);
+    setCalloutScaleState(clamped);
+    calloutScaleRef.current = clamped;
+    const key = reportKeyRef.current;
+    if (key) {
+      saveLayoutOverrides(
+        mergeLayoutOverrides(key, {
+          calloutScale: clamped,
+          calloutAutoZoom: calloutAutoZoomRef.current,
+        }),
+      );
+    }
+  }, []);
+
+  const setCalloutAutoZoomCompensate = useCallback((enabled: boolean) => {
+    setCalloutAutoZoomState(enabled);
+    calloutAutoZoomRef.current = enabled;
+    const key = reportKeyRef.current;
+    if (key) {
+      saveLayoutOverrides(
+        mergeLayoutOverrides(key, {
+          calloutScale: calloutScaleRef.current,
+          calloutAutoZoom: enabled,
+        }),
+      );
+    }
+  }, []);
+
+  const calloutScaleContextValue = useMemo<CalloutScaleContextValue>(
+    () => ({
+      userScale: calloutScale,
+      autoZoomCompensate: calloutAutoZoom,
+      isPrinting,
+      setUserScale: setCalloutUserScale,
+      setAutoZoomCompensate: setCalloutAutoZoomCompensate,
+      effectiveScale: (zoom: number) =>
+        effectiveCalloutScale(calloutScale, zoom, {
+          autoZoomCompensate: calloutAutoZoom,
+          isPrinting,
+        }),
+    }),
+    [
+      calloutScale,
+      calloutAutoZoom,
+      isPrinting,
+      setCalloutUserScale,
+      setCalloutAutoZoomCompensate,
+    ],
+  );
+
+  useEffect(() => {
+    const onBeforePrint = () => setIsPrinting(true);
+    const onAfterPrint = () => setIsPrinting(false);
+    window.addEventListener("beforeprint", onBeforePrint);
+    window.addEventListener("afterprint", onAfterPrint);
+    return () => {
+      window.removeEventListener("beforeprint", onBeforePrint);
+      window.removeEventListener("afterprint", onAfterPrint);
+    };
+  }, []);
 
   const generateCableCallouts = useCallback(() => {
     const reportKey = reportKeyRef.current;
@@ -1763,11 +1985,153 @@ function WorkflowCanvasInner() {
     [edges, generateCableCallouts, nodes, setNodes],
   );
 
+  const [contextMenu, setContextMenu] = useState<CanvasContextMenuState | null>(
+    null,
+  );
+
+  const persistLocks = useCallback(
+    (locks: NonNullable<LayoutOverrides["locks"]>) => {
+      const reportKey = reportKeyRef.current;
+      if (!reportKey) return;
+      const cableNodes = getNodes().filter((n) => n.type === "cable");
+      saveLayoutOverrides(
+        mergeLayoutOverrides(reportKey, {
+          locks,
+          positions: positionsFromNodes(cableNodes),
+          existingEdgeIds: existingIdsFromEdges(getEdges()),
+          collapseFullButtSplices: collapseRef.current,
+          layoutWidth: layoutWidthRef.current,
+        }),
+      );
+    },
+    [getEdges, getNodes],
+  );
+
+  const toggleCableLock = useCallback(
+    (visualCableId: string) => {
+      const reportKey = reportKeyRef.current;
+      if (!reportKey) return;
+      const existing = loadLayoutOverrides(reportKey);
+      const cables = { ...(existing?.locks?.cables ?? {}) };
+      const wasLocked = Boolean(cables[visualCableId]);
+      if (wasLocked) delete cables[visualCableId];
+      else cables[visualCableId] = true;
+      persistLocks({ ...existing?.locks, cables });
+      setNodes((current) =>
+        current.map((n) =>
+          n.type === "cable" && n.id === `cable-${visualCableId}`
+            ? {
+                ...n,
+                draggable: wasLocked,
+                data: { ...(n.data as CableNodeData), locked: !wasLocked },
+              }
+            : n,
+        ),
+      );
+    },
+    [persistLocks, setNodes],
+  );
+
+  const toggleTubeGroupLock = useCallback(
+    (visualCableId: string, tubeColor: string) => {
+      const reportKey = reportKeyRef.current;
+      if (!reportKey) return;
+      const key = tubeKeyFor(visualCableId, tubeColor as TubeColorCode);
+      const existing = loadLayoutOverrides(reportKey);
+      const tubeGroups = { ...(existing?.locks?.tubeGroups ?? {}) };
+      const wasLocked = Boolean(tubeGroups[key]);
+      if (wasLocked) delete tubeGroups[key];
+      else tubeGroups[key] = true;
+      persistLocks({ ...existing?.locks, tubeGroups });
+      setNodes((current) =>
+        current.map((n) => {
+          if (n.type !== "cable" || n.id !== `cable-${visualCableId}`) return n;
+          const data = n.data as CableNodeData;
+          const set = new Set(data.lockedTubes ?? []);
+          if (wasLocked) set.delete(tubeColor);
+          else set.add(tubeColor);
+          return {
+            ...n,
+            data: {
+              ...data,
+              lockedTubes: set.size > 0 ? [...set] : undefined,
+            },
+          };
+        }),
+      );
+    },
+    [persistLocks, setNodes],
+  );
+
+  const buildContextMenuItems = useCallback(
+    (target: ContextMenuTarget): ContextMenuItem[] => {
+      const reportKey = reportKeyRef.current;
+      const locks = reportKey
+        ? loadLayoutOverrides(reportKey)?.locks
+        : undefined;
+      if (target.kind === "cable") {
+        const locked = Boolean(locks?.cables?.[target.visualCableId]);
+        return [
+          {
+            id: "lock-cable",
+            label: locked ? "Unlock cable position" : "Lock cable position",
+            onSelect: () => toggleCableLock(target.visualCableId),
+          },
+        ];
+      }
+      const key = tubeKeyFor(
+        target.visualCableId,
+        target.tubeColor as TubeColorCode,
+      );
+      const locked = Boolean(locks?.tubeGroups?.[key]);
+      return [
+        {
+          id: "lock-tube",
+          label: locked ? "Unlock fan-out group" : "Lock fan-out group",
+          onSelect: () =>
+            toggleTubeGroupLock(target.visualCableId, target.tubeColor),
+        },
+      ];
+    },
+    [toggleCableLock, toggleTubeGroupLock],
+  );
+
+  const openContextMenu = useCallback(
+    (target: ContextMenuTarget, clientX: number, clientY: number) => {
+      setContextMenu({
+        x: clientX,
+        y: clientY,
+        items: buildContextMenuItems(target),
+      });
+    },
+    [buildContextMenuItems],
+  );
+
+  const contextMenuValue = useMemo<CanvasContextMenuValue>(
+    () => ({ openMenu: openContextMenu }),
+    [openContextMenu],
+  );
+
+  const onNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      if (node.type !== "cable") return;
+      event.preventDefault();
+      const visualId = visualCableIdFromNodeId(node.id);
+      if (!visualId) return;
+      openContextMenu(
+        { kind: "cable", visualCableId: visualId },
+        event.clientX,
+        event.clientY,
+      );
+    },
+    [openContextMenu],
+  );
+
   return (
     <div className="workflow-canvas">
       <div className="workflow-canvas__toolbar">
         <div className="workflow-canvas__toolbar-left">
-          <CsvImportButton onImport={loadFromCsv} active={!!meta} />
+          <CsvImportButton onImport={importDiagramFile} active={!!meta} />
           <div className="workflow-canvas__toolbar-toggles">
             <ToolbarPillToggle
               label="Buffer tubes"
@@ -1780,12 +2144,14 @@ function WorkflowCanvasInner() {
                 }
               }}
             />
-            <ToolbarPillToggle
-              label="Callouts"
-              ariaLabel="Show cable callouts when on, hide when off"
+            <CalloutsToolbarControl
               disabled={!meta}
               checked={calloutsVisible}
-              onChange={(next) => setCableCalloutsVisible(next)}
+              onCheckedChange={(next) => setCableCalloutsVisible(next)}
+              userScale={calloutScale}
+              onUserScaleChange={setCalloutUserScale}
+              autoZoomCompensate={calloutAutoZoom}
+              onAutoZoomChange={setCalloutAutoZoomCompensate}
             />
             <ToolbarPillToggle
               label="Circuits"
@@ -1891,10 +2257,9 @@ function WorkflowCanvasInner() {
             disabled={!meta}
             onClick={exportDiagramConfig}
           />
-          <DiagramConfigImportButton onImport={loadFromConfig} />
           <ToolbarActionButton
-            label="Print to PDF"
-            icon={<PrintPdfIcon />}
+            label="Print diagram"
+            icon={<PrintIcon />}
             disabled={!meta}
             onClick={printDiagram}
           />
@@ -1921,8 +2286,13 @@ function WorkflowCanvasInner() {
             <CalloutPersistContext.Provider
               value={{ onTextChange: handleCalloutTextChange }}
             >
+            <CalloutScaleProvider value={calloutScaleContextValue}>
+            <TitlePersistContext.Provider
+              value={{ onFieldChange: handleTitleFieldChange }}
+            >
               <ManualLayoutProvider value={manualLayoutContextValue}>
               <ExistingToggleProvider value={existingToggleValue}>
+              <CanvasContextMenuProvider value={contextMenuValue}>
               <ReactFlow
                 className={
                   !autoAdjustEnabled ? "workflow-canvas--manual-adjust" : undefined
@@ -1933,6 +2303,7 @@ function WorkflowCanvasInner() {
                 onNodeDragStart={onNodeDragStart}
                 onNodeDrag={onNodeDrag}
                 onNodeDragStop={onNodeDragStop}
+                onNodeContextMenu={onNodeContextMenu}
                 onEdgesChange={onEdgesChange}
                 nodeTypes={spliceNodeTypes}
                 edgeTypes={spliceEdgeTypes}
@@ -1962,8 +2333,11 @@ function WorkflowCanvasInner() {
                   beginLongPress={existingLongPress.beginLongPress}
                 />
               </ReactFlow>
+              </CanvasContextMenuProvider>
               </ExistingToggleProvider>
               </ManualLayoutProvider>
+            </TitlePersistContext.Provider>
+            </CalloutScaleProvider>
             </CalloutPersistContext.Provider>
           </div>
           {circuitPanelOpen && meta ? (
@@ -1982,6 +2356,10 @@ function WorkflowCanvasInner() {
         onClose={() => setInspectorOpen(false)}
       />
       <HelpGuideOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <CanvasContextMenu
+        state={contextMenu}
+        onClose={() => setContextMenu(null)}
+      />
     </div>
   );
 }

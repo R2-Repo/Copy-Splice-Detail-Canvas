@@ -1,7 +1,8 @@
-import { useStore } from "@xyflow/react";
-import { useCallback, useMemo } from "react";
+import { Panel, useStore, useViewport } from "@xyflow/react";
+import { useCallback, useMemo, type CSSProperties } from "react";
 
 import { pickLeaderAnchors } from "@/features/canvas/callouts/cableCalloutGeometry";
+import { useCalloutScale } from "@/features/canvas/callouts/CalloutScaleContext";
 import type { CableCalloutNodeData, CableNodeData } from "@/features/canvas/nodes/types";
 
 type LeaderLine = {
@@ -15,6 +16,9 @@ type LeaderLine = {
 export function CalloutLeaderLayer() {
   const nodes = useStore(useCallback((state) => state.nodes, []));
   const transform = useStore(useCallback((state) => state.transform, []));
+  const viewport = useViewport();
+  const { effectiveScale } = useCalloutScale();
+  const scale = effectiveScale(viewport.zoom);
 
   const lines = useMemo((): LeaderLine[] => {
     const nodeById = new Map(nodes.map((n) => [n.id, n]));
@@ -45,23 +49,26 @@ export function CalloutLeaderLayer() {
   const [tx, ty, zoom] = transform;
 
   return (
-    <svg
-      className="callout-leader-layer"
-      aria-hidden
-      style={{
-        transform: `translate(${tx}px, ${ty}px) scale(${zoom})`,
-      }}
-    >
-      {lines.map((line) => (
-        <line
-          key={line.id}
-          className="callout-leader-layer__line"
-          x1={line.x1}
-          y1={line.y1}
-          x2={line.x2}
-          y2={line.y2}
-        />
-      ))}
-    </svg>
+    <Panel position="top-left" className="callout-leader-panel">
+      <svg
+        className="callout-leader-layer"
+        aria-hidden
+        style={{
+          transform: `translate(${tx}px, ${ty}px) scale(${zoom})`,
+          "--callout-scale": scale,
+        } as CSSProperties}
+      >
+        {lines.map((line) => (
+          <line
+            key={line.id}
+            className="callout-leader-layer__line"
+            x1={line.x1}
+            y1={line.y1}
+            x2={line.x2}
+            y2={line.y2}
+          />
+        ))}
+      </svg>
+    </Panel>
   );
 }

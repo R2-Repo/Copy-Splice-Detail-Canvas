@@ -7,17 +7,15 @@ import type { ConnectionGraph } from "@/types/splice";
 export function usePrintDiagram(
   nodes: Node[],
   graph: ConnectionGraph | null,
-  stageRef: RefObject<HTMLDivElement | null>,
+  stageRef: RefObject<HTMLElement | null>,
 ): () => void {
   const { getViewport, setViewport, getNodesBounds } = useReactFlow();
 
   return useCallback(() => {
-    const stage = stageRef.current;
     createPrintDiagramHandler({
       nodes,
       graph,
-      stageWidth: stage?.clientWidth ?? 0,
-      stageHeight: stage?.clientHeight ?? 0,
+      getStageElement: () => stageRef.current,
       getViewport,
       setViewport,
       getNodesBounds,

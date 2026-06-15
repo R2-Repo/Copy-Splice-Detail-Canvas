@@ -20,6 +20,10 @@ import {
   type DominantCablePair,
 } from "@/features/diagram/dominantCablePair";
 import { orderedFiberConnections } from "@/features/diagram/buildConnectionGraph";
+import {
+  computeNearStraightShift,
+  type AlignConnection,
+} from "@/features/diagram/horizontalAlign";
 import type { VisualCable } from "@/features/diagram/visualCables";
 import type { ConnectionGraph } from "@/types/splice";
 
@@ -31,6 +35,8 @@ export type AlignedDiagramLayout = {
   rowYs: Map<string, number>;
   cablePositions: Map<string, { x: number; y: number; height: number }>;
   layoutWidth: number;
+  /** Cables pinned by dominant/high-count pair alignment (not snapped). */
+  alignmentLocked: ReadonlySet<string>;
 };
 
 export function estimatedCableNodeWidth(
@@ -124,6 +130,8 @@ export function resolveSameSideNodeCollisions(
   placement: Map<string, CablePlacement>,
   positions: Record<string, { x: number; y: number }>,
   scale = 1,
+  /** Visual cable ids that are user-locked: keep their Y fixed; others stack around them. */
+  lockedIds?: ReadonlySet<string>,
 ): void {
   for (const side of ["left", "right"] as const) {
     const cables = visualCables
@@ -143,6 +151,11 @@ export function resolveSameSideNodeCollisions(
       const pos = positions[nodeId];
       if (!pos) continue;
       const h = cableNodeLayoutHeight(vc, scale);
+      if (lockedIds?.has(vc.id)) {
+        // Frozen anchor: never move it; following cables stack below it.
+        stackBottom = pos.y + h + effectiveCableGap();
+        continue;
+      }
       const nodeY = Math.max(pos.y, stackBottom);
       positions[nodeId] = { ...pos, y: nodeY };
       stackBottom = nodeY + h + effectiveCableGap();
@@ -207,7 +220,7 @@ function applyCablePairAlignment(
   rowYs: Map<string, number>,
   cablePositions: Map<string, { x: number; y: number; height: number }>,
   groups: CablePairGroup[],
-): void {
+): Set<string> {
   const locked = new Set<string>();
 
   for (const group of groups) {
@@ -258,6 +271,189 @@ function applyCablePairAlignment(
     locked.add(leftVc.id);
     locked.add(rightVc.id);
   }
+
+  return locked;
+}
+
+/** Build per-cable cross-side leg records (own/partner handle offsets). */
+function alignConnsByCable(
+  visualCables: VisualCable[],
+  placement: Map<string, CablePlacement>,
+): Map<string, AlignConnection[]> {
+  const byConn = new Map<string, { left?: VisualCable; right?: VisualCable }>();
+  for (const vc of visualCables) {
+    const side = placement.get(vc.id)?.side ?? vc.side;
+    for (const tube of vc.tubes) {
+      for (const fiber of tube.fibers) {
+        const entry = byConn.get(fiber.connectionId) ?? {};
+        if (side === "left") entry.left = vc;
+        else entry.right = vc;
+        byConn.set(fiber.connectionId, entry);
+      }
+    }
+  }
+
+  const connsByCable = new Map<string, AlignConnection[]>();
+  const push = (cableId: string, conn: AlignConnection) => {
+    const list = connsByCable.get(cableId) ?? [];
+    list.push(conn);
+    connsByCable.set(cableId, list);
+  };
+  for (const [connId, ends] of byConn) {
+    if (!ends.left || !ends.right) continue;
+    const leftOffset = fiberRowOffsetInCable(ends.left, connId);
+    const rightOffset = fiberRowOffsetInCable(ends.right, connId);
+    push(ends.left.id, {
+      ownOffset: leftOffset,
+      partnerCableId: ends.right.id,
+      partnerOffset: rightOffset,
+    });
+    push(ends.right.id, {
+      ownOffset: rightOffset,
+      partnerCableId: ends.left.id,
+      partnerOffset: leftOffset,
+    });
+  }
+  return connsByCable;
+}
+
+/**
+ * Vertical slack a cable may shift without breaking same-side stack gaps
+ * (CBL-001 / CBL-002). Returns the inclusive [min, max] shift relative to the
+ * cable's current Y.
+ */
+function sameSideShiftSlack(
+  vc: VisualCable,
+  placement: Map<string, CablePlacement>,
+  cablePositions: Map<string, { x: number; y: number; height: number }>,
+  minGap = effectiveCableGap(),
+): { min: number; max: number } {
+  const pos = cablePositions.get(vc.id);
+  if (!pos) return { min: 0, max: 0 };
+  const side = placement.get(vc.id)?.side ?? vc.side;
+
+  let above: { y: number; height: number } | undefined;
+  let below: { y: number; height: number } | undefined;
+
+  // Nearest same-side neighbor above/below by current Y.
+  for (const [otherId, otherPos] of cablePositions) {
+    if (otherId === vc.id) continue;
+    const matchVc = sideById.get(otherId);
+    if (!matchVc) continue;
+    if ((placement.get(matchVc.id)?.side ?? matchVc.side) !== side) continue;
+    if (otherPos.y + otherPos.height <= pos.y) {
+      if (!above || otherPos.y + otherPos.height > above.y + above.height) {
+        above = otherPos;
+      }
+    } else if (otherPos.y >= pos.y + pos.height) {
+      if (!below || otherPos.y < below.y) {
+        below = otherPos;
+      }
+    }
+  }
+
+  const min = above
+    ? above.y + above.height + minGap - pos.y
+    : Number.NEGATIVE_INFINITY;
+  const max = below
+    ? below.y - pos.height - minGap - pos.y
+    : Number.POSITIVE_INFINITY;
+  return { min, max };
+}
+
+/** Same-side neighbor lookup, refreshed at the start of each alignment pass. */
+let sideById = new Map<string, VisualCable>();
+
+/**
+ * One appliable near-straight shift for a cable: the snap delta clamped to the
+ * cable's same-side slack. Returns 0 when no improving in-slack shift exists.
+ */
+function appliableNearStraightShift(
+  vc: VisualCable,
+  connsByCable: Map<string, AlignConnection[]>,
+  placement: Map<string, CablePlacement>,
+  cablePositions: Map<string, { x: number; y: number; height: number }>,
+): number {
+  const pos = cablePositions.get(vc.id);
+  const conns = connsByCable.get(vc.id);
+  if (!pos || !conns) return 0;
+  const delta = computeNearStraightShift(
+    pos.y,
+    conns,
+    (id) => cablePositions.get(id)?.y,
+  );
+  if (Math.abs(delta) <= 0.5) return 0;
+  const slack = sameSideShiftSlack(vc, placement, cablePositions);
+  // Only apply the exact snap delta; a clamped delta would not land flat.
+  if (delta < slack.min - 0.5 || delta > slack.max + 0.5) return 0;
+  return delta;
+}
+
+/**
+ * Horizontal leg alignment (EDGE-013) — snap near-straight legs flat.
+ *
+ * After cable-pair alignment, nudge each remaining (unlocked) cable's Y by a
+ * small amount (≤ tolerance) so legs that are only a few px off become a single
+ * flat horizontal line. Whole-cable shift preserves 24px in-tube pitch and
+ * tube/fiber order; locked dominant / high-count pairs are never moved; shifts
+ * that would break same-side stack gaps are skipped. Iterates to a fixpoint.
+ */
+function snapNearStraightCables(
+  visualCables: VisualCable[],
+  placement: Map<string, CablePlacement>,
+  cablePositions: Map<string, { x: number; y: number; height: number }>,
+  locked: ReadonlySet<string>,
+): void {
+  sideById = new Map(visualCables.map((vc) => [vc.id, vc]));
+  const connsByCable = alignConnsByCable(visualCables, placement);
+  const ordered = [...visualCables]
+    .filter((vc) => !locked.has(vc.id))
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  const maxIterations = visualCables.length + 2;
+  for (let iter = 0; iter < maxIterations; iter++) {
+    let moved = false;
+    for (const vc of ordered) {
+      const delta = appliableNearStraightShift(
+        vc,
+        connsByCable,
+        placement,
+        cablePositions,
+      );
+      if (Math.abs(delta) > 0.5) {
+        const pos = cablePositions.get(vc.id)!;
+        cablePositions.set(vc.id, { ...pos, y: pos.y + delta });
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+}
+
+/**
+ * Max residual near-straight shift across unlocked cables — 0 at the alignment
+ * fixpoint. Used by EDGE-013 to verify the layout snapped all flattenable legs.
+ */
+export function maxNearStraightResidual(
+  visualCables: VisualCable[],
+  placement: Map<string, CablePlacement>,
+  cablePositions: Map<string, { x: number; y: number; height: number }>,
+  locked: ReadonlySet<string>,
+): number {
+  sideById = new Map(visualCables.map((vc) => [vc.id, vc]));
+  const connsByCable = alignConnsByCable(visualCables, placement);
+  let residual = 0;
+  for (const vc of visualCables) {
+    if (locked.has(vc.id)) continue;
+    const delta = appliableNearStraightShift(
+      vc,
+      connsByCable,
+      placement,
+      cablePositions,
+    );
+    residual = Math.max(residual, Math.abs(delta));
+  }
+  return residual;
 }
 
 /** Re-stack same-side cables without resetting Y to row-derived anchors. */
@@ -365,8 +561,9 @@ export function computeAlignedLayout(
   );
 
   const cablePairGroups = findCablePairGroups(graph, visualCables, dominant);
+  let locked: ReadonlySet<string> = new Set<string>();
   if (cablePairGroups.length > 0) {
-    applyCablePairAlignment(
+    locked = applyCablePairAlignment(
       graph,
       visualCables,
       placement,
@@ -383,10 +580,17 @@ export function computeAlignedLayout(
     );
   }
 
+  // EDGE-013 horizontal leg alignment — snap near-straight legs to a flat line.
+  snapNearStraightCables(visualCables, placement, cablePositions, locked);
+  reflowStackPreservingY(leftCables, cablePositions);
+  reflowStackPreservingY(rightCables, cablePositions);
+  resolveSameSideStackCollisions(visualCables, placement, cablePositions);
+
   return {
     reportKey: "",
     rowYs,
     cablePositions,
     layoutWidth: effectiveWidth,
+    alignmentLocked: locked,
   };
 }
