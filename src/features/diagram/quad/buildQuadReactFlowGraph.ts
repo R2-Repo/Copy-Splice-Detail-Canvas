@@ -246,8 +246,9 @@ export function buildQuadReactFlowGraph(
         sourceColor,
         targetColor,
       } satisfies SplicePointNodeData,
-      draggable: true,
-      selectable: true,
+      // Fusion dots are never RF-draggable (no quad manual dot path); inert.
+      draggable: false,
+      selectable: false,
     });
 
     const shared = {

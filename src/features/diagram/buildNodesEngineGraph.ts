@@ -225,8 +225,11 @@ export function augmentNodesEngineGraph(
         targetColor: edgeData.targetColor ?? "#94a3b8",
         fullButtSplice: entry.fullButtSplice,
       } satisfies SplicePointNodeData,
-      draggable: true,
-      selectable: true,
+      // Fusion dots are never dragged as React Flow nodes. In manual mode the
+      // overlay handles dot drag via its own hit buttons; in auto mode they
+      // must be fully inert. Keep them non-interactive in both modes.
+      draggable: false,
+      selectable: false,
     });
   }
 

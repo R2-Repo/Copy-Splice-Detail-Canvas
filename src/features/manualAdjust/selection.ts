@@ -26,6 +26,16 @@ export function setConnectionSelection(
   return { connectionIds: new Set(connectionIds), segmentKeys: new Set() };
 }
 
+/** Union `connectionIds` into the current selection (Ctrl+click additive). */
+export function addConnectionsToSelection(
+  selection: ManualAdjustSelection,
+  connectionIds: Iterable<string>,
+): ManualAdjustSelection {
+  const next = new Set(selection.connectionIds);
+  for (const id of connectionIds) next.add(id);
+  return { ...selection, connectionIds: next };
+}
+
 export function connectionsInMarquee(
   anchors: Array<{ connectionId: string; x: number; y: number }>,
   box: { x0: number; y0: number; x1: number; y1: number },

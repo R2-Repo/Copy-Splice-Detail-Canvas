@@ -38,7 +38,21 @@ export function positionsFromNodes(
 export function existingIdsFromEdges(
   edges: { id: string; data?: { existing?: boolean } }[],
 ): string[] {
-  return edges.filter((e) => e.data?.existing).map((e) => e.id);
+  // Normalize split fiber legs (`splice-left-*` / `splice-right-*`) to the
+  // composite connection id so an "existing" splice restores on both legs;
+  // butt (`butt-*`) ids are kept as-is.
+  const ids = new Set<string>();
+  for (const e of edges) {
+    if (!e.data?.existing) continue;
+    if (e.id.startsWith("splice-left-")) {
+      ids.add(`splice-${e.id.slice("splice-left-".length)}`);
+    } else if (e.id.startsWith("splice-right-")) {
+      ids.add(`splice-${e.id.slice("splice-right-".length)}`);
+    } else {
+      ids.add(e.id);
+    }
+  }
+  return [...ids];
 }
 
 function mergeOverrideMap<T extends Record<string, unknown>>(

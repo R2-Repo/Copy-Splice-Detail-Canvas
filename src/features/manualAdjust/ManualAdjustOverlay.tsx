@@ -5,11 +5,16 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { ConnectionGraph } from "@/types/splice";
 
 import { handleCoordsForConnection, buildHandleCoordsCache } from "./handleCoords";
-import { draggableButtCenterSegments, isButtSpliceEdge } from "./buttLegAdjust";
+import {
+  draggableButtCenterSegments,
+  isButtEdgeId,
+  isButtSpliceEdge,
+} from "./buttLegAdjust";
 import {
   allowedSegmentAxes,
   legSegmentsFromPaths,
   routeTemplateForHandles,
+  verticalRunBounds,
   type LegSegment,
   type SegmentDragAxis,
 } from "./legSegments";
@@ -17,6 +22,10 @@ import type { LegSide, ManualAdjustSelection } from "./types";
 
 const SEG_HIT = 14;
 const DOT_HIT = 16;
+/** Bigger grab target for the collapsed buffer-tube butt square. */
+const BUTT_DOT_HIT = 22;
+/** Fiber leg stroke width (px, flow units) — see SpliceEdge `tubeStroke`. */
+const SEG_STROKE = 2.5;
 
 type Props = {
   enabled: boolean;
@@ -31,6 +40,8 @@ type Props = {
     x1: number;
     y1: number;
   }) => void;
+  onClearSelection: () => void;
+  onSegmentDoubleClick: (connectionId: string, additive: boolean) => void;
   onSegmentPointerDown: (
     connectionId: string,
     side: LegSide,
@@ -40,6 +51,11 @@ type Props = {
   onSegmentPointerMove: (event: React.PointerEvent) => void;
   onSegmentPointerUp: (event: React.PointerEvent) => void;
   onDotPointerDown: (connectionId: string, event: React.PointerEvent) => void;
+  beginLongPress: (
+    connectionId: string,
+    clientX: number,
+    clientY: number,
+  ) => void;
 };
 
 type DraggableSegment = {
@@ -93,6 +109,31 @@ function segmentHitStyle(
   };
 }
 
+/**
+ * Thin highlight that traces the actual vertical leg run. Decoupled from the
+ * wide invisible hit button so the highlight sits ON the drawn line: width
+ * scales with zoom (so it matches the rendered stroke) and height equals the
+ * full colinear run, not a fixed-size box.
+ */
+function segmentHighlightStyle(
+  seg: LegSegment,
+  toPanel: (flowX: number, flowY: number) => { x: number; y: number },
+  zoom: number,
+): React.CSSProperties | null {
+  if (seg.kind !== "v") return null;
+  const p0 = toPanel(seg.x, seg.y0);
+  const p1 = toPanel(seg.x, seg.y1);
+  const top = Math.min(p0.y, p1.y);
+  const height = Math.abs(p1.y - p0.y);
+  const width = Math.max(3, SEG_STROKE * zoom + 4);
+  return {
+    left: p0.x - width / 2,
+    top,
+    width,
+    height,
+  };
+}
+
 export function ManualAdjustOverlay({
   enabled,
   legSegmentDragActive,
@@ -101,16 +142,27 @@ export function ManualAdjustOverlay({
   graph,
   selection,
   onMarqueeComplete,
+  onClearSelection,
+  onSegmentDoubleClick,
   onSegmentPointerDown,
   onSegmentPointerMove: _onSegmentPointerMove,
   onSegmentPointerUp: _onSegmentPointerUp,
   onDotPointerDown,
+  beginLongPress,
 }: Props) {
+  // Plain left-press (no selection modifier) can also start an existing-toggle
+  // long-press; a move turns it into a drag (long-press auto-cancels).
+  const maybeBeginLongPress = (connectionId: string, event: React.PointerEvent) => {
+    if (event.button !== 0 || event.ctrlKey || event.shiftKey || event.metaKey) {
+      return;
+    }
+    beginLongPress(connectionId, event.clientX, event.clientY);
+  };
   const { screenToFlowPosition, flowToScreenPosition } = useReactFlow();
   const viewport = useViewport();
   const cachedSegmentsRef = useRef<DraggableSegment[]>([]);
   const cachedDotsRef = useRef<
-    Array<{ connectionId: string; x: number; y: number }>
+    Array<{ connectionId: string; x: number; y: number; butt: boolean }>
   >([]);
   const [marquee, setMarquee] = useState<{
     x0: number;
@@ -124,6 +176,7 @@ export function ManualAdjustOverlay({
     x1: number;
     y1: number;
   } | null>(null);
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const panelOriginRef = useRef({ left: 0, top: 0 });
 
@@ -194,6 +247,7 @@ export function ManualAdjustOverlay({
 
       for (const side of ["left", "right"] as const) {
         const segments = side === "left" ? left : right;
+        const sidePath = side === "left" ? leftPath : rightPath;
         for (const seg of segments) {
           const axes = allowedSegmentAxes(
             template,
@@ -203,12 +257,19 @@ export function ManualAdjustOverlay({
             splice,
           );
           if (axes.length === 0) continue;
+          // Hit zone + highlight should cover the whole colinear vertical run
+          // (the exact span the drag moves), not just one parsed point pair.
+          const run =
+            seg.kind === "v" ? verticalRunBounds(sidePath, seg.index) : null;
+          const displaySegment: LegSegment = run
+            ? { kind: "v", index: seg.index, x: run.x, y0: run.y0, y1: run.y1 }
+            : seg;
           items.push({
             key: `${connectionId}-${side}-${seg.index}`,
             connectionId,
             side,
             segmentIndex: seg.index,
-            segment: seg,
+            segment: displaySegment,
             axes,
             cursor: cursorForAxes(seg, axes),
           });
@@ -241,24 +302,32 @@ export function ManualAdjustOverlay({
     if (legSegmentDragActive && cachedDotsRef.current.length > 0) {
       return cachedDotsRef.current;
     }
-    const dots: Array<{ connectionId: string; x: number; y: number }> = [];
+    const dots: Array<{
+      connectionId: string;
+      x: number;
+      y: number;
+      butt: boolean;
+    }> = [];
     for (const edge of edges) {
-      if (edge.type !== "splice" || !edge.id.startsWith("splice-left-")) {
-        continue;
-      }
+      if (edge.type !== "splice") continue;
+      const butt = isButtEdgeId(edge.id);
+      // Split fiber splices expose their dot on the left-leg edge; collapsed
+      // buffer-tube butts are a single `butt-*` edge carrying the big square.
+      if (!butt && !edge.id.startsWith("splice-left-")) continue;
       const data = (edge.data ?? {}) as {
         spliceX?: number;
         spliceY?: number;
         fullButtSplice?: boolean;
       };
-      if (data.fullButtSplice) continue;
+      if (!butt && data.fullButtSplice) continue;
       const x = Number(data.spliceX ?? NaN);
       const y = Number(data.spliceY ?? NaN);
       if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
       dots.push({
-        connectionId: edge.id.slice("splice-left-".length),
+        connectionId: butt ? edge.id : edge.id.slice("splice-left-".length),
         x,
         y,
+        butt,
       });
     }
     cachedDotsRef.current = dots;
@@ -283,6 +352,10 @@ export function ManualAdjustOverlay({
       if (!box) return;
       if (Math.abs(box.x1 - box.x0) > 4 || Math.abs(box.y1 - box.y0) > 4) {
         onMarqueeComplete(box);
+      } else {
+        // A plain click on empty canvas clears the current selection so smart
+        // bundle selection is not sticky.
+        onClearSelection();
       }
     };
 
@@ -328,6 +401,7 @@ export function ManualAdjustOverlay({
   }, [
     enabled,
     onMarqueeComplete,
+    onClearSelection,
     screenToFlowPosition,
   ]);
 
@@ -345,15 +419,35 @@ export function ManualAdjustOverlay({
   return (
     <Panel position="top-left" className="manual-adjust-panel">
       <div ref={overlayRef} className="manual-adjust-overlay nodrag nopan">
+        {draggableSegments
+          .filter(
+            (item) =>
+              hoveredKey === item.key ||
+              selection.connectionIds.has(item.connectionId),
+          )
+          .map((item) => {
+            const style = segmentHighlightStyle(
+              item.segment,
+              flowToPanelLocal,
+              viewport.zoom,
+            );
+            if (!style) return null;
+            const selected = selection.connectionIds.has(item.connectionId);
+            return (
+              <div
+                key={`hl-${item.key}`}
+                className={`manual-adjust-segment-highlight${
+                  selected ? " manual-adjust-segment-highlight--selected" : ""
+                }`}
+                style={style}
+              />
+            );
+          })}
         {draggableSegments.map((item) => (
           <button
             key={item.key}
             type="button"
-            className={`manual-adjust-segment nodrag nopan${
-              selection.connectionIds.has(item.connectionId)
-                ? " manual-adjust-segment--selected"
-                : ""
-            }`}
+            className="manual-adjust-segment nodrag nopan"
             style={segmentHitStyle(item.segment, flowToPanelLocal, item.cursor)}
             title={
               item.buttSegment
@@ -365,14 +459,28 @@ export function ManualAdjustOverlay({
                 ? `Adjust collapsed buffer tube center segment ${item.segmentIndex}`
                 : `Adjust ${item.side} leg segment ${item.segmentIndex}`
             }
+            onPointerEnter={() => setHoveredKey(item.key)}
+            onPointerLeave={() =>
+              setHoveredKey((current) => (current === item.key ? null : current))
+            }
             onPointerDown={(event) => {
               event.stopPropagation();
+              maybeBeginLongPress(item.connectionId, event);
               onSegmentPointerDown(
                 item.connectionId,
                 item.side,
                 item.segmentIndex,
                 event,
               );
+            }}
+            onDoubleClick={(event) => {
+              event.stopPropagation();
+              if (!item.buttSegment) {
+                onSegmentDoubleClick(
+                  item.connectionId,
+                  event.ctrlKey || event.metaKey,
+                );
+              }
             }}
           />
         ))}
@@ -402,19 +510,35 @@ export function ManualAdjustOverlay({
               key={`dot-${dot.connectionId}`}
               type="button"
               className={`manual-adjust-dot nodrag nopan${
-                selected ? " manual-adjust-dot--selected" : ""
-              }`}
+                dot.butt ? " manual-adjust-dot--square" : ""
+              }${selected ? " manual-adjust-dot--selected" : ""}`}
               style={{
-                left: panel.x - DOT_HIT / 2,
-                top: panel.y - DOT_HIT / 2,
-                width: DOT_HIT,
-                height: DOT_HIT,
+                left: panel.x - (dot.butt ? BUTT_DOT_HIT : DOT_HIT) / 2,
+                top: panel.y - (dot.butt ? BUTT_DOT_HIT : DOT_HIT) / 2,
+                width: dot.butt ? BUTT_DOT_HIT : DOT_HIT,
+                height: dot.butt ? BUTT_DOT_HIT : DOT_HIT,
               }}
-              title="Drag fusion splice dot (color transition) along the leg"
-              aria-label={`Move fusion splice dot for ${dot.connectionId}`}
+              title={
+                dot.butt
+                  ? "Drag collapsed buffer-tube splice (horizontal)"
+                  : "Drag fusion splice dot (color transition) along the leg"
+              }
+              aria-label={
+                dot.butt
+                  ? `Move collapsed buffer tube splice for ${dot.connectionId}`
+                  : `Move fusion splice dot for ${dot.connectionId}`
+              }
               onPointerDown={(event) => {
                 event.stopPropagation();
+                maybeBeginLongPress(dot.connectionId, event);
                 onDotPointerDown(dot.connectionId, event);
+              }}
+              onDoubleClick={(event) => {
+                event.stopPropagation();
+                onSegmentDoubleClick(
+                  dot.connectionId,
+                  event.ctrlKey || event.metaKey,
+                );
               }}
             />
           );

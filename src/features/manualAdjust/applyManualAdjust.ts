@@ -109,15 +109,28 @@ export function applyLegOverridesToEdge(
         },
       },
     );
+    let buttLeft = connected.leftPath;
+    let buttRight = connected.rightPath;
+    let buttSpliceX = connected.spliceX;
+    const buttSpliceY = connected.spliceY;
+    const buttDotShiftX = legOverrides.dotShiftX ?? 0;
+    if (buttDotShiftX) {
+      // Slide the collapsed-tube butt square horizontally (re-pin both legs
+      // around the new square position — same as a fusion dot slide).
+      const dot = { x: buttSpliceX + buttDotShiftX, y: buttSpliceY };
+      buttLeft = repinLegEnd(buttLeft, dot);
+      buttRight = repinLegStart(buttRight, dot);
+      buttSpliceX = dot.x;
+    }
     return {
       ...edge,
       data: {
         ...data,
-        leftPath: connected.leftPath,
-        rightPath: connected.rightPath,
-        spliceX: connected.spliceX,
-        spliceY: connected.spliceY,
-        routingMidX: connected.spliceX,
+        leftPath: buttLeft,
+        rightPath: buttRight,
+        spliceX: buttSpliceX,
+        spliceY: buttSpliceY,
+        routingMidX: buttSpliceX,
         routingPrecomputed: true,
       },
     };

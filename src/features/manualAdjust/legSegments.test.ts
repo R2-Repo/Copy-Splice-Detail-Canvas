@@ -20,6 +20,7 @@ import {
   setPathStart,
   shiftVerticalLaneX,
   simplifyOrthogonalPath,
+  verticalRunBounds,
 } from "./legSegments";
 
 /** True if any segment of the path is neither horizontal nor vertical. */
@@ -346,5 +347,31 @@ describe("legSegments", () => {
 
     const pointCount = parseOrthogonalPathPoints(leftPath).length;
     expect(pointCount).toBeLessThan(12);
+  });
+});
+
+describe("verticalRunBounds", () => {
+  it("returns the single vertical segment span", () => {
+    // M handle L corner L splice : segment 2 is the vertical corner->splice.
+    const path = "M 100,50 L 200,50 L 200,120";
+    expect(verticalRunBounds(path, 2)).toEqual({ x: 200, y0: 50, y1: 120 });
+  });
+
+  it("expands to the FULL colinear run when a lane has several points", () => {
+    // 200,50 -> 200,120 -> 200,260 are all on lane x=200 (two parsed segments).
+    const path = "M 100,50 L 200,50 L 200,120 L 200,260 L 360,260";
+    const bounds = verticalRunBounds(path, 2);
+    expect(bounds).toEqual({ x: 200, y0: 50, y1: 260 });
+    // Grabbing either colinear sub-segment yields the same full run.
+    expect(verticalRunBounds(path, 3)).toEqual({ x: 200, y0: 50, y1: 260 });
+  });
+
+  it("returns null for a horizontal segment", () => {
+    const path = "M 100,50 L 200,50 L 200,120";
+    expect(verticalRunBounds(path, 1)).toBeNull();
+  });
+
+  it("returns null for an out-of-range index", () => {
+    expect(verticalRunBounds("M 100,50 L 200,50", 9)).toBeNull();
   });
 });

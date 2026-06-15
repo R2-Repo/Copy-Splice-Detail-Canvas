@@ -1,6 +1,9 @@
 import { BaseEdge, type EdgeProps } from "@xyflow/react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 
 import { useCircuitHighlight } from "@/features/canvas/CircuitHighlightContext";
+import { useOptionalExistingToggle } from "@/features/canvas/ExistingToggleContext";
+import { legConnectionId } from "@/features/canvas/edges/existingToggle";
 import {
   buildButtSplicePath,
   buildSplicePath,
@@ -109,6 +112,8 @@ function SpliceEdgeBody({
   spliceX,
   spliceY,
   highlighted = false,
+  charging = false,
+  onLongPressDown,
 }: {
   id: string;
   d: SpliceEdgeData;
@@ -117,6 +122,8 @@ function SpliceEdgeBody({
   spliceX: number;
   spliceY: number;
   highlighted?: boolean;
+  charging?: boolean;
+  onLongPressDown?: (event: ReactPointerEvent<SVGPathElement>) => void;
 }) {
   const { sourceStroke, targetStroke, dash, tubeStroke, edgeOpacity } =
     spliceEdgeStrokes(d);
@@ -128,6 +135,12 @@ function SpliceEdgeBody({
 
   return (
     <g className={`splice-edge${highlightClass}`}>
+      {charging && showLeft ? (
+        <path d={leftPath} className="splice-edge__charge" />
+      ) : null}
+      {charging && showRight ? (
+        <path d={rightPath} className="splice-edge__charge" />
+      ) : null}
       {showLeft ? (
         <SpliceLeg
           id={`${id}-left`}
@@ -146,6 +159,20 @@ function SpliceEdgeBody({
           strokeWidth={tubeStroke}
           strokeDasharray={dash}
           opacity={edgeOpacity}
+        />
+      ) : null}
+      {onLongPressDown && showLeft ? (
+        <path
+          d={leftPath}
+          className="splice-edge__hit"
+          onPointerDown={onLongPressDown}
+        />
+      ) : null}
+      {onLongPressDown && showRight ? (
+        <path
+          d={rightPath}
+          className="splice-edge__hit"
+          onPointerDown={onLongPressDown}
         />
       ) : null}
       {!d.existing && showFusionDot ? (
@@ -172,16 +199,23 @@ function SpliceEdgeBody({
   );
 }
 
+type SpliceEdgeExtras = {
+  charging?: boolean;
+  onLongPressDown?: (event: ReactPointerEvent<SVGPathElement>) => void;
+};
+
 /** Nodes engine: paths frozen at layout time — no drag registry or render-time routing. */
 function PrecomputedSpliceEdge({
   id,
   data,
   highlighted,
+  charging,
+  onLongPressDown,
 }: {
   id: string;
   data: SpliceEdgeData;
   highlighted: boolean;
-}) {
+} & SpliceEdgeExtras) {
   return (
     <SpliceEdgeBody
       id={id}
@@ -191,6 +225,8 @@ function PrecomputedSpliceEdge({
       spliceX={data.spliceX!}
       spliceY={data.spliceY!}
       highlighted={highlighted}
+      charging={charging}
+      onLongPressDown={onLongPressDown}
     />
   );
 }
@@ -204,7 +240,9 @@ function StoredLaneSpliceEdge({
   targetY,
   data,
   highlighted,
-}: EdgeProps & { data: SpliceEdgeData; highlighted: boolean }) {
+  charging,
+  onLongPressDown,
+}: EdgeProps & { data: SpliceEdgeData; highlighted: boolean } & SpliceEdgeExtras) {
   const d = data;
   const fallbackLane = d.laneOverride ?? d.laneIndex ?? 0;
   const laneCount = Math.max(1, d.laneCount ?? 1);
@@ -272,6 +310,8 @@ function StoredLaneSpliceEdge({
       spliceX={spliceX}
       spliceY={spliceY}
       highlighted={highlighted}
+      charging={charging}
+      onLongPressDown={onLongPressDown}
     />
   );
 }
@@ -290,10 +330,41 @@ export function SpliceEdge(props: EdgeProps) {
   const d = (props.data ?? {}) as SpliceEdgeData;
   const { isEdgeHighlighted } = useCircuitHighlight();
   const highlighted = isEdgeHighlighted(props.id, d.pairIds);
+  const existingToggle = useOptionalExistingToggle();
+  const connectionId = legConnectionId(props.id);
+  const charging = existingToggle?.isCharging(connectionId) ?? false;
+  const onLongPressDown = existingToggle
+    ? (event: ReactPointerEvent<SVGPathElement>) => {
+        // Plain left-press only; modifiers are reserved for selection gestures.
+        if (event.button !== 0 || event.ctrlKey || event.shiftKey || event.metaKey) {
+          return;
+        }
+        event.stopPropagation();
+        existingToggle.beginLongPress(
+          connectionId,
+          event.clientX,
+          event.clientY,
+        );
+      }
+    : undefined;
   if (isPrecomputedSpliceData(d)) {
     return (
-      <PrecomputedSpliceEdge id={props.id} data={d} highlighted={highlighted} />
+      <PrecomputedSpliceEdge
+        id={props.id}
+        data={d}
+        highlighted={highlighted}
+        charging={charging}
+        onLongPressDown={onLongPressDown}
+      />
     );
   }
-  return <StoredLaneSpliceEdge {...props} data={d} highlighted={highlighted} />;
+  return (
+    <StoredLaneSpliceEdge
+      {...props}
+      data={d}
+      highlighted={highlighted}
+      charging={charging}
+      onLongPressDown={onLongPressDown}
+    />
+  );
 }

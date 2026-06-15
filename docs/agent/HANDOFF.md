@@ -8,6 +8,57 @@
 
 ## Last updated
 
+2026-06-14 — **Help & guide modal** (visual-first toolbar help). Far-right `HelpIcon` button opens `HelpGuideOverlay` with 6 pictorial sections (get started, auto/manual gestures, toolbar map, circuits, keys). `npm run verify` green (layout 114/114, ci 503/503, build).
+
+### Session changes (help guide)
+
+- **`HelpGuideOverlay`** — modal shell (backdrop, Escape, scroll body) matching `SpliceReportOverlay` pattern.
+- **`HelpGuideContent`** + **`HelpGuideIllustrations`** — inline SVG gesture cards, key badges (`Shift`, `Ctrl`/`⌘`, `Esc`), toolbar icon row; minimal captions.
+- **`WorkflowCanvas`** — `helpOpen` state; `ToolbarActionButton` after Print to PDF.
+- **`ToolbarIcon`** — `HelpIcon`, `ListIcon` (circuits row in toolbar map).
+- **`splice-diagram.css`** — `.help-guide-overlay*` BEM; hidden on `body.printing-diagram`.
+- **Tests:** `HelpGuideOverlay.test.tsx`.
+
+### Prior session (manual multi-leg)
+
+- **Smart bundle selection** — `Shift`+grab a leg expands to its tube bundle (`tubeBundleKey` = same source buffer tube → same destination cable) and drags them together; **double-click** a leg selects the bundle without moving. Built on the existing group-drag path (`segmentTargets` / `resolveGroupSegmentIndex`); only the selection source is new. The grabbed side (left/right) decides which leg of each member moves.
+- **Clear selection** — `Escape` or a plain click on empty canvas clears (smart-select not sticky).
+- **Accurate hover + click zone** — invisible hit button now spans the **full colinear vertical run** (new pure `verticalRunBounds`), and the hover/selection highlight is a separate thin bar tracing the real vertical, width scaled by zoom (`segmentHighlightStyle`). Replaces the fixed 14px CSS box that sat off the line.
+- **Follow-up — selected = hot pink + Ctrl additive select:** selected highlight/ring/dot hot pink (`#ff1493`); leg hover now light hot pink too (no blue left on legs). **Ctrl/Cmd+click** toggles a single leg into the selection (no drag); **Ctrl/Cmd+double-click** unions that leg's bundle into the selection. New pure `addConnectionsToSelection` in `selection.ts` (+ `selection.test.ts`); `onSegmentDoubleClick` now takes an `additive` flag.
+- **Follow-up — collapsed butt square shiftable:** the big butt square now has its own square dot handle in `ManualAdjustOverlay` (`fusionDots` includes `butt-*` edges, `BUTT_DOT_HIT`). Drag shifts it horizontally via re-pin around the new spliceX (legs stay joined), persisted as `dotShiftX` on the `butt-*` key; `applyLegOverridesToEdge` butt branch now applies `dotShiftX`. `onDotPointerDown`/`previewDotDrag` accept butt edges (single edge holds both legs); dot commit skips leg validation for butts. Works for straight same-row butts too (old segment handle needed a center vertical). Test: `applyManualAdjust.test.ts`.
+- **Follow-up — fusion dots inert as RF nodes:** `splicePoint` nodes now created `draggable: false, selectable: false` in `buildNodesEngineGraph.ts` + `buildQuadReactFlowGraph.ts`. Fixes dots being draggable/clickable in **auto mode** (overlay is off there). Manual dot drag is via the overlay + `syncSplicePointNodes` (programmatic), unaffected by the flags. Also set `SplicePointNode` handles `isConnectable={false}` to kill the stray React Flow connection-line drag (handles only anchor the precomputed leg edges; the dot is never user-wired).
+- **Follow-up — fusion-dot selection parity:** dots now use the same gestures as legs (Shift+grab smart-bundle select+drag, plain grab single/selection, Ctrl+click additive single, double-click / Ctrl+double-click bundle). Dot drag itself was already horizontal-only with both legs re-pinned around the moved dot (dot == leg color-transition point), so dragging moves the color point. Selection is per-connection, shared between legs and dots. `onDotPointerDown` got Ctrl/Shift branches (+ `graph` dep); dot `onDoubleClick` reuses `onSegmentDoubleClick`; `.manual-adjust-dot` hover/selected now hot pink. No frozen symbols touched.
+- **Follow-up — existing toggle via long-press (replaces click-toggle):** removed `onEdgeClick`. A **long-press** (~450ms, plain left-press, no modifier) on a leg or butt toggles the **whole connection** existing↔normal (both legs flip; long-press again turns back). Keep holding to ~1100ms to toggle the whole **tube bundle** (`tubeBundleKey`). Fire-on-release; pink charge highlight shows the tier; a move cancels (it's a drag). Same in auto + manual. New `canvas/edges/existingToggle.ts` (+ test), `canvas/useExistingLongPress.ts`, `canvas/ExistingToggleContext.tsx`. `SpliceEdge` renders `.splice-edge__hit` (long-press target per shown leg) + `.splice-edge__charge` (feedback). Overlay segment/dot buttons also call `beginLongPress` (still press = toggle, move = drag). Persistence: `existingIdsFromEdges` normalizes split legs → `splice-{connId}`; builder applies `existing` to both legs (back-compat for old split ids) + butt edges (butt existing now persists). No frozen symbols touched.
+
+Created:
+
+- `src/features/manualAdjust/smartSelect.ts` + `smartSelect.test.ts`
+- `src/features/manualAdjust/selection.test.ts` (additive-selection coverage)
+- `src/features/manualAdjust/applyManualAdjust.test.ts` (butt-square dotShiftX)
+- `src/features/canvas/edges/existingToggle.ts` + `existingToggle.test.ts`
+- `src/features/canvas/useExistingLongPress.ts`
+- `src/features/canvas/ExistingToggleContext.tsx`
+
+Edited:
+
+- `src/features/manualAdjust/useManualAdjustEngine.ts` — Shift bundle branch + Ctrl/Cmd additive single-leg branch in `onSegmentPointerDown`, `onSegmentDoubleClick` (now `additive` flag), `onClearSelection`, Escape listener
+- `src/features/manualAdjust/selection.ts` — added pure `addConnectionsToSelection`
+- `src/features/manualAdjust/legSegments.ts` (+ `legSegments.test.ts`) — added pure `verticalRunBounds`
+- `src/features/manualAdjust/ManualAdjustOverlay.tsx` — invisible hit button + separate zoom-scaled highlight, hover state, empty-click clear, double-click (threads Ctrl/Cmd), full-run sizing, butt square dot handle, `beginLongPress` on segment+dot
+- `src/features/canvas/edges/SpliceEdge.tsx` — long-press hit path + charge highlight (consumes `ExistingToggleContext`)
+- `src/features/canvas/WorkflowCanvas.tsx` — overlay props; removed `onEdgeClick`; wired `useExistingLongPress` + `ExistingToggleProvider`
+- `src/features/canvas/layoutStorage.ts` — `existingIdsFromEdges` normalizes split legs → composite
+- `src/features/diagram/buildReactFlowGraph.ts` — `existing` on both fiber legs (back-compat) + butt edges
+- `src/features/diagram/buildNodesEngineGraph.ts` + `quad/buildQuadReactFlowGraph.ts` — splice dots `draggable:false, selectable:false`
+- `src/features/canvas/nodes/SplicePointNode.tsx` — handles `isConnectable={false}`
+- `src/styles/splice-diagram.css` — `.manual-adjust-segment-highlight` (pink), butt `--square` dot, `.splice-edge__hit` / `.splice-edge__charge`
+
+Frozen-routing note: none of the frozen symbols/tests were touched. Changes are confined to `manualAdjust/*`, `canvas/edges/*` (SpliceEdge + new existingToggle), the overlay, canvas wiring, builders (additive `existing`/`draggable` flags), and CSS.
+
+Pending user QA (Left-* imports): single-leg drag still good; Shift-grab a bundled leg moves the whole tube bundle; hover bar sits on the vertical at multiple zoom levels.
+
+---
+
 2026-06-14 — **Quad (4-side) layout paused.** Final handoff doc added: [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md). MVP auto engine verified (`npm run verify` green). User resuming other project work; pick up quad from backlog in that file.
 
 ## Session changes

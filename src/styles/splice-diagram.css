@@ -692,6 +692,25 @@
   pointer-events: none;
 }
 
+/* Long-press hit area along a leg (toggle existing). Invisible, wide for grab. */
+.splice-edge__hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 16;
+  stroke-linecap: round;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+/* "Charging" feedback while a long-press builds toward toggling existing. */
+.splice-edge__charge {
+  fill: none;
+  stroke: rgba(255, 20, 147, 0.45);
+  stroke-width: 9;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
 .fiber-anchor-node,
 .splice-point-node,
 .tube-anchor-node {
@@ -1032,6 +1051,206 @@
   color: var(--neo-text-strong);
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.help-guide-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.help-guide-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--neo-scrim);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.help-guide-overlay__panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(42rem, 100%);
+  max-height: 85vh;
+  background: var(--neo-bg);
+  border-radius: var(--neo-radius-md);
+  box-shadow: var(--neo-shadow-raised-lg);
+}
+
+.help-guide-overlay__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  box-shadow: inset 0 -2px 4px rgba(184, 190, 199, 0.25);
+  flex-shrink: 0;
+}
+
+.help-guide-overlay__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--neo-text-strong);
+}
+
+.help-guide-overlay__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.help-guide-overlay__content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.help-guide-overlay__section-title {
+  margin: 0 0 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--neo-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.help-guide-overlay__step-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  margin-bottom: 0.5rem;
+}
+
+.help-guide-overlay__step-arrow {
+  font-size: 1.125rem;
+  color: var(--neo-text-muted);
+  line-height: 1;
+}
+
+.help-guide-overlay__card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+  gap: 0.5rem;
+}
+
+.help-guide-overlay__card-grid--compact {
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+}
+
+.help-guide-overlay__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.625rem 0.375rem 0.5rem;
+  background: var(--neo-surface);
+  border-radius: var(--neo-radius-sm);
+  box-shadow: var(--neo-shadow-inset-sm);
+  text-align: center;
+}
+
+.help-guide-overlay__card-badge {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+}
+
+.help-guide-overlay__card-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  color: var(--neo-text-strong);
+}
+
+.help-guide-overlay__card-caption {
+  font-size: 0.6875rem;
+  line-height: 1.25;
+  color: var(--neo-text-muted);
+}
+
+.help-guide-overlay__key-badge {
+  display: inline-block;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--neo-text-strong);
+  background: var(--neo-bg);
+  border-radius: 0.25rem;
+  box-shadow: var(--neo-shadow-raised-sm);
+}
+
+.help-guide-overlay__key-badge-row {
+  display: flex;
+  gap: 0.125rem;
+}
+
+.help-guide-overlay__dbl-badge {
+  display: inline-block;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--neo-text-muted);
+}
+
+.help-guide-overlay__dual-icon {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.help-guide-overlay__toolbar-map {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.help-guide-overlay__toolbar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 2.75rem;
+}
+
+.help-guide-overlay__toolbar-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  color: var(--neo-text-strong);
+  background: var(--neo-surface);
+  border-radius: var(--neo-radius-sm);
+  box-shadow: var(--neo-shadow-inset-sm);
+}
+
+.help-guide-overlay__toolbar-label {
+  font-size: 0.625rem;
+  color: var(--neo-text-muted);
+  line-height: 1.2;
+}
+
+.help-guide-overlay__esc-hint {
+  font-size: 1.25rem;
+  color: var(--neo-text-muted);
+}
+
+.help-guide-illustration {
+  display: block;
+  color: var(--neo-text-strong);
 }
 
 .connection-inspector-overlay {
@@ -1415,7 +1634,8 @@
   body.printing-diagram .react-flow__panel,
   body.printing-diagram .diagram-inspector,
   body.printing-diagram .splice-report-overlay,
-  body.printing-diagram .connection-inspector-overlay {
+  body.printing-diagram .connection-inspector-overlay,
+  body.printing-diagram .help-guide-overlay {
     display: none !important;
   }
 
@@ -1459,19 +1679,23 @@
 .manual-adjust-segment {
   position: absolute;
   border: none;
-  border-radius: 2px;
   background: transparent;
   pointer-events: all;
   padding: 0;
 }
 
-.manual-adjust-segment:hover,
-.manual-adjust-segment:active {
-  background: rgba(37, 99, 235, 0.12);
+/* Precise hover/selection highlight: a thin bar that traces the actual
+   vertical leg run (see segmentHighlightStyle). The hit button above stays
+   invisible, so the highlight sits on the drawn line and scales with zoom. */
+.manual-adjust-segment-highlight {
+  position: absolute;
+  border-radius: 2px;
+  background: rgba(255, 20, 147, 0.4);
+  pointer-events: none;
 }
 
-.manual-adjust-segment--selected {
-  background: rgba(37, 99, 235, 0.18);
+.manual-adjust-segment-highlight--selected {
+  background: rgba(255, 20, 147, 0.8);
 }
 
 .manual-adjust-dot {
@@ -1486,18 +1710,23 @@
 
 .manual-adjust-dot:hover,
 .manual-adjust-dot:active {
-  background: rgba(37, 99, 235, 0.18);
+  background: rgba(255, 20, 147, 0.3);
 }
 
 .manual-adjust-dot--selected {
-  background: rgba(37, 99, 235, 0.24);
+  background: rgba(255, 20, 147, 0.6);
+}
+
+/* Collapsed buffer-tube butt: square grab target, matches the big square. */
+.manual-adjust-dot--square {
+  border-radius: 3px;
 }
 
 .manual-adjust-selection-ring {
   position: absolute;
   width: 14px;
   height: 14px;
-  border: 2px solid #2563eb;
+  border: 2px solid #ff1493;
   border-radius: 50%;
   pointer-events: none;
 }

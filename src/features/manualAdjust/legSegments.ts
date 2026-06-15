@@ -69,6 +69,45 @@ export function segmentMidpoint(segment: LegSegment): { x: number; y: number } {
   return { x: segment.x, y: (segment.y0 + segment.y1) / 2 };
 }
 
+/**
+ * Bounds of the FULL colinear vertical run containing the vertical segment at
+ * 1-based `segmentIndex` (matching {@link pathToLegSegments}). A lane can be
+ * several colinear points (e.g. fusion -> y1 -> y2 -> target); this returns the
+ * whole run's `x` and Y extent — exactly the span {@link shiftVerticalLaneX}
+ * moves — so the manual hit zone and hover highlight cover the real visible
+ * vertical, not just one parsed point pair. Returns null when the segment is
+ * not a vertical lane.
+ */
+export function verticalRunBounds(
+  path: string,
+  segmentIndex: number,
+): { x: number; y0: number; y1: number } | null {
+  const pts = parseOrthogonalPathPoints(path);
+  const a = segmentIndex - 1;
+  const b = segmentIndex;
+  if (a < 0 || b >= pts.length) return null;
+  const laneX = pts[a]!.x;
+  if (Math.abs(laneX - pts[b]!.x) > SPLICE_PATH_EPS) return null;
+  let lo = a;
+  while (lo - 1 >= 0 && Math.abs(pts[lo - 1]!.x - laneX) <= SPLICE_PATH_EPS) {
+    lo--;
+  }
+  let hi = b;
+  while (
+    hi + 1 < pts.length &&
+    Math.abs(pts[hi + 1]!.x - laneX) <= SPLICE_PATH_EPS
+  ) {
+    hi++;
+  }
+  let y0 = pts[lo]!.y;
+  let y1 = pts[lo]!.y;
+  for (let i = lo; i <= hi; i++) {
+    y0 = Math.min(y0, pts[i]!.y);
+    y1 = Math.max(y1, pts[i]!.y);
+  }
+  return { x: laneX, y0, y1 };
+}
+
 export function routeTemplateForHandles(
   sourceX: number,
   sourceY: number,

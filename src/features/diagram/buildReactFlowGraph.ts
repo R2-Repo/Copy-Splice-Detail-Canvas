@@ -384,7 +384,11 @@ export function buildReactFlowGraph(
       data: {
         sourceColor: colorHex(source.endpoint.fiberColor),
         targetColor: colorHex(target.endpoint.fiberColor),
-        existing: overrides?.existingEdgeIds?.includes(`splice-${conn.id}`),
+        existing:
+          overrides?.existingEdgeIds?.includes(`splice-${conn.id}`) ||
+          // Back-compat: older saves stored a single split-leg id.
+          overrides?.existingEdgeIds?.includes(`splice-left-${conn.id}`) ||
+          overrides?.existingEdgeIds?.includes(`splice-right-${conn.id}`),
         circuitName: conn.pair.circuitName,
         laneIndex,
         laneCount,
@@ -434,6 +438,7 @@ export function buildReactFlowGraph(
       type: "splice",
       data: {
         fullButtSplice: true,
+        existing: overrides?.existingEdgeIds?.includes(`butt-${tube.id}`),
         pairIds: tube.pairIds,
         sourceColor: colorHex(leftBase),
         targetColor: colorHex(rightBase),

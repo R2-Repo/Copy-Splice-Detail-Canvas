@@ -38,6 +38,27 @@ export function ExpandIcon() {
   );
 }
 
+export function HelpIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9a2.5 2.5 0 0 1 4.8 1c0 1.5-2 2-2 3.5" />
+      <circle cx="12" cy="17" r="0.75" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function ListIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 6h13M8 12h13M8 18h13" />
+      <circle cx="4" cy="6" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="18" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function ReportIcon() {
   return (
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">

@@ -40,11 +40,13 @@ import {
 } from "./legSegments";
 import { syncSplicePointNodes } from "./syncSplicePointNodes";
 import {
+  addConnectionsToSelection,
   connectionsInMarquee,
   emptySelection,
   setConnectionSelection,
   toggleConnectionSelection,
 } from "./selection";
+import { bundleConnectionIds } from "./smartSelect";
 import type { LegSide, ManualAdjustSelection } from "./types";
 
 type ConnectionLegPathData = {
@@ -92,6 +94,13 @@ export type ManualAdjustEngine = {
     x1: number;
     y1: number;
   }) => void;
+  /** Clear all selected legs (e.g. Escape or a click on empty canvas). */
+  onClearSelection: () => void;
+  /**
+   * Double-click a leg: select its whole tube bundle without moving it.
+   * `additive` (Ctrl/Cmd) unions the bundle into the current selection.
+   */
+  onSegmentDoubleClick: (connectionId: string, additive: boolean) => void;
   onSegmentPointerDown: (
     connectionId: string,
     side: LegSide,
@@ -191,6 +200,36 @@ export function useManualAdjustEngine({
     [anchorPositions, enabled],
   );
 
+  const onClearSelection = useCallback(() => {
+    if (!enabled) return;
+    setSelection(emptySelection());
+  }, [enabled]);
+
+  // Smart selection: double-click a leg to select its whole tube bundle
+  // (same source buffer tube -> same destination cable) without moving it.
+  // Ctrl/Cmd+double-click unions the bundle into the existing selection.
+  const onSegmentDoubleClick = useCallback(
+    (connectionId: string, additive: boolean) => {
+      if (!enabled || isButtEdgeId(connectionId)) return;
+      const bundle = bundleConnectionIds(getEdges(), connectionId);
+      setSelection((prev) =>
+        additive
+          ? addConnectionsToSelection(prev, bundle)
+          : setConnectionSelection(bundle),
+      );
+    },
+    [enabled, getEdges],
+  );
+
+  useEffect(() => {
+    if (!enabled) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelection(emptySelection());
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [enabled]);
+
   const resolveSegmentAxis = useCallback(
     (
       _event: React.PointerEvent,
@@ -278,6 +317,8 @@ export function useManualAdjustEngine({
       const currentEdges = getEdges();
       let blockedCode: LegPathValidationCode | null = null;
       for (const connectionId of drag.connectionIds) {
+        // Butt squares have no fusion-dot clearance rules — skip leg validation.
+        if (isButtEdgeId(connectionId)) continue;
         const paths = legPathDataFromEdges(currentEdges, connectionId);
         if (!paths) continue;
         blockedCode = validateLegPaths(
@@ -316,15 +357,27 @@ export function useManualAdjustEngine({
 
   const onDotPointerDown = useCallback(
     (connectionId: string, event: React.PointerEvent) => {
-      if (!enabled || isButtEdgeId(connectionId)) return;
+      if (!enabled) return;
       event.stopPropagation();
       event.preventDefault();
+      // Ctrl/Cmd+click = additive single-dot selection (toggle), no drag —
+      // same as legs (selection is per-connection, shared by legs + dots).
+      if (event.ctrlKey || event.metaKey) {
+        setSelection((prev) =>
+          toggleConnectionSelection(prev, connectionId, true),
+        );
+        return;
+      }
       detachDotDragListeners();
-      const ids = (
-        selection.connectionIds.has(connectionId)
+      // Shift+grab = smart bundle: select + drag the bundle's dots together.
+      // (A collapsed-tube butt has no fiber bundle, so it stays single.)
+      const smartBundle = event.shiftKey && !!graph;
+      const ids = smartBundle
+        ? bundleConnectionIds(getEdges(), connectionId)
+        : selection.connectionIds.has(connectionId)
           ? [...selection.connectionIds]
-          : [connectionId]
-      ).filter((id) => !isButtEdgeId(id));
+          : [connectionId];
+      if (smartBundle) setSelection(setConnectionSelection(ids));
       const preDragPaths = new Map<string, ConnectionLegPathData>();
       for (const id of ids) {
         const snapshot = legPathDataFromEdges(getEdges(), id);
@@ -346,6 +399,7 @@ export function useManualAdjustEngine({
       detachDotDragListeners,
       enabled,
       getEdges,
+      graph,
       legOverrides,
       selection.connectionIds,
     ],
@@ -490,11 +544,31 @@ export function useManualAdjustEngine({
       if (!enabled) return;
       event.stopPropagation();
       event.preventDefault();
+      // Ctrl/Cmd+click = additive single-leg selection (toggle), no drag. Lets
+      // you build a custom multi-selection one leg at a time on top of an
+      // existing selection or bundle. Plain click/drag below is unchanged.
+      if ((event.ctrlKey || event.metaKey) && !isButtEdgeId(connectionId)) {
+        setSelection((prev) =>
+          toggleConnectionSelection(prev, connectionId, true),
+        );
+        return;
+      }
       detachSegmentDragListeners();
       const axis = resolveSegmentAxis(event, side, segmentIndex, connectionId);
-      const ids = selection.connectionIds.has(connectionId)
-        ? [...selection.connectionIds]
-        : [connectionId];
+      // Shift+grab = smart bundle: expand to every leg sharing this leg's
+      // tube bundle (same from/to) and move them together this gesture. The
+      // unmodified click path below is unchanged so single-leg drag is intact.
+      const smartBundle =
+        event.shiftKey && !!graph && !isButtEdgeId(connectionId);
+      let ids: string[];
+      if (smartBundle) {
+        ids = bundleConnectionIds(getEdges(), connectionId);
+        setSelection(setConnectionSelection(ids));
+      } else {
+        ids = selection.connectionIds.has(connectionId)
+          ? [...selection.connectionIds]
+          : [connectionId];
+      }
       const preDragPaths = new Map<string, ConnectionLegPathData>();
       for (const id of ids) {
         const snapshot = legPathDataFromEdges(getEdges(), id);
@@ -623,6 +697,8 @@ export function useManualAdjustEngine({
     legSegmentDragActive,
     onFiberAnchorClick,
     onMarqueeComplete,
+    onClearSelection,
+    onSegmentDoubleClick,
     onSegmentPointerDown,
     onSegmentPointerMove,
     onSegmentPointerUp,
@@ -647,10 +723,12 @@ function previewDotDrag(
     const dot = { x: snapshot.spliceX + deltaX, y: snapshot.spliceY };
     const nextLeft = repinLegEnd(snapshot.leftPath, dot);
     const nextRight = repinLegStart(snapshot.rightPath, dot);
-    for (const edgeId of [
-      `splice-left-${connectionId}`,
-      `splice-right-${connectionId}`,
-    ]) {
+    // Collapsed butt (the big square) lives on a single `butt-*` edge that
+    // holds both legs; split fiber splices have separate left/right edges.
+    const edgeIds = isButtEdgeId(connectionId)
+      ? [connectionId]
+      : [`splice-left-${connectionId}`, `splice-right-${connectionId}`];
+    for (const edgeId of edgeIds) {
       const idx = nextEdges.findIndex((e) => e.id === edgeId);
       if (idx < 0) continue;
       const prev = nextEdges[idx]!;

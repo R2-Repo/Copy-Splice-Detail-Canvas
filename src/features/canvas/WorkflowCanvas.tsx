@@ -16,6 +16,7 @@ import "@xyflow/react/dist/style.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ConnectionInspectorOverlay } from "@/components/ConnectionInspectorOverlay";
+import { HelpGuideOverlay } from "@/components/help/HelpGuideOverlay";
 import { SpliceReportOverlay } from "@/components/SpliceReportOverlay";
 import { CALLOUT_BOX, defaultCalloutPosition } from "@/features/canvas/callouts/cableCalloutGeometry";
 import { CalloutLeaderLayer } from "@/features/canvas/callouts/CalloutLeaderLayer";
@@ -32,6 +33,8 @@ import {
 } from "@/features/canvas/circuitIndex";
 import { CircuitHighlightProvider } from "@/features/canvas/CircuitHighlightContext";
 import { CircuitListPanel } from "@/features/canvas/CircuitListPanel";
+import { ExistingToggleProvider } from "@/features/canvas/ExistingToggleContext";
+import { useExistingLongPress } from "@/features/canvas/useExistingLongPress";
 import {
   ManualLayoutProvider,
   type ManualLayoutGuideLine,
@@ -113,6 +116,7 @@ import { tubeKeyFor } from "@/features/diagram/tubeRowShift";
 import {
   AutoIcon,
   ExportConfigIcon,
+  HelpIcon,
   HorizontalLayoutIcon,
   InspectIcon,
   MapIcon,
@@ -257,6 +261,7 @@ function WorkflowCanvasInner() {
   const [collapseFullButtSplices, setCollapseFullButtSplices] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [circuitPanelOpen, setCircuitPanelOpen] = useState(false);
   const [calloutsVisible, setCalloutsVisible] = useState(false);
   const [circuitIndex, setCircuitIndex] = useState<CircuitIndex | null>(null);
@@ -1135,6 +1140,27 @@ function WorkflowCanvasInner() {
     getEdges,
   });
 
+  // Long-press a leg/butt to toggle it "existing" (works in auto + manual).
+  const existingLongPress = useExistingLongPress({
+    enabled: !!meta,
+    getEdges,
+    setEdges,
+    persist: (nextEdges) => persistLayout(getNodes(), nextEdges),
+  });
+  const existingToggleValue = useMemo(
+    () => ({
+      beginLongPress: existingLongPress.beginLongPress,
+      isCharging: (connectionId: string) =>
+        existingLongPress.chargingConnectionIds.has(connectionId),
+      chargingTier: existingLongPress.chargingTier,
+    }),
+    [
+      existingLongPress.beginLongPress,
+      existingLongPress.chargingConnectionIds,
+      existingLongPress.chargingTier,
+    ],
+  );
+
   const printDiagram = usePrintDiagram(nodes, graphRef.current, stageRef);
 
   const toggleManualAdjust = useCallback(() => {
@@ -1737,23 +1763,6 @@ function WorkflowCanvasInner() {
     [edges, generateCableCallouts, nodes, setNodes],
   );
 
-  const onEdgeClick = useCallback(
-    (_: React.MouseEvent, edge: Edge) => {
-      setEdges((current) => {
-        const next = current.map((e) => {
-          if (e.id !== edge.id) return e;
-          const existing = Boolean(
-            (e.data as { existing?: boolean } | undefined)?.existing,
-          );
-          return { ...e, data: { ...e.data, existing: !existing } };
-        });
-        persistLayout(nodes, next);
-        return next;
-      });
-    },
-    [nodes, persistLayout, setEdges],
-  );
-
   return (
     <div className="workflow-canvas">
       <div className="workflow-canvas__toolbar">
@@ -1889,6 +1898,12 @@ function WorkflowCanvasInner() {
             disabled={!meta}
             onClick={printDiagram}
           />
+          <ToolbarActionButton
+            label="Help and guide"
+            icon={<HelpIcon />}
+            pressed={helpOpen}
+            onClick={() => setHelpOpen(true)}
+          />
         </div>
       </div>
       <div className="workflow-canvas__body">
@@ -1907,6 +1922,7 @@ function WorkflowCanvasInner() {
               value={{ onTextChange: handleCalloutTextChange }}
             >
               <ManualLayoutProvider value={manualLayoutContextValue}>
+              <ExistingToggleProvider value={existingToggleValue}>
               <ReactFlow
                 className={
                   !autoAdjustEnabled ? "workflow-canvas--manual-adjust" : undefined
@@ -1918,7 +1934,6 @@ function WorkflowCanvasInner() {
                 onNodeDrag={onNodeDrag}
                 onNodeDragStop={onNodeDragStop}
                 onEdgesChange={onEdgesChange}
-                onEdgeClick={onEdgeClick}
                 nodeTypes={spliceNodeTypes}
                 edgeTypes={spliceEdgeTypes}
                 minZoom={0.05}
@@ -1938,12 +1953,16 @@ function WorkflowCanvasInner() {
                   graph={graphRef.current}
                   selection={manualAdjustEngine.selection}
                   onMarqueeComplete={manualAdjustEngine.onMarqueeComplete}
+                  onClearSelection={manualAdjustEngine.onClearSelection}
+                  onSegmentDoubleClick={manualAdjustEngine.onSegmentDoubleClick}
                   onSegmentPointerDown={manualAdjustEngine.onSegmentPointerDown}
                   onSegmentPointerMove={manualAdjustEngine.onSegmentPointerMove}
                   onSegmentPointerUp={manualAdjustEngine.onSegmentPointerUp}
                   onDotPointerDown={manualAdjustEngine.onDotPointerDown}
+                  beginLongPress={existingLongPress.beginLongPress}
                 />
               </ReactFlow>
+              </ExistingToggleProvider>
               </ManualLayoutProvider>
             </CalloutPersistContext.Provider>
           </div>
@@ -1962,6 +1981,7 @@ function WorkflowCanvasInner() {
         model={inspectorModel}
         onClose={() => setInspectorOpen(false)}
       />
+      <HelpGuideOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }
