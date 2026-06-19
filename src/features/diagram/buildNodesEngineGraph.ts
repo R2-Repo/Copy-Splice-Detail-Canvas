@@ -4,6 +4,7 @@ import { fiberHandlePosition } from "@/features/canvas/edges/spliceEdgeRouting";
 import { colorHex } from "@/features/diagram/colorCode";
 import {
   computeSpliceEdgeLayout,
+  type ComputeSpliceLayoutOptions,
   type PrecomputedSpliceEdgeData,
 } from "@/features/diagram/computeSpliceLayout";
 import type { SpliceHandleEntry } from "@/features/diagram/centerRouter";
@@ -115,6 +116,7 @@ export function augmentNodesEngineGraph(
   edges: Edge[],
   visualCables: VisualCable[],
   diagramCenterX: number,
+  options?: ComputeSpliceLayoutOptions,
 ): { nodes: Node[]; edges: Edge[] } {
   const slimCables = cableNodes.map((node) =>
     node.type === "cable"
@@ -130,6 +132,7 @@ export function augmentNodesEngineGraph(
     edges,
     visualCables,
     diagramCenterX,
+    options,
   );
 
   const cableById = new Map(slimCables.map((n) => [n.id, n]));

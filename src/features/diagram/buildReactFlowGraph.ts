@@ -494,12 +494,13 @@ export function buildReactFlowGraph(
     effectiveWidth,
   );
 
-  if (useNodesRoutingEngine()) {
+  if (useNodesRoutingEngine(overrides)) {
     const augmented = augmentNodesEngineGraph(
       nodes,
       edges,
       visualCables,
       centerX,
+      { overrides, layoutWidth: effectiveWidth },
     );
     return {
       nodes: augmented.nodes,

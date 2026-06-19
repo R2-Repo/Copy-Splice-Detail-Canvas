@@ -224,6 +224,27 @@ export type LayoutOverrides = {
   quadCableSides?: Record<string, QuadSide>;
   /** User-locked elements (frozen across auto/manual + other moves). */
   locks?: DiagramLocks;
+  /**
+   * Routing backend for this diagram. `nodes` (default) = current lane router;
+   * `grid` = grid reservation router; `legacy` = pre-nodes composite edges.
+   */
+  routingEngine?: "legacy" | "nodes" | "grid";
+  /** Grid-mode persisted routes keyed by connection id. */
+  gridRoutes?: Record<
+    string,
+    {
+      connectionId: string;
+      points: Array<{ x: number; y: number }>;
+      segmentIds: string[];
+    }
+  >;
+  /** Grid-mode locked segments, dots, cables, and tube groups. */
+  gridLocks?: {
+    segments: string[];
+    dots: string[];
+    cables: string[];
+    tubeGroups: string[];
+  };
 };
 
 /** Original (left/right) vs additive 4-side layout engine. */

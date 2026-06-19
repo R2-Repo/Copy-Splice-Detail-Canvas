@@ -117,5 +117,8 @@ export function mergeLayoutOverrides(
     // Replace-when-provided: lock toggles pass the complete desired `locks`
     // object (so a removed key actually unlocks); other patches preserve it.
     locks: patch.locks !== undefined ? patch.locks : existing?.locks,
+    routingEngine: patch.routingEngine ?? existing?.routingEngine,
+    gridRoutes: patch.gridRoutes ?? existing?.gridRoutes,
+    gridLocks: patch.gridLocks ?? existing?.gridLocks,
   };
 }

@@ -2,8 +2,9 @@
 
 > **Must keep.** These rules define how fiber cables, buffer tubes, and fiber strands are formatted and oriented. Any change to diagram layout, cable nodes, or splice routing **must pass every rule** in `layoutRules.test.ts`.
 
-**Enforcement code:** `src/features/diagram/layoutRules.ts`  
-**Contract tests:** `src/features/diagram/layoutRules.test.ts`  
+**Enforcement code:** `src/features/diagram/layoutRules.ts` (legacy) + `src/features/rules/` (SDC)  
+**Contract tests:** `layoutRules.test.ts` + `src/features/rules/sdcContract.test.ts`  
+**SDC rule map:** [`RULE_ID_MAP.md`](./RULE_ID_MAP.md)  
 **Reference CSVs:** `docs/reference/examples/CSV Splice Detail Example #1–#3.csv`
 
 ---

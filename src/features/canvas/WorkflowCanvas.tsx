@@ -122,6 +122,9 @@ import {
 } from "@/features/manualAdjust/repinButtSpliceEdges";
 import { syncManualVisualCable } from "@/features/manualAdjust/syncManualVisualCable";
 import { useManualAdjustEngine } from "@/features/manualAdjust/useManualAdjustEngine";
+import { clearAllHybridLocks } from "@/features/layoutHybrid";
+import { routingEngineMode } from "@/features/diagram/routingEngine";
+import { allRulesPass, buildSdcRuleContext, runImportRules } from "@/features/rules";
 import {
   collectGlobalTubeTipSnapTargets,
   collectGlobalFiberHandleSnapTargets,
@@ -713,6 +716,10 @@ function WorkflowCanvasInner() {
               tubeOverrides: overrides.tubeOverrides,
               fanoutOverrides: overrides.fanoutOverrides,
               legOverrides: overrides.legOverrides,
+              routingEngine: overrides.routingEngine ?? existing?.routingEngine,
+              gridRoutes: overrides.gridRoutes ?? existing?.gridRoutes,
+              gridLocks: overrides.gridLocks ?? existing?.gridLocks,
+              layoutMode: overrides.layoutMode ?? existing?.layoutMode,
             },
             layoutWidthArg,
             {
@@ -937,6 +944,12 @@ function WorkflowCanvasInner() {
     (text: string, fileName: string) => {
       const report = parseBentleyCsv(text);
       const graph = buildConnectionGraph(report);
+      const importCtx = buildSdcRuleContext(graph, { skipReactFlow: true });
+      const importResults = runImportRules(importCtx);
+      if (!allRulesPass(importResults)) {
+        const failed = importResults.filter((r) => !r.ok).map((r) => r.detail);
+        setConfigErrorBanner(`Import validation: ${failed.join("; ")}`);
+      }
       const reportKey = reportStorageKey(graph);
       const title =
         report.header.spliceNumber ?? report.header.name ?? fileName;
@@ -1229,7 +1242,13 @@ function WorkflowCanvasInner() {
   );
 
   const manualAdjustEngine = useManualAdjustEngine({
-    enabled: !autoAdjustEnabled,
+    enabled:
+      !autoAdjustEnabled ||
+      routingEngineMode(
+        reportKeyRef.current
+          ? loadLayoutOverrides(reportKeyRef.current) ?? undefined
+          : undefined,
+      ) === "grid",
     nodes,
     edges,
     graph: graphRef.current,
@@ -1326,17 +1345,21 @@ function WorkflowCanvasInner() {
     const graph = graphRef.current;
     const reportKey = reportKeyRef.current;
     if (!graph || !reportKey) return;
+    const existing = loadLayoutOverrides(reportKey);
     setAutoAdjustEnabled(true);
     setManualWarningBanner(null);
     setActiveGuides([]);
     setLegOverridesState({});
     saveLayoutOverrides(
-      mergeLayoutOverrides(reportKey, {
-        autoAdjustEnabled: true,
-        tubeOverrides: {},
-        fanoutOverrides: {},
-        legOverrides: {},
-      }),
+      mergeLayoutOverrides(
+        reportKey,
+        clearAllHybridLocks({
+          ...existing,
+          reportKey,
+          positions: existing?.positions ?? {},
+          autoAdjustEnabled: true,
+        }),
+      ),
     );
     const width = resolveLayoutWidth(graph, false);
     applyGraph(graph, reportKey, collapseRef.current, {
@@ -2188,7 +2211,14 @@ function WorkflowCanvasInner() {
           <ToolbarSegmentedControl
             className="toolbar-segment--large"
             ariaLabel="Adjust mode"
-            disabled={!meta}
+            disabled={
+              !meta ||
+              routingEngineMode(
+                reportKeyRef.current
+                  ? loadLayoutOverrides(reportKeyRef.current) ?? undefined
+                  : undefined,
+              ) === "grid"
+            }
             value={autoAdjustEnabled ? "auto" : "manual"}
             onChange={(next) => {
               const wantManual = next === "manual";
@@ -2209,6 +2239,13 @@ function WorkflowCanvasInner() {
               },
             ]}
           />
+          {meta ? (
+            <ToolbarActionButton
+              label="Unlock all / reset layout"
+              icon={<ResetIcon />}
+              onClick={resetToAutoLayout}
+            />
+          ) : null}
           <ToolbarSegmentedControl
             className="toolbar-segment--large"
             ariaLabel="Layout mode"
@@ -2228,7 +2265,13 @@ function WorkflowCanvasInner() {
               },
             ]}
           />
-          {!autoAdjustEnabled && meta ? (
+          {!autoAdjustEnabled &&
+          meta &&
+          routingEngineMode(
+            reportKeyRef.current
+              ? loadLayoutOverrides(reportKeyRef.current) ?? undefined
+              : undefined,
+          ) !== "grid" ? (
             <ToolbarActionButton
               label="Reset to auto layout"
               icon={<ResetIcon />}
@@ -2239,7 +2282,7 @@ function WorkflowCanvasInner() {
         <div className="workflow-canvas__toolbar-center">
           <span className="workflow-canvas__hint">
             {autoAdjustEnabled
-              ? "Drag cables to reposition; click edge for protect-in-place"
+              ? "Drag to adjust; edits lock in place. Auto layout runs around locked items."
               : "Manual mode: tube tips ↕; collapsed tube center legs ↔ like fiber legs; shift+click handles; box-select"}
           </span>
           {configErrorBanner ? (

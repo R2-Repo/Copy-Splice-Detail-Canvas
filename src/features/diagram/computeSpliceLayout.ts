@@ -13,6 +13,9 @@ import {
   type SpliceHandleEntry,
   type SpliceRoutingLane,
 } from "@/features/diagram/centerRouter";
+import { routeAllOnGrid } from "@/features/grid/gridRouter";
+import { useGridRoutingEngine } from "@/features/diagram/routingEngine";
+import type { LayoutMode, LayoutOverrides } from "@/types/splice";
 import type { VisualCable } from "@/features/diagram/visualCables";
 
 export type PrecomputedSpliceEdgeData = {
@@ -33,6 +36,15 @@ export type SpliceLayoutPassResult = {
   handleEntries: SpliceHandleEntry[];
   lanes: Map<string, SpliceRoutingLane>;
   edges: Edge[];
+  gridRoutes?: Map<string, import("@/features/grid/gridTypes").GridRoute>;
+};
+
+export type ComputeSpliceLayoutOptions = {
+  overrides?: Pick<
+    LayoutOverrides,
+    "routingEngine" | "gridLocks" | "layoutMode"
+  >;
+  layoutWidth?: number;
 };
 
 export function computeSpliceEdgeLayout(
@@ -44,8 +56,29 @@ export function computeSpliceEdgeLayout(
   edges: Edge[],
   visualCables: VisualCable[],
   diagramCenterX: number,
+  options?: ComputeSpliceLayoutOptions,
 ): SpliceLayoutPassResult {
   const handleEntries = buildSpliceHandleEntries(nodes, edges, visualCables);
+
+  if (useGridRoutingEngine(options?.overrides)) {
+    const gridResult = routeAllOnGrid({
+      nodes,
+      edges,
+      visualCables,
+      diagramCenterX,
+      layoutWidth: options?.layoutWidth ?? diagramCenterX * 2,
+      layoutMode: (options?.overrides?.layoutMode ?? "horizontal") as LayoutMode,
+      lockedSegmentIds: options?.overrides?.gridLocks?.segments,
+    });
+    const lanes = routeCenterSplices(handleEntries, diagramCenterX);
+    return {
+      handleEntries,
+      lanes,
+      edges: gridResult.edges,
+      gridRoutes: gridResult.routes,
+    };
+  }
+
   const lanes = routeCenterSplices(handleEntries, diagramCenterX);
   const tubeDotColumns = reconcileBufferTubeDotColumns(
     handleEntries,
