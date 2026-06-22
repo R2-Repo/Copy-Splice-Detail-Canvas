@@ -2,6 +2,7 @@ import {
   LAYOUT_OVERRIDE_VERSION,
   type LayoutOverrides,
 } from "@/types/splice";
+import { normalizeLayoutOverridesOnLoad } from "@/features/manualAdjust/connectionOverrides";
 
 export function loadLayoutOverrides(
   reportKey: string,
@@ -11,7 +12,7 @@ export function loadLayoutOverrides(
     if (!raw) return undefined;
     const parsed = JSON.parse(raw) as LayoutOverrides;
     if (parsed.layoutVersion !== LAYOUT_OVERRIDE_VERSION) return undefined;
-    return parsed;
+    return normalizeLayoutOverridesOnLoad(parsed);
   } catch {
     return undefined;
   }
@@ -112,6 +113,14 @@ export function mergeLayoutOverrides(
       patch.fanoutOverrides,
     ),
     legOverrides: mergeOverrideMap(existing?.legOverrides, patch.legOverrides),
+    connectionOverrides: mergeOverrideMap(
+      existing?.connectionOverrides,
+      patch.connectionOverrides,
+    ),
+    bundleOverrides: mergeOverrideMap(
+      existing?.bundleOverrides,
+      patch.bundleOverrides,
+    ),
     layoutMode: patch.layoutMode ?? existing?.layoutMode,
     quadCableSides: { ...existing?.quadCableSides, ...patch.quadCableSides },
     // Replace-when-provided: lock toggles pass the complete desired `locks`

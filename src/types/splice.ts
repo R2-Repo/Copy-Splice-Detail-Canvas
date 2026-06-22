@@ -159,6 +159,19 @@ export type TubeManualOverride = {
   stemReachX?: number;
 };
 
+/** Parameter-based per-connection routing offset (Phase 5 — replaces segment-index legOverrides over time). */
+export type ConnectionOverride = {
+  laneOffsetX?: number;
+  spliceRowOffsetY?: number;
+  dotOffsetX?: number;
+};
+
+/** Parameter-based tube-bundle lane offset keyed by `tubeBundleKey`. */
+export type BundleOverride = {
+  laneOffsetX?: number;
+  rowOffsetY?: number;
+};
+
 export type LayoutCalloutRecord = {
   targetCableNodeId: string;
   text: string;
@@ -215,6 +228,10 @@ export type LayoutOverrides = {
       dotShiftX?: number;
     }
   >;
+  /** Parameter-based per-connection routing offsets (Phase 5). */
+  connectionOverrides?: Record<string, ConnectionOverride>;
+  /** Parameter-based tube-bundle lane offsets keyed by `tubeBundleKey`. */
+  bundleOverrides?: Record<string, BundleOverride>;
   /**
    * Layout engine for this diagram. `horizontal` (default) is the original
    * left/right pipeline; `quad` is the additive 4-side mode. Absent = horizontal.

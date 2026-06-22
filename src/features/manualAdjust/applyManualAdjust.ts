@@ -13,6 +13,10 @@ import {
   handleCoordsForConnection,
 } from "./handleCoords";
 import {
+  effectiveConnectionOverrides,
+  legOverridesForConnectionApply,
+} from "./connectionOverrides";
+import {
   applySegmentDelta,
   reconnectEditedLegPaths,
   legSegmentsFromPaths,
@@ -219,9 +223,10 @@ export function applyAllLegOverrides(
 ): Edge[] {
   if (overrides?.autoAdjustEnabled !== false) return edges;
   const legMap = overrides?.legOverrides;
-  if (!legMap) return edges;
+  const connMap = effectiveConnectionOverrides(overrides);
+  if (!legMap && connMap.size === 0) return edges;
   return edges.map((edge) => {
-    if (isButtEdgeId(edge.id) && legMap[edge.id]) {
+    if (isButtEdgeId(edge.id) && legMap?.[edge.id]) {
       const handles =
         nodes != null && graph != null
           ? handleCoordsForButtEdge(edge.id, nodes, edges, graph)
@@ -238,14 +243,15 @@ export function applyAllLegOverrides(
     }
 
     const connId = edge.id.replace(/^splice-(?:left|right)-/, "");
-    if (!legMap[connId]) return edge;
+    const leg = legOverridesForConnectionApply(connId, overrides);
+    if (!leg) return edge;
     const handles =
       nodes != null && graph != null
         ? handleCoordsForConnection(connId, nodes, graph)
         : null;
     const updated = applyLegOverridesToEdge(
       edge,
-      legMap[connId],
+      leg,
       handles?.source.x ?? 0,
       handles?.source.y ?? 0,
       handles?.target.x ?? 0,
@@ -272,7 +278,9 @@ export function applyHybridFusionDotLocks(
     const connId = edge.id.replace(/^splice-(?:left|right)-/, "").replace(/^splice-/, "");
     if (!locked.has(connId)) return edge;
 
-    const dotShiftX = legMap[connId]?.dotShiftX;
+    const dotShiftX =
+      legMap[connId]?.dotShiftX ??
+      effectiveConnectionOverrides(overrides).get(connId)?.dotOffsetX;
     if (dotShiftX == null || Math.abs(dotShiftX) <= 0.5) return edge;
 
     const handles =

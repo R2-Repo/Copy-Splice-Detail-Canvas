@@ -53,14 +53,19 @@ export function assignSpliceRoutingLanesFromHandleEntries(
   return assignCenterLanes(entries, centerX);
 }
 
-/** Re-rank row offsets from live handle Y, then pack lanes (drag / live handles). */
-export function assignSpliceRoutingLanesFromLiveHandles(
-  entries: SpliceHandleEntry[],
-  diagramCenterX?: number,
-): {
-  lanes: Map<string, SpliceRoutingLane>;
-  rowOffsets: Map<string, number>;
-} {
+/** Re-rank row offsets from live handle Y (non-bundle entries only). */
+export function handleEntriesWithLiveRowOffsets<
+  T extends {
+    id: string;
+    fallbackLane: number;
+    rowOffset?: number;
+    tubeBundleKey?: string;
+    sourceX: number;
+    sourceY: number;
+    targetX: number;
+    targetY: number;
+  },
+>(entries: T[]): T[] {
   const bundled = entries.filter((entry) => entry.tubeBundleKey?.trim());
   const rowOffsets = recomputeRowOffsetsFromHandleYs(
     entries.filter((entry) => !entry.tubeBundleKey?.trim()),
@@ -71,10 +76,27 @@ export function assignSpliceRoutingLanesFromLiveHandles(
       entry.rowOffset ?? entry.fallbackLane * FIBER_ROW_PITCH,
     );
   }
-  const withRows = entries.map((entry) => ({
+  return entries.map((entry) => ({
     ...entry,
     rowOffset: rowOffsets.get(entry.id) ?? entry.rowOffset ?? entry.fallbackLane,
   }));
+}
+
+/** Re-rank row offsets from live handle Y, then pack lanes (drag / live handles). */
+export function assignSpliceRoutingLanesFromLiveHandles(
+  entries: SpliceHandleEntry[],
+  diagramCenterX?: number,
+): {
+  lanes: Map<string, SpliceRoutingLane>;
+  rowOffsets: Map<string, number>;
+} {
+  const withRows = handleEntriesWithLiveRowOffsets(entries);
+  const rowOffsets = new Map(
+    withRows.map((entry) => [
+      entry.id,
+      entry.rowOffset ?? entry.fallbackLane * FIBER_ROW_PITCH,
+    ]),
+  );
 
   return {
     lanes: assignSpliceRoutingLanesFromHandleEntries(withRows, diagramCenterX),

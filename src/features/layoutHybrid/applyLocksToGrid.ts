@@ -93,6 +93,8 @@ export function clearAllHybridLocks(
   return {
     ...overrides,
     legOverrides: undefined,
+    connectionOverrides: undefined,
+    bundleOverrides: undefined,
     fanoutOverrides: undefined,
     tubeOverrides: undefined,
     gridLocks: undefined,

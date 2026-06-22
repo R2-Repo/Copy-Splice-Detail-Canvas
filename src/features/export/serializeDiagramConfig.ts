@@ -52,6 +52,8 @@ export function buildDiagramConfig(
     tubeOverrides: stored?.tubeOverrides,
     fanoutOverrides: stored?.fanoutOverrides,
     legOverrides: input.legOverrides ?? stored?.legOverrides,
+    connectionOverrides: stored?.connectionOverrides,
+    bundleOverrides: stored?.bundleOverrides,
   });
 
   const { reportKey: _reportKey, ...layout } = merged;

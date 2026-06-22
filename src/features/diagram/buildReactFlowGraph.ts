@@ -512,6 +512,7 @@ export function buildReactFlowGraph(
         rerouteConnectionIds: buildOptions?.rerouteConnectionIds,
         dragCacheEdges: buildOptions?.dragCacheEdges,
         priorGridRoutes: buildOptions?.priorGridRoutes,
+        useLiveHandleLanes: buildOptions?.dragSync === true,
       },
     );
     return {

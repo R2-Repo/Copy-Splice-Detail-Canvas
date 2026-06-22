@@ -122,6 +122,7 @@ import {
 } from "@/features/manualAdjust/repinButtSpliceEdges";
 import { syncManualVisualCable } from "@/features/manualAdjust/syncManualVisualCable";
 import { useManualAdjustEngine } from "@/features/manualAdjust/useManualAdjustEngine";
+import { syncConnectionOverridesFromLegs } from "@/features/manualAdjust/connectionOverrides";
 import { clearAllHybridLocks, onEditLock, unlockHybridItem } from "@/features/layoutHybrid";
 import { gridSegmentIdsFromLegPaths } from "@/features/layoutHybrid/gridSegmentIdsFromPaths";
 import { routingEngineMode, useGridRoutingEngine } from "@/features/diagram/routingEngine";
@@ -173,6 +174,7 @@ import {
 import { ToolbarPillToggle } from "@/components/toolbar/ToolbarPillToggle";
 import { CsvImportButton } from "@/features/import/CsvImportButton";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
+import { useDevFixtureAutoLoad } from "@/features/import/useDevFixtureAutoLoad";
 import {
   routeImportFile,
   UNSUPPORTED_IMPORT_FILE_MESSAGE,
@@ -972,6 +974,8 @@ function WorkflowCanvasInner() {
     [activateDiagram],
   );
 
+  useDevFixtureAutoLoad(loadFromCsv);
+
   const confirmReplaceDiagram = useCallback((): boolean => {
     if (!meta) return true;
     return window.confirm(
@@ -1255,6 +1259,11 @@ function WorkflowCanvasInner() {
         tubeOverrides: existing?.tubeOverrides,
         fanoutOverrides: existing?.fanoutOverrides,
         legOverrides,
+        connectionOverrides: syncConnectionOverridesFromLegs(
+          legOverrides,
+          existing?.connectionOverrides,
+        ),
+        bundleOverrides: existing?.bundleOverrides,
         routingEngine: existing?.routingEngine,
         gridLocks: existing?.gridLocks,
         gridRoutes: existing?.gridRoutes,

@@ -1,20 +1,15 @@
 import type { Edge, Node } from "@xyflow/react";
 
 import type { CableNodeData } from "@/features/canvas/nodes/types";
-import {
-  fiberHandlePosition,
-  parseOrthogonalPathPoints,
-} from "@/features/canvas/edges/splicePathGeometry";
+import { parseOrthogonalPathPoints } from "@/features/canvas/edges/splicePathGeometry";
 import { SPLICE_LANE_SEP } from "@/features/diagram/cableLayoutMetrics";
 import type { ConnectionGraph } from "@/types/splice";
-import {
-  buildVisualCablesForLayout,
-  type VisualCable,
-} from "@/features/diagram/visualCables";
-
+import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import {
   buildHandleCoordsCache,
+  fiberAnchorNodePosition,
   handleCoordsForConnection,
+  visualCableFromCableNode,
 } from "./handleCoords";
 import {
   pathEndPoint,
@@ -36,28 +31,6 @@ type SpliceLaneData = {
 const ANCHOR_DOT = 6;
 const STACK_EPS = 0.5;
 const STACK_SEP_X = SPLICE_LANE_SEP;
-
-function visualCableFromCableNode(
-  vc: VisualCable,
-  cableData: CableNodeData,
-): VisualCable {
-  const tubeByColor = new Map(cableData.tubes.map((t) => [t.tubeColor, t]));
-  return {
-    ...vc,
-    // During manual drags, node.data.side is the live rendered side; graph
-    // cableSides can lag behind until drag-stop persistence.
-    side: cableData.side ?? vc.side,
-    tubes: vc.tubes.map((tube) => {
-      const live = tubeByColor.get(tube.tubeColor);
-      if (!live) return tube;
-      return {
-        ...tube,
-        visualShiftY: live.visualShiftY ?? tube.visualShiftY,
-        stemReachX: live.stemReachX ?? tube.stemReachX,
-      };
-    }),
-  };
-}
 
 function positionNear(
   a: { x: number; y: number },
@@ -234,17 +207,10 @@ export function syncManualVisualCable(
 
   const anchorPositions = new Map<string, { x: number; y: number }>();
   for (const connectionId of connectionIds) {
-    const pos = fiberHandlePosition(
-      vc,
-      connectionId,
-      cableNode.position,
-      cableData.diagramScale ?? 1,
-      cableData.alignedStemX,
+    anchorPositions.set(
+      `fiberAnchor-${visualCableId}::${connectionId}`,
+      fiberAnchorNodePosition(connectionId, vc, cableNode, ANCHOR_DOT),
     );
-    anchorPositions.set(`fiberAnchor-${visualCableId}::${connectionId}`, {
-      x: pos.x - ANCHOR_DOT / 2,
-      y: pos.y - ANCHOR_DOT / 2,
-    });
   }
 
   let nodesChanged = false;

@@ -34,6 +34,8 @@ describe("hybrid lock roundtrip", () => {
     expect(cleared.locks).toBeUndefined();
     expect(cleared.gridLocks).toBeUndefined();
     expect(cleared.legOverrides).toBeUndefined();
+    expect(cleared.connectionOverrides).toBeUndefined();
+    expect(cleared.bundleOverrides).toBeUndefined();
     expect(cleared.autoAdjustEnabled).toBe(true);
   });
 

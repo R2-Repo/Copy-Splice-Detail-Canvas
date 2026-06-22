@@ -15,6 +15,9 @@ import {
 } from "@/features/diagram/centerRouter";
 import { routeAllOnGrid, rerouteLocalOnGrid } from "@/features/grid/gridRouter";
 import { useGridRoutingEngine } from "@/features/diagram/routingEngine";
+import { applyRoutingParameterOverrides } from "@/features/manualAdjust/connectionOverrides";
+import { assignSpliceRoutingLanesFromLiveHandles } from "@/features/diagram/spliceCenterLanes";
+import { logLaneAssignmentDiff } from "@/features/diagram/debugLaneDiff";
 import type { LayoutMode, LayoutOverrides } from "@/types/splice";
 import type { VisualCable } from "@/features/diagram/visualCables";
 
@@ -42,12 +45,20 @@ export type SpliceLayoutPassResult = {
 export type ComputeSpliceLayoutOptions = {
   overrides?: Pick<
     LayoutOverrides,
-    "routingEngine" | "gridLocks" | "layoutMode"
+    | "routingEngine"
+    | "gridLocks"
+    | "layoutMode"
+    | "connectionOverrides"
+    | "bundleOverrides"
+    | "legOverrides"
+    | "autoAdjustEnabled"
   >;
   layoutWidth?: number;
   rerouteConnectionIds?: string[];
   dragCacheEdges?: Edge[];
   priorGridRoutes?: Map<string, import("@/features/grid/gridTypes").GridRoute>;
+  /** Live cable drag — refresh rowOffset from handle Y (bundle members keep layout rank). */
+  useLiveHandleLanes?: boolean;
 };
 
 export function computeSpliceEdgeLayout(
@@ -76,6 +87,7 @@ export function computeSpliceEdgeLayout(
       rerouteConnectionIds: options?.rerouteConnectionIds,
       dragCacheEdges: options?.dragCacheEdges,
       priorGridRoutes: options?.priorGridRoutes,
+      useLiveHandleLanes: options?.useLiveHandleLanes,
     };
     const gridResult = options?.rerouteConnectionIds?.length
       ? rerouteLocalOnGrid(gridInput, options.rerouteConnectionIds)
@@ -88,7 +100,24 @@ export function computeSpliceEdgeLayout(
     };
   }
 
-  const lanes = routeCenterSplices(handleEntries, diagramCenterX);
+  const packedLanes = options?.useLiveHandleLanes
+    ? assignSpliceRoutingLanesFromLiveHandles(
+        handleEntries,
+        diagramCenterX,
+      ).lanes
+    : routeCenterSplices(handleEntries, diagramCenterX);
+  if (options?.useLiveHandleLanes) {
+    logLaneAssignmentDiff(
+      "nodes live-handle lanes",
+      routeCenterSplices(handleEntries, diagramCenterX),
+      packedLanes,
+    );
+  }
+  const lanes = applyRoutingParameterOverrides(
+    packedLanes,
+    handleEntries,
+    options?.overrides,
+  );
   const tubeDotColumns = reconcileBufferTubeDotColumns(
     handleEntries,
     lanes,

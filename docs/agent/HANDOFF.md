@@ -4,28 +4,21 @@
 
 ## Last updated
 
-2026-06-22 — **Stabilization Phase 2: grid drag-stop lane cache + D4 QA sign-off.**
+2026-06-22 — **Stabilization Phase 7 complete — verification gate green.**
 
 ### What landed
 
-- **Phase 2 drag-stop:** Auto/grid cable drag stop reuses `priorGridRoutes` + live `dragCacheEdges` and incremental `rerouteConnectionIds` on the dragged cable only (`WorkflowCanvas.tsx` — no frozen routing edits).
-- **Lane stability test:** `layoutDeterminism.test.ts` — Example #2 drag-sync vs incremental drag-stop midX stable for non-dragged splices.
-- **ARCHITECTURE:** Documented grid drag-stop cache; corrected manual override section (Phase 5 planned).
-- **Prior:** Grid hybrid UX, cable lock survival, EDGE-005, fusion-dot locks, D4 reference contract.
+- **Dev fixtures:** `?fixture=example-1|2|3|sp|state|spi` auto-imports CSV on dev load (`devFixtureMeta.ts`, `devFixtures.ts` fetch, `useDevFixtureAutoLoad`). Browser copies in `public/qa-fixtures/`; tests use `devFixturesNode.ts` (fs).
+- **Automated gate:** `phase7Verification.test.ts` — Examples #1–#3 + D4 left refs import, build, print-fit viewport.
+- **Docs:** `docs/reference/examples/README.md` — fixture URLs + manual browser checklist.
+- **Script:** `npm run test:phase7`.
+- **Stabilization plan Phases 0–7:** complete in code/tests.
 
-### Browser QA
+### Manual browser sign-off (optional)
 
-- **D4 reference CSVs passed** (user sign-off): `Left-SP-3254.5`, `Left-STATE_OFFICE`, `Left-SPI-215_I-80`.
-
-### Next (stabilization order)
-
-1. **Phase 4 remainder:** fanout/tube override survival on Auto↔Manual toggle; idempotency for those override types.
-2. **Phase 5:** `connectionOverrides` / `bundleOverrides` types + bridge from `legOverrides`.
-3. **Phase 6:** Wire or document `assignSpliceRoutingLanesFromLiveHandles` (frozen symbols — ask first).
-4. **Phase 7:** `?fixture=example-1/2/3` print preview gate.
+Run checklist on `?fixture=example-2` and `?fixture=sp` if not already done this release.
 
 ### Verification
 
-- `npm run test:layout` — 124/124
-- `npm run test:ci` — 596/596
-- `npm run check` + `npm run build` — green
+- `npm run verify` — green (633 tests)
+- `npm run test:phase7` — gate tests

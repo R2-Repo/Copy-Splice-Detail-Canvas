@@ -1,6 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 
-import { fiberHandlePosition } from "@/features/canvas/edges/spliceEdgeRouting";
+import { fiberAnchorNodePosition } from "@/features/manualAdjust/handleCoords";
 import { colorHex } from "@/features/diagram/colorCode";
 import {
   computeSpliceEdgeLayout,
@@ -132,7 +132,10 @@ export function augmentNodesEngineGraph(
     edges,
     visualCables,
     diagramCenterX,
-    options,
+    {
+      ...options,
+      useLiveHandleLanes: options?.useLiveHandleLanes,
+    },
   );
 
   const cableById = new Map(slimCables.map((n) => [n.id, n]));
@@ -151,10 +154,6 @@ export function augmentNodesEngineGraph(
   for (const vc of visualCables) {
     const cableNode = cableById.get(`cable-${vc.id}`);
     if (!cableNode) continue;
-    const scale =
-      (cableNode.data as { diagramScale?: number }).diagramScale ?? 1;
-    const alignedStemX = (cableNode.data as { alignedStemX?: number })
-      .alignedStemX;
 
     for (const fiber of vc.tubes.flatMap((t) => t.fibers)) {
       if (!activeFiberConnIds.has(fiber.connectionId)) continue;
@@ -162,22 +161,17 @@ export function augmentNodesEngineGraph(
       if (seenAnchors.has(anchorId)) continue;
       seenAnchors.add(anchorId);
 
-      const pos = fiberHandlePosition(
-        vc,
+      const pos = fiberAnchorNodePosition(
         fiber.connectionId,
-        cableNode.position,
-        scale,
-        alignedStemX,
-        fiber.circuitName,
+        vc,
+        cableNode,
+        ANCHOR_DOT,
       );
 
       anchorNodes.push({
         id: anchorId,
         type: "fiberAnchor",
-        position: {
-          x: pos.x - ANCHOR_DOT / 2,
-          y: pos.y - ANCHOR_DOT / 2,
-        },
+        position: pos,
         data: {
           connectionId: fiber.connectionId,
           fiberColor: fiber.fiberColor,

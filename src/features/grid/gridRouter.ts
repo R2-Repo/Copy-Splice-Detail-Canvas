@@ -8,7 +8,9 @@ import type { SpliceRoutingLane } from "@/features/diagram/centerRouter";
 import {
   assignSpliceRoutingLanes,
   handleEntriesToCandidates,
+  handleEntriesWithLiveRowOffsets,
 } from "@/features/diagram/spliceCenterLanes";
+import { logLaneAssignmentDiff } from "@/features/diagram/debugLaneDiff";
 import type { VisualCable } from "@/features/diagram/visualCables";
 import type { LayoutMode, LayoutOverrides } from "@/types/splice";
 
@@ -16,6 +18,7 @@ import { assignGridLanes, gridRouteFromPaths } from "./gridLaneAssign";
 import { cachedLanesFromEdges, priorRoutesFromEdges } from "./gridDragCache";
 import { buildGridMap } from "./gridMap";
 import { reserveRouteSegments } from "./reservation";
+import { applyRoutingParameterOverrides } from "@/features/manualAdjust/connectionOverrides";
 import type { GridAnchorRef, GridMap, GridRoute } from "./gridTypes";
 
 export type GridRouterInput = {
@@ -31,12 +34,21 @@ export type GridRouterInput = {
   layoutHeight?: number;
   layoutMode?: LayoutMode;
   lockedSegmentIds?: string[];
-  overrides?: Pick<LayoutOverrides, "gridLocks">;
+  overrides?: Pick<
+    LayoutOverrides,
+    | "gridLocks"
+    | "connectionOverrides"
+    | "bundleOverrides"
+    | "legOverrides"
+    | "autoAdjustEnabled"
+  >;
   /** Incremental cable drag — reroute only these connection ids. */
   rerouteConnectionIds?: string[];
   /** Live edge lanes/routes from pre-drag state (drag perf). */
   dragCacheEdges?: Edge[];
   priorGridRoutes?: Map<string, GridRoute>;
+  /** Live cable drag — refresh non-bundle rowOffset from handle Y before routing. */
+  useLiveHandleLanes?: boolean;
 };
 
 export type GridRouterResult = {
@@ -94,11 +106,21 @@ function lanesByConnectionId(
 /** Route all splices on the internal grid with segment reservation (SDC-GRID-001). */
 export function routeAllOnGrid(input: GridRouterInput): GridRouterResult {
   const layoutMode = input.layoutMode === "quad" ? "quad" : "horizontal";
-  const handleEntries = buildSpliceHandleEntries(
+  let handleEntries = buildSpliceHandleEntries(
     input.nodes,
     input.edges,
     input.visualCables,
   );
+  if (input.useLiveHandleLanes) {
+    const beforeBaseline = packedBaselineLanes(handleEntries);
+    handleEntries = handleEntriesWithLiveRowOffsets(handleEntries);
+    const liveBaseline = packedBaselineLanes(handleEntries);
+    logLaneAssignmentDiff(
+      "live-handle rowOffset",
+      beforeBaseline,
+      liveBaseline,
+    );
+  }
 
   const baseline = packedBaselineLanes(handleEntries);
   const anchors = anchorsFromEntries(handleEntries);
@@ -135,16 +157,22 @@ export function routeAllOnGrid(input: GridRouterInput): GridRouterResult {
       : undefined,
   );
 
+  const adjustedLanes = applyRoutingParameterOverrides(
+    lanes,
+    handleEntries,
+    input.overrides,
+  );
+
   const tubeDotColumns = reconcileBufferTubeDotColumns(
     handleEntries,
-    lanes,
+    adjustedLanes,
     input.diagramCenterX,
   );
 
   const routedEdges = attachPrecomputedPaths(
     input.edges,
     handleEntries,
-    lanes,
+    adjustedLanes,
     input.diagramCenterX,
     tubeDotColumns,
   );
@@ -190,7 +218,7 @@ export function routeAllOnGrid(input: GridRouterInput): GridRouterResult {
     edges: routedEdges,
     grid,
     routes,
-    lanes,
+    lanes: adjustedLanes,
     packedLanes: lanesByConnectionId(baseline),
   };
 }

@@ -15,7 +15,7 @@ import {
 
 import { isButtEdgeId } from "./buttLegAdjust";
 
-function visualCableFromCableNode(
+export function visualCableFromCableNode(
   vc: VisualCable,
   cableData: CableNodeData,
 ): VisualCable {
@@ -146,6 +146,20 @@ export function fiberAnchorCenter(
     cableData.diagramScale ?? 1,
     cableData.alignedStemX,
   );
+}
+
+/** Top-left React Flow position for a fiber anchor node (matches buildNodesEngineGraph). */
+export function fiberAnchorNodePosition(
+  connectionId: string,
+  vc: VisualCable,
+  cableNode: Node,
+  anchorDotSize = 6,
+): { x: number; y: number } {
+  const center = fiberAnchorCenter(connectionId, vc.id, vc, cableNode);
+  return {
+    x: center.x - anchorDotSize / 2,
+    y: center.y - anchorDotSize / 2,
+  };
 }
 
 /** Handle centers for a collapsed full-butt-splice edge. */

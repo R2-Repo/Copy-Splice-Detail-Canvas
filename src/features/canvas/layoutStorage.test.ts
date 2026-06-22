@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   calloutsShouldShow,
+  loadLayoutOverrides,
   mergeLayoutOverrides,
   saveLayoutOverrides,
 } from "@/features/canvas/layoutStorage";
@@ -108,7 +109,7 @@ describe("mergeLayoutOverrides", () => {
     saveLayoutOverrides({
       reportKey: "report-reset",
       layoutVersion: LAYOUT_OVERRIDE_VERSION,
-      positions: {},
+      positions: { "cable-a": { x: 10, y: 20 } },
       tubeOverrides: { "vc-left|BL": { visualShiftY: 6 } },
       fanoutOverrides: { "vc-left|BL": { shiftY: 6 } },
       legOverrides: { conn3: { leftSegments: { 2: { dx: 10 } } } },
@@ -123,6 +124,55 @@ describe("mergeLayoutOverrides", () => {
     expect(merged.tubeOverrides).toEqual({});
     expect(merged.fanoutOverrides).toEqual({});
     expect(merged.legOverrides).toEqual({});
+    expect(merged.positions["cable-a"]).toEqual({ x: 10, y: 20 });
+  });
+
+  it("round-trips all override maps through auto/manual toggle merge", () => {
+    saveLayoutOverrides({
+      reportKey: "report-roundtrip",
+      layoutVersion: LAYOUT_OVERRIDE_VERSION,
+      positions: { "cable-vc1": { x: 40, y: 80 } },
+      autoAdjustEnabled: false,
+      tubeOverrides: { "vc1|BL": { visualShiftY: 5 } },
+      fanoutOverrides: { "vc1|BL": { shiftY: 5 } },
+      legOverrides: { conn1: { dotShiftX: 9 } },
+    });
+
+    const toAuto = mergeLayoutOverrides("report-roundtrip", {
+      autoAdjustEnabled: true,
+    });
+    saveLayoutOverrides(toAuto);
+    const reloaded = loadLayoutOverrides("report-roundtrip");
+
+    expect(reloaded?.autoAdjustEnabled).toBe(true);
+    expect(reloaded?.positions["cable-vc1"]).toEqual({ x: 40, y: 80 });
+    expect(reloaded?.tubeOverrides?.["vc1|BL"]).toEqual({ visualShiftY: 5 });
+    expect(reloaded?.fanoutOverrides?.["vc1|BL"]).toEqual({ shiftY: 5 });
+    expect(reloaded?.legOverrides?.conn1).toEqual({ dotShiftX: 9 });
+
+    const backManual = mergeLayoutOverrides("report-roundtrip", {
+      autoAdjustEnabled: false,
+    });
+    expect(backManual.legOverrides?.conn1).toEqual({ dotShiftX: 9 });
+    expect(backManual.connectionOverrides?.conn1).toEqual({ dotOffsetX: 9 });
+    expect(backManual.fanoutOverrides?.["vc1|BL"]).toEqual({ shiftY: 5 });
+  });
+
+  it("merges connectionOverrides and bundleOverrides on partial patch", () => {
+    saveLayoutOverrides({
+      reportKey: "report-conn-bundle",
+      layoutVersion: LAYOUT_OVERRIDE_VERSION,
+      positions: {},
+      connectionOverrides: { conn1: { dotOffsetX: 4 } },
+      bundleOverrides: { "vc|BL|vc2": { laneOffsetX: 8 } },
+    });
+
+    const merged = mergeLayoutOverrides("report-conn-bundle", {
+      autoAdjustEnabled: false,
+    });
+
+    expect(merged.connectionOverrides?.conn1).toEqual({ dotOffsetX: 4 });
+    expect(merged.bundleOverrides?.["vc|BL|vc2"]).toEqual({ laneOffsetX: 8 });
   });
 });
 

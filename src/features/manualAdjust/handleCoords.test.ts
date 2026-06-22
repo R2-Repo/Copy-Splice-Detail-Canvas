@@ -10,7 +10,7 @@ import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
 import type { CableNodeData } from "@/features/canvas/nodes/types";
 
-import { fiberAnchorCenter } from "./handleCoords";
+import { fiberAnchorCenter, fiberAnchorNodePosition } from "./handleCoords";
 
 const legacyExamples = join(
   process.cwd(),
@@ -66,5 +66,32 @@ describe("fiberAnchorCenter", () => {
         expect(defaultCenter.x).not.toBeCloseTo(center.x, 0);
       }
     }
+  });
+});
+
+describe("fiberAnchorNodePosition", () => {
+  it("matches rendered fiberAnchor node top-left", () => {
+    const csv = readFileSync(
+      join(legacyExamples, "CSV Splice Detail Example #2.csv"),
+      "utf8",
+    );
+    const graph = buildConnectionGraph(parseBentleyCsv(csv));
+    const { nodes } = buildReactFlowGraph(graph);
+    const anchor = nodes.find((n) => n.type === "fiberAnchor");
+    expect(anchor).toBeDefined();
+    if (!anchor) return;
+    const data = anchor.data as {
+      connectionId: string;
+      visualCableId: string;
+    };
+    const cableNode = nodes.find(
+      (n) => n.id === `cable-${data.visualCableId}`,
+    )!;
+    const vc = buildVisualCablesForLayout(graph).visualCables.find(
+      (v) => v.id === data.visualCableId,
+    )!;
+    expect(anchor.position).toEqual(
+      fiberAnchorNodePosition(data.connectionId, vc, cableNode, 6),
+    );
   });
 });

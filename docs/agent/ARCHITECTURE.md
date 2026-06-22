@@ -82,10 +82,24 @@ Vite dev server — typically http://localhost:5173
 - **Live cable drag:** `syncNodesEngineDragLayout` calls `buildReactFlowGraph` with `dragSync: true`, which skips collision re-stack and tube auto-align until drag stop. Routing lanes and fiber anchors still refresh from live handle positions.
 - **Grid drag-stop (auto):** When the routing engine is grid and the cable stayed on the same side, drag stop reuses the pre-drag `priorGridRoutes` snapshot plus live `dragCacheEdges`, and reroutes only splices on the dragged cable (`rerouteConnectionIds`). Collision stack runs on release; unaffected splices keep drag-sync midX lanes.
 - **Quad (4-side) mode:** `buildReactFlowGraph` delegates to `buildQuadReactFlowGraph`; `WorkflowCanvas` early-returns quad cable drag to `syncQuadCableDrag` before horizontal manual/auto paths. See [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md).
-- **`assignSpliceRoutingLanesFromLiveHandles`** in `spliceCenterLanes.ts` is reserved for future live bundle `rowOffset` refresh during drag; not wired in the canvas yet.
+- **`assignSpliceRoutingLanesFromLiveHandles`** — wired on live cable drag (`dragSync` → `useLiveHandleLanes` in `computeSpliceLayout` / `gridRouter`). Non-bundle entries get fresh `rowOffset` from handle Y; tube-bundle members keep layout rank. Dev lane diffs: `VITE_DEBUG_LANE_DIFF=1`.
+
+### What differs on drag vs import
+
+| Pass | Collision stack | Tube auto-align (`TUB-008`) | Routing |
+|------|-----------------|-----------------------------|---------|
+| Import | yes | yes | full grid / center route |
+| Live drag (`dragSync`) | no | no | incremental grid reroute on dragged cable |
+| Drag stop (grid auto) | yes | yes | reuse drag snapshot + reroute dragged cable only |
+| Drag stop (manual) | yes | skipped (`skipTubeAutoAlign`) | manual leg paths preserved |
 
 ## Manual overrides (v14)
 
-- **`connectionOverrides` / `bundleOverrides`** — planned Phase 5 (`STABILIZATION_PLAN.md`); not yet in `LayoutOverrides` types.
-- `legOverrides` (segment-index) drives manual leg drag UX; auto mode skips them via `applyAllLegOverrides`.
-- Canonical fiber-anchor coordinates: `manualAdjust/handleCoords.ts` → `fiberAnchorCenter()`.
+- **`connectionOverrides` / `bundleOverrides`** — parameter-based routing offsets (Phase 5). `connectionOverrides` keyed by connection id (`laneOffsetX`, `dotOffsetX`, `spliceRowOffsetY`); `bundleOverrides` keyed by `tubeBundleKey`.
+- **Bridge:** `legOverrides` segment data dual-writes to `connectionOverrides` on leg commit; `loadLayoutOverrides` bridges legacy leg-only saves on read.
+- **Apply rules:**
+  - `positions` — always applied on rebuild (including locked cables via `locks.cables`).
+  - `tubeOverrides` / `fanoutOverrides` — applied in both auto and manual.
+  - `connectionOverrides.laneOffsetX` / `bundleOverrides.laneOffsetX` — applied in manual mode before path precompute (`applyRoutingParameterOverrides` in `computeSpliceLayout` / grid router).
+  - `legOverrides` — segment-level detail in manual via `applyAllLegOverrides`; auto skips unless hybrid locked fusion dot (`applyHybridFusionDotLocks` reads `dotOffsetX` or `dotShiftX`).
+- Canonical fiber-anchor coordinates: `manualAdjust/handleCoords.ts` — `fiberAnchorCenter()`, `fiberAnchorNodePosition()`, `visualCableFromCableNode()` (shared by engine graph, manual sync, overlay).
