@@ -31,8 +31,8 @@ See rule pack index — import DATA/ORDER → placement → grid zone → locks 
 
 | `routingEngine` | Behavior |
 |-----------------|----------|
-| `nodes` (default) | Current lane router |
-| `grid` | Grid reservation router (`routeAllOnGrid`) |
+| `grid` (default) | Grid reservation router (`routeAllOnGrid`) + hybrid locks |
+| `nodes` | Lane packer only (`assignSpliceRoutingLanes`) — escape hatch |
 | `legacy` | Pre-nodes composite edges |
 
-Set per-diagram in `.sdc.json` or `VITE_ROUTING_ENGINE=grid`.
+Set per-diagram in `.sdc.json` or `VITE_ROUTING_ENGINE=nodes` to override default.

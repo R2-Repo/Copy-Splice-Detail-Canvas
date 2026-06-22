@@ -255,6 +255,42 @@ export function applyAllLegOverrides(
   });
 }
 
+/** Apply locked fusion-dot slides while auto/grid hybrid mode stays on (SDC-UX-001). */
+export function applyHybridFusionDotLocks(
+  edges: Edge[],
+  overrides: LayoutOverrides | undefined,
+  nodes?: Node[],
+  graph?: ConnectionGraph,
+): Edge[] {
+  const lockedDots = overrides?.gridLocks?.dots;
+  const legMap = overrides?.legOverrides;
+  if (!lockedDots?.length || !legMap) return edges;
+
+  const locked = new Set(lockedDots);
+  return edges.map((edge) => {
+    if (edge.type !== "splice") return edge;
+    const connId = edge.id.replace(/^splice-(?:left|right)-/, "").replace(/^splice-/, "");
+    if (!locked.has(connId)) return edge;
+
+    const dotShiftX = legMap[connId]?.dotShiftX;
+    if (dotShiftX == null || Math.abs(dotShiftX) <= 0.5) return edge;
+
+    const handles =
+      nodes != null && graph != null
+        ? handleCoordsForConnection(connId, nodes, graph)
+        : null;
+    const updated = applyLegOverridesToEdge(
+      edge,
+      { dotShiftX },
+      handles?.source.x ?? 0,
+      handles?.source.y ?? 0,
+      handles?.target.x ?? 0,
+      handles?.target.y ?? 0,
+    );
+    return updated ?? edge;
+  });
+}
+
 export function accumulateLegOverride(
   existing: ConnectionLegOverrides | undefined,
   side: LegSide,

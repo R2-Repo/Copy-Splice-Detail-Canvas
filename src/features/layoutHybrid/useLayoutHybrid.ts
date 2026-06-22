@@ -52,7 +52,7 @@ export function useLayoutHybrid(options: UseLayoutHybridOptions) {
   }, [options]);
 
   const onUnlockItem = useCallback(
-    (kind: "cable" | "tubeGroup" | "segment", key: string) => {
+    (kind: "cable" | "tubeGroup" | "segment" | "fusionDot", key: string) => {
       const base = overridesRef.current ?? {
         reportKey: options.reportKey,
         positions: {},

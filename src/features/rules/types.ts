@@ -1,5 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 
+import type { SpliceRoutingLane } from "@/features/diagram/centerRouter";
 import type { GridMap, GridRoute } from "@/features/grid/gridTypes";
 import type { ConnectionGraph, DiagramLocks, LayoutOverrides, SpliceReport } from "@/types/splice";
 import type { VisualCable } from "@/features/diagram/visualCables";
@@ -37,6 +38,10 @@ export type SdcRuleContext = {
   visualCables?: VisualCable[];
   grid?: GridMap;
   gridRoutes?: Map<string, GridRoute>;
+  /** Snapped center lanes from grid router — keyed by connection id. */
+  gridLanes?: Map<string, SpliceRoutingLane>;
+  /** Pre-snap packed lanes for SDC-ROUTE-002 topology (EDGE-005/010). */
+  gridPackedLanes?: Map<string, SpliceRoutingLane>;
   locks?: DiagramLocks;
   overrides?: LayoutOverrides;
   reactFlow?: { nodes: Node[]; edges: Edge[] };

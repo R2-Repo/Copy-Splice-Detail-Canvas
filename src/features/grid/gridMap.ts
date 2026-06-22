@@ -68,13 +68,26 @@ export function computeRoutingZoneFromAnchors(
   const ty = Number.isFinite(topY) ? topY : fallbackMargin;
   const by = Number.isFinite(bottomY) ? bottomY : bounds.height - fallbackMargin;
 
+  let leftBound = lx;
+  let rightBound = rx;
+  if (rightBound - leftBound <= 0 && anchors.length > 0) {
+    const xs = anchors.map((a) => a.x);
+    leftBound = Math.min(...xs);
+    rightBound = Math.max(...xs);
+  }
+  if (rightBound - leftBound <= 0) {
+    const cx = bounds.width / 2;
+    leftBound = cx - fallbackMargin * 2;
+    rightBound = cx + fallbackMargin * 2;
+  }
+
   return {
-    x: lx,
+    x: leftBound,
     y: ty,
-    width: Math.max(0, rx - lx),
+    width: Math.max(0, rightBound - leftBound),
     height: Math.max(0, by - ty),
-    leftX: lx,
-    rightX: rx,
+    leftX: leftBound,
+    rightX: rightBound,
     topY: ty,
     bottomY: by,
   };
@@ -124,6 +137,9 @@ export type BuildGridMapOptions = {
   layoutMode?: "horizontal" | "quad";
   lockedSegmentIds?: string[];
   blockedRects?: Array<{ x: number; y: number; w: number; h: number }>;
+  /** Ensure these X coordinates have vertical grid lines (lane midX from router). */
+  extraVerticalXs?: number[];
+  extraHorizontalYs?: number[];
 };
 
 export function buildGridMap(options: BuildGridMapOptions): GridMap {
@@ -134,8 +150,16 @@ export function buildGridMap(options: BuildGridMapOptions): GridMap {
     layoutMode,
   );
 
-  const hLines = lineRange(zone.topY, zone.bottomY, FIBER_ROW_PITCH);
-  const vLines = lineRange(zone.leftX, zone.rightX, SPLICE_LANE_SEP);
+  const hLineSet = new Set(lineRange(zone.topY, zone.bottomY, FIBER_ROW_PITCH));
+  for (const y of options.extraHorizontalYs ?? []) {
+    hLineSet.add(Math.round(y / FIBER_ROW_PITCH) * FIBER_ROW_PITCH);
+  }
+  const hLines = [...hLineSet].sort((a, b) => a - b);
+  const vLineSet = new Set(lineRange(zone.leftX, zone.rightX, SPLICE_LANE_SEP));
+  for (const x of options.extraVerticalXs ?? []) {
+    vLineSet.add(Math.round(x / SPLICE_LANE_SEP) * SPLICE_LANE_SEP);
+  }
+  const vLines = [...vLineSet].sort((a, b) => a - b);
   const segments = buildSegments(zone, hLines, vLines);
 
   for (const segId of options.lockedSegmentIds ?? []) {

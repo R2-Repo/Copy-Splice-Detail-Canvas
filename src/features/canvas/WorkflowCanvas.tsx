@@ -122,8 +122,11 @@ import {
 } from "@/features/manualAdjust/repinButtSpliceEdges";
 import { syncManualVisualCable } from "@/features/manualAdjust/syncManualVisualCable";
 import { useManualAdjustEngine } from "@/features/manualAdjust/useManualAdjustEngine";
-import { clearAllHybridLocks } from "@/features/layoutHybrid";
-import { routingEngineMode } from "@/features/diagram/routingEngine";
+import { clearAllHybridLocks, onEditLock, unlockHybridItem } from "@/features/layoutHybrid";
+import { gridSegmentIdsFromLegPaths } from "@/features/layoutHybrid/gridSegmentIdsFromPaths";
+import { routingEngineMode, useGridRoutingEngine } from "@/features/diagram/routingEngine";
+import { gridRoutesFromEdges } from "@/features/grid/gridDragCache";
+import type { GridRoute } from "@/features/grid/gridTypes";
 import { allRulesPass, buildSdcRuleContext, runImportRules } from "@/features/rules";
 import {
   collectGlobalTubeTipSnapTargets,
@@ -131,6 +134,7 @@ import {
   spliceEdgeIdsForTubeKey,
 } from "@/features/diagram/snapGuides";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
+import { connectionIdsForVisualCable } from "@/features/diagram/connectionIdsForCable";
 import { syncNodesEngineDragLayout } from "@/features/diagram/syncNodesEngineDragLayout";
 import { detectFullButtSpliceTubes } from "@/features/diagram/fullButtSplice";
 import {
@@ -302,6 +306,7 @@ function WorkflowCanvasInner() {
   const calloutScaleRef = useRef(CALLOUT_SCALE_DEFAULT);
   const calloutAutoZoomRef = useRef(CALLOUT_AUTO_ZOOM_DEFAULT);
   const layoutModeRef = useRef<LayoutMode>("horizontal");
+  const gridRoutesDragRef = useRef<Map<string, GridRoute> | null>(null);
   const applyGraphRef = useRef<
     (
       graph: ConnectionGraph,
@@ -484,10 +489,15 @@ function WorkflowCanvasInner() {
           fanoutOverrides: existing?.fanoutOverrides,
           legOverrides: existing?.legOverrides,
           locks: existing?.locks,
+          routingEngine: existing?.routingEngine,
+          gridLocks: existing?.gridLocks,
+          gridRoutes: existing?.gridRoutes,
         },
         layoutWidth: layoutWidthRef.current,
         positions,
         draggedNode,
+        dragCacheEdges: getEdges(),
+        priorGridRoutes: gridRoutesDragRef.current ?? undefined,
         preservedNodes: getNodes().filter((n) => n.type === "cableCallout"),
       });
 
@@ -1166,20 +1176,35 @@ function WorkflowCanvasInner() {
       }
       setNodes(mergedNodes);
       setEdges(finalEdges);
-      saveLayoutOverrides(
-        mergeLayoutOverrides(reportKey, {
-          positions: positionsFromNodes(mergedNodes),
-          existingEdgeIds: existingIdsFromEdges(finalEdges),
-          collapseFullButtSplices: collapseRef.current,
-          layoutWidth: layoutWidthRef.current,
-          cableSides: existing?.cableSides,
-          callouts: existing?.callouts,
-          autoAdjustEnabled: false,
-          tubeOverrides,
-          fanoutOverrides,
-          legOverrides: existing?.legOverrides,
-        }),
-      );
+
+      const keepAuto = autoAdjustRef.current;
+      const isGrid =
+        routingEngineMode(existing) === "grid" || keepAuto;
+      const hasTubeEdit =
+        merged.visualShiftY !== undefined || merged.stemReachX !== undefined;
+
+      let nextOverrides = mergeLayoutOverrides(reportKey, {
+        positions: positionsFromNodes(mergedNodes),
+        existingEdgeIds: existingIdsFromEdges(finalEdges),
+        collapseFullButtSplices: collapseRef.current,
+        layoutWidth: layoutWidthRef.current,
+        cableSides: existing?.cableSides,
+        callouts: existing?.callouts,
+        autoAdjustEnabled: isGrid ? keepAuto : false,
+        tubeOverrides,
+        fanoutOverrides,
+        legOverrides: existing?.legOverrides,
+        routingEngine: existing?.routingEngine,
+        gridLocks: existing?.gridLocks,
+        gridRoutes: existing?.gridRoutes,
+        locks: existing?.locks,
+      });
+
+      if (isGrid && hasTubeEdit) {
+        nextOverrides = onEditLock(nextOverrides, "tubeGroup", { tubeKey });
+      }
+
+      saveLayoutOverrides(nextOverrides);
       updateManualWarnings(
         graph,
         mergedNodes,
@@ -1203,34 +1228,69 @@ function WorkflowCanvasInner() {
 
       const existing = loadLayoutOverrides(reportKey);
       const connectionIds = Object.keys(legOverrides ?? {});
-
-      // Segment-drag preview already committed the edge paths; here we only
-      // re-pin splice-point nodes, persist, and refresh warnings. Read live
-      // state via getEdges/getNodes instead of nesting setState in an updater.
       const currentEdges = getEdges();
+      const currentNodes = getNodes();
+      const keepAuto = autoAdjustRef.current;
+      const isGrid =
+        routingEngineMode(existing) === "grid" || keepAuto;
+
       const syncedNodes = syncSplicePointNodes(
-        getNodes(),
+        currentNodes,
         currentEdges,
         connectionIds,
       );
       setNodes(syncedNodes);
       setLegOverridesState(legOverrides);
-      saveLayoutOverrides(
-        mergeLayoutOverrides(reportKey, {
-          positions: positionsFromNodes(
-            syncedNodes.filter((n) => n.type === "cable"),
-          ),
-          existingEdgeIds: existingIdsFromEdges(currentEdges),
-          collapseFullButtSplices: collapseRef.current,
-          layoutWidth: layoutWidthRef.current,
-          cableSides: existing?.cableSides,
-          callouts: existing?.callouts,
-          autoAdjustEnabled: false,
-          tubeOverrides: existing?.tubeOverrides,
-          fanoutOverrides: existing?.fanoutOverrides,
-          legOverrides,
-        }),
-      );
+
+      let nextOverrides = mergeLayoutOverrides(reportKey, {
+        positions: positionsFromNodes(
+          syncedNodes.filter((n) => n.type === "cable"),
+        ),
+        existingEdgeIds: existingIdsFromEdges(currentEdges),
+        collapseFullButtSplices: collapseRef.current,
+        layoutWidth: layoutWidthRef.current,
+        cableSides: existing?.cableSides,
+        callouts: existing?.callouts,
+        autoAdjustEnabled: keepAuto,
+        tubeOverrides: existing?.tubeOverrides,
+        fanoutOverrides: existing?.fanoutOverrides,
+        legOverrides,
+        routingEngine: existing?.routingEngine,
+        gridLocks: existing?.gridLocks,
+        gridRoutes: existing?.gridRoutes,
+        locks: existing?.locks,
+      });
+
+      if (isGrid && connectionIds.length) {
+        const segmentIds = gridSegmentIdsFromLegPaths(
+          syncedNodes.filter((n) => n.type === "cable"),
+          currentEdges,
+          connectionIds,
+          layoutWidthRef.current,
+        );
+        if (segmentIds.length) {
+          nextOverrides = onEditLock(nextOverrides, "legSegments", {
+            segmentIds,
+          });
+        }
+        for (const connectionId of connectionIds) {
+          const dotShift = legOverrides?.[connectionId]?.dotShiftX;
+          if (dotShift != null && Math.abs(dotShift) > 0.5) {
+            nextOverrides = onEditLock(nextOverrides, "fusionDot", {
+              dotId: connectionId,
+            });
+          } else if (existing?.gridLocks?.dots?.includes(connectionId)) {
+            nextOverrides = unlockHybridItem(
+              nextOverrides,
+              "fusionDot",
+              connectionId,
+            );
+          }
+        }
+      }
+
+      saveLayoutOverrides(nextOverrides);
+
       updateManualWarnings(
         graph,
         syncedNodes,
@@ -1399,13 +1459,21 @@ function WorkflowCanvasInner() {
         return;
       }
       if (node.type !== "cable") return;
+      const reportKey = reportKeyRef.current;
+      if (reportKey && useGridRoutingEngine(loadLayoutOverrides(reportKey) ?? undefined)) {
+        gridRoutesDragRef.current = gridRoutesFromEdges(
+          getEdges(),
+          layoutWidthRef.current,
+        );
+      }
       refreshDragRouting(node);
     },
-    [manualAdjustEngine, refreshDragRouting, nodes],
+    [manualAdjustEngine, refreshDragRouting, nodes, getEdges],
   );
 
   const onNodeDragStop: OnNodeDrag<Node> = useCallback(
     (_, node) => {
+      try {
       if (layoutModeRef.current === "quad") {
         if (node.type === "cable") {
           const reportKey = reportKeyRef.current;
@@ -1585,6 +1653,17 @@ function WorkflowCanvasInner() {
           }
           nextNodes = [...nextNodes, ...callouts];
         } else {
+          const gridEngine = useGridRoutingEngine(existing);
+          const incrementalGridStop =
+            gridEngine &&
+            !sideChanged &&
+            gridRoutesDragRef.current != null;
+          const rerouteConnectionIds = incrementalGridStop
+            ? connectionIdsForVisualCable(
+                buildVisualCablesForLayout(graph).visualCables,
+                visualId,
+              )
+            : undefined;
           ({ nodes: nextNodes, edges: nextEdges, autoLayoutY } =
             buildReactFlowGraph(
               graph,
@@ -1600,8 +1679,18 @@ function WorkflowCanvasInner() {
                 fanoutOverrides: existing?.fanoutOverrides,
                 legOverrides: existing?.legOverrides,
                 locks: existing?.locks,
+                routingEngine: existing?.routingEngine,
+                gridLocks: existing?.gridLocks,
+                gridRoutes: existing?.gridRoutes,
               },
               layoutWidth,
+              incrementalGridStop
+                ? {
+                    rerouteConnectionIds,
+                    dragCacheEdges: getEdges(),
+                    priorGridRoutes: gridRoutesDragRef.current ?? undefined,
+                  }
+                : undefined,
             ));
         }
 
@@ -1623,20 +1712,29 @@ function WorkflowCanvasInner() {
         graph.cableSides.set(visualId, resolvedSide);
         setNodes(merged);
         setEdges(nextEdges);
+        const baseOverrides = mergeLayoutOverrides(reportKeyRef.current, {
+          positions: positionsFromNodes(merged),
+          ...(autoLayoutY ? { autoLayoutY } : {}),
+          existingEdgeIds: existingIdsFromEdges(nextEdges),
+          collapseFullButtSplices: collapseRef.current,
+          layoutWidth,
+          cableSides: persistedCableSides,
+          callouts: existing?.callouts,
+          autoAdjustEnabled: autoAdjustRef.current,
+          tubeOverrides: existing?.tubeOverrides,
+          fanoutOverrides: existing?.fanoutOverrides,
+          legOverrides: existing?.legOverrides,
+          routingEngine: existing?.routingEngine,
+          gridLocks: existing?.gridLocks,
+          gridRoutes: existing?.gridRoutes,
+        });
         saveLayoutOverrides(
-          mergeLayoutOverrides(reportKeyRef.current, {
-            positions: positionsFromNodes(merged),
-            ...(autoLayoutY ? { autoLayoutY } : {}),
-            existingEdgeIds: existingIdsFromEdges(nextEdges),
-            collapseFullButtSplices: collapseRef.current,
-            layoutWidth,
-            cableSides: persistedCableSides,
-            callouts: existing?.callouts,
-            autoAdjustEnabled: autoAdjustRef.current,
-            tubeOverrides: existing?.tubeOverrides,
-            fanoutOverrides: existing?.fanoutOverrides,
-            legOverrides: existing?.legOverrides,
-          }),
+          !manualMode
+            ? onEditLock(baseOverrides, "cable", {
+                cableId: visualId,
+                position: { x: finalX, y: finalY },
+              })
+            : baseOverrides,
         );
         layoutWidthRef.current = layoutWidth;
         if (manualMode) {
@@ -1668,9 +1766,15 @@ function WorkflowCanvasInner() {
           requestAnimationFrame(() => updateNodeInternals(node.id));
         }
       }
+      } finally {
+        if (node.type === "cable") {
+          gridRoutesDragRef.current = null;
+        }
+      }
     },
     [
       edges,
+      getEdges,
       manualAdjustEngine,
       nodes,
       persistLayout,
@@ -2036,24 +2140,6 @@ function WorkflowCanvasInner() {
     null,
   );
 
-  const persistLocks = useCallback(
-    (locks: NonNullable<LayoutOverrides["locks"]>) => {
-      const reportKey = reportKeyRef.current;
-      if (!reportKey) return;
-      const cableNodes = getNodes().filter((n) => n.type === "cable");
-      saveLayoutOverrides(
-        mergeLayoutOverrides(reportKey, {
-          locks,
-          positions: positionsFromNodes(cableNodes),
-          existingEdgeIds: existingIdsFromEdges(getEdges()),
-          collapseFullButtSplices: collapseRef.current,
-          layoutWidth: layoutWidthRef.current,
-        }),
-      );
-    },
-    [getEdges, getNodes],
-  );
-
   const toggleCableLock = useCallback(
     (visualCableId: string) => {
       const reportKey = reportKeyRef.current;
@@ -2063,7 +2149,35 @@ function WorkflowCanvasInner() {
       const wasLocked = Boolean(cables[visualCableId]);
       if (wasLocked) delete cables[visualCableId];
       else cables[visualCableId] = true;
-      persistLocks({ ...existing?.locks, cables });
+
+      const cableNode = getNodes().find(
+        (n) => n.type === "cable" && n.id === `cable-${visualCableId}`,
+      );
+      const position = cableNode?.position;
+
+      const base = mergeLayoutOverrides(reportKey, {
+        positions: positionsFromNodes(
+          getNodes().filter((n) => n.type === "cable"),
+        ),
+        existingEdgeIds: existingIdsFromEdges(getEdges()),
+        collapseFullButtSplices: collapseRef.current,
+        layoutWidth: layoutWidthRef.current,
+        locks: { ...existing?.locks, cables },
+        routingEngine: existing?.routingEngine,
+        gridLocks: existing?.gridLocks,
+        gridRoutes: existing?.gridRoutes,
+      });
+
+      saveLayoutOverrides(
+        wasLocked
+          ? unlockHybridItem(base, "cable", visualCableId)
+          : position
+            ? onEditLock(base, "cable", {
+                cableId: visualCableId,
+                position,
+              })
+            : base,
+      );
       setNodes((current) =>
         current.map((n) =>
           n.type === "cable" && n.id === `cable-${visualCableId}`
@@ -2076,7 +2190,7 @@ function WorkflowCanvasInner() {
         ),
       );
     },
-    [persistLocks, setNodes],
+    [getEdges, getNodes, setNodes],
   );
 
   const toggleTubeGroupLock = useCallback(
@@ -2089,7 +2203,21 @@ function WorkflowCanvasInner() {
       const wasLocked = Boolean(tubeGroups[key]);
       if (wasLocked) delete tubeGroups[key];
       else tubeGroups[key] = true;
-      persistLocks({ ...existing?.locks, tubeGroups });
+
+      const base = mergeLayoutOverrides(reportKey, {
+        positions: positionsFromNodes(
+          getNodes().filter((n) => n.type === "cable"),
+        ),
+        existingEdgeIds: existingIdsFromEdges(getEdges()),
+        collapseFullButtSplices: collapseRef.current,
+        layoutWidth: layoutWidthRef.current,
+        locks: { ...existing?.locks, tubeGroups },
+      });
+      saveLayoutOverrides(
+        wasLocked
+          ? unlockHybridItem(base, "tubeGroup", key)
+          : onEditLock(base, "tubeGroup", { tubeKey: key }),
+      );
       setNodes((current) =>
         current.map((n) => {
           if (n.type !== "cable" || n.id !== `cable-${visualCableId}`) return n;
@@ -2107,15 +2235,57 @@ function WorkflowCanvasInner() {
         }),
       );
     },
-    [persistLocks, setNodes],
+    [getEdges, getNodes, setNodes],
+  );
+
+  const toggleFusionDotLock = useCallback(
+    (connectionId: string) => {
+      const reportKey = reportKeyRef.current;
+      if (!reportKey) return;
+      const existing = loadLayoutOverrides(reportKey);
+      const locked =
+        existing?.gridLocks?.dots?.includes(connectionId) ?? false;
+
+      const base = mergeLayoutOverrides(reportKey, {
+        positions: positionsFromNodes(
+          getNodes().filter((n) => n.type === "cable"),
+        ),
+        existingEdgeIds: existingIdsFromEdges(getEdges()),
+        collapseFullButtSplices: collapseRef.current,
+        layoutWidth: layoutWidthRef.current,
+        legOverrides: existing?.legOverrides,
+        gridLocks: existing?.gridLocks,
+        routingEngine: existing?.routingEngine,
+        gridRoutes: existing?.gridRoutes,
+        autoAdjustEnabled: autoAdjustRef.current,
+      });
+
+      const next = locked
+        ? unlockHybridItem(base, "fusionDot", connectionId)
+        : onEditLock(base, "fusionDot", { dotId: connectionId });
+
+      saveLayoutOverrides(next);
+      setLegOverridesState(next.legOverrides);
+    },
+    [getEdges, getNodes],
   );
 
   const buildContextMenuItems = useCallback(
     (target: ContextMenuTarget): ContextMenuItem[] => {
       const reportKey = reportKeyRef.current;
-      const locks = reportKey
-        ? loadLayoutOverrides(reportKey)?.locks
-        : undefined;
+      const overrides = reportKey ? loadLayoutOverrides(reportKey) : undefined;
+      const locks = overrides?.locks;
+      if (target.kind === "fusionDot") {
+        const locked =
+          overrides?.gridLocks?.dots?.includes(target.connectionId) ?? false;
+        return [
+          {
+            id: "lock-fusion-dot",
+            label: locked ? "Unlock fusion dot" : "Lock fusion dot",
+            onSelect: () => toggleFusionDotLock(target.connectionId),
+          },
+        ];
+      }
       if (target.kind === "cable") {
         const locked = Boolean(locks?.cables?.[target.visualCableId]);
         return [
@@ -2140,7 +2310,7 @@ function WorkflowCanvasInner() {
         },
       ];
     },
-    [toggleCableLock, toggleTubeGroupLock],
+    [toggleCableLock, toggleFusionDotLock, toggleTubeGroupLock],
   );
 
   const openContextMenu = useCallback(
@@ -2173,6 +2343,18 @@ function WorkflowCanvasInner() {
     },
     [openContextMenu],
   );
+
+  const gridHybrid = useMemo(() => {
+    const reportKey = reportKeyRef.current;
+    if (!reportKey) return false;
+    return useGridRoutingEngine(loadLayoutOverrides(reportKey) ?? undefined);
+  }, [meta, autoAdjustEnabled, legOverridesState]);
+
+  const lockedFusionDots = useMemo(() => {
+    const reportKey = reportKeyRef.current;
+    if (!reportKey) return new Set<string>();
+    return new Set(loadLayoutOverrides(reportKey)?.gridLocks?.dots ?? []);
+  }, [meta, legOverridesState, autoAdjustEnabled]);
 
   return (
     <div className="workflow-canvas">
@@ -2208,37 +2390,32 @@ function WorkflowCanvasInner() {
               onChange={(next) => setCircuitPanelOpen(next)}
             />
           </div>
-          <ToolbarSegmentedControl
-            className="toolbar-segment--large"
-            ariaLabel="Adjust mode"
-            disabled={
-              !meta ||
-              routingEngineMode(
-                reportKeyRef.current
-                  ? loadLayoutOverrides(reportKeyRef.current) ?? undefined
-                  : undefined,
-              ) === "grid"
-            }
-            value={autoAdjustEnabled ? "auto" : "manual"}
-            onChange={(next) => {
-              const wantManual = next === "manual";
-              if (wantManual !== !autoAdjustEnabled) {
-                toggleManualAdjust();
-              }
-            }}
-            options={[
-              {
-                value: "auto",
-                label: "Auto adjust",
-                icon: <AutoIcon />,
-              },
-              {
-                value: "manual",
-                label: "Manual adjust",
-                icon: <ManualIcon />,
-              },
-            ]}
-          />
+          {!gridHybrid ? (
+            <ToolbarSegmentedControl
+              className="toolbar-segment--large"
+              ariaLabel="Adjust mode"
+              disabled={!meta}
+              value={autoAdjustEnabled ? "auto" : "manual"}
+              onChange={(next) => {
+                const wantManual = next === "manual";
+                if (wantManual !== !autoAdjustEnabled) {
+                  toggleManualAdjust();
+                }
+              }}
+              options={[
+                {
+                  value: "auto",
+                  label: "Auto adjust",
+                  icon: <AutoIcon />,
+                },
+                {
+                  value: "manual",
+                  label: "Manual adjust",
+                  icon: <ManualIcon />,
+                },
+              ]}
+            />
+          ) : null}
           {meta ? (
             <ToolbarActionButton
               label="Unlock all / reset layout"
@@ -2265,13 +2442,7 @@ function WorkflowCanvasInner() {
               },
             ]}
           />
-          {!autoAdjustEnabled &&
-          meta &&
-          routingEngineMode(
-            reportKeyRef.current
-              ? loadLayoutOverrides(reportKeyRef.current) ?? undefined
-              : undefined,
-          ) !== "grid" ? (
+          {!autoAdjustEnabled && meta && !gridHybrid ? (
             <ToolbarActionButton
               label="Reset to auto layout"
               icon={<ResetIcon />}
@@ -2385,6 +2556,15 @@ function WorkflowCanvasInner() {
                 <CalloutLeaderLayer />
                 <ManualAdjustOverlay
                   enabled={!autoAdjustEnabled}
+                  fusionDotsVisible={gridHybrid}
+                  lockedFusionDots={lockedFusionDots}
+                  onFusionDotContextMenu={(connectionId, clientX, clientY) =>
+                    openContextMenu(
+                      { kind: "fusionDot", connectionId },
+                      clientX,
+                      clientY,
+                    )
+                  }
                   legSegmentDragActive={manualAdjustEngine.legSegmentDragActive}
                   nodes={nodes}
                   edges={edges}

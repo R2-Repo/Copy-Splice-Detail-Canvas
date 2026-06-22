@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "test": "vitest",
     "test:layout": "vitest run src/features/diagram/layoutRules.test.ts src/features/rules/sdcContract.test.ts",
-    "test:sdc": "vitest run src/features/rules src/features/grid/gridMap.test.ts src/features/grid/gridRouter.test.ts src/features/import/importRuleGuard.test.ts",
+    "test:sdc": "vitest run src/features/rules src/features/grid src/features/layoutHybrid src/features/import/importRuleGuard.test.ts",
     "test:engine": "vitest run src/features/canvas/layoutStorage.test.ts src/features/canvas/manualAutoEngine.test.ts src/features/diagram/manualLayoutWarnings.test.ts src/features/manualAdjust/constraints.test.ts",
     "test:ci": "vitest run",
     "verify": "npm run test:layout && npm run check && npm run test:ci && npm run build"

@@ -1,19 +1,8 @@
-import {
-  checkLayoutRule,
-  type LayoutRuleId,
-} from "@/features/diagram/layoutRules";
+import { evaluateSdcLayoutSpacingRules } from "@/features/diagram/layoutRules";
 
 import type { SdcRule } from "./types";
 import { buildSdcContextFromLayout } from "./buildSdcContext";
 import { fail, pass, warn } from "./helpers";
-
-const SPACING_LEGACY_IDS: LayoutRuleId[] = [
-  "CBL-001",
-  "CBL-002",
-  "FBR-002",
-  "ROW-001",
-  "ROW-002",
-];
 
 /** SDC-LAYOUT-001 — Spacing between cables, tubes, fanouts, and strands. */
 export const sdcLayout001: SdcRule = {
@@ -29,11 +18,10 @@ export const sdcLayout001: SdcRule = {
     if (!layoutCtx) {
       return [warn("SDC-LAYOUT-001", "Could not build layout rule context")];
     }
-    const failures: string[] = [];
-    for (const legacyId of SPACING_LEGACY_IDS) {
-      const r = checkLayoutRule(legacyId, layoutCtx);
-      if (!r.ok) failures.push(`${legacyId}: ${r.detail}`);
-    }
+    const results = evaluateSdcLayoutSpacingRules(layoutCtx);
+    const failures = results
+      .filter((r) => !r.ok)
+      .map((r) => `${r.id}: ${r.detail}`);
     if (failures.length) {
       return [fail("SDC-LAYOUT-001", failures.join("; "), failures)];
     }

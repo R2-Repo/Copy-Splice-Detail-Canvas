@@ -1,4 +1,8 @@
-import { checkLayoutRule } from "@/features/diagram/layoutRules";
+import {
+  evaluateSdcRouteNestingRules,
+  evaluateSdcRouteNestingRulesForGrid,
+} from "@/features/diagram/layoutRules";
+import { routingEngineMode } from "@/features/diagram/routingEngine";
 
 import type { SdcRule } from "./types";
 import { buildSdcContextFromLayout } from "./buildSdcContext";
@@ -19,12 +23,15 @@ export const sdcRoute002: SdcRule = {
       return [warn("SDC-ROUTE-002", "Could not build layout rule context")];
     }
 
-    const nestingIds = ["EDGE-005", "EDGE-010"] as const;
-    const failures: string[] = [];
-    for (const id of nestingIds) {
-      const r = checkLayoutRule(id, layoutCtx);
-      if (!r.ok) failures.push(`${id}: ${r.detail}`);
-    }
+    const useGridNesting =
+      routingEngineMode(ctx.overrides) === "grid" &&
+      Boolean(ctx.grid && ctx.gridRoutes?.size);
+    const results = useGridNesting
+      ? evaluateSdcRouteNestingRulesForGrid(layoutCtx)
+      : evaluateSdcRouteNestingRules(layoutCtx);
+    const failures = results
+      .filter((r) => !r.ok)
+      .map((r) => `${r.id}: ${r.detail}`);
 
     if (failures.length) {
       return [fail("SDC-ROUTE-002", failures.join("; "), failures)];

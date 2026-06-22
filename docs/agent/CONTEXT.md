@@ -2,21 +2,24 @@
 
 > Agents: keep this file current-only. History lives in git log and [`CHANGELOG.md`](./CHANGELOG.md).
 
-## SDC modular rules + grid routing refactor (2026-06-18)
+## SDC modular rules + grid routing (2026-06-22)
 
-- **Rules framework:** `src/features/rules/` — 12 SDC modules, registry, `runImportRules` / `runRules`, legacy bridge (`RULE_ID_MAP.md`).
-- **Grid engine:** `src/features/grid/` — GridMap, routing zone, segment reservation, `routeAllOnGrid` (feature-flagged).
-- **Routing modes:** `routingEngine` on `LayoutOverrides` — `nodes` (default), `grid`, `legacy`. Env: `VITE_ROUTING_ENGINE=grid`.
-- **Hybrid locks:** `src/features/layoutHybrid/` — lock-on-edit helpers; toolbar **Unlock all / reset layout**; Auto/Manual toggle disabled when `routingEngine === "grid"`.
-- **CSV guard:** `importRuleGuard.test.ts` + `runImportRules` on import (parse unchanged).
-- **Tests:** `npm run test:layout` (legacy + SDC contract), `npm run test:sdc` (rules + grid + import guard).
-- **Visual parity:** `CableNode` / `SpliceEdge` unchanged; grid path still emits same precomputed SVG legs.
+- **Grid engine (default):** `routeAllOnGrid` + packed baseline + snap; hybrid locks on edit.
+- **SDC-UX-001:** Always-on auto in grid mode; Auto/Manual toggle hidden; Unlock all resets locks.
+- **Hybrid locks:** cable / leg / fusion-dot / tube-group — context menu + drag-stop; cable positions persist on rebuild (`cable-{id}` keys).
+- **Drag-stop cache (Phase 2):** Grid auto drag stop reuses pre-drag routes + incremental reroute on dragged cable only.
+- **Rules:** D4 contract — GRID-001, ROUTE-002/003, LAYOUT-001/002, UX-001, EDGE-005 on all three reference CSVs.
+- **Browser D4 QA:** Passed on SP / STATE / SPI reference CSVs.
 
 ## Baseline
 
 - Branch: `main`
-- `npm run test:layout` green (124). `npm run check` + `npm run build` green.
-- Pre-existing: `parseBentleyCsv.test.ts` poleNumber assertion (unrelated).
+- Stabilization plan: Phase 2 done; Phase 4 partial (determinism + legOverride skip tested); Phase 5+ open.
+- Milestones A–G + EDGE-005 + wrap-up complete in code/tests.
+
+## Blockers
+
+- None for continued stabilization work. Phase 6 live bundle `rowOffset` needs frozen-routing approval if implemented.
 
 ## Canonical docs
 
@@ -24,4 +27,5 @@
 2. [`RULE_PRIORITY.md`](./RULE_PRIORITY.md)
 3. [`LAYOUT_RULES.md`](./LAYOUT_RULES.md)
 4. [`RULE_ID_MAP.md`](./RULE_ID_MAP.md)
-5. [`HANDOFF.md`](./HANDOFF.md)
+5. [`STABILIZATION_PLAN.md`](./STABILIZATION_PLAN.md)
+6. [`HANDOFF.md`](./HANDOFF.md)

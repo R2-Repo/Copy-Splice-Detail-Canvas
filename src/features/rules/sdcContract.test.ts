@@ -46,7 +46,13 @@ describe("SDC import rules (post-parse, pre-layout)", () => {
 describe("SDC full contract (with layout)", () => {
   for (const n of [1, 2, 3] as const) {
     it(`Example #${n} passes applicable SDC rules`, () => {
-      const ctx = buildSdcRuleContext(graphFromExample(n));
+      const ctx = buildSdcRuleContext(graphFromExample(n), {
+        overrides: {
+          reportKey: `example-${n}`,
+          positions: {},
+          routingEngine: "nodes",
+        },
+      });
       const results = runRules(ctx);
       const failed = results.filter((r) => !r.ok && r.severity === "fail");
       expect(

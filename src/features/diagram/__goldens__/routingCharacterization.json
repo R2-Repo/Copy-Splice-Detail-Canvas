@@ -56,22 +56,22 @@
       {
         "connectionId": "144-SMF I-15 DIST: 4800 S - MP 259.46|117|VI|YL::72-SMF 4800 S DIST: MAIN ST - I-15|3|BL|GR",
         "laneIndex": 0,
-        "routingMidX": 612
+        "routingMidX": 684
       },
       {
         "connectionId": "144-SMF I-15 DIST: 4800 S - MP 259.46|118|VI|VI::72-SMF 4800 S DIST: MAIN ST - I-15|4|BL|BR",
         "laneIndex": 1,
-        "routingMidX": 636
+        "routingMidX": 660
       },
       {
         "connectionId": "144-SMF I-15 DIST: 4800 S - MP 259.46|29|GR|SL::72-SMF 4800 S DIST: MAIN ST - I-15|7|BL|RD",
         "laneIndex": 2,
-        "routingMidX": 660
+        "routingMidX": 636
       },
       {
         "connectionId": "144-SMF I-15 DIST: 4800 S - MP 259.46|30|GR|WH::72-SMF 4800 S DIST: MAIN ST - I-15|8|BL|BK",
         "laneIndex": 3,
-        "routingMidX": 684
+        "routingMidX": 612
       },
       {
         "connectionId": "144-SMF I-15 DIST: MP 258.96 - 4800 S|117|VI|YL::72-SMF 4800 S DIST: MAIN ST - I-15|1|BL|BL",

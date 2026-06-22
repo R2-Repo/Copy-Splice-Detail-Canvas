@@ -7,23 +7,34 @@ export type HybridLockPatch = {
   gridLocks?: LayoutOverrides["gridLocks"];
 };
 
+function visualCableIdFromKey(cableId: string): string {
+  return cableId.replace(/^cable-/, "");
+}
+
+/** React Flow node id used in `LayoutOverrides.positions`. */
+function cableNodePositionKey(cableId: string): string {
+  return `cable-${visualCableIdFromKey(cableId)}`;
+}
+
 /** Merge a cable position lock after user drag. */
 export function lockCablePosition(
   overrides: LayoutOverrides,
   cableId: string,
   position: { x: number; y: number },
 ): LayoutOverrides {
+  const visualId = visualCableIdFromKey(cableId);
+  const nodeId = cableNodePositionKey(cableId);
   return {
     ...overrides,
-    positions: { ...overrides.positions, [cableId]: position },
+    positions: { ...overrides.positions, [nodeId]: position },
     locks: {
       ...overrides.locks,
-      cables: { ...overrides.locks?.cables, [cableId]: true },
+      cables: { ...overrides.locks?.cables, [visualId]: true },
     },
     gridLocks: {
       segments: overrides.gridLocks?.segments ?? [],
       dots: overrides.gridLocks?.dots ?? [],
-      cables: [...new Set([...(overrides.gridLocks?.cables ?? []), cableId])],
+      cables: [...new Set([...(overrides.gridLocks?.cables ?? []), visualId])],
       tubeGroups: overrides.gridLocks?.tubeGroups ?? [],
     },
   };
@@ -70,7 +81,7 @@ export function lockGridSegments(
 /** Apply persisted grid locks onto a live grid map before routing. */
 export function applyLocksToGrid(
   map: GridMap,
-  overrides?: LayoutOverrides,
+  overrides?: Pick<LayoutOverrides, "gridLocks">,
 ): void {
   applyGridLocksToMap(map, overrides?.gridLocks?.segments);
 }
@@ -90,10 +101,10 @@ export function clearAllHybridLocks(
   };
 }
 
-/** Unlock one cable or tube group key. */
+/** Unlock one cable, tube group, leg segment, or fusion-dot lock. */
 export function unlockHybridItem(
   overrides: LayoutOverrides,
-  kind: "cable" | "tubeGroup" | "segment",
+  kind: "cable" | "tubeGroup" | "segment" | "fusionDot",
   key: string,
 ): LayoutOverrides {
   if (kind === "cable") {
@@ -120,6 +131,29 @@ export function unlockHybridItem(
         ? {
             ...overrides.gridLocks,
             tubeGroups: overrides.gridLocks.tubeGroups.filter((id) => id !== key),
+          }
+        : undefined,
+    };
+  }
+  if (kind === "fusionDot") {
+    const legOverrides = { ...(overrides.legOverrides ?? {}) };
+    const leg = legOverrides[key];
+    if (leg) {
+      const nextLeg = { ...leg };
+      delete nextLeg.dotShiftX;
+      const hasLegEdits =
+        (nextLeg.leftSegments && Object.keys(nextLeg.leftSegments).length > 0) ||
+        (nextLeg.rightSegments && Object.keys(nextLeg.rightSegments).length > 0);
+      if (hasLegEdits) legOverrides[key] = nextLeg;
+      else delete legOverrides[key];
+    }
+    return {
+      ...overrides,
+      legOverrides: Object.keys(legOverrides).length ? legOverrides : undefined,
+      gridLocks: overrides.gridLocks
+        ? {
+            ...overrides.gridLocks,
+            dots: overrides.gridLocks.dots.filter((id) => id !== key),
           }
         : undefined,
     };

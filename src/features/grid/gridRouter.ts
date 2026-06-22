@@ -1,13 +1,20 @@
 import type { Edge } from "@xyflow/react";
 
 import { buildSpliceHandleEntries } from "@/features/canvas/edges/spliceHandleEntries";
-import { routeCenterSplices } from "@/features/diagram/centerRouter";
+import { defaultSideCircuitLabelSpan } from "@/features/canvas/edges/splicePathGeometry";
+import { reconcileBufferTubeDotColumns } from "@/features/canvas/edges/spliceEdgeRouting";
 import { attachPrecomputedPaths } from "@/features/diagram/computeSpliceLayout";
+import type { SpliceRoutingLane } from "@/features/diagram/centerRouter";
+import {
+  assignSpliceRoutingLanes,
+  handleEntriesToCandidates,
+} from "@/features/diagram/spliceCenterLanes";
 import type { VisualCable } from "@/features/diagram/visualCables";
-import type { LayoutMode } from "@/types/splice";
+import type { LayoutMode, LayoutOverrides } from "@/types/splice";
 
+import { assignGridLanes, gridRouteFromPaths } from "./gridLaneAssign";
+import { cachedLanesFromEdges, priorRoutesFromEdges } from "./gridDragCache";
 import { buildGridMap } from "./gridMap";
-import { attachGridRouteMetadata } from "./gridPathAdapter";
 import { reserveRouteSegments } from "./reservation";
 import type { GridAnchorRef, GridMap, GridRoute } from "./gridTypes";
 
@@ -24,12 +31,21 @@ export type GridRouterInput = {
   layoutHeight?: number;
   layoutMode?: LayoutMode;
   lockedSegmentIds?: string[];
+  overrides?: Pick<LayoutOverrides, "gridLocks">;
+  /** Incremental cable drag — reroute only these connection ids. */
+  rerouteConnectionIds?: string[];
+  /** Live edge lanes/routes from pre-drag state (drag perf). */
+  dragCacheEdges?: Edge[];
+  priorGridRoutes?: Map<string, GridRoute>;
 };
 
 export type GridRouterResult = {
   edges: Edge[];
   grid: GridMap;
   routes: Map<string, GridRoute>;
+  lanes: Map<string, SpliceRoutingLane>;
+  /** Pre-snap packed lanes (assignSpliceRoutingLanes) for nesting rule checks. */
+  packedLanes: Map<string, SpliceRoutingLane>;
 };
 
 function anchorsFromEntries(
@@ -50,7 +66,32 @@ function connectionIdFromEdge(edge: Edge): string | undefined {
   return undefined;
 }
 
-/** Route all splices via grid-backed lane reservation (delegates lane math to center router for parity). */
+function packedBaselineLanes(
+  entries: ReturnType<typeof buildSpliceHandleEntries>,
+): Map<string, SpliceRoutingLane> {
+  if (!entries.length) return new Map();
+  const sideSpans =
+    entries.find((entry) => entry.sideCircuitSpan)?.sideCircuitSpan ??
+    defaultSideCircuitLabelSpan();
+  return assignSpliceRoutingLanes(handleEntriesToCandidates(entries), sideSpans);
+}
+
+function lanesByConnectionId(
+  lanes: Map<string, SpliceRoutingLane>,
+): Map<string, SpliceRoutingLane> {
+  const byConn = new Map<string, SpliceRoutingLane>();
+  for (const [edgeId, lane] of lanes) {
+    const connId = edgeId
+      .replace(/^splice-left-/, "")
+      .replace(/^splice-right-/, "")
+      .replace(/^splice-/, "")
+      .replace(/^butt-/, "");
+    byConn.set(connId, lane);
+  }
+  return byConn;
+}
+
+/** Route all splices on the internal grid with segment reservation (SDC-GRID-001). */
 export function routeAllOnGrid(input: GridRouterInput): GridRouterResult {
   const layoutMode = input.layoutMode === "quad" ? "quad" : "horizontal";
   const handleEntries = buildSpliceHandleEntries(
@@ -59,6 +100,7 @@ export function routeAllOnGrid(input: GridRouterInput): GridRouterResult {
     input.visualCables,
   );
 
+  const baseline = packedBaselineLanes(handleEntries);
   const anchors = anchorsFromEntries(handleEntries);
   const grid = buildGridMap({
     anchors,
@@ -68,17 +110,46 @@ export function routeAllOnGrid(input: GridRouterInput): GridRouterResult {
     },
     layoutMode,
     lockedSegmentIds: input.lockedSegmentIds,
+    extraVerticalXs: [...baseline.values()].map((lane) => lane.midX),
   });
 
-  const lanes = routeCenterSplices(handleEntries, input.diagramCenterX);
-  const routedEdges = attachPrecomputedPaths(
-    input.edges,
+  const { lanes, routes: reservedRoutes } = assignGridLanes(
+    handleEntries,
+    grid,
+    input.diagramCenterX,
+    input.overrides,
+    baseline,
+    input.rerouteConnectionIds?.length
+      ? {
+          rerouteConnectionIds: new Set(input.rerouteConnectionIds),
+          cachedLanesByEdgeId: input.dragCacheEdges
+            ? cachedLanesFromEdges(input.dragCacheEdges)
+            : undefined,
+          priorRoutes: input.priorGridRoutes
+            ? priorRoutesFromEdges(
+                input.dragCacheEdges ?? input.edges,
+                input.priorGridRoutes,
+              )
+            : undefined,
+        }
+      : undefined,
+  );
+
+  const tubeDotColumns = reconcileBufferTubeDotColumns(
     handleEntries,
     lanes,
     input.diagramCenterX,
   );
 
-  const routes = new Map<string, GridRoute>();
+  const routedEdges = attachPrecomputedPaths(
+    input.edges,
+    handleEntries,
+    lanes,
+    input.diagramCenterX,
+    tubeDotColumns,
+  );
+
+  const routes = new Map<string, GridRoute>(reservedRoutes);
 
   for (const edge of routedEdges) {
     if (edge.type !== "splice") continue;
@@ -91,7 +162,7 @@ export function routeAllOnGrid(input: GridRouterInput): GridRouterResult {
     const spliceY = data?.spliceY as number | undefined;
     if (!leftPath || !rightPath || spliceX == null || spliceY == null) continue;
 
-    const route = attachGridRouteMetadata(
+    const route = gridRouteFromPaths(
       grid,
       connId,
       leftPath,
@@ -99,11 +170,29 @@ export function routeAllOnGrid(input: GridRouterInput): GridRouterResult {
       spliceX,
       spliceY,
     );
+
+    const prior = routes.get(connId);
+    if (prior) {
+      for (const segId of prior.segmentIds) {
+        const seg = grid.segments.get(segId);
+        if (seg?.connectionId === connId) {
+          seg.status = "available";
+          seg.connectionId = undefined;
+        }
+      }
+    }
+
     reserveRouteSegments(grid, route);
     routes.set(connId, route);
   }
 
-  return { edges: routedEdges, grid, routes };
+  return {
+    edges: routedEdges,
+    grid,
+    routes,
+    lanes,
+    packedLanes: lanesByConnectionId(baseline),
+  };
 }
 
 /** Re-route only affected connections after a drag (incremental). */
@@ -111,13 +200,11 @@ export function rerouteLocalOnGrid(
   input: GridRouterInput,
   connectionIds: string[],
 ): GridRouterResult {
-  const full = routeAllOnGrid(input);
-  if (!connectionIds.length) return full;
-
-  const subset = new Map<string, GridRoute>();
-  for (const id of connectionIds) {
-    const route = full.routes.get(id);
-    if (route) subset.set(id, route);
-  }
-  return { ...full, routes: subset.size ? subset : full.routes };
+  if (!connectionIds.length) return routeAllOnGrid(input);
+  return routeAllOnGrid({
+    ...input,
+    rerouteConnectionIds: connectionIds,
+    dragCacheEdges: input.dragCacheEdges ?? input.edges,
+    priorGridRoutes: input.priorGridRoutes,
+  });
 }

@@ -40,7 +40,7 @@ function characterize(file: string) {
   const report = parseBentleyCsv(csv);
   const graph = buildConnectionGraph(report);
   const { dominant } = buildVisualCablesForLayout(graph);
-  const { edges } = buildReactFlowGraph(graph);
+  const { edges } = buildReactFlowGraph(graph, { reportKey: "golden", positions: {}, routingEngine: "nodes" });
 
   const legs = graph.legs
     .map((l) => ({ id: l.id, side: l.side, csvColumn: l.csvColumn }))

@@ -2,8 +2,19 @@ import type { Edge } from "@xyflow/react";
 import { describe, expect, it } from "vitest";
 
 import { parseOrthogonalPathPoints } from "@/features/canvas/edges/splicePathGeometry";
+import type { LayoutOverrides } from "@/types/splice";
 
-import { applyLegOverridesToEdge } from "./applyManualAdjust";
+import { applyHybridFusionDotLocks, applyLegOverridesToEdge } from "./applyManualAdjust";
+
+function spliceEdge(leftPath: string, rightPath: string, spliceX: number, spliceY: number): Edge {
+  return {
+    id: "splice-left-conn-a",
+    source: "a",
+    target: "b",
+    type: "splice",
+    data: { leftPath, rightPath, spliceX, spliceY, routingPrecomputed: true },
+  };
+}
 
 function buttEdge(leftPath: string, rightPath: string, spliceX: number, spliceY: number): Edge {
   return {
@@ -14,6 +25,35 @@ function buttEdge(leftPath: string, rightPath: string, spliceX: number, spliceY:
     data: { leftPath, rightPath, spliceX, spliceY, fullButtSplice: true },
   };
 }
+
+describe("applyHybridFusionDotLocks", () => {
+  it("applies dotShiftX when auto is on but fusion dot is grid-locked", () => {
+    const edge = spliceEdge("M 100,100 L 300,100", "M 300,100 L 500,100", 300, 100);
+    const overrides: LayoutOverrides = {
+      reportKey: "hybrid-dot",
+      positions: {},
+      autoAdjustEnabled: true,
+      gridLocks: { segments: [], dots: ["conn-a"], cables: [], tubeGroups: [] },
+      legOverrides: { "conn-a": { dotShiftX: 24 } },
+    };
+    const [out] = applyHybridFusionDotLocks([edge], overrides, undefined, undefined);
+    const data = out!.data as { spliceX: number; leftPath: string; rightPath: string };
+    expect(data.spliceX).toBeCloseTo(324, 0);
+    expect(parseOrthogonalPathPoints(data.leftPath).at(-1)!.x).toBeCloseTo(324, 0);
+  });
+
+  it("skips when dot is not in gridLocks", () => {
+    const edge = spliceEdge("M 100,100 L 300,100", "M 300,100 L 500,100", 300, 100);
+    const overrides: LayoutOverrides = {
+      reportKey: "hybrid-dot",
+      positions: {},
+      autoAdjustEnabled: true,
+      legOverrides: { "conn-a": { dotShiftX: 24 } },
+    };
+    const [out] = applyHybridFusionDotLocks([edge], overrides);
+    expect((out!.data as { spliceX: number }).spliceX).toBe(300);
+  });
+});
 
 describe("applyLegOverridesToEdge — collapsed butt square dotShiftX", () => {
   it("slides a bent butt square horizontally and keeps the legs joined", () => {
@@ -30,7 +70,6 @@ describe("applyLegOverridesToEdge — collapsed butt square dotShiftX", () => {
     const rightStart = parseOrthogonalPathPoints(data.rightPath)[0]!;
     expect(leftEnd.x).toBeCloseTo(220, 0);
     expect(rightStart.x).toBeCloseTo(220, 0);
-    // Square stays at the same height (horizontal-only shift).
     expect(leftEnd.y).toBeCloseTo(200, 0);
     expect(rightStart.y).toBeCloseTo(200, 0);
   });

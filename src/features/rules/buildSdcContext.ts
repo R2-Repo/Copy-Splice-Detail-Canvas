@@ -4,6 +4,23 @@ import {
   buildLayoutRuleContext,
   type LayoutRuleContext,
 } from "@/features/diagram/layoutRules";
+import { routeAllOnGrid } from "@/features/grid/gridRouter";
+import type { SpliceRoutingLane } from "@/features/diagram/centerRouter";
+
+function lanesByConnectionId(
+  lanes: Map<string, SpliceRoutingLane>,
+): Map<string, SpliceRoutingLane> {
+  const byConn = new Map<string, SpliceRoutingLane>();
+  for (const [edgeId, lane] of lanes) {
+    const connId = edgeId
+      .replace(/^splice-left-/, "")
+      .replace(/^splice-right-/, "")
+      .replace(/^splice-/, "")
+      .replace(/^butt-/, "");
+    byConn.set(connId, lane);
+  }
+  return byConn;
+}
 import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
 
 import type { SdcRuleContext } from "./types";
@@ -12,8 +29,67 @@ export type BuildSdcRuleContextOptions = {
   layoutWidth?: number;
   overrides?: LayoutOverrides;
   skipReactFlow?: boolean;
-  routingEngine?: "legacy" | "grid";
+  routingEngine?: "legacy" | "grid" | "nodes";
+  /** Attach grid map + routes for SDC-GRID/ROUTE validators. Default true when React Flow is built. */
+  withGrid?: boolean;
 };
+
+/** Build grid routing input from a connection graph (cable-level edges, pre-split). */
+export function buildGridRoutingInput(
+  graph: ConnectionGraph,
+  overrides?: LayoutOverrides,
+  layoutWidth?: number,
+) {
+  const legacyOverrides: LayoutOverrides = {
+    reportKey: overrides?.reportKey ?? "grid-routing",
+    positions: overrides?.positions ?? {},
+    ...overrides,
+    routingEngine: "legacy",
+  };
+  const { nodes, edges } = buildReactFlowGraph(
+    graph,
+    legacyOverrides,
+    layoutWidth,
+  );
+  const { visualCables } = buildVisualCablesForLayout(graph);
+  const width = layoutWidth ?? 1920;
+  return {
+    nodes,
+    edges,
+    visualCables,
+    diagramCenterX: width / 2,
+    layoutWidth: width,
+  };
+}
+
+/** Run grid router and attach grid + routes to an existing SDC context. */
+export function enrichSdcContextWithGrid(
+  ctx: SdcRuleContext,
+  layoutWidth?: number,
+): SdcRuleContext {
+  if (!ctx.graph || !ctx.visualCables?.length) return ctx;
+
+  const width = layoutWidth ?? ctx.layoutWidth ?? 1920;
+  const routingInput = buildGridRoutingInput(ctx.graph, ctx.overrides, width);
+
+  const gridResult = routeAllOnGrid({
+    ...routingInput,
+    layoutMode: ctx.overrides?.layoutMode,
+    lockedSegmentIds: ctx.overrides?.gridLocks?.segments,
+    overrides: ctx.overrides,
+  });
+
+  const gridLanes = lanesByConnectionId(gridResult.lanes);
+
+  return {
+    ...ctx,
+    grid: gridResult.grid,
+    gridRoutes: gridResult.routes,
+    gridLanes,
+    gridPackedLanes: gridResult.packedLanes,
+    layoutWidth: width,
+  };
+}
 
 /** Build a full SDC rule context from a connection graph. */
 export function buildSdcRuleContext(
@@ -21,22 +97,35 @@ export function buildSdcRuleContext(
   options?: BuildSdcRuleContextOptions,
 ): SdcRuleContext {
   const { visualCables } = buildVisualCablesForLayout(graph);
+  const mergedOverrides: LayoutOverrides = {
+    reportKey: options?.overrides?.reportKey ?? "sdc-context",
+    positions: options?.overrides?.positions ?? {},
+    ...options?.overrides,
+    routingEngine:
+      options?.routingEngine ??
+      options?.overrides?.routingEngine ??
+      "grid",
+  };
   const ctx: SdcRuleContext = {
     report: graph.report,
     graph,
     visualCables,
-    overrides: options?.overrides,
-    locks: options?.overrides?.locks,
+    overrides: mergedOverrides,
+    locks: mergedOverrides.locks,
     layoutWidth: options?.layoutWidth,
   };
 
   if (!options?.skipReactFlow) {
     const { nodes, edges } = buildReactFlowGraph(
       graph,
-      options?.overrides,
+      mergedOverrides,
       options?.layoutWidth,
     );
     ctx.reactFlow = { nodes, edges };
+
+    if (options?.withGrid !== false) {
+      return enrichSdcContextWithGrid(ctx, options?.layoutWidth);
+    }
   }
 
   return ctx;

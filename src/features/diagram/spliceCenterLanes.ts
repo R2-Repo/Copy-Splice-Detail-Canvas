@@ -344,8 +344,7 @@ function packCoherentTubeBundleMidXLanes(
     sideSpans,
   );
 
-  const inverts =
-    bundleMidOrderInvertsUniform(sorted) && bundleMidOrderInverts(sorted);
+  const inverts = bundleMidOrderInverts(sorted);
   for (let i = 0; i < sorted.length; i++) {
     const laneIndex = inverts ? sorted.length - 1 - i : i;
     result.set(sorted[i]!.id, start + laneIndex * sep);
@@ -387,8 +386,7 @@ function packMultipleCoherentTubeBundlesMidXLanes(
       centerX,
       sideSpans,
     );
-    const inverts =
-      bundleMidOrderInvertsUniform(sorted) && bundleMidOrderInverts(sorted);
+    const inverts = bundleMidOrderInverts(sorted);
     for (let i = 0; i < sorted.length; i++) {
       const laneIndex = inverts ? sorted.length - 1 - i : i;
       result.set(sorted[i]!.id, start + laneIndex * minSep);
@@ -405,6 +403,16 @@ function sameSideLoopBundleSkipsJogX(members: MidXLaneCandidate[]): boolean {
   if (!isSameColumnSplice(sorted[0]!.sourceX, sorted[0]!.targetX)) return false;
   if (!bundleMidOrderInvertsUniform(sorted)) return false;
   return bundleMidOrderInverts(sorted);
+}
+
+/** Same-side loop bundles use dedicated slot order (EDGE-010) — skip EDGE-005 enforce. */
+export function sameSideLoopBundleUsesSpecialMidXOrder(
+  members: MidXLaneCandidate[],
+): boolean {
+  if (!isCoherentTubeBundle(members)) return false;
+  const sorted = sortCandidatesByRowOrder(members);
+  if (!isSameColumnSplice(sorted[0]!.sourceX, sorted[0]!.targetX)) return false;
+  return bundleMidOrderInvertsUniform(sorted);
 }
 
 function bundleJogXForMembers(
@@ -745,6 +753,103 @@ export function packMidXLanes(
   return result;
 }
 
+/** EDGE-005 monotonicity for one tube bundle (skips same-side loop bundles). */
+function enforceEdge005MidXMonotonicityInBundle(
+  lanes: Map<string, SpliceRoutingLane>,
+  bundle: MidXLaneCandidate[],
+  minSep = SPLICE_LANE_SEP,
+): void {
+  const sorted = sortCandidatesByRowOrder(bundle);
+  if (sorted.length <= 1) return;
+  if (sameSideLoopBundleUsesSpecialMidXOrder(sorted)) {
+    return;
+  }
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1]!;
+    const curr = sorted[i]!;
+    const prevInverts = spliceMidOrderInverts(
+      prev.sourceX,
+      prev.sourceY,
+      prev.targetX,
+      prev.targetY,
+    );
+    const currInverts = spliceMidOrderInverts(
+      curr.sourceX,
+      curr.sourceY,
+      curr.targetX,
+      curr.targetY,
+    );
+    if (prevInverts !== currInverts) continue;
+
+    const prevLane = lanes.get(prev.id);
+    const currLane = lanes.get(curr.id);
+    if (!prevLane || !currLane) continue;
+
+    if (prevInverts) {
+      if (currLane.midX > prevLane.midX - minSep + SPLICE_PATH_EPS) {
+        currLane.midX = prevLane.midX - minSep;
+      }
+    } else if (currLane.midX < prevLane.midX + minSep - SPLICE_PATH_EPS) {
+      currLane.midX = prevLane.midX + minSep;
+    }
+  }
+}
+
+function enforceEdge005MidXMonotonicityInNumericMap(
+  midXMap: Map<string, number>,
+  bundle: MidXLaneCandidate[],
+  minSep = SPLICE_LANE_SEP,
+): void {
+  const sorted = sortCandidatesByRowOrder(bundle);
+  if (sorted.length <= 1) return;
+  if (sameSideLoopBundleUsesSpecialMidXOrder(sorted)) {
+    return;
+  }
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1]!;
+    const curr = sorted[i]!;
+    const prevInverts = spliceMidOrderInverts(
+      prev.sourceX,
+      prev.sourceY,
+      prev.targetX,
+      prev.targetY,
+    );
+    const currInverts = spliceMidOrderInverts(
+      curr.sourceX,
+      curr.sourceY,
+      curr.targetX,
+      curr.targetY,
+    );
+    if (prevInverts !== currInverts) continue;
+
+    const prevMidX = midXMap.get(prev.id);
+    const currMidX = midXMap.get(curr.id);
+    if (prevMidX === undefined || currMidX === undefined) continue;
+
+    if (prevInverts) {
+      if (currMidX > prevMidX - minSep + SPLICE_PATH_EPS) {
+        midXMap.set(curr.id, prevMidX - minSep);
+      }
+    } else if (currMidX < prevMidX + minSep - SPLICE_PATH_EPS) {
+      midXMap.set(curr.id, prevMidX + minSep);
+    }
+  }
+}
+
+function enforceEdge005MidXMonotonicityInBundles(
+  lanes: Map<string, SpliceRoutingLane>,
+  candidates: MidXLaneCandidate[],
+): void {
+  for (const bundle of groupCandidatesByTubeBundle(
+    candidates.filter((candidate) => candidate.tubeBundleKey),
+  )) {
+    if (bundle.length <= 1) continue;
+    enforceEdge005MidXMonotonicityInBundle(lanes, bundle);
+  }
+}
+
 function enforceDistinctMidXLanesForMembers(
   result: Map<string, number>,
   members: MidXLaneCandidate[],
@@ -912,6 +1017,7 @@ export function assignSpliceMidXLanes(
     candidates.filter((candidate) => candidate.tubeBundleKey),
   )) {
     if (isCoherentTubeBundle(bundle)) {
+      enforceEdge005MidXMonotonicityInNumericMap(result, bundle, SPLICE_LANE_SEP);
       enforceDistinctMidXLanesForMembers(result, bundle, SPLICE_LANE_SEP);
     }
   }
@@ -1454,6 +1560,8 @@ export function assignSpliceRoutingLanes(
     sideSpans,
     diagramCenterX,
   );
+
+  enforceEdge005MidXMonotonicityInBundles(result, candidates);
 
   return result;
 }

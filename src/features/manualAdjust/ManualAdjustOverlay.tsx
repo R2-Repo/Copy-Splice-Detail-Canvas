@@ -51,6 +51,14 @@ type Props = {
   onSegmentPointerMove: (event: React.PointerEvent) => void;
   onSegmentPointerUp: (event: React.PointerEvent) => void;
   onDotPointerDown: (connectionId: string, event: React.PointerEvent) => void;
+  /** Show fusion-dot grab targets without full manual segment overlay (grid hybrid). */
+  fusionDotsVisible?: boolean;
+  lockedFusionDots?: ReadonlySet<string>;
+  onFusionDotContextMenu?: (
+    connectionId: string,
+    clientX: number,
+    clientY: number,
+  ) => void;
   beginLongPress: (
     connectionId: string,
     clientX: number,
@@ -148,8 +156,12 @@ export function ManualAdjustOverlay({
   onSegmentPointerMove: _onSegmentPointerMove,
   onSegmentPointerUp: _onSegmentPointerUp,
   onDotPointerDown,
+  fusionDotsVisible = false,
+  lockedFusionDots,
+  onFusionDotContextMenu,
   beginLongPress,
 }: Props) {
+  const showDots = enabled || fusionDotsVisible;
   // Plain left-press (no selection modifier) can also start an existing-toggle
   // long-press; a move turns it into a drag (long-press auto-cancels).
   const maybeBeginLongPress = (connectionId: string, event: React.PointerEvent) => {
@@ -298,7 +310,7 @@ export function ManualAdjustOverlay({
   }, [enabled, graph, edges, nodes, legSegmentDragActive]);
 
   const fusionDots = useMemo(() => {
-    if (!enabled) return [];
+    if (!showDots) return [];
     if (legSegmentDragActive && cachedDotsRef.current.length > 0) {
       return cachedDotsRef.current;
     }
@@ -332,7 +344,7 @@ export function ManualAdjustOverlay({
     }
     cachedDotsRef.current = dots;
     return dots;
-  }, [enabled, edges, legSegmentDragActive]);
+  }, [showDots, edges, legSegmentDragActive]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -405,7 +417,7 @@ export function ManualAdjustOverlay({
     screenToFlowPosition,
   ]);
 
-  if (!enabled) return null;
+  if (!enabled && !showDots) return null;
 
   const marqueePanel = marquee
     ? {
@@ -419,31 +431,34 @@ export function ManualAdjustOverlay({
   return (
     <Panel position="top-left" className="manual-adjust-panel">
       <div ref={overlayRef} className="manual-adjust-overlay nodrag nopan">
-        {draggableSegments
-          .filter(
-            (item) =>
-              hoveredKey === item.key ||
-              selection.connectionIds.has(item.connectionId),
-          )
-          .map((item) => {
-            const style = segmentHighlightStyle(
-              item.segment,
-              flowToPanelLocal,
-              viewport.zoom,
-            );
-            if (!style) return null;
-            const selected = selection.connectionIds.has(item.connectionId);
-            return (
-              <div
-                key={`hl-${item.key}`}
-                className={`manual-adjust-segment-highlight${
-                  selected ? " manual-adjust-segment-highlight--selected" : ""
-                }`}
-                style={style}
-              />
-            );
-          })}
-        {draggableSegments.map((item) => (
+        {enabled
+          ? draggableSegments
+              .filter(
+                (item) =>
+                  hoveredKey === item.key ||
+                  selection.connectionIds.has(item.connectionId),
+              )
+              .map((item) => {
+                const style = segmentHighlightStyle(
+                  item.segment,
+                  flowToPanelLocal,
+                  viewport.zoom,
+                );
+                if (!style) return null;
+                const selected = selection.connectionIds.has(item.connectionId);
+                return (
+                  <div
+                    key={`hl-${item.key}`}
+                    className={`manual-adjust-segment-highlight${
+                      selected ? " manual-adjust-segment-highlight--selected" : ""
+                    }`}
+                    style={style}
+                  />
+                );
+              })
+          : null}
+        {enabled
+          ? draggableSegments.map((item) => (
           <button
             key={item.key}
             type="button"
@@ -483,35 +498,41 @@ export function ManualAdjustOverlay({
               }
             }}
           />
-        ))}
-        {nodes
-          .filter(
-            (n) =>
-              n.type === "fiberAnchor" &&
-              selection.connectionIds.has(
-                (n.data as { connectionId: string }).connectionId,
-              ),
-          )
-          .map((node) => {
-            const panel = flowToPanelLocal(node.position.x + 3, node.position.y + 3);
-            return (
-              <div
-                key={`sel-${node.id}`}
-                className="manual-adjust-selection-ring"
-                style={{ left: panel.x - 6, top: panel.y - 6 }}
-              />
-            );
-          })}
+        ))
+          : null}
+        {enabled
+          ? nodes
+              .filter(
+                (n) =>
+                  n.type === "fiberAnchor" &&
+                  selection.connectionIds.has(
+                    (n.data as { connectionId: string }).connectionId,
+                  ),
+              )
+              .map((node) => {
+                const panel = flowToPanelLocal(node.position.x + 3, node.position.y + 3);
+                return (
+                  <div
+                    key={`sel-${node.id}`}
+                    className="manual-adjust-selection-ring"
+                    style={{ left: panel.x - 6, top: panel.y - 6 }}
+                  />
+                );
+              })
+          : null}
         {fusionDots.map((dot) => {
           const panel = flowToPanelLocal(dot.x, dot.y);
           const selected = selection.connectionIds.has(dot.connectionId);
+          const locked = lockedFusionDots?.has(dot.connectionId) ?? false;
           return (
             <button
               key={`dot-${dot.connectionId}`}
               type="button"
               className={`manual-adjust-dot nodrag nopan${
                 dot.butt ? " manual-adjust-dot--square" : ""
-              }${selected ? " manual-adjust-dot--selected" : ""}`}
+              }${selected ? " manual-adjust-dot--selected" : ""}${
+                locked ? " manual-adjust-dot--locked" : ""
+              }`}
               style={{
                 left: panel.x - (dot.butt ? BUTT_DOT_HIT : DOT_HIT) / 2,
                 top: panel.y - (dot.butt ? BUTT_DOT_HIT : DOT_HIT) / 2,
@@ -521,7 +542,9 @@ export function ManualAdjustOverlay({
               title={
                 dot.butt
                   ? "Drag collapsed buffer-tube splice (horizontal)"
-                  : "Drag fusion splice dot (color transition) along the leg"
+                  : locked
+                    ? "Fusion dot locked — right-click to unlock"
+                    : "Drag fusion splice dot (color transition); right-click to lock"
               }
               aria-label={
                 dot.butt
@@ -538,6 +561,16 @@ export function ManualAdjustOverlay({
                 onSegmentDoubleClick(
                   dot.connectionId,
                   event.ctrlKey || event.metaKey,
+                );
+              }}
+              onContextMenu={(event) => {
+                if (dot.butt || !onFusionDotContextMenu) return;
+                event.preventDefault();
+                event.stopPropagation();
+                onFusionDotContextMenu(
+                  dot.connectionId,
+                  event.clientX,
+                  event.clientY,
                 );
               }}
             />

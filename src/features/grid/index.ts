@@ -5,3 +5,5 @@ export * from "./reservation";
 export * from "./snap";
 export * from "./gridPathAdapter";
 export * from "./gridRouter";
+export * from "./gridLaneAssign";
+export * from "./gridDragCache";

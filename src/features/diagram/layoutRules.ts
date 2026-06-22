@@ -62,6 +62,7 @@ import type { CablePlacement } from "@/features/diagram/canvasPlacement";
 import {
   assignSpliceMidXLanes,
   assignSpliceRoutingLanes,
+  sameSideLoopBundleUsesSpecialMidXOrder,
   spliceRoutingZoneKey,
   type MidXLaneCandidate,
   type SpliceRoutingLane,
@@ -871,36 +872,6 @@ function resolveCtxSpliceRouting(
   };
 }
 
-function resolveCtxSpliceMidX(
-  ctx: LayoutRuleContext,
-  connId: string,
-  endpoints: {
-    sourceX: number;
-    sourceY: number;
-    targetX: number;
-    targetY: number;
-    rowOffset: number;
-  },
-  packed: Map<string, number>,
-): number {
-  const packedMidX = packed.get(connId);
-  if (packedMidX !== undefined) return packedMidX;
-
-  const rowOffsets = connectionRowOffsets(
-    ctx.graph,
-    ctx.visualCables,
-    ctx.dominant,
-  );
-  const maxRowOffset = Math.max(0, ...rowOffsets.values());
-  const { sourceX, sourceY, targetX, targetY, rowOffset } = endpoints;
-  return resolveSpliceMidX(sourceX, sourceY, targetX, targetY, {
-    rowOffset,
-    maxRowOffset,
-    diagramCenterX: ctx.layoutWidth / 2,
-    sideCircuitSpan: sideCircuitSpanFromCtx(ctx),
-  });
-}
-
 function splicePathsWithinBendLimit(ctx: LayoutRuleContext): boolean {
   const packed = buildRenderRoutingMap(ctx);
   const sideSpans = sideCircuitSpanFromCtx(ctx);
@@ -958,14 +929,29 @@ function splicePathsWithinBendLimit(ctx: LayoutRuleContext): boolean {
   return true;
 }
 
-function centerLanesPreserveTubeGrouping(ctx: LayoutRuleContext): boolean {
-  const packed = buildPackedMidXMap(ctx);
+function centerLanesPreserveTubeGroupingCore(
+  ctx: LayoutRuleContext,
+  midXByConnId: Map<string, number>,
+): boolean {
+  return findCenterLaneGroupingViolations(ctx, midXByConnId).length === 0;
+}
+
+/** Diagnostic: EDGE-005 violations for a midX map (tests / debug). */
+export function findCenterLaneGroupingViolations(
+  ctx: LayoutRuleContext,
+  midXByConnId: Map<string, number>,
+): string[] {
+  const violations: string[] = [];
   type LaneEntry = {
     rowOffset: number;
     midX: number;
     inverts: boolean;
     tubeBundleKey?: string;
     zoneKey: string;
+    sourceX: number;
+    sourceY: number;
+    targetX: number;
+    targetY: number;
   };
   const lanes: LaneEntry[] = [];
 
@@ -987,12 +973,19 @@ function centerLanesPreserveTubeGrouping(ctx: LayoutRuleContext): boolean {
     const tubeBundleKey = (edge?.data as { tubeBundleKey?: string })
       ?.tubeBundleKey;
 
+    const midX = midXByConnId.get(conn.id);
+    if (midX === undefined) continue;
+
     lanes.push({
       rowOffset,
-      midX: resolveCtxSpliceMidX(ctx, conn.id, endpoints, packed),
+      midX,
       inverts: spliceMidOrderInverts(sourceX, sourceY, targetX, targetY),
       tubeBundleKey,
       zoneKey: spliceRoutingZoneKey(sourceX, targetX),
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
     });
   }
 
@@ -1009,17 +1002,35 @@ function centerLanesPreserveTubeGrouping(ctx: LayoutRuleContext): boolean {
     }
   }
 
-  for (const bundle of byBundle.values()) {
+  for (const [key, bundle] of byBundle) {
     if (bundle.length <= 1) continue;
+    const bundleCandidates: MidXLaneCandidate[] = bundle.map((lane, index) => ({
+      id: `${key}::${index}`,
+      sourceX: lane.sourceX,
+      sourceY: lane.sourceY,
+      targetX: lane.targetX,
+      targetY: lane.targetY,
+      rowOffset: lane.rowOffset,
+      tubeBundleKey: lane.tubeBundleKey,
+    }));
+    if (sameSideLoopBundleUsesSpecialMidXOrder(bundleCandidates)) {
+      continue;
+    }
     bundle.sort((a, b) => a.rowOffset - b.rowOffset);
     for (let i = 1; i < bundle.length; i++) {
       const prev = bundle[i - 1]!;
       const curr = bundle[i]!;
       if (prev.inverts !== curr.inverts) continue;
       if (prev.inverts) {
-        if (curr.midX > prev.midX + Y_TOLERANCE) return false;
+        if (curr.midX > prev.midX + Y_TOLERANCE) {
+          violations.push(
+            `bundle ${key}: row ${prev.rowOffset}->${curr.rowOffset} midX ${prev.midX}->${curr.midX} (inverts)`,
+          );
+        }
       } else if (curr.midX < prev.midX - Y_TOLERANCE) {
-        return false;
+        violations.push(
+          `bundle ${key}: row ${prev.rowOffset}->${curr.rowOffset} midX ${prev.midX}->${curr.midX}`,
+        );
       }
     }
   }
@@ -1031,19 +1042,102 @@ function centerLanesPreserveTubeGrouping(ctx: LayoutRuleContext): boolean {
     byZone.set(lane.zoneKey, list);
   }
 
-  for (const group of byZone.values()) {
+  for (const [zoneKey, group] of byZone) {
+    if (group.length <= 1) continue;
     group.sort((a, b) => a.rowOffset - b.rowOffset);
     for (let i = 1; i < group.length; i++) {
       const prev = group[i - 1]!;
       const curr = group[i]!;
       if (prev.inverts !== curr.inverts) continue;
       if (prev.inverts) {
-        if (curr.midX > prev.midX + Y_TOLERANCE) return false;
+        if (curr.midX > prev.midX + Y_TOLERANCE) {
+          violations.push(
+            `zone ${zoneKey}: row ${prev.rowOffset}->${curr.rowOffset} midX ${prev.midX}->${curr.midX} (inverts)`,
+          );
+        }
       } else if (curr.midX < prev.midX - Y_TOLERANCE) {
-        return false;
+        violations.push(
+          `zone ${zoneKey}: row ${prev.rowOffset}->${curr.rowOffset} midX ${prev.midX}->${curr.midX}`,
+        );
       }
     }
   }
+  return violations;
+}
+
+/** Packed midX EDGE-005 violations (diagnostic). */
+export function packedMidXViolationsForContext(ctx: LayoutRuleContext): string[] {
+  return findCenterLaneGroupingViolations(ctx, buildPackedMidXMap(ctx));
+}
+
+function centerLanesPreserveTubeGrouping(ctx: LayoutRuleContext): boolean {
+  return centerLanesPreserveTubeGroupingCore(ctx, buildPackedMidXMap(ctx));
+}
+
+/** EDGE-005 grid path — same packed topology as nodes (grid snap checked separately). */
+function centerLanesPreserveTubeGroupingGrid(ctx: LayoutRuleContext): boolean {
+  return centerLanesPreserveTubeGrouping(ctx);
+}
+
+function tubeBundleRoutesAreSpacedGrid(ctx: LayoutRuleContext): boolean {
+  return tubeBundleRoutesAreSpaced(ctx);
+}
+
+function tubeBundleRoutesAreSpacedWithPacked(
+  ctx: LayoutRuleContext,
+  packed: Map<string, SpliceRoutingLane>,
+): boolean {
+  const byBundle = new Map<string, Array<{ midX: number; jogX?: number }>>();
+
+  for (const conn of orderedFiberConnections(ctx.graph)) {
+    if (conn.kind !== "fiber") continue;
+    const edge = spliceEdgeForConnection(ctx.reactFlow.edges, conn.id);
+    const tubeBundleKey = (edge?.data as { tubeBundleKey?: string })
+      ?.tubeBundleKey;
+    if (!tubeBundleKey) continue;
+
+    const endpoints = spliceHandleEndpoints(ctx, conn);
+    if (!endpoints) continue;
+    const { sourceX, sourceY, targetX, targetY } = endpoints;
+    if (
+      !templateUsesMidXLanes(
+        pickSpliceRouteTemplate(sourceX, sourceY, targetX, targetY),
+      )
+    ) {
+      continue;
+    }
+
+    const lane = packed.get(conn.id);
+    if (!lane) continue;
+    const zoneKey = spliceRoutingZoneKey(sourceX, targetX);
+    const key = `${zoneKey}::${tubeBundleKey}`;
+    const list = byBundle.get(key) ?? [];
+    list.push({ midX: lane.midX, jogX: lane.jogX });
+    byBundle.set(key, list);
+  }
+
+  for (const members of byBundle.values()) {
+    if (members.length <= 1) continue;
+    const sorted = [...members].sort((a, b) => a.midX - b.midX);
+    for (let i = 1; i < sorted.length; i++) {
+      if (
+        sorted[i]!.midX - sorted[i - 1]!.midX <
+        SPLICE_LANE_SEP - SPLICE_PATH_EPS
+      ) {
+        return false;
+      }
+    }
+    const jogValues = [
+      ...new Set(
+        members
+          .map((member) => member.jogX)
+          .filter((jogX): jogX is number => jogX !== undefined)
+          .map((jogX) => Math.round(jogX)),
+      ),
+    ];
+    if (jogValues.length > 1) return false;
+  }
+
   return true;
 }
 
@@ -1294,58 +1388,7 @@ function bufferTubeDotsStackVertically(ctx: LayoutRuleContext): boolean {
 }
 
 function tubeBundleRoutesAreSpaced(ctx: LayoutRuleContext): boolean {
-  const packed = buildPackedRoutingMap(ctx);
-  const byBundle = new Map<string, Array<{ midX: number; jogX?: number }>>();
-
-  for (const conn of orderedFiberConnections(ctx.graph)) {
-    if (conn.kind !== "fiber") continue;
-    const edge = spliceEdgeForConnection(ctx.reactFlow.edges, conn.id);
-    const tubeBundleKey = (edge?.data as { tubeBundleKey?: string })
-      ?.tubeBundleKey;
-    if (!tubeBundleKey) continue;
-
-    const endpoints = spliceHandleEndpoints(ctx, conn);
-    if (!endpoints) continue;
-    const { sourceX, sourceY, targetX, targetY } = endpoints;
-    if (
-      !templateUsesMidXLanes(
-        pickSpliceRouteTemplate(sourceX, sourceY, targetX, targetY),
-      )
-    ) {
-      continue;
-    }
-
-    const lane = resolveCtxSpliceRouting(ctx, conn.id, endpoints, packed);
-    const zoneKey = spliceRoutingZoneKey(sourceX, targetX);
-    const key = `${zoneKey}::${tubeBundleKey}`;
-    const list = byBundle.get(key) ?? [];
-    list.push({ midX: lane.midX, jogX: lane.jogX });
-    byBundle.set(key, list);
-  }
-
-  for (const members of byBundle.values()) {
-    if (members.length <= 1) continue;
-    const sorted = [...members].sort((a, b) => a.midX - b.midX);
-    for (let i = 1; i < sorted.length; i++) {
-      if (
-        sorted[i]!.midX - sorted[i - 1]!.midX <
-        SPLICE_LANE_SEP - SPLICE_PATH_EPS
-      ) {
-        return false;
-      }
-    }
-    const jogValues = [
-      ...new Set(
-        members
-          .map((member) => member.jogX)
-          .filter((jogX): jogX is number => jogX !== undefined)
-          .map((jogX) => Math.round(jogX)),
-      ),
-    ];
-    if (jogValues.length > 1) return false;
-  }
-
-  return true;
+  return tubeBundleRoutesAreSpacedWithPacked(ctx, buildPackedRoutingMap(ctx));
 }
 
 function verticalCenterLegsSpaced(ctx: LayoutRuleContext): boolean {
@@ -2207,6 +2250,135 @@ export function checkAllLayoutRules(ctx: LayoutRuleContext): LayoutRuleResult[] 
 
 export function layoutRulesOk(ctx: LayoutRuleContext): boolean {
   return checkAllLayoutRules(ctx).every((r) => r.ok);
+}
+
+/** SDC-LAYOUT-001 spacing checks (direct evaluators — not via checkLayoutRule). */
+export function evaluateSdcLayoutSpacingRules(
+  ctx: LayoutRuleContext,
+): LayoutRuleResult[] {
+  const rowSteps = globalRowStepsOk(ctx);
+  const multiTube = ctx.visualCables.some((v) => v.tubes.length > 1);
+  return [
+    {
+      id: "CBL-001",
+      ok: sameSideNoOverlap(ctx),
+      detail: "Same-side cable nodes overlap vertically",
+    },
+    {
+      id: "CBL-002",
+      ok: sameSideStackGap(ctx),
+      detail: "Stacked cables have less than cableGap spacing",
+    },
+    {
+      id: "FBR-002",
+      ok: compactTubeFiberLayoutOk(ctx.visualCables),
+      detail: "Buffer tube fiber pitch is not 24px",
+    },
+    {
+      id: "ROW-001",
+      ok: rowSteps.withinTube,
+      detail: "Global row layout missing FIBER_ROW_PITCH steps",
+    },
+    {
+      id: "ROW-002",
+      ok: !multiTube || rowSteps.tubeBoundary,
+      detail: "Global row layout missing TUBE_GROUP_GAP at tube boundaries",
+    },
+  ];
+}
+
+/** SDC-LAYOUT-002 fan-out geometry checks (direct evaluators). */
+export function evaluateSdcLayoutFanoutRules(
+  ctx: LayoutRuleContext,
+): LayoutRuleResult[] {
+  const geo = tubeGeometryOk(ctx.visualCables, ctx.placement);
+  return [
+    { id: "TUB-001", ok: geo.ok, detail: geo.detail },
+    { id: "TUB-002", ok: geo.ok, detail: geo.detail },
+    {
+      id: "TUB-005",
+      ok: rightSideMirrors(ctx.visualCables),
+      detail: "Right-side breakout is not mirrored",
+    },
+    {
+      id: "TUB-007",
+      ok: sameSideFiberStemColumnsAligned(ctx),
+      detail: "Same-side cable stem columns are not vertically aligned",
+    },
+    {
+      id: "STR-001",
+      ok: strandFansTowardCenter(ctx),
+      detail: "Fiber strand fans away from canvas center",
+    },
+  ];
+}
+
+/** SDC-ROUTE-002 nesting checks (direct evaluators). */
+export function evaluateSdcRouteNestingRules(
+  ctx: LayoutRuleContext,
+): LayoutRuleResult[] {
+  return [
+    {
+      id: "EDGE-005",
+      ok: centerLanesPreserveTubeGrouping(ctx),
+      detail: "Center lane midX order breaks buffer-tube row-offset grouping",
+    },
+    {
+      id: "EDGE-010",
+      ok: tubeBundleRoutesAreSpaced(ctx),
+      detail:
+        "Tube bundle splice lanes overlap or lack shared horizontal trunk spacing",
+    },
+  ];
+}
+
+/** SDC-ROUTE-002 when grid lanes are attached — uses snapped midX from grid router. */
+export function evaluateSdcRouteNestingRulesForGrid(
+  ctx: LayoutRuleContext,
+): LayoutRuleResult[] {
+  return [
+    {
+      id: "EDGE-005",
+      ok: centerLanesPreserveTubeGroupingGrid(ctx),
+      detail: "Center lane midX order breaks buffer-tube row-offset grouping",
+    },
+    {
+      id: "EDGE-010",
+      ok: tubeBundleRoutesAreSpacedGrid(ctx),
+      detail:
+        "Tube bundle splice lanes overlap or lack shared horizontal trunk spacing",
+    },
+  ];
+}
+
+/** SDC-ROUTE-003 collision checks when grid routes are unavailable. */
+export function evaluateSdcRouteCollisionRules(
+  ctx: LayoutRuleContext,
+): LayoutRuleResult[] {
+  return [
+    {
+      id: "EDGE-001",
+      ok: distinctEdgeLanes(ctx.reactFlow.edges),
+      detail: "Splice edges share routing lanes on import",
+    },
+    {
+      id: "EDGE-007",
+      ok: spliceCenterPathsDoNotCross(ctx),
+      detail: "Splice center paths cross between horizontal and vertical legs",
+    },
+    {
+      id: "EDGE-011",
+      ok: splicePathsDoNotOverlap(ctx),
+      detail:
+        findSpliceOverlapPair(ctx) ??
+        "Splice strand segments stack on the same horizontal or vertical track",
+    },
+    {
+      id: "EDGE-012",
+      ok: verticalCenterLegsSpaced(ctx),
+      detail: "Overlapping vertical center legs share the same midX lane",
+    },
+  ];
 }
 
 /** Sheath aspect ratio check exported for unit reuse. */

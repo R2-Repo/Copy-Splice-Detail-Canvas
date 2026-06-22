@@ -13,7 +13,7 @@ import {
   type SpliceHandleEntry,
   type SpliceRoutingLane,
 } from "@/features/diagram/centerRouter";
-import { routeAllOnGrid } from "@/features/grid/gridRouter";
+import { routeAllOnGrid, rerouteLocalOnGrid } from "@/features/grid/gridRouter";
 import { useGridRoutingEngine } from "@/features/diagram/routingEngine";
 import type { LayoutMode, LayoutOverrides } from "@/types/splice";
 import type { VisualCable } from "@/features/diagram/visualCables";
@@ -45,6 +45,9 @@ export type ComputeSpliceLayoutOptions = {
     "routingEngine" | "gridLocks" | "layoutMode"
   >;
   layoutWidth?: number;
+  rerouteConnectionIds?: string[];
+  dragCacheEdges?: Edge[];
+  priorGridRoutes?: Map<string, import("@/features/grid/gridTypes").GridRoute>;
 };
 
 export function computeSpliceEdgeLayout(
@@ -61,7 +64,7 @@ export function computeSpliceEdgeLayout(
   const handleEntries = buildSpliceHandleEntries(nodes, edges, visualCables);
 
   if (useGridRoutingEngine(options?.overrides)) {
-    const gridResult = routeAllOnGrid({
+    const gridInput = {
       nodes,
       edges,
       visualCables,
@@ -69,11 +72,17 @@ export function computeSpliceEdgeLayout(
       layoutWidth: options?.layoutWidth ?? diagramCenterX * 2,
       layoutMode: (options?.overrides?.layoutMode ?? "horizontal") as LayoutMode,
       lockedSegmentIds: options?.overrides?.gridLocks?.segments,
-    });
-    const lanes = routeCenterSplices(handleEntries, diagramCenterX);
+      overrides: options?.overrides,
+      rerouteConnectionIds: options?.rerouteConnectionIds,
+      dragCacheEdges: options?.dragCacheEdges,
+      priorGridRoutes: options?.priorGridRoutes,
+    };
+    const gridResult = options?.rerouteConnectionIds?.length
+      ? rerouteLocalOnGrid(gridInput, options.rerouteConnectionIds)
+      : routeAllOnGrid(gridInput);
     return {
       handleEntries,
-      lanes,
+      lanes: gridResult.lanes,
       edges: gridResult.edges,
       gridRoutes: gridResult.routes,
     };

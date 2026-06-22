@@ -1,16 +1,8 @@
-import { checkLayoutRule } from "@/features/diagram/layoutRules";
+import { evaluateSdcLayoutFanoutRules } from "@/features/diagram/layoutRules";
 
 import type { SdcRule } from "./types";
 import { buildSdcContextFromLayout } from "./buildSdcContext";
 import { fail, pass, warn } from "./helpers";
-
-const FANOUT_LEGACY_IDS = [
-  "TUB-001",
-  "TUB-002",
-  "TUB-005",
-  "TUB-007",
-  "STR-001",
-] as const;
 
 /** SDC-LAYOUT-002 — Fiber strand fan-out geometry. */
 export const sdcLayout002: SdcRule = {
@@ -51,11 +43,10 @@ export const sdcLayout002: SdcRule = {
       return [warn("SDC-LAYOUT-002", "Could not build layout rule context")];
     }
 
-    const failures: string[] = [];
-    for (const legacyId of FANOUT_LEGACY_IDS) {
-      const r = checkLayoutRule(legacyId, layoutCtx);
-      if (!r.ok) failures.push(`${legacyId}: ${r.detail}`);
-    }
+    const results = evaluateSdcLayoutFanoutRules(layoutCtx);
+    const failures = results
+      .filter((r) => !r.ok)
+      .map((r) => `${r.id}: ${r.detail}`);
     if (failures.length) {
       return [fail("SDC-LAYOUT-002", failures.join("; "), failures)];
     }

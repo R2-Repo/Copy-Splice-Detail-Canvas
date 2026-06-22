@@ -70,16 +70,60 @@ export function releaseReservations(map: GridMap, connectionId: string): void {
   }
 }
 
+export function releaseRouteOccupancy(map: GridMap, route: GridRoute): void {
+  for (const segId of route.segmentIds) {
+    const seg = map.segments.get(segId);
+    if (seg && seg.connectionId === route.connectionId) {
+      seg.status = "available";
+      seg.connectionId = undefined;
+    }
+  }
+}
+
 export function segmentIdsForRoute(map: GridMap, points: GridPoint[]): string[] {
   const ids: string[] = [];
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1]!;
     const b = points[i]!;
     const horiz = Math.abs(a.y - b.y) < EPS;
-    const id = segmentIdForRun(horiz ? "horizontal" : "vertical", a, b);
-    if (id && map.segments.has(id)) ids.push(id);
+    const vert = Math.abs(a.x - b.x) < EPS;
+    const exact = segmentIdForRun(horiz ? "horizontal" : "vertical", a, b);
+    if (exact && map.segments.has(exact)) {
+      ids.push(exact);
+      continue;
+    }
+    const containing = containingSegmentForRun(map, a, b, horiz, vert);
+    if (containing) ids.push(containing);
   }
   return ids;
+}
+
+function containingSegmentForRun(
+  map: GridMap,
+  a: GridPoint,
+  b: GridPoint,
+  horiz: boolean,
+  vert: boolean,
+): string | undefined {
+  if (horiz) {
+    const y = a.y;
+    const x1 = Math.min(a.x, b.x);
+    const x2 = Math.max(a.x, b.x);
+    for (const seg of map.segments.values()) {
+      if (seg.axis !== "horizontal" || Math.abs(seg.y1 - y) >= EPS) continue;
+      if (seg.x1 <= x1 + EPS && seg.x2 >= x2 - EPS) return seg.id;
+    }
+  }
+  if (vert) {
+    const x = a.x;
+    const y1 = Math.min(a.y, b.y);
+    const y2 = Math.max(a.y, b.y);
+    for (const seg of map.segments.values()) {
+      if (seg.axis !== "vertical" || Math.abs(seg.x1 - x) >= EPS) continue;
+      if (seg.y1 <= y1 + EPS && seg.y2 >= y2 - EPS) return seg.id;
+    }
+  }
+  return undefined;
 }
 
 export function reserveRouteSegments(

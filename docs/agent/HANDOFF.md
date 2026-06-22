@@ -4,32 +4,28 @@
 
 ## Last updated
 
-2026-06-18 — **SDC modular rules + grid routing refactor (phase 1).**
+2026-06-22 — **Stabilization Phase 2: grid drag-stop lane cache + D4 QA sign-off.**
 
 ### What landed
 
-- **`src/features/rules/`** — SDC-CORE/DATA/ORDER/LAYOUT/GRID/ROUTE/UX validators, registry, `sdcContract.test.ts`.
-- **`src/features/grid/`** — grid map, routing zone, reservation, `gridRouter`, `gridPathAdapter`; wired via `routingEngine: "grid"`.
-- **`src/features/layoutHybrid/`** — lock-on-edit helpers (`clearAllHybridLocks`, `onEditLock`, `useLayoutHybrid`).
-- **`LayoutOverrides`** — `routingEngine`, `gridRoutes`, `gridLocks`; `mergeLayoutOverrides` updated.
-- **`WorkflowCanvas`** — import runs `runImportRules`; unlock/reset toolbar; grid mode disables Auto/Manual toggle.
-- **Docs:** [`RULE_ID_MAP.md`](./RULE_ID_MAP.md), `LAYOUT_RULES.md` pointer to SDC tests.
-- **Scripts:** `test:layout` includes SDC contract; new `test:sdc`.
+- **Phase 2 drag-stop:** Auto/grid cable drag stop reuses `priorGridRoutes` + live `dragCacheEdges` and incremental `rerouteConnectionIds` on the dragged cable only (`WorkflowCanvas.tsx` — no frozen routing edits).
+- **Lane stability test:** `layoutDeterminism.test.ts` — Example #2 drag-sync vs incremental drag-stop midX stable for non-dragged splices.
+- **ARCHITECTURE:** Documented grid drag-stop cache; corrected manual override section (Phase 5 planned).
+- **Prior:** Grid hybrid UX, cable lock survival, EDGE-005, fusion-dot locks, D4 reference contract.
 
-### Try grid routing
+### Browser QA
 
-Set `routingEngine: "grid"` in exported `.sdc.json` or `VITE_ROUTING_ENGINE=grid` in dev.
+- **D4 reference CSVs passed** (user sign-off): `Left-SP-3254.5`, `Left-STATE_OFFICE`, `Left-SPI-215_I-80`.
 
-### Next (backlog)
+### Next (stabilization order)
 
-- Wire `rerouteLocalOnGrid` into live drag for incremental perf.
-- Full SDC-UX-001: overlay always on in hybrid (leg drag → grid lock without manual mode).
-- Port more `spliceEdgeRouting.test.ts` cases to `gridRouter.test.ts`.
-- Default `routingEngine` to `grid` after golden parity.
+1. **Phase 4 remainder:** fanout/tube override survival on Auto↔Manual toggle; idempotency for those override types.
+2. **Phase 5:** `connectionOverrides` / `bundleOverrides` types + bridge from `legOverrides`.
+3. **Phase 6:** Wire or document `assignSpliceRoutingLanesFromLiveHandles` (frozen symbols — ask first).
+4. **Phase 7:** `?fixture=example-1/2/3` print preview gate.
 
 ### Verification
 
 - `npm run test:layout` — 124/124
-- `npm run test:sdc` — green
+- `npm run test:ci` — 596/596
 - `npm run check` + `npm run build` — green
-- `npm run test:ci` — 1 pre-existing fail (`parseBentleyCsv.test.ts` poleNumber)

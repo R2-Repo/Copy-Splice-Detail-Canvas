@@ -43,6 +43,7 @@ import { tubeHandleId } from "@/features/diagram/tubeId";
 import { applyPersistedTubeOverrides } from "@/features/diagram/applyTubeOverrides";
 import {
   applyAllLegOverrides,
+  applyHybridFusionDotLocks,
   mergeFanoutOverridesIntoTubes,
 } from "@/features/manualAdjust/applyManualAdjust";
 import {
@@ -203,6 +204,10 @@ export function buildReactFlowGraph(
     skipTubeAutoAlign?: boolean;
     /** Live cable drag — preserve exact Y, skip stack collision + tube auto-align. */
     dragSync?: boolean;
+    /** Grid incremental reroute — connection ids on the dragged cable. */
+    rerouteConnectionIds?: string[];
+    dragCacheEdges?: Edge[];
+    priorGridRoutes?: Map<string, import("@/features/grid/gridTypes").GridRoute>;
   },
 ): {
   nodes: Node[];
@@ -281,7 +286,8 @@ export function buildReactFlowGraph(
     Object.keys(overrides?.locks?.cables ?? {}),
   );
   for (const vcId of lockedCableIds) {
-    const saved = overrides?.positions?.[`cable-${vcId}`];
+    const saved =
+      overrides?.positions?.[`cable-${vcId}`] ?? overrides?.positions?.[vcId];
     if (saved) positions[`cable-${vcId}`] = { x: saved.x, y: saved.y };
   }
 
@@ -500,11 +506,22 @@ export function buildReactFlowGraph(
       edges,
       visualCables,
       centerX,
-      { overrides, layoutWidth: effectiveWidth },
+      {
+        overrides,
+        layoutWidth: effectiveWidth,
+        rerouteConnectionIds: buildOptions?.rerouteConnectionIds,
+        dragCacheEdges: buildOptions?.dragCacheEdges,
+        priorGridRoutes: buildOptions?.priorGridRoutes,
+      },
     );
     return {
       nodes: augmented.nodes,
-      edges: applyAllLegOverrides(augmented.edges, overrides, augmented.nodes, graph),
+      edges: applyHybridFusionDotLocks(
+        applyAllLegOverrides(augmented.edges, overrides, augmented.nodes, graph),
+        overrides,
+        augmented.nodes,
+        graph,
+      ),
       layout,
       xBounds,
       autoLayoutY,

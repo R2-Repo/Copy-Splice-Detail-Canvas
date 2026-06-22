@@ -78,13 +78,14 @@ Vite dev server — typically http://localhost:5173
 
 ## Drag vs import layout
 
-- **Import / drag-stop:** `buildReactFlowGraph` runs full placement — same-side cable stack collision, cross-side tube auto-align (`TUB-008`), and `routeCenterSplices` lane assignment.
+- **Import / drag-stop:** `buildReactFlowGraph` runs full placement — same-side cable stack collision, cross-side tube auto-align (`TUB-008`), and grid lane assignment (default) or `routeCenterSplices` (nodes escape hatch).
 - **Live cable drag:** `syncNodesEngineDragLayout` calls `buildReactFlowGraph` with `dragSync: true`, which skips collision re-stack and tube auto-align until drag stop. Routing lanes and fiber anchors still refresh from live handle positions.
+- **Grid drag-stop (auto):** When the routing engine is grid and the cable stayed on the same side, drag stop reuses the pre-drag `priorGridRoutes` snapshot plus live `dragCacheEdges`, and reroutes only splices on the dragged cable (`rerouteConnectionIds`). Collision stack runs on release; unaffected splices keep drag-sync midX lanes.
 - **Quad (4-side) mode:** `buildReactFlowGraph` delegates to `buildQuadReactFlowGraph`; `WorkflowCanvas` early-returns quad cable drag to `syncQuadCableDrag` before horizontal manual/auto paths. See [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md).
 - **`assignSpliceRoutingLanesFromLiveHandles`** in `spliceCenterLanes.ts` is reserved for future live bundle `rowOffset` refresh during drag; not wired in the canvas yet.
 
 ## Manual overrides (v14)
 
-- `connectionOverrides` / `bundleOverrides` in `LayoutOverrides` — parameter-based routing offsets applied in `buildReactFlowGraph` before path precompute.
-- `legOverrides` (segment-index) still drives manual leg drag UX; `mergeLayoutOverrides` bridges segment deltas into `connectionOverrides` on save.
+- **`connectionOverrides` / `bundleOverrides`** — planned Phase 5 (`STABILIZATION_PLAN.md`); not yet in `LayoutOverrides` types.
+- `legOverrides` (segment-index) drives manual leg drag UX; auto mode skips them via `applyAllLegOverrides`.
 - Canonical fiber-anchor coordinates: `manualAdjust/handleCoords.ts` → `fiberAnchorCenter()`.

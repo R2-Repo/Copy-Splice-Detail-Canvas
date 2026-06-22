@@ -29,9 +29,65 @@ export const sdcUx001: SdcRule = {
       }
     }
 
+    if (gridLocks?.cables?.length && ctx.overrides?.positions) {
+      for (const cableId of gridLocks.cables) {
+        const nodeId = `cable-${cableId}`;
+        if (
+          !(nodeId in ctx.overrides.positions) &&
+          !(cableId in ctx.overrides.positions)
+        ) {
+          return [
+            warn(
+              "SDC-UX-001",
+              `Grid-locked cable ${cableId} has no saved position`,
+              [cableId],
+            ),
+          ];
+        }
+      }
+    }
+
+    if (gridLocks?.tubeGroups?.length && locks?.tubeGroups) {
+      for (const tubeKey of gridLocks.tubeGroups) {
+        if (!locks.tubeGroups[tubeKey as keyof typeof locks.tubeGroups]) {
+          return [
+            warn(
+              "SDC-UX-001",
+              `Grid tube lock ${tubeKey} missing from locks.tubeGroups`,
+              [tubeKey],
+            ),
+          ];
+        }
+      }
+    }
+
+    if (gridLocks?.dots?.length && ctx.overrides?.legOverrides) {
+      for (const dotId of gridLocks.dots) {
+        const leg = ctx.overrides.legOverrides[dotId];
+        if (
+          leg?.dotShiftX != null &&
+          Math.abs(leg.dotShiftX) <= 0.5 &&
+          Object.keys(leg.leftSegments ?? {}).length === 0 &&
+          Object.keys(leg.rightSegments ?? {}).length === 0
+        ) {
+          return [
+            warn(
+              "SDC-UX-001",
+              `Grid fusion-dot lock ${dotId} has negligible dotShiftX`,
+              [dotId],
+            ),
+          ];
+        }
+      }
+    }
+
     if (locks?.cables && ctx.overrides?.positions) {
       for (const cableId of Object.keys(locks.cables)) {
-        if (!(cableId in ctx.overrides.positions)) {
+        const nodeId = `cable-${cableId}`;
+        if (
+          !(nodeId in ctx.overrides.positions) &&
+          !(cableId in ctx.overrides.positions)
+        ) {
           return [
             warn(
               "SDC-UX-001",
