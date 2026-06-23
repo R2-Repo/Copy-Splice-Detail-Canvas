@@ -6,6 +6,7 @@ import { routingEngineMode } from "@/features/diagram/routingEngine";
 
 import type { SdcRule } from "./types";
 import { buildSdcContextFromLayout } from "./buildSdcContext";
+import { formatSdcFailureMessage } from "./legacyBridge";
 import { fail, pass, warn } from "./helpers";
 
 /** SDC-ROUTE-002 — Hierarchy-aware nesting and lane bands. */
@@ -31,7 +32,7 @@ export const sdcRoute002: SdcRule = {
       : evaluateSdcRouteNestingRules(layoutCtx);
     const failures = results
       .filter((r) => !r.ok)
-      .map((r) => `${r.id}: ${r.detail}`);
+      .map((r) => formatSdcFailureMessage("SDC-ROUTE-002", `${r.id}: ${r.detail}`));
 
     if (failures.length) {
       return [fail("SDC-ROUTE-002", failures.join("; "), failures)];

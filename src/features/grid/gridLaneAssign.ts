@@ -1,6 +1,11 @@
 import type { SpliceHandleEntry } from "@/features/canvas/edges/spliceHandleEntries";
 import {
+  buildSplicePath,
+  defaultSideCircuitLabelSpan,
   inwardSignForColumn,
+  maxSpliceBendsForLane,
+  parallelSpliceSegmentsOverlap,
+  spliceRouteSegments,
   SPLICE_PATH_EPS,
 } from "@/features/canvas/edges/splicePathGeometry";
 import {
@@ -8,8 +13,11 @@ import {
   type SpliceRoutingLane,
 } from "@/features/diagram/centerRouter";
 import { SPLICE_LANE_SEP } from "@/features/diagram/cableLayoutMetrics";
-import { debugSessionLog } from "@/features/diagram/debugSessionLog";
 import { applyLocksToGrid } from "@/features/layoutHybrid/applyLocksToGrid";
+import {
+  handleEntriesToCandidates,
+  reconcileGapHorizontalLanesAfterRouting,
+} from "@/features/diagram/spliceCenterLanes";
 import type { LayoutOverrides } from "@/types/splice";
 
 import {
@@ -22,7 +30,7 @@ import {
   reserveRouteSegments,
   segmentIdsForRoute,
 } from "./reservation";
-import { snapX, snapY } from "./snap";
+import { snapToLaneSep, snapX, snapY } from "./snap";
 import type { GridMap, GridPoint, GridRoute } from "./gridTypes";
 
 function connectionIdFromEdgeId(edgeId: string): string {
@@ -44,6 +52,117 @@ function verticalSpanOverlaps(
   const loB = Math.min(y0B, y1B);
   const hiB = Math.max(y0B, y1B);
   return loA <= hiB + SPLICE_PATH_EPS && loB <= hiA + SPLICE_PATH_EPS;
+}
+
+function horizSegmentsForEntry(
+  entry: SpliceHandleEntry,
+  lane: SpliceRoutingLane,
+): Array<{ kind: "h"; y: number; x0: number; x1: number }> {
+  const sourceHorizY = lane.sourceHorizY ?? entry.sourceY;
+  const targetHorizY = lane.targetHorizY ?? entry.targetY;
+  return spliceRouteSegments(
+    entry.sourceX,
+    entry.sourceY,
+    entry.targetX,
+    entry.targetY,
+    lane.midX,
+    lane.jogX,
+    {
+      sourceHorizY,
+      targetHorizY,
+      sourceBendX: lane.sourceBendX,
+      targetBendX: lane.targetBendX,
+    },
+  ).filter(
+    (seg): seg is { kind: "h"; y: number; x0: number; x1: number } =>
+      seg.kind === "h",
+  );
+}
+
+function horizSegmentsOverlapOccupied(
+  segments: Array<{ kind: "h"; y: number; x0: number; x1: number }>,
+  occupied: Array<{ kind: "h"; y: number; x0: number; x1: number }>,
+): boolean {
+  return occupied.some((existing) =>
+    segments.some((seg) => parallelSpliceSegmentsOverlap(seg, existing)),
+  );
+}
+
+function laneBendsWithinBudgetForEntry(
+  entry: SpliceHandleEntry,
+  lane: SpliceRoutingLane,
+  diagramCenterX: number,
+): boolean {
+  const sideSpans = entry.sideCircuitSpan ?? defaultSideCircuitLabelSpan();
+  const { bendCount } = buildSplicePath(
+    entry.sourceX,
+    entry.sourceY,
+    entry.targetX,
+    entry.targetY,
+    lane.midX,
+    lane.jogX,
+    {
+      sourceHorizY: lane.sourceHorizY,
+      targetHorizY: lane.targetHorizY,
+      sourceBendX: lane.sourceBendX,
+      targetBendX: lane.targetBendX,
+    },
+    sideSpans,
+    diagramCenterX,
+    entry.sourceTagWidth ?? 0,
+    entry.targetTagWidth ?? 0,
+  );
+  return (
+    bendCount <=
+    maxSpliceBendsForLane(entry.sourceY, entry.targetY, lane)
+  );
+}
+
+function assignHorizYAvoidOverlap(
+  entry: SpliceHandleEntry,
+  lane: SpliceRoutingLane,
+  diagramCenterY: number,
+  diagramCenterX: number,
+  occupied: Array<{ kind: "h"; y: number; x0: number; x1: number }>,
+): SpliceRoutingLane {
+  const sourceSign = entry.sourceY <= diagramCenterY ? 1 : -1;
+  const targetSign = entry.targetY <= diagramCenterY ? 1 : -1;
+  const defaultSegments = horizSegmentsForEntry(entry, lane);
+  if (!horizSegmentsOverlapOccupied(defaultSegments, occupied)) {
+    occupied.push(...defaultSegments);
+    return lane;
+  }
+
+  for (let sourceLane = 0; sourceLane <= 128; sourceLane++) {
+    for (let targetLane = 0; targetLane <= 128; targetLane++) {
+      const sourceHorizY =
+        entry.sourceY + sourceSign * sourceLane * SPLICE_LANE_SEP;
+      const targetHorizY =
+        entry.targetY + targetSign * targetLane * SPLICE_LANE_SEP;
+      const trial: SpliceRoutingLane = { ...lane };
+      if (Math.abs(sourceHorizY - entry.sourceY) > SPLICE_PATH_EPS) {
+        trial.sourceHorizY = snapToLaneSep(sourceHorizY);
+      } else {
+        delete trial.sourceHorizY;
+      }
+      if (Math.abs(targetHorizY - entry.targetY) > SPLICE_PATH_EPS) {
+        trial.targetHorizY = snapToLaneSep(targetHorizY);
+      } else {
+        delete trial.targetHorizY;
+      }
+      const segments = horizSegmentsForEntry(entry, trial);
+      if (
+        !horizSegmentsOverlapOccupied(segments, occupied) &&
+        laneBendsWithinBudgetForEntry(entry, trial, diagramCenterX)
+      ) {
+        occupied.push(...segments);
+        return trial;
+      }
+    }
+  }
+
+  occupied.push(...defaultSegments);
+  return lane;
 }
 
 function snapLaneMidXAvoidOverlap(
@@ -165,6 +284,18 @@ export function assignGridLanes(
   const routes = new Map<string, GridRoute>();
   const rerouteOnly = options?.rerouteConnectionIds;
   const verticalOccupied: Array<{ x: number; y0: number; y1: number }> = [];
+  const horizOccupied: Array<{ kind: "h"; y: number; x0: number; x1: number }> =
+    [];
+  let diagramCenterY = 0;
+  if (entries.length > 0) {
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    for (const entry of entries) {
+      minY = Math.min(minY, entry.sourceY, entry.targetY);
+      maxY = Math.max(maxY, entry.sourceY, entry.targetY);
+    }
+    diagramCenterY = (minY + maxY) / 2;
+  }
 
   for (const id of sortedEntryIds(entries)) {
     const entry = entryById.get(id);
@@ -173,26 +304,6 @@ export function assignGridLanes(
 
     const connectionId = connectionIdFromEdgeId(id);
     const shouldReroute = !rerouteOnly || rerouteOnly.has(connectionId);
-
-    if (
-      connectionId.includes("|BL|GR|") ||
-      connectionId.includes("|BL|BR|") ||
-      connectionId.includes("|BL|OR|")
-    ) {
-      debugSessionLog(
-        "gridLaneAssign.ts:assignGridLanes",
-        "grid lane assign",
-        {
-          connectionId: connectionId.slice(-60),
-          shouldReroute,
-          rerouteOnlySize: rerouteOnly?.size ?? 0,
-          usedCache:
-            !shouldReroute && (options?.cachedLanesByEdgeId?.has(id) ?? false),
-          midX: baseLane.midX,
-        },
-        shouldReroute ? "H1" : "H1",
-      );
-    }
 
     if (shouldReroute) {
       const prior = options?.priorRoutes?.get(connectionId);
@@ -209,6 +320,7 @@ export function assignGridLanes(
         y0: Math.min(srcHY, spliceY, tgtHY),
         y1: Math.max(srcHY, spliceY, tgtHY),
       });
+      horizOccupied.push(...horizSegmentsForEntry(entry, cached));
       lanes.set(id, cached);
       const pathResult = splicePathFromGridRoute(entry, cached, diagramCenterX);
       const route = buildGridRoute(grid, connectionId, pathResult.gridPoints);
@@ -225,13 +337,52 @@ export function assignGridLanes(
       diagramCenterX,
       verticalOccupied,
     );
-    const lane = { ...snappedBase, midX };
+    const lane = assignHorizYAvoidOverlap(
+      entry,
+      { ...snappedBase, midX },
+      diagramCenterY,
+      diagramCenterX,
+      horizOccupied,
+    );
 
     const pathResult = splicePathFromGridRoute(entry, lane, diagramCenterX);
     const route = buildGridRoute(grid, connectionId, pathResult.gridPoints);
 
     tryReserveRoute(grid, route);
     lanes.set(id, lane);
+    routes.set(connectionId, route);
+  }
+
+  const sideSpans =
+    entries.find((entry) => entry.sideCircuitSpan)?.sideCircuitSpan ??
+    defaultSideCircuitLabelSpan();
+  const candidates = handleEntriesToCandidates(entries);
+
+  for (const [id, lane] of lanes) {
+    lanes.set(id, snapLaneToGrid(lane, grid));
+  }
+
+  reconcileGapHorizontalLanesAfterRouting(
+    candidates,
+    lanes,
+    sideSpans,
+    diagramCenterX,
+  );
+
+  for (const route of routes.values()) {
+    releaseRouteOccupancy(grid, route);
+  }
+  routes.clear();
+
+  for (const id of sortedEntryIds(entries)) {
+    const entry = entryById.get(id);
+    const lane = lanes.get(id);
+    if (!entry || !lane) continue;
+
+    const connectionId = connectionIdFromEdgeId(id);
+    const pathResult = splicePathFromGridRoute(entry, lane, diagramCenterX);
+    const route = buildGridRoute(grid, connectionId, pathResult.gridPoints);
+    tryReserveRoute(grid, route);
     routes.set(connectionId, route);
   }
 

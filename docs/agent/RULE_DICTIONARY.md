@@ -1,16 +1,26 @@
 # Rule dictionary — plain English
 
-> **Use this when talking to agents.** Say `Rule ID: TUB-001` and both sides mean the same thing.  
-> Full spec: [`LAYOUT_RULES.md`](./LAYOUT_RULES.md) · Conflicts: [`RULE_PRIORITY.md`](./RULE_PRIORITY.md)  
-> **Simple part names (user chat):** [`SIMPLE_TERMS.md`](./SIMPLE_TERMS.md) · **Expanded names:** [`CANVAS_GLOSSARY.md`](./CANVAS_GLOSSARY.md)
+> **Public contract: SDC IDs** from [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md).  
+> Legacy prefixes (FBR, EDGE, …) below are **deprecated in chat** — implementation only.  
+> Map: [`RULE_ID_MAP.md`](./RULE_ID_MAP.md) · Conflicts: [`RULE_PRIORITY.md`](./RULE_PRIORITY.md)  
+> **Simple part names:** [`SIMPLE_TERMS.md`](./SIMPLE_TERMS.md)
 
-## How to use
+## SDC quick reference
 
-| You say | Agent understands |
-|---------|-------------------|
-| `Rule ID: FBR-002` | 24px fiber spacing inside a tube |
-| `Example #2, EDGE-004` | Check bend count on the 4-pair drop splice CSV |
-| `P1 conflict` | EDGE-004 wins over EDGE-011 |
+| SDC ID | Plain English |
+|--------|----------------|
+| **SDC-ORDER-002** | 24px fiber pitch + TIA color order inside tubes |
+| **SDC-ORDER-001** | TIA buffer tube stack order |
+| **SDC-LAYOUT-001** | Cable/tube/row spacing and stacking |
+| **SDC-LAYOUT-002** | Fan-out geometry from tube to handles |
+| **SDC-ROUTE-003** | No path overlap; max 2 corners; distinct lanes |
+| **SDC-ROUTE-002** | Tube bundle nesting and jog trunk |
+| **SDC-GRID-001** | Grid lane reservation |
+| **SDC-UX-001** | Manual locks and overrides |
+
+---
+
+## Legacy catalog (private engine — do not use in new chat)
 
 **Prefix cheat sheet**
 

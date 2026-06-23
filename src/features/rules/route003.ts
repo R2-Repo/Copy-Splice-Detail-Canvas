@@ -10,6 +10,7 @@ import type { GridPoint } from "@/features/grid/gridTypes";
 
 import type { SdcRule } from "./types";
 import { buildSdcContextFromLayout } from "./buildSdcContext";
+import { formatSdcFailureMessage } from "./legacyBridge";
 import { fail, pass, warn } from "./helpers";
 
 function bendCountFromPoints(points: GridPoint[]): number {
@@ -82,7 +83,20 @@ export const sdcRoute003: SdcRule = {
       }
 
       if (failures.length) {
-        return [fail("SDC-ROUTE-003", failures.slice(0, 5).join("; "), failures)];
+        return [
+          fail(
+            "SDC-ROUTE-003",
+            failures
+              .slice(0, 5)
+              .map((f) =>
+                f.includes(":")
+                  ? formatSdcFailureMessage("SDC-ROUTE-003", f)
+                  : `SDC-ROUTE-003: ${f}`,
+              )
+              .join("; "),
+            failures,
+          ),
+        ];
       }
       return [pass("SDC-ROUTE-003")];
     }
@@ -101,7 +115,9 @@ export const sdcRoute003: SdcRule = {
     const failures: string[] = [];
     for (const r of evaluateSdcRouteCollisionRules(layoutCtx)) {
       if (!r.ok && (collisionIds as readonly string[]).includes(r.id)) {
-        failures.push(`${r.id}: ${r.detail}`);
+        failures.push(
+          formatSdcFailureMessage("SDC-ROUTE-003", `${r.id}: ${r.detail}`),
+        );
       }
     }
 

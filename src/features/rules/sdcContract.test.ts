@@ -50,7 +50,7 @@ describe("SDC full contract (with layout)", () => {
         overrides: {
           reportKey: `example-${n}`,
           positions: {},
-          routingEngine: "nodes",
+          routingEngine: "grid",
         },
       });
       const results = runRules(ctx);

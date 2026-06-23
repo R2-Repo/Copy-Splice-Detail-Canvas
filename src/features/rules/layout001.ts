@@ -2,6 +2,7 @@ import { evaluateSdcLayoutSpacingRules } from "@/features/diagram/layoutRules";
 
 import type { SdcRule } from "./types";
 import { buildSdcContextFromLayout } from "./buildSdcContext";
+import { formatSdcFailureMessage } from "./legacyBridge";
 import { fail, pass, warn } from "./helpers";
 
 /** SDC-LAYOUT-001 — Spacing between cables, tubes, fanouts, and strands. */
@@ -21,7 +22,7 @@ export const sdcLayout001: SdcRule = {
     const results = evaluateSdcLayoutSpacingRules(layoutCtx);
     const failures = results
       .filter((r) => !r.ok)
-      .map((r) => `${r.id}: ${r.detail}`);
+      .map((r) => formatSdcFailureMessage("SDC-LAYOUT-001", `${r.id}: ${r.detail}`));
     if (failures.length) {
       return [fail("SDC-LAYOUT-001", failures.join("; "), failures)];
     }

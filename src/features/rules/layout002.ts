@@ -2,6 +2,7 @@ import { evaluateSdcLayoutFanoutRules } from "@/features/diagram/layoutRules";
 
 import type { SdcRule } from "./types";
 import { buildSdcContextFromLayout } from "./buildSdcContext";
+import { formatSdcFailureMessage } from "./legacyBridge";
 import { fail, pass, warn } from "./helpers";
 
 /** SDC-LAYOUT-002 — Fiber strand fan-out geometry. */
@@ -46,7 +47,7 @@ export const sdcLayout002: SdcRule = {
     const results = evaluateSdcLayoutFanoutRules(layoutCtx);
     const failures = results
       .filter((r) => !r.ok)
-      .map((r) => `${r.id}: ${r.detail}`);
+      .map((r) => formatSdcFailureMessage("SDC-LAYOUT-002", `${r.id}: ${r.detail}`));
     if (failures.length) {
       return [fail("SDC-LAYOUT-002", failures.join("; "), failures)];
     }

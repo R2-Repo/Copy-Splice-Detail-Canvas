@@ -1,6 +1,11 @@
 # Layout rules — cable, tube, and fiber invariants
 
-> **Must keep.** These rules define how fiber cables, buffer tubes, and fiber strands are formatted and oriented. Any change to diagram layout, cable nodes, or splice routing **must pass every rule** in `layoutRules.test.ts`.
+> **Deprecated for agents and user-facing vocabulary.**  
+> **Canonical contract:** [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md) — 12 **SDC-*** rules.  
+> **Test gate:** `npm run test:layout` → `src/features/rules/sdcLayoutContract.test.ts`  
+> This file and `layoutRules.ts` remain as the **private validation engine** until post-ship cutover.
+
+> **Must keep.** Legacy rule IDs below still drive `layoutRules.ts` checks. Any layout change **must pass** `npm run test:layout` (SDC contract).
 
 **Enforcement code:** `src/features/diagram/layoutRules.ts` (legacy) + `src/features/rules/` (SDC)  
 **Contract tests:** `layoutRules.test.ts` + `src/features/rules/sdcContract.test.ts`  

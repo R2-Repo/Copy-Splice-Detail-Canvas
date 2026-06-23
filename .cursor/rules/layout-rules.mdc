@@ -8,19 +8,25 @@ alwaysApply: true
 **Non-optional before finishing substantive work:** `npm run test:layout`  
 Fails = do not ship. Do not weaken rules without explicit user approval.
 
+**Canonical contract:** [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../../splice_detail_canvas_rule_pack/00_Rule_Index.md) — **12 SDC rules** (`SDC-*`).  
+**Test gate:** `src/features/rules/sdcLayoutContract.test.ts` (grid engine, Examples #1–#3 + key Left CSVs).  
+**Legacy engine:** `src/features/diagram/layoutRules.ts` (private validators — do not cite legacy IDs in chat).
+
 Before changing diagram layout, cable nodes, buffer tubes, fiber strands, splice routing, or CSV import that feeds layout:
 
-1. Read **`docs/agent/LAYOUT_RULES.md`** — canonical rule IDs and requirements.
-2. Implement checks in **`src/features/diagram/layoutRules.ts`** when adding a new invariant.
-3. Add/update tests in **`src/features/diagram/layoutRules.test.ts`** — Examples #1–#3 must pass.
-4. Run **`npm run test:layout`** (layout contract) then **`npm run test:ci`** before finishing.
+1. Read the **rule pack index** and [`docs/agent/RULE_ID_MAP.md`](../../docs/agent/RULE_ID_MAP.md).
+2. Implement SDC checks in `src/features/rules/`; legacy checks stay in `layoutRules.ts`.
+3. Extend `sdcLayoutContract.test.ts` when adding production fixtures.
+4. Run **`npm run test:layout`** then **`npm run test:ci`** before finishing.
 
-## Non-negotiables
+Optional: `npm run test:layout-legacy` — legacy `layoutRules.test.ts` only (not in `verify`).
 
-- **24px pitch** within each buffer tube (`FIBER_ROW_PITCH`) — never stretch for global row gaps.
-- **TIA fiber order** top→bottom within tubes.
-- Same-side cables **stack without overlap**; multi-tube cables offset **farther from center**.
-- Dominant cable pair rows **align straight across** and precede stub rows.
-- Splice edges get **distinct routing lanes on import** (no overlap until user drags).
+## Non-negotiables (SDC vocabulary)
+
+- **24px pitch** within each buffer tube — **SDC-ORDER-002** / **SDC-LAYOUT-001**
+- **TIA fiber + tube order** — **SDC-ORDER-001**, **SDC-ORDER-002**
+- Same-side cables **stack without overlap** — **SDC-LAYOUT-001**
+- Distinct splice routing lanes on import — **SDC-ROUTE-003**, **SDC-GRID-001**
+- **Bend budget:** 2 corners per splice — **SDC-ROUTE-003**
 
 Do not weaken or delete rules without explicit user approval.

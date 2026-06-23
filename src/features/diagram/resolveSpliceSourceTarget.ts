@@ -1,7 +1,5 @@
 import type { FiberEndpoint } from "@/types/splice";
 
-import { debugSessionLog } from "@/features/diagram/debugSessionLog";
-
 /** Same-side cables share one column X within half pitch. */
 const SAME_COLUMN_X_EPS = 12;
 
@@ -44,28 +42,5 @@ export function resolveSpliceSourceTarget(
   if (posLeft.x <= posRight.x) {
     return { source: csvLeft, target: csvRight };
   }
-  const result = { source: csvRight, target: csvLeft };
-  if (
-    csvLeft.endpoint.fiberColor === "GR" ||
-    csvLeft.endpoint.fiberColor === "BR" ||
-    csvRight.endpoint.fiberColor === "GR" ||
-    csvRight.endpoint.fiberColor === "BR"
-  ) {
-    debugSessionLog(
-      "resolveSpliceSourceTarget.ts",
-      "endpoint order GR/BR",
-      {
-        leftCable: csvLeft.visualCableId,
-        rightCable: csvRight.visualCableId,
-        leftSide: csvLeft.canvasSide,
-        rightSide: csvRight.canvasSide,
-        sourceCable: result.source.visualCableId,
-        targetCable: result.target.visualCableId,
-        leftX: posLeft.x,
-        rightX: posRight.x,
-      },
-      "H4",
-    );
-  }
-  return result;
+  return { source: csvRight, target: csvLeft };
 }

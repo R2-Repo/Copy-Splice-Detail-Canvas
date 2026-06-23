@@ -3,7 +3,6 @@ import {
   MIN_SPLICE_HORIZONTAL_INSET,
   SPLICE_LANE_SEP,
 } from "@/features/diagram/cableLayoutMetrics";
-import { debugSessionLog } from "@/features/diagram/debugSessionLog";
 import type { SideCircuitLabelSpan } from "@/features/diagram/cableLabels";
 import {
   canvasSideForHandle,
@@ -23,7 +22,6 @@ import {
   spliceMidOrderInverts,
   spliceMidXFromRowOffset,
   spliceMidXInsetBounds,
-  pickSpliceRouteTemplate,
   spliceRouteHorizontalSegments,
   spliceRoutingBounds,
   SPLICE_PATH_EPS,
@@ -1825,6 +1823,36 @@ function deconflictGapHorizontalLanes(
 
         for (let step = 1; step <= MAX_GAP_HORIZ_DECONFLICT_STEPS && !resolved; step++) {
           const trialSourceY =
+            b.sourceY + sourceSign * step * SPLICE_LANE_SEP;
+          const trialTargetY =
+            b.targetY + targetSign * step * SPLICE_LANE_SEP;
+          const trial: SpliceRoutingLane = {
+            ...laneB,
+            sourceHorizY: trialSourceY,
+            targetHorizY: trialTargetY,
+          };
+          if (
+            laneBendsWithinBudget(b, trial, sideSpans, diagramCenterX) &&
+            !gapHorizSegmentsOverlap(
+              a,
+              laneA,
+              b,
+              trial,
+              sideSpans,
+              diagramCenterX,
+            )
+          ) {
+            lanes.set(b.id, trial);
+            changed = true;
+            resolved = true;
+            break;
+          }
+        }
+
+        if (resolved) continue;
+
+        for (let step = 1; step <= MAX_GAP_HORIZ_DECONFLICT_STEPS && !resolved; step++) {
+          const trialSourceY =
             a.sourceY + sideHorizLaneSign(a.sourceY, diagramCenterY) * step * SPLICE_LANE_SEP;
           const trial: SpliceRoutingLane = {
             ...laneA,
@@ -1884,60 +1912,24 @@ function assignSideHorizLanesWithGapBends(
       lanes.set(id, trial);
     }
   }
+}
 
-  // #region agent log
-  const eligible = candidates.filter((c) => lanes.has(c.id) && !c.fullButtSplice);
-  const unresolved: string[] = [];
-  for (let i = 0; i < eligible.length; i++) {
-    for (let j = i + 1; j < eligible.length; j++) {
-      const a = eligible[i]!;
-      const b = eligible[j]!;
-      const laneA = lanes.get(a.id)!;
-      const laneB = lanes.get(b.id)!;
-      if (
-        gapHorizSegmentsOverlap(
-          a,
-          laneA,
-          b,
-          laneB,
-          sideSpans,
-          diagramCenterX,
-        )
-      ) {
-        unresolved.push(`${a.id.slice(-40)} vs ${b.id.slice(-40)}`);
-      }
-    }
-  }
-  if (unresolved.length > 0) {
-    debugSessionLog(
-      "spliceCenterLanes.ts:assignSideHorizLanesWithGapBends",
-      "unresolved gap horiz overlaps",
-      { count: unresolved.length, pairs: unresolved.slice(0, 8) },
-      "H2",
-    );
-  }
-  // #endregion
+/**
+ * Re-run gap horizontal deconflict after midX snap (grid assign).
+ * Preserves midX and jogX; refreshes Y-track offsets for final lanes.
+ */
+export function reconcileGapHorizontalLanesAfterRouting(
+  candidates: MidXLaneCandidate[],
+  lanes: Map<string, SpliceRoutingLane>,
+  sideSpans: SideCircuitLabelSpan,
+  diagramCenterX: number,
+): void {
+  assignGapBendLaneXs(candidates, lanes, sideSpans, diagramCenterX);
+  deconflictGapHorizontalLanes(candidates, lanes, sideSpans, diagramCenterX);
 }
 
 function sideHorizLaneSign(anchorY: number, diagramCenterY: number): 1 | -1 {
   return anchorY <= diagramCenterY ? 1 : -1;
-}
-
-function centerGapHorizTracks(
-  candidate: MidXLaneCandidate,
-  lane: SpliceRoutingLane,
-  sourceHorizY: number,
-  targetHorizY: number,
-): Array<{ kind: "h"; y: number; x0: number; x1: number }> {
-  const { lo, hi } = spliceRoutingBounds(candidate.sourceX, candidate.targetX);
-  const tracks: Array<{ kind: "h"; y: number; x0: number; x1: number }> = [];
-  if (Math.abs(lane.midX - lo) > SPLICE_PATH_EPS) {
-    tracks.push({ kind: "h", y: sourceHorizY, x0: lo, x1: lane.midX });
-  }
-  if (Math.abs(hi - lane.midX) > SPLICE_PATH_EPS) {
-    tracks.push({ kind: "h", y: targetHorizY, x0: lane.midX, x1: hi });
-  }
-  return tracks;
 }
 
 function horizontalSegmentsForLane(
@@ -1945,10 +1937,10 @@ function horizontalSegmentsForLane(
   lane: SpliceRoutingLane,
   sourceHorizY: number,
   targetHorizY: number,
-  sideSpans: SideCircuitLabelSpan,
-  diagramCenterX: number,
+  _sideSpans: SideCircuitLabelSpan,
+  _diagramCenterX: number,
 ): Array<{ kind: "h"; y: number; x0: number; x1: number }> {
-  const rendered = spliceRouteHorizontalSegments(
+  return spliceRouteHorizontalSegments(
     candidate.sourceX,
     candidate.sourceY,
     candidate.targetX,
@@ -1957,21 +1949,7 @@ function horizontalSegmentsForLane(
     lane.jogX,
     { sourceHorizY, targetHorizY },
     lane,
-    sideSpans,
-    diagramCenterX,
-    candidate.sourceTagWidth ?? 0,
-    candidate.targetTagWidth ?? 0,
   );
-  const template = pickSpliceRouteTemplate(
-    candidate.sourceX,
-    candidate.sourceY,
-    candidate.targetX,
-    candidate.targetY,
-  );
-  if (template === "straight") {
-    return rendered;
-  }
-  return [...rendered, ...centerGapHorizTracks(candidate, lane, sourceHorizY, targetHorizY)];
 }
 
 function horizTrackSegmentsOverlap(

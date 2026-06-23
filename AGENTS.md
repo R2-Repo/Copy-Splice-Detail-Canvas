@@ -11,10 +11,12 @@ Frontend-only React PWA: node/workflow canvas (React Flow). No backend unless th
 | `docs/agent/CONTEXT.md` | Current focus, decisions, blockers (current-only) |
 | `docs/agent/HANDOFF.md` | Last session summary for the next agent |
 | `docs/agent/ARCHITECTURE.md` | Folders, patterns, extension points |
-| `docs/agent/LAYOUT_RULES.md` | **Must-keep** cable/tube/fiber layout invariants + test contract |
+| `splice_detail_canvas_rule_pack/00_Rule_Index.md` | **Canonical 12 SDC rules** — public contract |
+| `docs/agent/RULE_ID_MAP.md` | SDC ↔ legacy map (legacy = private engine) |
+| `docs/agent/LAYOUT_RULES.md` | **Deprecated** — legacy IDs; see rule pack |
 | `docs/agent/QUAD_LAYOUT.md` | **4-side (quad) layout** — architecture, backlog, handoff (**read before quad work**) |
 | `.cursor/rules/frozen-routing.mdc` | **Frozen** splice routing symbols — user approval required |
-| `docs/agent/RULE_DICTIONARY.md` | Plain-English rule IDs for chat (`Rule ID: TUB-001`) |
+| `docs/agent/RULE_DICTIONARY.md` | Plain-English **SDC** rule IDs for chat |
 | `docs/agent/SIMPLE_TERMS.md` | **User simple names** (canonical chat vocabulary) — one-line diagram + simple ↔ official dictionary |
 | `docs/agent/CANVAS_GLOSSARY.md` | Expanded diagram part names + screenshots |
 | `docs/agent/CHANGELOG.md` | Archived session history (not active requirements) |
@@ -23,13 +25,13 @@ Frontend-only React PWA: node/workflow canvas (React Flow). No backend unless th
 
 ## Workflow
 
-1. Read SCOPE → RULE_PRIORITY → CONTEXT + HANDOFF before coding (add LAYOUT_RULES for layout work).
+1. Read SCOPE → RULE_PRIORITY → rule pack index → CONTEXT + HANDOFF before coding.
 2. When the user describes the diagram in simple terms, read **SIMPLE_TERMS.md** first and map to official/code names.
 3. Plan in bullets; ask if requirements are unclear.
 3. Implement in `src/` using existing patterns.
 4. Run **`npm run test:layout`** (layout contract — **required every session** with code changes).
 5. Run `npm run check`, `npm run test:ci`, `npm run build`.
-6. Layout changes: update `LAYOUT_RULES.md` + `layoutRules.ts` + `layoutRules.test.ts` together.
+6. SDC rule changes: update rule pack docs + `src/features/rules/` + `sdcLayoutContract.test.ts`.
 7. Update CONTEXT + HANDOFF before ending the session.
 
 ## Constraints

@@ -140,10 +140,6 @@ import {
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
 import { rerouteConnectionIdsForVisualCableDrag } from "@/features/diagram/connectionIdsForCable";
 import { syncNodesEngineDragLayout } from "@/features/diagram/syncNodesEngineDragLayout";
-import {
-  debugSessionLog,
-  debugWatchFiberLanes,
-} from "@/features/diagram/debugSessionLog";
 import { detectFullButtSpliceTubes } from "@/features/diagram/fullButtSplice";
 import {
   boundsFromFlowNodes,
@@ -513,15 +509,6 @@ function WorkflowCanvasInner() {
 
       setNodes(nextNodes);
       setEdges(nextEdges);
-      debugSessionLog(
-        "WorkflowCanvas.tsx:syncNodesEngineDrag",
-        "live drag reroute",
-        {
-          draggedCable: draggedNode.id,
-          lanes: debugWatchFiberLanes(nextEdges),
-        },
-        "H3",
-      );
     },
     [getNodes, setEdges, setNodes],
   );
@@ -1637,7 +1624,6 @@ function WorkflowCanvasInner() {
         let nextNodes: Node[];
         let nextEdges: Edge[];
         let autoLayoutY: Record<string, number> | undefined;
-        let stopRerouteConnCount: number | undefined;
 
         const flippedConnIds = sideChanged
           ? rerouteConnectionIdsForVisualCableDrag(
@@ -1705,7 +1691,6 @@ function WorkflowCanvasInner() {
                 visualId,
               )
             : undefined;
-          stopRerouteConnCount = rerouteConnectionIds?.length;
           ({ nodes: nextNodes, edges: nextEdges, autoLayoutY } =
             buildReactFlowGraph(
               graph,
@@ -1789,37 +1774,6 @@ function WorkflowCanvasInner() {
                 position: { x: finalX, y: finalY },
               })
             : baseOverrides,
-        );
-        debugSessionLog(
-          "WorkflowCanvas.tsx:onNodeDragStop",
-          "cable drag stop",
-          {
-            visualId,
-            manualMode,
-            sideChanged,
-            incrementalGridStop:
-              !manualMode &&
-              useGridRoutingEngine(existing ?? undefined) &&
-              !sideChanged &&
-              gridRoutesDragRef.current != null,
-            lockedCableCount: Object.keys(
-              existing?.locks?.cables ?? {},
-            ).length,
-            gridLockCableCount: existing?.gridLocks?.cables?.length ?? 0,
-            rerouteOnStop: sideChanged
-              ? "full-side-flip"
-              : !manualMode &&
-                  useGridRoutingEngine(existing ?? undefined) &&
-                  !sideChanged &&
-                  gridRoutesDragRef.current != null
-                ? "incremental"
-                : manualMode
-                  ? "manual-sync"
-                  : "full-auto",
-            rerouteConnCount: stopRerouteConnCount,
-            lanes: debugWatchFiberLanes(nextEdges),
-          },
-          sideChanged ? "H4" : "H2",
         );
         layoutWidthRef.current = layoutWidth;
         if (manualMode) {

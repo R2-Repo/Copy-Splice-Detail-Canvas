@@ -77,7 +77,7 @@ A **corner** is a 90° turn on the **left leg** or **right leg** (horizontal ↔
 | **Corner on the left leg** | One 90° bend on the path from handle → dot |
 | **Corner on the right leg** | One 90° bend on the path from dot → handle |
 | **Straight leg** | That leg has **no corners** (one straight run) |
-| **Bend budget** | **2 corners total** for that splice — **left + right combined** |
+| **Bend budget** | **2 corners total** for that splice — **left + right combined** | **SDC-ROUTE-003** |
 
 **Important:** The limit is **not** 2 per leg. Count both legs together.
 
@@ -101,7 +101,7 @@ A **corner** is a 90° turn on the **left leg** or **right leg** (horizontal ↔
 | You say | Agent / code |
 |---------|--------------|
 | Corner / bend | **Bend**; `countOrthogonalBends(leftPath, rightPath)` |
-| Bend budget | **EDGE-004**; `MAX_SPLICE_BENDS = 2` |
+| Bend budget | **SDC-ROUTE-003**; `MAX_SPLICE_BENDS = 2` |
 | Straight splice | 0 bends; rows aligned within ~12px |
 
 Fan-out curves on the **cable** side are **not** splice corners — only turns on **left leg** / **right leg** count toward the budget.
@@ -114,9 +114,9 @@ When several fibers from the **same buffer tube** go to the **same target cable*
 
 | You say | What it is | Agent / code |
 |---------|------------|--------------|
-| **Tube bundle** | Same-tube fibers grouped toward one target cable | **EDGE-010**; `tubeBundleKey`; **bundle trunk** |
-| **Shared run** | One horizontal they share before splitting | **Bundle trunk** / **jogX** |
-| **Center nest** | Bundled lines turn at staggered positions so they don’t stack; top row bends **outermost** first on a downward splice | **EDGE-005**, **EDGE-007**; concentric nesting |
+| **Tube bundle** | Same-tube fibers grouped toward one target cable | **SDC-ROUTE-002**; `tubeBundleKey`; **bundle trunk** |
+| **Shared run** | One horizontal they share before splitting | **SDC-ROUTE-002**; **jogX** |
+| **Center nest** | Bundled lines turn at staggered positions so they don’t stack | **SDC-ROUTE-002**, **SDC-ROUTE-003** |
 | **Peel off** | Each fiber leaves the bundle to its own **center lane** | Distinct **midX** per strand |
 
 **Example phrases:**
