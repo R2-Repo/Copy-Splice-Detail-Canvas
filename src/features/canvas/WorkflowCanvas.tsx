@@ -122,7 +122,10 @@ import {
 } from "@/features/manualAdjust/repinButtSpliceEdges";
 import { syncManualVisualCable } from "@/features/manualAdjust/syncManualVisualCable";
 import { useManualAdjustEngine } from "@/features/manualAdjust/useManualAdjustEngine";
-import { syncConnectionOverridesFromLegs } from "@/features/manualAdjust/connectionOverrides";
+import {
+  stripRoutingOverridesForConnections,
+  syncConnectionOverridesFromLegs,
+} from "@/features/manualAdjust/connectionOverrides";
 import { clearAllHybridLocks, onEditLock, unlockHybridItem } from "@/features/layoutHybrid";
 import { gridSegmentIdsFromLegPaths } from "@/features/layoutHybrid/gridSegmentIdsFromPaths";
 import { routingEngineMode, useGridRoutingEngine } from "@/features/diagram/routingEngine";
@@ -135,8 +138,12 @@ import {
   spliceEdgeIdsForTubeKey,
 } from "@/features/diagram/snapGuides";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
-import { connectionIdsForVisualCable } from "@/features/diagram/connectionIdsForCable";
+import { rerouteConnectionIdsForVisualCableDrag } from "@/features/diagram/connectionIdsForCable";
 import { syncNodesEngineDragLayout } from "@/features/diagram/syncNodesEngineDragLayout";
+import {
+  debugSessionLog,
+  debugWatchFiberLanes,
+} from "@/features/diagram/debugSessionLog";
 import { detectFullButtSpliceTubes } from "@/features/diagram/fullButtSplice";
 import {
   boundsFromFlowNodes,
@@ -297,6 +304,7 @@ function WorkflowCanvasInner() {
   const reportKeyRef = useRef<string | null>(null);
   const graphRef = useRef<ConnectionGraph | null>(null);
   const layoutWidthRef = useRef<number>(CABLE_LAYOUT.width);
+  const layoutExpansionRef = useRef<LayoutExpansion>(DEFAULT_LAYOUT_EXPANSION);
   const xBoundsRef = useRef<CableXBounds>({
     leftX: CABLE_LAYOUT.leftX,
     rightX: CABLE_LAYOUT.rightX,
@@ -505,6 +513,15 @@ function WorkflowCanvasInner() {
 
       setNodes(nextNodes);
       setEdges(nextEdges);
+      debugSessionLog(
+        "WorkflowCanvas.tsx:syncNodesEngineDrag",
+        "live drag reroute",
+        {
+          draggedCable: draggedNode.id,
+          lanes: debugWatchFiberLanes(nextEdges),
+        },
+        "H3",
+      );
     },
     [getNodes, setEdges, setNodes],
   );
@@ -639,6 +656,7 @@ function WorkflowCanvasInner() {
           existingEdgeIds: existingIdsFromEdges(nextEdges),
           collapseFullButtSplices,
           layoutWidth: layoutWidthRef.current,
+          layoutExpansion: patch?.layoutExpansion ?? layoutExpansionRef.current,
           calloutsVisible: calloutsVisibleRef.current,
           calloutScale: calloutScaleRef.current,
           calloutAutoZoom: calloutAutoZoomRef.current,
@@ -689,12 +707,15 @@ function WorkflowCanvasInner() {
         existing?.layoutWidth ??
         layoutWidthRef.current;
 
-      let layoutExpansion: LayoutExpansion = DEFAULT_LAYOUT_EXPANSION;
-      if (
-        options?.fitAtUnitZoom &&
+      let layoutExpansion: LayoutExpansion =
+        existing?.layoutExpansion ?? DEFAULT_LAYOUT_EXPANSION;
+      const shouldResolveFeasibleLayout =
         options?.layoutWidth === undefined &&
-        !options?.refreshRowLayout
-      ) {
+        !options?.refreshRowLayout &&
+        (options?.fitAtUnitZoom === true ||
+          options?.refreshLayout === true ||
+          existing?.layoutExpansion === undefined);
+      if (shouldResolveFeasibleLayout) {
         const resolved = resolveFeasibleImportLayout(graph, {
           stageWidth: stageWidth > 0 ? stageWidth : undefined,
           layoutWidth:
@@ -709,6 +730,7 @@ function WorkflowCanvasInner() {
       }
 
       layoutWidthRef.current = layoutWidthArg;
+      layoutExpansionRef.current = layoutExpansion;
 
       const savedPositions =
         options?.refreshLayout ?? false ? {} : existing?.positions ?? {};
@@ -763,6 +785,7 @@ function WorkflowCanvasInner() {
         saveLayoutOverrides(
           mergeLayoutOverrides(reportKey, {
             layoutWidth: layoutWidthArg,
+            layoutExpansion,
             positions: positionsFromNodes(merged),
             autoLayoutY,
             existingEdgeIds: existing?.existingEdgeIds,
@@ -1614,6 +1637,18 @@ function WorkflowCanvasInner() {
         let nextNodes: Node[];
         let nextEdges: Edge[];
         let autoLayoutY: Record<string, number> | undefined;
+        let stopRerouteConnCount: number | undefined;
+
+        const flippedConnIds = sideChanged
+          ? rerouteConnectionIdsForVisualCableDrag(
+              buildVisualCablesForLayout(graph).visualCables,
+              visualId,
+            )
+          : [];
+        const strippedRouting = stripRoutingOverridesForConnections(
+          existing,
+          flippedConnIds,
+        );
 
         if (manualMode && sideChanged) {
           ({ nodes: nextNodes, edges: nextEdges } = buildReactFlowGraph(
@@ -1628,11 +1663,12 @@ function WorkflowCanvasInner() {
               autoAdjustEnabled: false,
               tubeOverrides: existing?.tubeOverrides,
               fanoutOverrides: existing?.fanoutOverrides,
-              legOverrides: existing?.legOverrides,
+              legOverrides: strippedRouting.legOverrides,
+              connectionOverrides: strippedRouting.connectionOverrides,
               locks: existing?.locks,
             },
             layoutWidth,
-            { skipTubeAutoAlign: true },
+            { skipTubeAutoAlign: true, refreshColumnX: true },
           ));
           const callouts = getNodes().filter((n) => n.type === "cableCallout");
           nextNodes = [...nextNodes, ...callouts];
@@ -1662,17 +1698,14 @@ function WorkflowCanvasInner() {
           }
           nextNodes = [...nextNodes, ...callouts];
         } else {
-          const gridEngine = useGridRoutingEngine(existing);
-          const incrementalGridStop =
-            gridEngine &&
-            !sideChanged &&
-            gridRoutesDragRef.current != null;
+          const incrementalGridStop = false;
           const rerouteConnectionIds = incrementalGridStop
-            ? connectionIdsForVisualCable(
+            ? rerouteConnectionIdsForVisualCableDrag(
                 buildVisualCablesForLayout(graph).visualCables,
                 visualId,
               )
             : undefined;
+          stopRerouteConnCount = rerouteConnectionIds?.length;
           ({ nodes: nextNodes, edges: nextEdges, autoLayoutY } =
             buildReactFlowGraph(
               graph,
@@ -1686,20 +1719,27 @@ function WorkflowCanvasInner() {
                 autoAdjustEnabled: true,
                 tubeOverrides: existing?.tubeOverrides,
                 fanoutOverrides: existing?.fanoutOverrides,
-                legOverrides: existing?.legOverrides,
+                legOverrides: sideChanged
+                  ? strippedRouting.legOverrides
+                  : existing?.legOverrides,
+                connectionOverrides: sideChanged
+                  ? strippedRouting.connectionOverrides
+                  : existing?.connectionOverrides,
                 locks: existing?.locks,
                 routingEngine: existing?.routingEngine,
-                gridLocks: existing?.gridLocks,
-                gridRoutes: existing?.gridRoutes,
+                gridLocks: sideChanged ? undefined : existing?.gridLocks,
+                gridRoutes: sideChanged ? undefined : existing?.gridRoutes,
               },
               layoutWidth,
-              incrementalGridStop
-                ? {
-                    rerouteConnectionIds,
-                    dragCacheEdges: getEdges(),
-                    priorGridRoutes: gridRoutesDragRef.current ?? undefined,
-                  }
-                : undefined,
+              sideChanged
+                ? { refreshColumnX: true }
+                : incrementalGridStop
+                  ? {
+                      rerouteConnectionIds,
+                      dragCacheEdges: getEdges(),
+                      priorGridRoutes: gridRoutesDragRef.current ?? undefined,
+                    }
+                  : undefined,
             ));
         }
 
@@ -1732,10 +1772,15 @@ function WorkflowCanvasInner() {
           autoAdjustEnabled: autoAdjustRef.current,
           tubeOverrides: existing?.tubeOverrides,
           fanoutOverrides: existing?.fanoutOverrides,
-          legOverrides: existing?.legOverrides,
+          legOverrides: sideChanged
+            ? strippedRouting.legOverrides
+            : existing?.legOverrides,
+          connectionOverrides: sideChanged
+            ? strippedRouting.connectionOverrides
+            : existing?.connectionOverrides,
           routingEngine: existing?.routingEngine,
-          gridLocks: existing?.gridLocks,
-          gridRoutes: existing?.gridRoutes,
+          gridLocks: sideChanged ? undefined : existing?.gridLocks,
+          gridRoutes: sideChanged ? undefined : existing?.gridRoutes,
         });
         saveLayoutOverrides(
           !manualMode
@@ -1744,6 +1789,37 @@ function WorkflowCanvasInner() {
                 position: { x: finalX, y: finalY },
               })
             : baseOverrides,
+        );
+        debugSessionLog(
+          "WorkflowCanvas.tsx:onNodeDragStop",
+          "cable drag stop",
+          {
+            visualId,
+            manualMode,
+            sideChanged,
+            incrementalGridStop:
+              !manualMode &&
+              useGridRoutingEngine(existing ?? undefined) &&
+              !sideChanged &&
+              gridRoutesDragRef.current != null,
+            lockedCableCount: Object.keys(
+              existing?.locks?.cables ?? {},
+            ).length,
+            gridLockCableCount: existing?.gridLocks?.cables?.length ?? 0,
+            rerouteOnStop: sideChanged
+              ? "full-side-flip"
+              : !manualMode &&
+                  useGridRoutingEngine(existing ?? undefined) &&
+                  !sideChanged &&
+                  gridRoutesDragRef.current != null
+                ? "incremental"
+                : manualMode
+                  ? "manual-sync"
+                  : "full-auto",
+            rerouteConnCount: stopRerouteConnCount,
+            lanes: debugWatchFiberLanes(nextEdges),
+          },
+          sideChanged ? "H4" : "H2",
         );
         layoutWidthRef.current = layoutWidth;
         if (manualMode) {

@@ -2,7 +2,7 @@ import type { Edge, Node } from "@xyflow/react";
 
 import { visualCableIdFromNodeId } from "@/features/diagram/cableDisplaySide";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
-import { connectionIdsForVisualCable } from "@/features/diagram/connectionIdsForCable";
+import { rerouteConnectionIdsForVisualCableDrag } from "@/features/diagram/connectionIdsForCable";
 import { useGridRoutingEngine } from "@/features/diagram/routingEngine";
 import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import type { GridRoute } from "@/features/grid/gridTypes";
@@ -36,7 +36,7 @@ export function syncNodesEngineDragLayout({
   const visualId = visualCableIdFromNodeId(draggedNode.id);
   const rerouteConnectionIds =
     visualId && useGridRoutingEngine(overrides)
-      ? connectionIdsForVisualCable(visualCables, visualId)
+      ? rerouteConnectionIdsForVisualCableDrag(visualCables, visualId)
       : undefined;
 
   const { nodes: engineNodes, edges } = buildReactFlowGraph(

@@ -175,3 +175,32 @@ export function legOverridesForConnectionApply(
   if (leg?.dotShiftX != null) return { dotShiftX: leg.dotShiftX };
   return undefined;
 }
+
+/** Drop per-connection routing overrides after cable side flip (paths are invalid). */
+export function stripRoutingOverridesForConnections(
+  overrides: Pick<
+    LayoutOverrides,
+    "legOverrides" | "connectionOverrides"
+  > | undefined,
+  connectionIds: string[],
+): Pick<LayoutOverrides, "legOverrides" | "connectionOverrides"> {
+  if (!overrides || connectionIds.length === 0) {
+    return {
+      legOverrides: overrides?.legOverrides,
+      connectionOverrides: overrides?.connectionOverrides,
+    };
+  }
+  const drop = new Set(connectionIds);
+  const legOverrides = { ...(overrides.legOverrides ?? {}) };
+  const connectionOverrides = { ...(overrides.connectionOverrides ?? {}) };
+  for (const id of drop) {
+    delete legOverrides[id];
+    delete connectionOverrides[id];
+  }
+  return {
+    legOverrides: Object.keys(legOverrides).length ? legOverrides : undefined,
+    connectionOverrides: Object.keys(connectionOverrides).length
+      ? connectionOverrides
+      : undefined,
+  };
+}

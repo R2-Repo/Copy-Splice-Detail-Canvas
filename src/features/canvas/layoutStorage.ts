@@ -94,6 +94,7 @@ export function mergeLayoutOverrides(
     collapseFullButtSplices:
       patch.collapseFullButtSplices ?? existing?.collapseFullButtSplices,
     layoutWidth: patch.layoutWidth ?? existing?.layoutWidth,
+    layoutExpansion: patch.layoutExpansion ?? existing?.layoutExpansion,
     callouts: patch.callouts ?? existing?.callouts,
     calloutsVisible: patch.calloutsVisible ?? existing?.calloutsVisible,
     calloutScale: patch.calloutScale ?? existing?.calloutScale,

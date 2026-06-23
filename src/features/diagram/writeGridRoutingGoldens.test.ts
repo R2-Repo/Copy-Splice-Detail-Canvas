@@ -14,19 +14,29 @@ const files = [
 /** Regenerate: `UPDATE_GRID_GOLDENS=1 npx vitest run writeGridRoutingGoldens` */
 describe("grid routing golden writer", () => {
   it.runIf(process.env.UPDATE_GRID_GOLDENS === "1")(
-    "writes routingCharacterization.grid.json",
+    "writes routing characterization goldens",
     () => {
-      const out: Record<string, ReturnType<typeof characterizeReferenceCsv>> =
+      const gridOut: Record<string, ReturnType<typeof characterizeReferenceCsv>> =
+        {};
+      const nodesOut: Record<string, ReturnType<typeof characterizeReferenceCsv>> =
         {};
       for (const file of files) {
-        out[file] = characterizeReferenceCsv(examplesDir, file, "grid");
+        gridOut[file] = characterizeReferenceCsv(examplesDir, file, "grid");
+        nodesOut[file] = characterizeReferenceCsv(examplesDir, file, "nodes");
       }
       writeFileSync(
         join(
           process.cwd(),
           "src/features/diagram/__goldens__/routingCharacterization.grid.json",
         ),
-        `${JSON.stringify(out, null, 2)}\n`,
+        `${JSON.stringify(gridOut, null, 2)}\n`,
+      );
+      writeFileSync(
+        join(
+          process.cwd(),
+          "src/features/diagram/__goldens__/routingCharacterization.json",
+        ),
+        `${JSON.stringify(nodesOut, null, 2)}\n`,
       );
     },
   );

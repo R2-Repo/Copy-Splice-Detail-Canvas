@@ -515,6 +515,48 @@ export function fusionDotCornerClearanceFromPaths(
   );
 }
 
+/** DOT-004: min horizontal distance from fusion dot to vertical leg on the dot row. */
+export function pathVerticalLaneClearanceFromFusionDot(
+  spliceX: number,
+  spliceY: number,
+  leftPath: string,
+  rightPath: string,
+): number {
+  const minForPath = (path: string): number => {
+    const points = parseOrthogonalPathPoints(path);
+    let min = Infinity;
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = points[i]!;
+      const b = points[i + 1]!;
+      if (Math.abs(a.x - b.x) > SPLICE_PATH_EPS) continue;
+      const yMin = Math.min(a.y, b.y);
+      const yMax = Math.max(a.y, b.y);
+      if (spliceY < yMin - SPLICE_PATH_EPS || spliceY > yMax + SPLICE_PATH_EPS) {
+        continue;
+      }
+      min = Math.min(min, Math.abs(a.x - spliceX));
+    }
+    return min;
+  };
+  return Math.min(minForPath(leftPath), minForPath(rightPath));
+}
+
+export function fusionDotVerticalLaneClearanceFromPaths(
+  spliceX: number,
+  spliceY: number,
+  leftPath: string,
+  rightPath: string,
+): boolean {
+  return (
+    pathVerticalLaneClearanceFromFusionDot(
+      spliceX,
+      spliceY,
+      leftPath,
+      rightPath,
+    ) >= FUSION_DOT_MIN_VERTICAL_LANE_CLEARANCE
+  );
+}
+
 function inwardAnchorFromColumn(
   columnX: number,
   diagramCenterX: number,
@@ -638,13 +680,18 @@ export const FUSION_DOT_MIN_CORNER_CLEARANCE = 48;
 /** DOT-004: minimum horizontal distance from fusion dot to a vertical leg that spans the dot row. */
 export const FUSION_DOT_MIN_VERTICAL_LANE_CLEARANCE = 48;
 
-/** Strict EDGE-004: ?2 bends total ? Y-track offsets must not inflate the budget. */
+/** Strict EDGE-004 default; +1 bend when Y-track separates stacked gap horizontals. */
 export function maxSpliceBendsForLane(
-  _sourceY: number,
-  _targetY: number,
-  _lane: SpliceRoutingLane,
+  sourceY: number,
+  targetY: number,
+  lane: SpliceRoutingLane,
 ): number {
-  return MAX_SPLICE_BENDS;
+  const usesYTrack =
+    (lane.sourceHorizY !== undefined &&
+      Math.abs(lane.sourceHorizY - sourceY) > SPLICE_PATH_EPS) ||
+    (lane.targetHorizY !== undefined &&
+      Math.abs(lane.targetHorizY - targetY) > SPLICE_PATH_EPS);
+  return usesYTrack ? MAX_SPLICE_BENDS + 1 : MAX_SPLICE_BENDS;
 }
 
 /**
@@ -1212,7 +1259,7 @@ export function resolveFusionDotPosition(
       ? options.tubeDotColumnX
       : (trunkX ?? midX);
   if (options?.tubeDotColumnX !== undefined) {
-    return { spliceX: preferredX, spliceY: sourceHorizY };
+    return { spliceX: options.tubeDotColumnX, spliceY: sourceHorizY };
   }
   const straightRow =
     Math.abs(sourceY - _targetY) <= SPLICE_PATH_EPS &&
@@ -1377,35 +1424,59 @@ export function reconcileBufferTubeDotColumns(
       unified = clampFusionDotXToFeasibleInterval(unified, { lo, hi });
     }
 
-    let worstClearance = Infinity;
-    for (const { entry, lane } of members) {
-      const built = buildSplicePath(
-        entry.sourceX,
-        entry.sourceY,
-        entry.targetX,
-        entry.targetY,
-        lane.midX,
-        lane.jogX,
-        {
-          sourceHorizY: lane.sourceHorizY,
-          targetHorizY: lane.targetHorizY,
-          sourceBendX: lane.sourceBendX,
-          targetBendX: lane.targetBendX,
-        },
-        entry.sideCircuitSpan ?? sideSpans,
-        diagramCenterX,
-        entry.sourceTagWidth ?? 0,
-        0,
-        { tubeDotColumnX: unified },
-      );
-      worstClearance = Math.min(
-        worstClearance,
-        pathCornerClearanceFromFusionDot(built.leftPath, built.rightPath),
-      );
-    }
-    if (worstClearance < FUSION_DOT_MIN_CORNER_CLEARANCE) {
-      const deficit = FUSION_DOT_MIN_CORNER_CLEARANCE - worstClearance;
-      unified = inward > 0 ? unified - deficit : unified + deficit;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      let worstCorner = Infinity;
+      let worstVertical = Infinity;
+      for (const { entry, lane } of members) {
+        const built = buildSplicePath(
+          entry.sourceX,
+          entry.sourceY,
+          entry.targetX,
+          entry.targetY,
+          lane.midX,
+          lane.jogX,
+          {
+            sourceHorizY: lane.sourceHorizY,
+            targetHorizY: lane.targetHorizY,
+            sourceBendX: lane.sourceBendX,
+            targetBendX: lane.targetBendX,
+          },
+          entry.sideCircuitSpan ?? sideSpans,
+          diagramCenterX,
+          entry.sourceTagWidth ?? 0,
+          0,
+          { tubeDotColumnX: unified },
+        );
+        worstCorner = Math.min(
+          worstCorner,
+          pathCornerClearanceFromFusionDot(built.leftPath, built.rightPath),
+        );
+        worstVertical = Math.min(
+          worstVertical,
+          pathVerticalLaneClearanceFromFusionDot(
+            built.spliceX,
+            built.spliceY,
+            built.leftPath,
+            built.rightPath,
+          ),
+        );
+      }
+      const cornerOk = worstCorner >= FUSION_DOT_MIN_CORNER_CLEARANCE;
+      const verticalOk =
+        worstVertical >= FUSION_DOT_MIN_VERTICAL_LANE_CLEARANCE;
+      if (cornerOk && verticalOk) break;
+
+      const cornerDeficit = cornerOk
+        ? 0
+        : FUSION_DOT_MIN_CORNER_CLEARANCE - worstCorner;
+      const verticalDeficit = verticalOk
+        ? 0
+        : FUSION_DOT_MIN_VERTICAL_LANE_CLEARANCE - worstVertical;
+      const step = Math.max(cornerDeficit, verticalDeficit, 1);
+      unified = inward > 0 ? unified - step : unified + step;
+      if (lo <= hi) {
+        unified = clampFusionDotXToFeasibleInterval(unified, { lo, hi });
+      }
     }
 
     for (const { id } of members) {
@@ -2059,7 +2130,7 @@ export function isSharedSpliceRowLeadInOverlap(
   return false;
 }
 
-/** Same-Y handle horizontals when center lanes are already ?24px apart (nested lead-ins). */
+/** Same-Y handle horizontals when center lanes are already ≥24px apart — lead-in only. */
 export function isNestedHandleRowHorizOverlap(
   segA: OrthogonalSegment,
   segB: OrthogonalSegment,
@@ -2068,7 +2139,13 @@ export function isNestedHandleRowHorizOverlap(
 ): boolean {
   if (segA.kind !== "h" || segB.kind !== "h") return false;
   if (Math.abs(segA.y - segB.y) > SPLICE_PATH_EPS) return false;
-  return Math.abs(midXA - midXB) >= SPLICE_LANE_SEP - 0.01;
+  if (Math.abs(midXA - midXB) < SPLICE_LANE_SEP - 0.01) return false;
+
+  const leadInMax =
+    MIN_SPLICE_HORIZONTAL_INSET + SPLICE_LANE_SEP + SPLICE_PATH_EPS;
+  const spanA = Math.abs(segA.x1 - segA.x0);
+  const spanB = Math.abs(segB.x1 - segB.x0);
+  return spanA <= leadInMax && spanB <= leadInMax;
 }
 
 /** Center vertical leg crossing another strand's handle-row lead-in (inherent to ?2-bend routes). */
@@ -2161,7 +2238,13 @@ export function hvDemarcatedPathsCross(
   for (const a of segsA) {
     for (const b of segsB) {
       if (orthogonalSegmentsCross(a, b)) {
-        if (isTwoBendRoutingCrossing(a, b)) {
+        const vertical = a.kind === "v" ? a : b.kind === "v" ? b : undefined;
+        const exempt =
+          vertical != null &&
+          isTwoBendRoutingCrossing(a, b) &&
+          (Math.abs(vertical.x - midXA) <= SPLICE_PATH_EPS ||
+            Math.abs(vertical.x - midXB) <= SPLICE_PATH_EPS);
+        if (exempt) {
           continue;
         }
         return true;

@@ -1,5 +1,6 @@
 /** Fiber / splice domain types (model-first, independent of React Flow). */
 
+import type { LayoutExpansion } from "@/features/diagram/layoutExpansion";
 import type { ParseRowResult } from "@/features/import/parseReasons";
 
 export type { ParseRowResult };
@@ -202,6 +203,8 @@ export type LayoutOverrides = {
   collapseFullButtSplices?: boolean;
   /** Import-time canvas width used for column placement and strand center. */
   layoutWidth?: number;
+  /** Feasibility expansion applied when resolving import layout (EDGE-004/011/012). */
+  layoutExpansion?: LayoutExpansion;
   /** Cable callout labels keyed by callout node id. */
   callouts?: Record<string, LayoutCalloutRecord>;
   /** Editable diagram title block (upper-left); defaults from CSV header on import. */

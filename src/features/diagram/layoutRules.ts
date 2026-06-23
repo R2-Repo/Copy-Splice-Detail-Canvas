@@ -51,6 +51,7 @@ import {
   compactTubeFiberLayoutOk,
   tubesInTiaOrderOk,
 } from "@/features/diagram/tubeFiberLayout";
+import { resolveSpliceSourceTarget } from "@/features/diagram/resolveSpliceSourceTarget";
 import {
   buildVisualCables,
   buildVisualCablesForLayout,
@@ -644,38 +645,44 @@ function spliceHandleEndpoints(
   const rightVc = ctx.visualCables.find((v) => v.id === csvRight.visualCableId);
   if (!leftVc || !rightVc) return null;
 
-  const leftScale =
-    (leftNode.data as { diagramScale?: number }).diagramScale ?? 1;
-  const rightScale =
-    (rightNode.data as { diagramScale?: number }).diagramScale ?? 1;
-  const leftAligned = (leftNode.data as { alignedStemX?: number }).alignedStemX;
-  const rightAligned = (rightNode.data as {
-    alignedStemX?: number;
-  }).alignedStemX;
-  const leftHandle = fiberHandlePosition(
-    leftVc,
-    conn.id,
-    leftNode.position,
-    leftScale,
-    leftAligned,
-  );
-  const rightHandle = fiberHandlePosition(
-    rightVc,
-    conn.id,
-    rightNode.position,
-    rightScale,
-    rightAligned,
-  );
-
-  let sourceHandle = leftHandle;
-  let targetHandle = rightHandle;
-  if (
-    csvLeft.canvasSide === "right" &&
-    csvRight.canvasSide === "left"
-  ) {
-    sourceHandle = rightHandle;
-    targetHandle = leftHandle;
+  const positions: Record<string, { x: number; y: number }> = {};
+  for (const [nodeId, node] of nodeById) {
+    positions[nodeId] = node.position;
   }
+  const { source: sourceEp, target: targetEp } = resolveSpliceSourceTarget(
+    csvLeft,
+    csvRight,
+    positions,
+  );
+  const sourceNode = nodeById.get(`cable-${sourceEp.visualCableId}`);
+  const targetNode = nodeById.get(`cable-${targetEp.visualCableId}`);
+  const sourceVc = ctx.visualCables.find((v) => v.id === sourceEp.visualCableId);
+  const targetVc = ctx.visualCables.find((v) => v.id === targetEp.visualCableId);
+  if (!sourceNode || !targetNode || !sourceVc || !targetVc) return null;
+
+  const sourceScale =
+    (sourceNode.data as { diagramScale?: number }).diagramScale ?? 1;
+  const targetScale =
+    (targetNode.data as { diagramScale?: number }).diagramScale ?? 1;
+  const sourceAligned = (sourceNode.data as { alignedStemX?: number })
+    .alignedStemX;
+  const targetAligned = (targetNode.data as { alignedStemX?: number })
+    .alignedStemX;
+
+  const sourceHandle = fiberHandlePosition(
+    sourceVc,
+    conn.id,
+    sourceNode.position,
+    sourceScale,
+    sourceAligned,
+  );
+  const targetHandle = fiberHandlePosition(
+    targetVc,
+    conn.id,
+    targetNode.position,
+    targetScale,
+    targetAligned,
+  );
 
   const edge = spliceEdgeForConnection(ctx.reactFlow.edges, conn.id);
   const rowOffset = (edge?.data as { rowOffset?: number })?.rowOffset ?? 0;

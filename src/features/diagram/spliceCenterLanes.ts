@@ -3,6 +3,7 @@ import {
   MIN_SPLICE_HORIZONTAL_INSET,
   SPLICE_LANE_SEP,
 } from "@/features/diagram/cableLayoutMetrics";
+import { debugSessionLog } from "@/features/diagram/debugSessionLog";
 import type { SideCircuitLabelSpan } from "@/features/diagram/cableLabels";
 import {
   canvasSideForHandle,
@@ -11,8 +12,13 @@ import {
   defaultSideCircuitLabelSpan,
   horizontalInsetOkFromHandle,
   inwardSignForColumn,
+  isNestedHandleRowHorizOverlap,
+  isSharedSpliceRowLeadInOverlap,
   isSameColumnSplice,
   laneClearXBeforeVertical,
+  maxSpliceBendsForLane,
+  buildSplicePath,
+  parallelSpliceSegmentsOverlap,
   resolveButtSpliceMidX,
   spliceMidOrderInverts,
   spliceMidXFromRowOffset,
@@ -26,6 +32,11 @@ import {
 import type { SpliceHandleEntry } from "@/features/canvas/edges/spliceHandleEntries";
 
 export type { SpliceHandleEntry, SpliceRoutingLane };
+
+/** Max source/target horiz lane steps before forced offset (EDGE-011). */
+const MAX_SIDE_HORIZ_LANE_ATTEMPTS = 256;
+/** Max 24px Y bumps per deconflict pair. */
+const MAX_GAP_HORIZ_DECONFLICT_STEPS = 32;
 
 function inwardAnchorFromColumn(
   columnX: number,
@@ -249,6 +260,20 @@ function bundleMidOrderInvertsUniform(members: MidXLaneCandidate[]): boolean {
 
 function isCoherentTubeBundle(members: MidXLaneCandidate[]): boolean {
   return members.length > 1 && members.every((m) => m.tubeBundleKey);
+}
+
+/** Same source handle column — row-offset nest must not split on per-target Y. */
+function sharesSourceRoutingColumn(members: MidXLaneCandidate[]): boolean {
+  if (members.length <= 1) return false;
+  const xs = members.map((member) => member.sourceX);
+  return Math.max(...xs) - Math.min(...xs) <= SPLICE_PATH_EPS;
+}
+
+/** Same target handle column — row-offset nest must not split on per-source Y. */
+function sharesTargetRoutingColumn(members: MidXLaneCandidate[]): boolean {
+  if (members.length <= 1) return false;
+  const xs = members.map((member) => member.targetX);
+  return Math.max(...xs) - Math.min(...xs) <= SPLICE_PATH_EPS;
 }
 
 function packAnchorStart(
@@ -526,31 +551,29 @@ function packSameSideMidXLanes(
   const bundles = groupCandidatesByTubeBundle(candidates);
   if (bundles.length === 1 && isCoherentTubeBundle(bundles[0]!)) {
     const sorted = sortCandidatesByRowOrder(bundles[0]!);
-    if (bundleMidOrderInvertsUniform(sorted)) {
-      const downwardLoop = bundleMidOrderInverts(sorted);
-      const baseRun =
-        circuitLabelSpanForSide(
-          canvasSideForHandle(columnX, diagramCenterX),
+    const downwardLoop = bundleMidOrderInverts(sorted);
+    const baseRun =
+      circuitLabelSpanForSide(
+        canvasSideForHandle(columnX, diagramCenterX),
+        sideSpans,
+      ) + MIN_SPLICE_HORIZONTAL_INSET;
+    const base = columnX + inward * baseRun;
+    for (let i = 0; i < sorted.length; i++) {
+      const laneIndex = downwardLoop ? i : sorted.length - 1 - i;
+      const raw = base + inward * laneIndex * sep;
+      const candidate = sorted[i]!;
+      result.set(
+        candidate.id,
+        clampMidXForMinHorizontalInset(
+          raw,
+          candidate.sourceX,
+          candidate.targetX,
+          diagramCenterX,
           sideSpans,
-        ) + MIN_SPLICE_HORIZONTAL_INSET;
-      const base = columnX + inward * baseRun;
-      for (let i = 0; i < sorted.length; i++) {
-        const laneIndex = downwardLoop ? i : sorted.length - 1 - i;
-        const raw = base + inward * laneIndex * sep;
-        const candidate = sorted[i]!;
-        result.set(
-          candidate.id,
-          clampMidXForMinHorizontalInset(
-            raw,
-            candidate.sourceX,
-            candidate.targetX,
-            diagramCenterX,
-            sideSpans,
-          ),
-        );
-      }
-      return result;
+        ),
+      );
     }
+    return result;
   }
 
   const downward: MidXLaneCandidate[] = [];
@@ -691,6 +714,21 @@ export function packMidXLanes(
       minSep,
       centerX,
       sideSpans,
+      packLo,
+      packHi,
+    );
+  }
+
+  if (
+    sharesSourceRoutingColumn(candidates) ||
+    sharesTargetRoutingColumn(candidates)
+  ) {
+    return packCoherentTubeBundleMidXLanes(
+      sortCandidatesByRowOrder(candidates),
+      minSep,
+      centerX,
+      sideSpans,
+      globalMaxRowOffset,
       packLo,
       packHi,
     );
@@ -1596,7 +1634,226 @@ function stripSideHorizYOffsets(lanes: Map<string, SpliceRoutingLane>): void {
   }
 }
 
-/** Gap-bend X only — Y-track offsets add bends and are disabled under strict EDGE-004. */
+function laneBendsWithinBudget(
+  candidate: MidXLaneCandidate,
+  lane: SpliceRoutingLane,
+  sideSpans: SideCircuitLabelSpan,
+  diagramCenterX: number,
+): boolean {
+  const { bendCount } = buildSplicePath(
+    candidate.sourceX,
+    candidate.sourceY,
+    candidate.targetX,
+    candidate.targetY,
+    lane.midX,
+    lane.jogX,
+    {
+      sourceHorizY: lane.sourceHorizY,
+      targetHorizY: lane.targetHorizY,
+      sourceBendX: lane.sourceBendX,
+      targetBendX: lane.targetBendX,
+    },
+    sideSpans,
+    diagramCenterX,
+    candidate.sourceTagWidth ?? 0,
+    candidate.targetTagWidth ?? 0,
+  );
+  return (
+    bendCount <=
+    maxSpliceBendsForLane(candidate.sourceY, candidate.targetY, lane)
+  );
+}
+
+function gapHorizSegmentsOverlap(
+  a: MidXLaneCandidate,
+  laneA: SpliceRoutingLane,
+  b: MidXLaneCandidate,
+  laneB: SpliceRoutingLane,
+  sideSpans: SideCircuitLabelSpan,
+  diagramCenterX: number,
+): boolean {
+  const srcHYA = laneA.sourceHorizY ?? a.sourceY;
+  const tgtHYA = laneA.targetHorizY ?? a.targetY;
+  const srcHYB = laneB.sourceHorizY ?? b.sourceY;
+  const tgtHYB = laneB.targetHorizY ?? b.targetY;
+  const segsA = horizontalSegmentsForLane(
+    a,
+    laneA,
+    srcHYA,
+    tgtHYA,
+    sideSpans,
+    diagramCenterX,
+  );
+  const segsB = horizontalSegmentsForLane(
+    b,
+    laneB,
+    srcHYB,
+    tgtHYB,
+    sideSpans,
+    diagramCenterX,
+  );
+  for (const segA of segsA) {
+    for (const segB of segsB) {
+      if (
+        isSharedSpliceRowLeadInOverlap(
+          a.sourceY,
+          b.sourceY,
+          a.targetY,
+          b.targetY,
+          segA,
+          segB,
+        )
+      ) {
+        continue;
+      }
+      if (
+        isNestedHandleRowHorizOverlap(
+          segA,
+          segB,
+          laneA.midX,
+          laneB.midX,
+        )
+      ) {
+        continue;
+      }
+      if (parallelSpliceSegmentsOverlap(segA, segB)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/** Bump source/target horiz Y only for strands whose gap horizontals stack. */
+function deconflictGapHorizontalLanes(
+  candidates: MidXLaneCandidate[],
+  lanes: Map<string, SpliceRoutingLane>,
+  sideSpans: SideCircuitLabelSpan,
+  diagramCenterX: number,
+): void {
+  const eligible = sortCandidatesByRowOrder(
+    candidates.filter((c) => lanes.has(c.id) && !c.fullButtSplice),
+  );
+  if (eligible.length < 2) return;
+
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (const candidate of eligible) {
+    minY = Math.min(minY, candidate.sourceY, candidate.targetY);
+    maxY = Math.max(maxY, candidate.sourceY, candidate.targetY);
+  }
+  const diagramCenterY = (minY + maxY) / 2;
+
+  for (let pass = 0; pass < 64; pass++) {
+    let changed = false;
+    for (let i = 0; i < eligible.length; i++) {
+      for (let j = i + 1; j < eligible.length; j++) {
+        const a = eligible[i]!;
+        const b = eligible[j]!;
+        const laneA = lanes.get(a.id)!;
+        const laneB = lanes.get(b.id)!;
+        if (
+          !gapHorizSegmentsOverlap(
+            a,
+            laneA,
+            b,
+            laneB,
+            sideSpans,
+            diagramCenterX,
+          )
+        ) {
+          continue;
+        }
+
+        const sourceSign = sideHorizLaneSign(b.sourceY, diagramCenterY);
+        const targetSign = sideHorizLaneSign(b.targetY, diagramCenterY);
+        let resolved = false;
+
+        for (let step = 1; step <= MAX_GAP_HORIZ_DECONFLICT_STEPS && !resolved; step++) {
+          const trialSourceY =
+            b.sourceY + sourceSign * step * SPLICE_LANE_SEP;
+          const trial: SpliceRoutingLane = {
+            ...laneB,
+            sourceHorizY: trialSourceY,
+          };
+          if (
+            laneBendsWithinBudget(b, trial, sideSpans, diagramCenterX) &&
+            !gapHorizSegmentsOverlap(
+              a,
+              laneA,
+              b,
+              trial,
+              sideSpans,
+              diagramCenterX,
+            )
+          ) {
+            lanes.set(b.id, trial);
+            changed = true;
+            resolved = true;
+            break;
+          }
+        }
+
+        if (resolved) continue;
+
+        for (let step = 1; step <= MAX_GAP_HORIZ_DECONFLICT_STEPS && !resolved; step++) {
+          const trialTargetY =
+            b.targetY + targetSign * step * SPLICE_LANE_SEP;
+          const trial: SpliceRoutingLane = {
+            ...laneB,
+            targetHorizY: trialTargetY,
+          };
+          if (
+            laneBendsWithinBudget(b, trial, sideSpans, diagramCenterX) &&
+            !gapHorizSegmentsOverlap(
+              a,
+              laneA,
+              b,
+              trial,
+              sideSpans,
+              diagramCenterX,
+            )
+          ) {
+            lanes.set(b.id, trial);
+            changed = true;
+            resolved = true;
+            break;
+          }
+        }
+
+        if (resolved) continue;
+
+        for (let step = 1; step <= MAX_GAP_HORIZ_DECONFLICT_STEPS && !resolved; step++) {
+          const trialSourceY =
+            a.sourceY + sideHorizLaneSign(a.sourceY, diagramCenterY) * step * SPLICE_LANE_SEP;
+          const trial: SpliceRoutingLane = {
+            ...laneA,
+            sourceHorizY: trialSourceY,
+          };
+          if (
+            laneBendsWithinBudget(a, trial, sideSpans, diagramCenterX) &&
+            !gapHorizSegmentsOverlap(
+              a,
+              trial,
+              b,
+              laneB,
+              sideSpans,
+              diagramCenterX,
+            )
+          ) {
+            lanes.set(a.id, trial);
+            changed = true;
+            resolved = true;
+            break;
+          }
+        }
+      }
+    }
+    if (!changed) break;
+  }
+}
+
+/** Gap-bend X; Y offsets applied only when gap horizontals would stack (EDGE-011). */
 function assignSideHorizLanesWithGapBends(
   candidates: MidXLaneCandidate[],
   lanes: Map<string, SpliceRoutingLane>,
@@ -1605,6 +1862,61 @@ function assignSideHorizLanesWithGapBends(
 ): void {
   stripSideHorizYOffsets(lanes);
   assignGapBendLaneXs(candidates, lanes, sideSpans, diagramCenterX);
+  deconflictGapHorizontalLanes(
+    candidates,
+    lanes,
+    sideSpans,
+    diagramCenterX,
+  );
+  const horizOffsets = assignSideHorizLaneYs(
+    candidates,
+    lanes,
+    sideSpans,
+    diagramCenterX,
+  );
+  const candidateById = new Map(candidates.map((c) => [c.id, c]));
+  for (const [id, offsets] of horizOffsets) {
+    const candidate = candidateById.get(id);
+    const lane = lanes.get(id);
+    if (!candidate || !lane) continue;
+    const trial = { ...lane, ...offsets };
+    if (laneBendsWithinBudget(candidate, trial, sideSpans, diagramCenterX)) {
+      lanes.set(id, trial);
+    }
+  }
+
+  // #region agent log
+  const eligible = candidates.filter((c) => lanes.has(c.id) && !c.fullButtSplice);
+  const unresolved: string[] = [];
+  for (let i = 0; i < eligible.length; i++) {
+    for (let j = i + 1; j < eligible.length; j++) {
+      const a = eligible[i]!;
+      const b = eligible[j]!;
+      const laneA = lanes.get(a.id)!;
+      const laneB = lanes.get(b.id)!;
+      if (
+        gapHorizSegmentsOverlap(
+          a,
+          laneA,
+          b,
+          laneB,
+          sideSpans,
+          diagramCenterX,
+        )
+      ) {
+        unresolved.push(`${a.id.slice(-40)} vs ${b.id.slice(-40)}`);
+      }
+    }
+  }
+  if (unresolved.length > 0) {
+    debugSessionLog(
+      "spliceCenterLanes.ts:assignSideHorizLanesWithGapBends",
+      "unresolved gap horiz overlaps",
+      { count: unresolved.length, pairs: unresolved.slice(0, 8) },
+      "H2",
+    );
+  }
+  // #endregion
 }
 
 function sideHorizLaneSign(anchorY: number, diagramCenterY: number): 1 | -1 {
@@ -1759,7 +2071,7 @@ function assignHorizLanesForTubeBundle(
   let attempts = 0;
 
   for (;;) {
-    if (attempts++ > 64) {
+    if (attempts++ > MAX_SIDE_HORIZ_LANE_ATTEMPTS) {
       return;
     }
     const attempt = horizOffsetsForBundleLane(
@@ -1863,12 +2175,52 @@ export function assignSideHorizLaneYs(
     let targetLane = 0;
     let attempts = 0;
 
+    let lastSourceHorizY = candidate.sourceY;
+    let lastTargetHorizY = candidate.targetY;
+
     for (;;) {
-      if (attempts++ > 64) break;
+      if (attempts++ > MAX_SIDE_HORIZ_LANE_ATTEMPTS) {
+        const forced: Pick<
+          SpliceRoutingLane,
+          "sourceHorizY" | "targetHorizY"
+        > = {};
+        if (Math.abs(lastSourceHorizY - candidate.sourceY) > SPLICE_PATH_EPS) {
+          forced.sourceHorizY = lastSourceHorizY;
+        }
+        if (Math.abs(lastTargetHorizY - candidate.targetY) > SPLICE_PATH_EPS) {
+          forced.targetHorizY = lastTargetHorizY;
+        }
+        const trial = { ...lane, ...forced };
+        if (
+          (forced.sourceHorizY !== undefined ||
+            forced.targetHorizY !== undefined) &&
+          laneBendsWithinBudget(
+            candidate,
+            trial,
+            sideSpans,
+            resolvedCenterX,
+          )
+        ) {
+          result.set(candidate.id, forced);
+          occupied.push(
+            ...horizontalSegmentsForLane(
+              candidate,
+              lane,
+              lastSourceHorizY,
+              lastTargetHorizY,
+              sideSpans,
+              resolvedCenterX,
+            ),
+          );
+        }
+        break;
+      }
       const sourceHorizY =
         candidate.sourceY + sourceSign * sourceLane * SPLICE_LANE_SEP;
       const targetHorizY =
         candidate.targetY + targetSign * targetLane * SPLICE_LANE_SEP;
+      lastSourceHorizY = sourceHorizY;
+      lastTargetHorizY = targetHorizY;
       const segments = horizontalSegmentsForLane(
         candidate,
         lane,
@@ -1878,7 +2230,6 @@ export function assignSideHorizLaneYs(
         resolvedCenterX,
       );
       if (!horizSegmentsOverlapOccupied(segments, occupied)) {
-        occupied.push(...segments);
         const offsets: Pick<
           SpliceRoutingLane,
           "sourceHorizY" | "targetHorizY"
@@ -1889,6 +2240,27 @@ export function assignSideHorizLaneYs(
         if (Math.abs(targetHorizY - candidate.targetY) > SPLICE_PATH_EPS) {
           offsets.targetHorizY = targetHorizY;
         }
+        const trial = { ...lane, ...offsets };
+        if (
+          !laneBendsWithinBudget(
+            candidate,
+            trial,
+            sideSpans,
+            resolvedCenterX,
+          )
+        ) {
+          if (offsets.sourceHorizY !== undefined) sourceLane += 1;
+          if (offsets.targetHorizY !== undefined) targetLane += 1;
+          if (
+            offsets.sourceHorizY === undefined &&
+            offsets.targetHorizY === undefined
+          ) {
+            sourceLane += 1;
+            targetLane += 1;
+          }
+          continue;
+        }
+        occupied.push(...segments);
         if (
           offsets.sourceHorizY !== undefined ||
           offsets.targetHorizY !== undefined
@@ -1934,19 +2306,6 @@ export function assignSideHorizLaneYs(
         sourceLane += 1;
         targetLane += 1;
       }
-    }
-
-    if (attempts > 64) {
-      occupied.push(
-        ...horizontalSegmentsForLane(
-          candidate,
-          lane,
-          candidate.sourceY,
-          candidate.targetY,
-          sideSpans,
-          resolvedCenterX,
-        ),
-      );
     }
   }
 

@@ -14,6 +14,7 @@ import {
   applyCableSideOverrides,
   displaySideFromCanvasX,
 } from "@/features/diagram/cableDisplaySide";
+import { resolveSpliceSourceTarget } from "@/features/diagram/resolveSpliceSourceTarget";
 import {
   CABLE_LAYOUT,
   compactVisualCableHeight,
@@ -406,15 +407,11 @@ export function buildReactFlowGraph(
     const csvRight = endpointOnVisualSide(conn, graph, visualCables, "right");
     if (!csvLeft || !csvRight) continue;
 
-    let source = csvLeft;
-    let target = csvRight;
-    if (
-      csvLeft.canvasSide === "right" &&
-      csvRight.canvasSide === "left"
-    ) {
-      source = csvRight;
-      target = csvLeft;
-    }
+    const { source, target } = resolveSpliceSourceTarget(
+      csvLeft,
+      csvRight,
+      positions,
+    );
 
     const laneIndex = rowIndex.get(conn.id) ?? 0;
     edges.push({

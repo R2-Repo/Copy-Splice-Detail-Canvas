@@ -37,13 +37,13 @@ export function runWithLayoutExpansion<T>(
 export function layoutExpansionForIteration(iteration: number): LayoutExpansion {
   if (iteration <= 0) return DEFAULT_LAYOUT_EXPANSION;
   return {
-    centerGapPadding: iteration * 64,
+    centerGapPadding: iteration * 96,
     cableGapExtra: iteration >= 10 ? (iteration - 9) * 12 : 0,
     tubeGroupGapExtra: iteration >= 14 ? (iteration - 13) * 12 : 0,
   };
 }
 
-export const MAX_LAYOUT_FEASIBILITY_ITERATIONS = 16;
+export const MAX_LAYOUT_FEASIBILITY_ITERATIONS = 20;
 
 export function effectiveCableGap(): number {
   const { cableGapExtra } = getLayoutExpansion();
