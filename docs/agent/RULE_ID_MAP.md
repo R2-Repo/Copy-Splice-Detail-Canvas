@@ -24,8 +24,11 @@ See rule pack index — import DATA/ORDER → placement → grid zone → locks 
 
 ## Tests
 
-- `npm run test:sdc` — per-rule + contract
-- `npm run test:layout` — legacy Examples #1–#3 + SDC contract
+- `npm run test:layout` — **SDC grid contract** (12 rules; Examples #1–#3 + Left CSVs)
+- `npm run test:layout-slow` — optional full **300N_MAIN** grid rules
+- `npm run test:layout-legacy` — legacy `layoutRules.test.ts` (private IDs)
+- `npm run test:routing` — legacy routing import contract (EDGE/DOT on grid)
+- `npm run test:sdc` — per-rule SDC unit tests
 
 ## Routing engines
 

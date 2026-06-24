@@ -10,6 +10,8 @@ export default defineConfig({
     globals: true,
     testTimeout: 120_000,
     hookTimeout: 120_000,
+    pool: "forks",
+    maxWorkers: 2,
   },
   resolve: {
     alias: {

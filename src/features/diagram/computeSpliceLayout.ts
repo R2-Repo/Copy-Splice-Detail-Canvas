@@ -19,6 +19,7 @@ import { applyRoutingParameterOverrides } from "@/features/manualAdjust/connecti
 import { assignSpliceRoutingLanesFromLiveHandles } from "@/features/diagram/spliceCenterLanes";
 import { logLaneAssignmentDiff } from "@/features/diagram/debugLaneDiff";
 import type { LayoutMode, LayoutOverrides } from "@/types/splice";
+import type { LayoutEndpointSync } from "@/features/diagram/spliceCenterLanes";
 import type { VisualCable } from "@/features/diagram/visualCables";
 
 export type PrecomputedSpliceEdgeData = {
@@ -59,6 +60,7 @@ export type ComputeSpliceLayoutOptions = {
   priorGridRoutes?: Map<string, import("@/features/grid/gridTypes").GridRoute>;
   /** Live cable drag — refresh rowOffset from handle Y (bundle members keep layout rank). */
   useLiveHandleLanes?: boolean;
+  layoutEndpointSync?: LayoutEndpointSync;
 };
 
 export function computeSpliceEdgeLayout(
@@ -88,6 +90,7 @@ export function computeSpliceEdgeLayout(
       dragCacheEdges: options?.dragCacheEdges,
       priorGridRoutes: options?.priorGridRoutes,
       useLiveHandleLanes: options?.useLiveHandleLanes,
+      layoutEndpointSync: options?.layoutEndpointSync,
     };
     const gridResult = options?.rerouteConnectionIds?.length
       ? rerouteLocalOnGrid(gridInput, options.rerouteConnectionIds)

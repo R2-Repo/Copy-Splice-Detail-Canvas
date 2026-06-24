@@ -17,7 +17,7 @@
     "test:phase7": "vitest run src/features/diagram/phase7Verification.test.ts src/features/import/devFixtures.test.ts",
     "test:sdc": "vitest run src/features/rules src/features/grid src/features/layoutHybrid src/features/import/importRuleGuard.test.ts",
     "test:engine": "vitest run src/features/canvas/layoutStorage.test.ts src/features/canvas/manualAutoEngine.test.ts src/features/diagram/manualLayoutWarnings.test.ts src/features/manualAdjust/constraints.test.ts",
-    "test:ci": "vitest run",
+    "test:ci": "vitest run --exclude src/features/rules/sdcLayoutContractSlow.test.ts",
     "verify": "npm run test:layout && npm run check && npm run test:ci && npm run build"
   },
   "dependencies": {

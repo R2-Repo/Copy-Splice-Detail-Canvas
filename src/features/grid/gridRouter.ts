@@ -11,6 +11,7 @@ import {
   handleEntriesWithLiveRowOffsets,
 } from "@/features/diagram/spliceCenterLanes";
 import { logLaneAssignmentDiff } from "@/features/diagram/debugLaneDiff";
+import type { LayoutEndpointSync } from "@/features/diagram/spliceCenterLanes";
 import type { VisualCable } from "@/features/diagram/visualCables";
 import type { LayoutMode, LayoutOverrides } from "@/types/splice";
 
@@ -49,6 +50,7 @@ export type GridRouterInput = {
   priorGridRoutes?: Map<string, GridRoute>;
   /** Live cable drag — refresh non-bundle rowOffset from handle Y before routing. */
   useLiveHandleLanes?: boolean;
+  layoutEndpointSync?: LayoutEndpointSync;
 };
 
 export type GridRouterResult = {
@@ -135,26 +137,31 @@ export function routeAllOnGrid(input: GridRouterInput): GridRouterResult {
     extraVerticalXs: [...baseline.values()].map((lane) => lane.midX),
   });
 
+  const assignOptions = input.rerouteConnectionIds?.length
+    ? {
+        rerouteConnectionIds: new Set(input.rerouteConnectionIds),
+        cachedLanesByEdgeId: input.dragCacheEdges
+          ? cachedLanesFromEdges(input.dragCacheEdges)
+          : undefined,
+        priorRoutes: input.priorGridRoutes
+          ? priorRoutesFromEdges(
+              input.dragCacheEdges ?? input.edges,
+              input.priorGridRoutes,
+            )
+          : undefined,
+        layoutEndpointSync: input.layoutEndpointSync,
+      }
+    : input.layoutEndpointSync
+      ? { layoutEndpointSync: input.layoutEndpointSync }
+      : undefined;
+
   const { lanes, routes: reservedRoutes } = assignGridLanes(
     handleEntries,
     grid,
     input.diagramCenterX,
     input.overrides,
     baseline,
-    input.rerouteConnectionIds?.length
-      ? {
-          rerouteConnectionIds: new Set(input.rerouteConnectionIds),
-          cachedLanesByEdgeId: input.dragCacheEdges
-            ? cachedLanesFromEdges(input.dragCacheEdges)
-            : undefined,
-          priorRoutes: input.priorGridRoutes
-            ? priorRoutesFromEdges(
-                input.dragCacheEdges ?? input.edges,
-                input.priorGridRoutes,
-              )
-            : undefined,
-        }
-      : undefined,
+    assignOptions,
   );
 
   const adjustedLanes = applyRoutingParameterOverrides(

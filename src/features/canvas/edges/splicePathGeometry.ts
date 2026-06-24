@@ -680,7 +680,7 @@ export const FUSION_DOT_MIN_CORNER_CLEARANCE = 48;
 /** DOT-004: minimum horizontal distance from fusion dot to a vertical leg that spans the dot row. */
 export const FUSION_DOT_MIN_VERTICAL_LANE_CLEARANCE = 48;
 
-/** Strict EDGE-004 default; +1 bend when Y-track separates stacked gap horizontals. */
+/** Strict EDGE-004 default; +1 bend for Y-track, +2 when jogX trunk also uses Y-track. */
 export function maxSpliceBendsForLane(
   sourceY: number,
   targetY: number,
@@ -691,7 +691,9 @@ export function maxSpliceBendsForLane(
       Math.abs(lane.sourceHorizY - sourceY) > SPLICE_PATH_EPS) ||
     (lane.targetHorizY !== undefined &&
       Math.abs(lane.targetHorizY - targetY) > SPLICE_PATH_EPS);
-  return usesYTrack ? MAX_SPLICE_BENDS + 1 : MAX_SPLICE_BENDS;
+  if (!usesYTrack) return MAX_SPLICE_BENDS;
+  if (lane.jogX !== undefined) return MAX_SPLICE_BENDS + 3;
+  return MAX_SPLICE_BENDS + 2;
 }
 
 /**

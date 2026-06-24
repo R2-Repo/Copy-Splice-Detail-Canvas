@@ -17,6 +17,7 @@ import { applyLocksToGrid } from "@/features/layoutHybrid/applyLocksToGrid";
 import {
   handleEntriesToCandidates,
   reconcileGapHorizontalLanesAfterRouting,
+  type LayoutEndpointSync,
 } from "@/features/diagram/spliceCenterLanes";
 import type { LayoutOverrides } from "@/types/splice";
 
@@ -171,6 +172,7 @@ function snapLaneMidXAvoidOverlap(
   grid: GridMap,
   diagramCenterX: number,
   occupied: Array<{ x: number; y0: number; y1: number }>,
+  horizOccupied: Array<{ kind: "h"; y: number; x0: number; x1: number }>,
 ): number {
   const columnX = (entry.sourceX + entry.targetX) / 2;
   const inward = inwardSignForColumn(columnX, diagramCenterX) > 0 ? 1 : -1;
@@ -190,10 +192,23 @@ function snapLaneMidXAvoidOverlap(
         Math.abs(existing.x - candidateX) <= SPLICE_PATH_EPS &&
         verticalSpanOverlaps(y0, y1, existing.y0, existing.y1),
     );
-    if (!conflict) {
-      occupied.push({ x: candidateX, y0, y1 });
-      return candidateX;
+    if (conflict) continue;
+
+    const trialLane: SpliceRoutingLane = { ...baseLane, midX: candidateX };
+    delete trialLane.sourceHorizY;
+    delete trialLane.targetHorizY;
+    if (
+      attempt > 0 &&
+      horizSegmentsOverlapOccupied(
+        horizSegmentsForEntry(entry, trialLane),
+        horizOccupied,
+      )
+    ) {
+      continue;
     }
+
+    occupied.push({ x: candidateX, y0, y1 });
+    return candidateX;
   }
 
   const fallback = snapX(grid, baseLane.midX);
@@ -262,6 +277,7 @@ export type AssignGridLanesOptions = {
   rerouteConnectionIds?: Set<string>;
   cachedLanesByEdgeId?: Map<string, SpliceRoutingLane>;
   priorRoutes?: Map<string, GridRoute>;
+  layoutEndpointSync?: LayoutEndpointSync;
 };
 
 /**
@@ -336,6 +352,7 @@ export function assignGridLanes(
       grid,
       diagramCenterX,
       verticalOccupied,
+      horizOccupied,
     );
     const lane = assignHorizYAvoidOverlap(
       entry,
@@ -367,6 +384,7 @@ export function assignGridLanes(
     lanes,
     sideSpans,
     diagramCenterX,
+    options?.layoutEndpointSync,
   );
 
   for (const route of routes.values()) {

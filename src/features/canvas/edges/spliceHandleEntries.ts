@@ -1,4 +1,7 @@
 import type { SideCircuitLabelSpan } from "@/features/diagram/cableLabels";
+import type { ConnectionGraph } from "@/features/diagram/buildConnectionGraph";
+import { endpointOnVisualSide } from "@/features/diagram/visualCables";
+import { resolveSpliceSourceTarget } from "@/features/diagram/resolveSpliceSourceTarget";
 import type { VisualCable } from "@/features/diagram/visualCables";
 
 import {
@@ -161,4 +164,86 @@ export function buildSpliceHandleEntries(
   }
 
   return entries;
+}
+
+export function connectionIdFromHandleEntryId(edgeId: string): string {
+  return edgeId
+    .replace(/^splice-left-/, "")
+    .replace(/^splice-right-/, "")
+    .replace(/^splice-/, "")
+    .replace(/^butt-/, "");
+}
+
+/** Match layoutRules spliceHandleEndpoints — EDGE-011 overlap geometry. */
+export function layoutRuleHandleEndpointsForConnection(
+  graph: ConnectionGraph,
+  visualCables: VisualCable[],
+  nodes: Array<{
+    id: string;
+    position: { x: number; y: number };
+    data: unknown;
+  }>,
+  connectionId: string,
+): Pick<SpliceHandleEntry, "sourceX" | "sourceY" | "targetX" | "targetY"> | null {
+  const conn = graph.connections.find(
+    (c) => c.kind === "fiber" && c.id === connectionId,
+  );
+  if (!conn || conn.kind !== "fiber") return null;
+
+  const csvLeft = endpointOnVisualSide(conn, graph, visualCables, "left");
+  const csvRight = endpointOnVisualSide(conn, graph, visualCables, "right");
+  if (!csvLeft || !csvRight) return null;
+
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  const leftNode = nodeById.get(`cable-${csvLeft.visualCableId}`);
+  const rightNode = nodeById.get(`cable-${csvRight.visualCableId}`);
+  const leftVc = visualCables.find((v) => v.id === csvLeft.visualCableId);
+  const rightVc = visualCables.find((v) => v.id === csvRight.visualCableId);
+  if (!leftNode || !rightNode || !leftVc || !rightVc) return null;
+
+  const positions: Record<string, { x: number; y: number }> = {};
+  for (const [nodeId, node] of nodeById) {
+    positions[nodeId] = node.position;
+  }
+  const { source: sourceEp, target: targetEp } = resolveSpliceSourceTarget(
+    csvLeft,
+    csvRight,
+    positions,
+  );
+  const sourceNode = nodeById.get(`cable-${sourceEp.visualCableId}`);
+  const targetNode = nodeById.get(`cable-${targetEp.visualCableId}`);
+  const sourceVc = visualCables.find((v) => v.id === sourceEp.visualCableId);
+  const targetVc = visualCables.find((v) => v.id === targetEp.visualCableId);
+  if (!sourceNode || !targetNode || !sourceVc || !targetVc) return null;
+
+  const sourceScale =
+    (sourceNode.data as { diagramScale?: number }).diagramScale ?? 1;
+  const targetScale =
+    (targetNode.data as { diagramScale?: number }).diagramScale ?? 1;
+  const sourceAligned = (sourceNode.data as { alignedStemX?: number })
+    .alignedStemX;
+  const targetAligned = (targetNode.data as { alignedStemX?: number })
+    .alignedStemX;
+
+  const sourceHandle = fiberHandlePosition(
+    sourceVc,
+    conn.id,
+    sourceNode.position,
+    sourceScale,
+    sourceAligned,
+  );
+  const targetHandle = fiberHandlePosition(
+    targetVc,
+    conn.id,
+    targetNode.position,
+    targetScale,
+    targetAligned,
+  );
+
+  return {
+    sourceX: sourceHandle.x,
+    sourceY: sourceHandle.y,
+    targetX: targetHandle.x,
+    targetY: targetHandle.y,
+  };
 }

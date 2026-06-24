@@ -8,15 +8,16 @@
 
 - **Test gate:** `npm run test:layout` → `sdcLayoutContract.test.ts` (grid engine)
 - **Legacy:** `layoutRules.ts` private; `npm run test:layout-legacy` optional
-- **Routing:** grid assign + `reconcileGapHorizontalLanesAfterRouting` + horiz occupancy in `gridLaneAssign.ts`
+- **Routing:** grid assign + `reconcileGapHorizontalLanesAfterRouting` + horiz guard in `snapLaneMidXAvoidOverlap`
 
 ## Blockers
 
 - **Legacy routing contract:** `npm run test:routing` — Example #3 + SPI still fail **EDGE-011** (94/96); SDC contract passes those fixtures
-- `npm run verify` not green — `test:ci` includes legacy routing failures + slow-test worker timeouts
+- `npm run verify` not green — `routingImportContract.test.ts` EDGE-011 on crowded center pairs (`mid=1968/2040`, `3024/2904`); Y-track offset within bend budget not landing on edge data
 - **300N_MAIN:** import rules in `test:layout`; full grid in optional `npm run test:layout-slow`
 
 ## Baseline
 
 - Branch: `main`
-- Pass: Examples #1–#2, SP, most Left CSVs, `npm run test:sdc`
+- Pass: Examples #1–#2, SP, most Left CSVs, `npm run test:sdc`, `npm run test:layout` (12/12)
+- CI: `sdcLayoutContractSlow.test.ts` excluded from `test:ci`; vitest `pool: forks`, `maxWorkers: 2`

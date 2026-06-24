@@ -510,6 +510,11 @@ export function buildReactFlowGraph(
         dragCacheEdges: buildOptions?.dragCacheEdges,
         priorGridRoutes: buildOptions?.priorGridRoutes,
         useLiveHandleLanes: buildOptions?.dragSync === true,
+        layoutEndpointSync: {
+          graph,
+          visualCables,
+          nodes,
+        },
       },
     );
     return {
