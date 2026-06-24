@@ -209,6 +209,8 @@ export function buildReactFlowGraph(
     rerouteConnectionIds?: string[];
     dragCacheEdges?: Edge[];
     priorGridRoutes?: Map<string, import("@/features/grid/gridTypes").GridRoute>;
+    /** Reuse layout-rule visualCables so grid reconcile matches EDGE-011 geometry. */
+    sharedVisualCables?: import("@/features/diagram/visualCables").VisualCable[];
   },
 ): {
   nodes: Node[];
@@ -216,6 +218,8 @@ export function buildReactFlowGraph(
   layout: DiagramLayout;
   xBounds: CableXBounds;
   autoLayoutY: Record<string, number>;
+  visualCables?: import("@/features/diagram/visualCables").VisualCable[];
+  placement?: Map<string, import("@/features/diagram/canvasPlacement").CablePlacement>;
 } {
   // Additive 4-side engine — fully isolated; horizontal pipeline below is untouched.
   if (overrides?.layoutMode === "quad") {
@@ -498,10 +502,12 @@ export function buildReactFlowGraph(
   );
 
   if (useNodesRoutingEngine(overrides)) {
+    const routingVisualCables =
+      buildOptions?.sharedVisualCables ?? visualCables;
     const augmented = augmentNodesEngineGraph(
       nodes,
       edges,
-      visualCables,
+      routingVisualCables,
       centerX,
       {
         overrides,
@@ -512,7 +518,7 @@ export function buildReactFlowGraph(
         useLiveHandleLanes: buildOptions?.dragSync === true,
         layoutEndpointSync: {
           graph,
-          visualCables,
+          visualCables: routingVisualCables,
           nodes,
         },
       },
@@ -528,6 +534,8 @@ export function buildReactFlowGraph(
       layout,
       xBounds,
       autoLayoutY,
+      visualCables,
+      placement,
     };
   }
 
@@ -545,5 +553,5 @@ export function buildReactFlowGraph(
     };
   });
 
-  return { nodes, edges: routedEdges, layout, xBounds, autoLayoutY };
+  return { nodes, edges: routedEdges, layout, xBounds, autoLayoutY, visualCables, placement };
 }

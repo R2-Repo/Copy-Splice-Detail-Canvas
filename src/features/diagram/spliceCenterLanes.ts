@@ -33,7 +33,7 @@ import {
   connectionIdFromHandleEntryId,
   layoutRuleHandleEndpointsForConnection,
 } from "@/features/canvas/edges/spliceHandleEntries";
-import type { ConnectionGraph } from "@/features/diagram/buildConnectionGraph";
+import type { ConnectionGraph } from "@/types/splice";
 import type { VisualCable } from "@/features/diagram/visualCables";
 
 export type { SpliceHandleEntry, SpliceRoutingLane };
@@ -1677,16 +1677,27 @@ function endpointsForCandidate(
   return candidate;
 }
 
+function routingZoneKeyForCandidate(
+  candidate: MidXLaneCandidate,
+  layoutSync?: LayoutEndpointSync,
+): string {
+  const ep = endpointsForCandidate(candidate, layoutSync);
+  return spliceRoutingZoneKey(ep.sourceX, ep.targetX);
+}
+
 function laneBendsWithinBudget(
   candidate: MidXLaneCandidate,
   lane: SpliceRoutingLane,
   sideSpans: SideCircuitLabelSpan,
+  diagramCenterX: number,
+  layoutSync?: LayoutEndpointSync,
 ): boolean {
+  const ep = endpointsForCandidate(candidate, layoutSync);
   const { bendCount } = buildSplicePath(
-    candidate.sourceX,
-    candidate.sourceY,
-    candidate.targetX,
-    candidate.targetY,
+    ep.sourceX,
+    ep.sourceY,
+    ep.targetX,
+    ep.targetY,
     lane.midX,
     lane.jogX,
     {
@@ -1696,13 +1707,12 @@ function laneBendsWithinBudget(
       targetBendX: lane.targetBendX,
     },
     sideSpans,
-    columnCenterXForCandidate(candidate),
+    diagramCenterX,
     candidate.sourceTagWidth ?? 0,
     candidate.targetTagWidth ?? 0,
   );
   return (
-    bendCount <=
-    maxSpliceBendsForLane(candidate.sourceY, candidate.targetY, lane)
+    bendCount <= maxSpliceBendsForLane(ep.sourceY, ep.targetY, lane)
   );
 }
 
@@ -1789,26 +1799,70 @@ function gapHorizSegmentsOverlap(
   return false;
 }
 
+function laneHasNoGapHorizConflict(
+  candidate: MidXLaneCandidate,
+  lane: SpliceRoutingLane,
+  others: MidXLaneCandidate[],
+  lanes: Map<string, SpliceRoutingLane>,
+  sideSpans: SideCircuitLabelSpan,
+  diagramCenterX: number,
+  layoutSync?: LayoutEndpointSync,
+): boolean {
+  for (const other of others) {
+    if (other.id === candidate.id) continue;
+    const otherLane = lanes.get(other.id);
+    if (!otherLane) continue;
+    if (
+      candidate.tubeBundleKey &&
+      candidate.tubeBundleKey === other.tubeBundleKey
+    ) {
+      continue;
+    }
+    if (
+      routingZoneKeyForCandidate(candidate, layoutSync) !==
+      routingZoneKeyForCandidate(other, layoutSync)
+    ) {
+      continue;
+    }
+    if (
+      gapHorizSegmentsOverlap(
+        candidate,
+        lane,
+        other,
+        otherLane,
+        sideSpans,
+        diagramCenterX,
+        layoutSync,
+      )
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function gapBendXsForHorizOffsets(
   candidate: MidXLaneCandidate,
   lane: SpliceRoutingLane,
   sideSpans: SideCircuitLabelSpan,
   _diagramCenterX: number,
   zoneIndex = 0,
+  layoutSync?: LayoutEndpointSync,
 ): SpliceRoutingLane {
+  const ep = endpointsForCandidate(candidate, layoutSync);
   const centerX = columnCenterXForCandidate(candidate);
-  const srcHY = lane.sourceHorizY ?? candidate.sourceY;
-  const tgtHY = lane.targetHorizY ?? candidate.targetY;
+  const srcHY = lane.sourceHorizY ?? ep.sourceY;
+  const tgtHY = lane.targetHorizY ?? ep.targetY;
   const sourceOffsetY =
-    Math.abs(srcHY - candidate.sourceY) > SPLICE_PATH_EPS;
+    Math.abs(srcHY - ep.sourceY) > SPLICE_PATH_EPS;
   const targetOffsetY =
-    Math.abs(tgtHY - candidate.targetY) > SPLICE_PATH_EPS;
+    Math.abs(tgtHY - ep.targetY) > SPLICE_PATH_EPS;
   const next: SpliceRoutingLane = { ...lane };
   if (sourceOffsetY) {
     next.sourceBendX = laneClearXBeforeVertical(
-      candidate.sourceX,
+      ep.sourceX,
       lane.midX,
-      candidate.sourceY,
+      ep.sourceY,
       srcHY,
       centerX,
       sideSpans,
@@ -1821,9 +1875,9 @@ function gapBendXsForHorizOffsets(
   }
   if (targetOffsetY) {
     next.targetBendX = laneClearXBeforeVertical(
-      candidate.targetX,
+      ep.targetX,
       lane.midX,
-      candidate.targetY,
+      ep.targetY,
       tgtHY,
       centerX,
       sideSpans,
@@ -1835,6 +1889,104 @@ function gapBendXsForHorizOffsets(
     delete next.targetBendX;
   }
   return next;
+}
+
+/** targetHorizY trial — clear only target gap-bend X (keep source bend when source is offset). */
+function plainTargetHorizYTrialLane(
+  lane: SpliceRoutingLane,
+  targetHorizY: number,
+): SpliceRoutingLane {
+  const trial: SpliceRoutingLane = { ...lane, targetHorizY };
+  delete trial.targetBendX;
+  return trial;
+}
+
+/** sourceHorizY trial — clear only source gap-bend X (keep target bend when target is offset). */
+function plainSourceHorizYTrialLane(
+  lane: SpliceRoutingLane,
+  sourceHorizY: number,
+): SpliceRoutingLane {
+  const trial: SpliceRoutingLane = { ...lane, sourceHorizY };
+  delete trial.sourceBendX;
+  return trial;
+}
+
+function commitPlainHorizYTrialIfClear(
+  plainCandidate: MidXLaneCandidate,
+  plainLane: SpliceRoutingLane,
+  trialY: SpliceRoutingLane,
+  jogCandidate: MidXLaneCandidate,
+  jogLane: SpliceRoutingLane,
+  eligible: MidXLaneCandidate[],
+  lanes: Map<string, SpliceRoutingLane>,
+  sideSpans: SideCircuitLabelSpan,
+  diagramCenterX: number,
+  layoutSync?: LayoutEndpointSync,
+): boolean {
+  if (
+    gapHorizSegmentsOverlap(
+      jogCandidate,
+      jogLane,
+      plainCandidate,
+      trialY,
+      sideSpans,
+      diagramCenterX,
+      layoutSync,
+    )
+  ) {
+    return false;
+  }
+  if (
+    laneBendsWithinBudget(
+      plainCandidate,
+      trialY,
+      sideSpans,
+      diagramCenterX,
+      layoutSync,
+    ) &&
+    laneHasNoGapHorizConflict(
+      plainCandidate,
+      trialY,
+      eligible,
+      lanes,
+      sideSpans,
+      diagramCenterX,
+      layoutSync,
+    )
+  ) {
+    lanes.set(plainCandidate.id, trialY);
+    return true;
+  }
+  const withBend = gapBendXsForHorizOffsets(
+    plainCandidate,
+    trialY,
+    sideSpans,
+    diagramCenterX,
+    0,
+    layoutSync,
+  );
+  if (
+    laneBendsWithinBudget(
+      plainCandidate,
+      withBend,
+      sideSpans,
+      diagramCenterX,
+      layoutSync,
+    ) &&
+    laneHasNoGapHorizConflict(
+      plainCandidate,
+      withBend,
+      eligible,
+      lanes,
+      sideSpans,
+      diagramCenterX,
+      layoutSync,
+    )
+  ) {
+    lanes.set(plainCandidate.id, withBend);
+    return true;
+  }
+  return false;
 }
 
 type GapHorizDeconflictKind = "source" | "target" | "both";
@@ -1888,21 +2040,21 @@ function buildGapHorizDeconflictTrial(
   step: number,
   diagramCenterY: number,
   invert = false,
+  layoutSync?: LayoutEndpointSync,
 ): SpliceRoutingLane {
-  let sourceSign = sideHorizLaneSign(candidate.sourceY, diagramCenterY);
-  let targetSign = sideHorizLaneSign(candidate.targetY, diagramCenterY);
+  const ep = endpointsForCandidate(candidate, layoutSync);
+  let sourceSign = sideHorizLaneSign(ep.sourceY, diagramCenterY);
+  let targetSign = sideHorizLaneSign(ep.targetY, diagramCenterY);
   if (invert) {
     sourceSign = sourceSign === 1 ? -1 : 1;
     targetSign = targetSign === 1 ? -1 : 1;
   }
   const trial: SpliceRoutingLane = { ...lane };
   if (kind === "source" || kind === "both") {
-    trial.sourceHorizY =
-      candidate.sourceY + sourceSign * step * SPLICE_LANE_SEP;
+    trial.sourceHorizY = ep.sourceY + sourceSign * step * SPLICE_LANE_SEP;
   }
   if (kind === "target" || kind === "both") {
-    trial.targetHorizY =
-      candidate.targetY + targetSign * step * SPLICE_LANE_SEP;
+    trial.targetHorizY = ep.targetY + targetSign * step * SPLICE_LANE_SEP;
   }
   return trial;
 }
@@ -1923,8 +2075,9 @@ function deconflictGapHorizontalLanes(
   let minY = Number.POSITIVE_INFINITY;
   let maxY = Number.NEGATIVE_INFINITY;
   for (const candidate of eligible) {
-    minY = Math.min(minY, candidate.sourceY, candidate.targetY);
-    maxY = Math.max(maxY, candidate.sourceY, candidate.targetY);
+    const ep = endpointsForCandidate(candidate, layoutSync);
+    minY = Math.min(minY, ep.sourceY, ep.targetY);
+    maxY = Math.max(maxY, ep.sourceY, ep.targetY);
   }
   const diagramCenterY = (minY + maxY) / 2;
 
@@ -1943,11 +2096,79 @@ function deconflictGapHorizontalLanes(
           continue;
         }
         if (
-          spliceRoutingZoneKey(a.sourceX, a.targetX) !==
-          spliceRoutingZoneKey(b.sourceX, b.targetX)
+          routingZoneKeyForCandidate(a, layoutSync) !==
+          routingZoneKeyForCandidate(b, layoutSync)
         ) {
           continue;
         }
+
+        let resolved = false;
+        const aJogEarly = laneA.jogX !== undefined;
+        const bJogEarly = laneB.jogX !== undefined;
+        if (aJogEarly !== bJogEarly) {
+          const plainEarly = aJogEarly
+            ? { candidate: b, lane: laneB }
+            : { candidate: a, lane: laneA };
+          const jogEarly = aJogEarly
+            ? { candidate: a, lane: laneA }
+            : { candidate: b, lane: laneB };
+          const plainEpEarly = endpointsForCandidate(
+            plainEarly.candidate,
+            layoutSync,
+          );
+          const jogEpEarly = endpointsForCandidate(
+            jogEarly.candidate,
+            layoutSync,
+          );
+          if (
+            Math.abs(jogEpEarly.sourceY - plainEpEarly.targetY) <=
+            SPLICE_PATH_EPS
+          ) {
+            const sign = sideHorizLaneSign(
+              plainEpEarly.targetY,
+              diagramCenterY,
+            );
+            for (
+              let step = 1;
+              step <= MAX_GAP_HORIZ_DECONFLICT_STEPS && !resolved;
+              step++
+            ) {
+              const trialY = plainTargetHorizYTrialLane(
+                plainEarly.lane,
+                plainEpEarly.targetY + sign * step * SPLICE_LANE_SEP,
+              );
+              if (
+                gapHorizSegmentsOverlap(
+                  jogEarly.candidate,
+                  jogEarly.lane,
+                  plainEarly.candidate,
+                  trialY,
+                  sideSpans,
+                  diagramCenterX,
+                  layoutSync,
+                )
+              ) {
+                continue;
+              }
+              if (
+                laneBendsWithinBudget(
+                  plainEarly.candidate,
+                  trialY,
+                  sideSpans,
+                  diagramCenterX,
+                  layoutSync,
+                )
+              ) {
+                lanes.set(plainEarly.candidate.id, trialY);
+                changed = true;
+                resolved = true;
+                break;
+              }
+            }
+          }
+        }
+        if (resolved) continue;
+
         if (
           !gapHorizSegmentsOverlap(
             a,
@@ -1962,7 +2183,7 @@ function deconflictGapHorizontalLanes(
           continue;
         }
 
-        let resolved = false;
+        resolved = false;
         for (const invert of [false, true] as const) {
           if (resolved) break;
           adjustLoop: for (const { candidate, lane } of gapHorizDeconflictAdjustOrder(
@@ -1987,6 +2208,7 @@ function deconflictGapHorizontalLanes(
                   step,
                   diagramCenterY,
                   invert,
+                  layoutSync,
                 );
                 const nextLaneA =
                   candidate.id === a.id ? trialY : lanes.get(a.id)!;
@@ -2010,10 +2232,14 @@ function deconflictGapHorizontalLanes(
                   trialY,
                   sideSpans,
                   diagramCenterX,
+                  0,
+                  layoutSync,
                 );
-                if (laneBendsWithinBudget(candidate, trial, sideSpans)) {
+                if (laneBendsWithinBudget(candidate, trial, sideSpans, diagramCenterX, layoutSync)) {
                   lanes.set(candidate.id, trial);
-                } else if (laneBendsWithinBudget(candidate, trialY, sideSpans)) {
+                } else if (
+                  laneBendsWithinBudget(candidate, trialY, sideSpans, diagramCenterX, layoutSync)
+                ) {
                   lanes.set(candidate.id, trialY);
                 } else {
                   continue;
@@ -2039,23 +2265,25 @@ function deconflictGapHorizontalLanes(
                   stepB <= MAX_GAP_HORIZ_DECONFLICT_STEPS && !resolved;
                   stepB++
                 ) {
-                  for (const signA of [-1, 1] as const) {
+                    for (const signA of [-1, 1] as const) {
                     for (const signB of [-1, 1] as const) {
+                      const epA = endpointsForCandidate(a, layoutSync);
+                      const epB = endpointsForCandidate(b, layoutSync);
                       const trialA: SpliceRoutingLane = { ...laneA };
                       const trialB: SpliceRoutingLane = { ...laneB };
                       if (kindA === "source") {
                         trialA.sourceHorizY =
-                          a.sourceY + signA * stepA * SPLICE_LANE_SEP;
+                          epA.sourceY + signA * stepA * SPLICE_LANE_SEP;
                       } else {
                         trialA.targetHorizY =
-                          a.targetY + signA * stepA * SPLICE_LANE_SEP;
+                          epA.targetY + signA * stepA * SPLICE_LANE_SEP;
                       }
                       if (kindB === "source") {
                         trialB.sourceHorizY =
-                          b.sourceY + signB * stepB * SPLICE_LANE_SEP;
+                          epB.sourceY + signB * stepB * SPLICE_LANE_SEP;
                       } else {
                         trialB.targetHorizY =
-                          b.targetY + signB * stepB * SPLICE_LANE_SEP;
+                          epB.targetY + signB * stepB * SPLICE_LANE_SEP;
                       }
                       if (
                         gapHorizSegmentsOverlap(
@@ -2075,20 +2303,48 @@ function deconflictGapHorizontalLanes(
                         trialA,
                         sideSpans,
                         diagramCenterX,
+                        0,
+                        layoutSync,
                       );
                       const committedB = gapBendXsForHorizOffsets(
                         b,
                         trialB,
                         sideSpans,
                         diagramCenterX,
+                        0,
+                        layoutSync,
                       );
                       if (
-                        !laneBendsWithinBudget(a, committedA, sideSpans) ||
-                        !laneBendsWithinBudget(b, committedB, sideSpans)
+                        !laneBendsWithinBudget(
+                          a,
+                          committedA,
+                          sideSpans,
+                          diagramCenterX,
+                          layoutSync,
+                        ) ||
+                        !laneBendsWithinBudget(
+                          b,
+                          committedB,
+                          sideSpans,
+                          diagramCenterX,
+                          layoutSync,
+                        )
                       ) {
                         if (
-                          laneBendsWithinBudget(a, trialA, sideSpans) &&
-                          laneBendsWithinBudget(b, trialB, sideSpans)
+                          laneBendsWithinBudget(
+                            a,
+                            trialA,
+                            sideSpans,
+                            diagramCenterX,
+                            layoutSync,
+                          ) &&
+                          laneBendsWithinBudget(
+                            b,
+                            trialB,
+                            sideSpans,
+                            diagramCenterX,
+                            layoutSync,
+                          )
                         ) {
                           lanes.set(a.id, trialA);
                           lanes.set(b.id, trialB);
@@ -2146,12 +2402,25 @@ function sealJogXGapHorizOverlaps(
       const laneB = lanes.get(b.id)!;
       if (a.tubeBundleKey && a.tubeBundleKey === b.tubeBundleKey) continue;
       if (
-        spliceRoutingZoneKey(a.sourceX, a.targetX) !==
-        spliceRoutingZoneKey(b.sourceX, b.targetX)
+        routingZoneKeyForCandidate(a, layoutSync) !==
+        routingZoneKeyForCandidate(b, layoutSync)
       ) {
         continue;
       }
+      const aJog = laneA.jogX !== undefined;
+      const bJog = laneB.jogX !== undefined;
+      if (aJog === bJog) continue;
+
+      const plain = aJog
+        ? { candidate: b, lane: laneB, jog: { candidate: a, lane: laneA } }
+        : { candidate: a, lane: laneA, jog: { candidate: b, lane: laneB } };
+      const ep = endpointsForCandidate(plain.candidate, layoutSync);
+      const jogEp = endpointsForCandidate(plain.jog.candidate, layoutSync);
+
+      const stackedJogTrunk =
+        Math.abs(jogEp.sourceY - ep.targetY) <= SPLICE_PATH_EPS;
       if (
+        !stackedJogTrunk &&
         !gapHorizSegmentsOverlap(
           a,
           laneA,
@@ -2165,27 +2434,20 @@ function sealJogXGapHorizOverlaps(
         continue;
       }
 
-      const aJog = laneA.jogX !== undefined;
-      const bJog = laneB.jogX !== undefined;
-      if (aJog === bJog) continue;
-
-      const plain = aJog
-        ? { candidate: b, lane: laneB, jog: { candidate: a, lane: laneA } }
-        : { candidate: a, lane: laneA, jog: { candidate: b, lane: laneB } };
-      const ep = endpointsForCandidate(plain.candidate, layoutSync);
-
       let sealed = false;
-      for (const sign of [-1, 1] as const) {
+      const targetSign = sideHorizLaneSign(ep.targetY, diagramCenterY);
+      for (const sign of [targetSign, (targetSign === 1 ? -1 : 1) as 1 | -1]) {
         for (
           let step = 1;
           step <= MAX_GAP_HORIZ_DECONFLICT_STEPS && !sealed;
           step++
         ) {
-          const trialY: SpliceRoutingLane = {
-            ...plain.lane,
-            targetHorizY: ep.targetY + sign * step * SPLICE_LANE_SEP,
-          };
+          const trialY = plainTargetHorizYTrialLane(
+            plain.lane,
+            ep.targetY + sign * step * SPLICE_LANE_SEP,
+          );
           if (
+            !stackedJogTrunk &&
             gapHorizSegmentsOverlap(
               plain.jog.candidate,
               plain.jog.lane,
@@ -2198,21 +2460,56 @@ function sealJogXGapHorizOverlaps(
           ) {
             continue;
           }
-          const withBend = gapBendXsForHorizOffsets(
-            plain.candidate,
-            trialY,
-            sideSpans,
-            diagramCenterX,
-          );
-          if (laneBendsWithinBudget(plain.candidate, withBend, sideSpans)) {
-            lanes.set(plain.candidate.id, withBend);
+          if (
+            commitPlainHorizYTrialIfClear(
+              plain.candidate,
+              plain.lane,
+              trialY,
+              plain.jog.candidate,
+              plain.jog.lane,
+              eligible,
+              lanes,
+              sideSpans,
+              diagramCenterX,
+              layoutSync,
+            )
+          ) {
             sealed = true;
             break;
           }
-          if (laneBendsWithinBudget(plain.candidate, trialY, sideSpans)) {
-            lanes.set(plain.candidate.id, trialY);
-            sealed = true;
-            break;
+        }
+      }
+
+      if (!sealed) {
+        const currentPlainLane = lanes.get(plain.candidate.id)!;
+        const sourceSign = sideHorizLaneSign(ep.sourceY, diagramCenterY);
+        for (const sign of [sourceSign, (sourceSign === 1 ? -1 : 1) as 1 | -1]) {
+          for (
+            let step = 1;
+            step <= MAX_GAP_HORIZ_DECONFLICT_STEPS && !sealed;
+            step++
+          ) {
+            const trialY = plainSourceHorizYTrialLane(
+              currentPlainLane,
+              ep.sourceY + sign * step * SPLICE_LANE_SEP,
+            );
+            if (
+              commitPlainHorizYTrialIfClear(
+                plain.candidate,
+                currentPlainLane,
+                trialY,
+                plain.jog.candidate,
+                plain.jog.lane,
+                eligible,
+                lanes,
+                sideSpans,
+                diagramCenterX,
+                layoutSync,
+              )
+            ) {
+              sealed = true;
+              break;
+            }
           }
         }
       }
@@ -2246,7 +2543,7 @@ function assignSideHorizLanesWithGapBends(
     const lane = lanes.get(id);
     if (!candidate || !lane) continue;
     const trial = { ...lane, ...offsets };
-    if (laneBendsWithinBudget(candidate, trial, sideSpans)) {
+    if (laneBendsWithinBudget(candidate, trial, sideSpans, diagramCenterX)) {
       lanes.set(id, trial);
     }
   }
@@ -2276,6 +2573,27 @@ function syncMidXLaneCandidatesToLayoutEndpoints(
   }
 }
 
+/** Align handle-entry coords with layoutRules spliceHandleEndpoints before path attach. */
+export function syncHandleEntriesToLayoutEndpoints(
+  entries: SpliceHandleEntry[],
+  sync: LayoutEndpointSync,
+): void {
+  for (const entry of entries) {
+    const connectionId = connectionIdFromHandleEntryId(entry.id);
+    const endpoints = layoutRuleHandleEndpointsForConnection(
+      sync.graph,
+      sync.visualCables,
+      sync.nodes,
+      connectionId,
+    );
+    if (!endpoints) continue;
+    entry.sourceX = endpoints.sourceX;
+    entry.sourceY = endpoints.sourceY;
+    entry.targetX = endpoints.targetX;
+    entry.targetY = endpoints.targetY;
+  }
+}
+
 export function reconcileGapHorizontalLanesAfterRouting(
   candidates: MidXLaneCandidate[],
   lanes: Map<string, SpliceRoutingLane>,
@@ -2294,7 +2612,7 @@ export function reconcileGapHorizontalLanesAfterRouting(
     delete cleared.targetBendX;
     lanes.set(id, cleared);
   }
-  const edge011Spans = defaultSideCircuitLabelSpan();
+  const edge011Spans = _sideSpans;
   assignGapBendLaneXs(candidates, lanes, edge011Spans, diagramCenterX);
   deconflictGapHorizontalLanes(
     candidates,
@@ -2319,12 +2637,14 @@ export function reconcileGapHorizontalLanesAfterRouting(
       { ...lane, ...offsets },
       edge011Spans,
       diagramCenterX,
+      0,
+      layoutSync,
     );
-    if (laneBendsWithinBudget(candidate, trial, edge011Spans)) {
+    if (laneBendsWithinBudget(candidate, trial, edge011Spans, diagramCenterX, layoutSync)) {
       lanes.set(id, trial);
     } else {
       const yOnly = { ...lane, ...offsets };
-      if (laneBendsWithinBudget(candidate, yOnly, edge011Spans)) {
+      if (laneBendsWithinBudget(candidate, yOnly, edge011Spans, diagramCenterX, layoutSync)) {
         lanes.set(id, yOnly);
       }
     }
@@ -2336,6 +2656,256 @@ export function reconcileGapHorizontalLanesAfterRouting(
     diagramCenterX,
     layoutSync,
   );
+  for (let pass = 0; pass < MAX_GAP_HORIZ_DECONFLICT_STEPS; pass++) {
+    const before = JSON.stringify([...lanes.entries()]);
+    sweepJogPlainTargetHorizYStacks(
+      candidates,
+      lanes,
+      edge011Spans,
+      diagramCenterX,
+      layoutSync,
+    );
+    sealJogXGapHorizOverlaps(
+      candidates,
+      lanes,
+      edge011Spans,
+      diagramCenterX,
+      layoutSync,
+    );
+    if (JSON.stringify([...lanes.entries()]) === before) break;
+  }
+  deconflictGapHorizontalLanes(
+    candidates,
+    lanes,
+    edge011Spans,
+    diagramCenterX,
+    layoutSync,
+  );
+  assignGapBendLaneXs(candidates, lanes, edge011Spans, diagramCenterX);
+}
+
+/** Post-merge jog trunk vs plain target stack — targetHorizY on plain (layout-rule endpoints). */
+function sweepJogPlainTargetHorizYStacks(
+  candidates: MidXLaneCandidate[],
+  lanes: Map<string, SpliceRoutingLane>,
+  sideSpans: SideCircuitLabelSpan,
+  diagramCenterX: number,
+  layoutSync?: LayoutEndpointSync,
+): void {
+  const eligible = sortCandidatesByRowOrder(
+    candidates.filter((c) => lanes.has(c.id) && !c.fullButtSplice),
+  );
+  if (eligible.length < 2) return;
+
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (const candidate of eligible) {
+    const ep = endpointsForCandidate(candidate, layoutSync);
+    minY = Math.min(minY, ep.sourceY, ep.targetY);
+    maxY = Math.max(maxY, ep.sourceY, ep.targetY);
+  }
+  const diagramCenterY = (minY + maxY) / 2;
+
+  for (let i = 0; i < eligible.length; i++) {
+    for (let j = i + 1; j < eligible.length; j++) {
+      const a = eligible[i]!;
+      const b = eligible[j]!;
+      const laneA = lanes.get(a.id)!;
+      const laneB = lanes.get(b.id)!;
+      if (a.tubeBundleKey && a.tubeBundleKey === b.tubeBundleKey) continue;
+      if (
+        routingZoneKeyForCandidate(a, layoutSync) !==
+        routingZoneKeyForCandidate(b, layoutSync)
+      ) {
+        continue;
+      }
+      const aJog = laneA.jogX !== undefined;
+      const bJog = laneB.jogX !== undefined;
+      if (aJog === bJog) continue;
+
+      const plain = aJog
+        ? { candidate: b, lane: laneB, jog: { candidate: a, lane: laneA } }
+        : { candidate: a, lane: laneA, jog: { candidate: b, lane: laneB } };
+      const ep = endpointsForCandidate(plain.candidate, layoutSync);
+      const jogEp = endpointsForCandidate(plain.jog.candidate, layoutSync);
+
+      const needsFix =
+        Math.abs(jogEp.sourceY - ep.targetY) <= SPLICE_PATH_EPS ||
+        gapHorizSegmentsOverlap(
+          plain.jog.candidate,
+          plain.jog.lane,
+          plain.candidate,
+          plain.lane,
+          sideSpans,
+          diagramCenterX,
+          layoutSync,
+        );
+      if (!needsFix) continue;
+
+      const targetSign = sideHorizLaneSign(ep.targetY, diagramCenterY);
+      for (const sign of [targetSign, (targetSign === 1 ? -1 : 1) as 1 | -1]) {
+        for (let step = 1; step <= MAX_GAP_HORIZ_DECONFLICT_STEPS; step++) {
+          const trialY = plainTargetHorizYTrialLane(
+            plain.lane,
+            ep.targetY + sign * step * SPLICE_LANE_SEP,
+          );
+          if (
+            commitPlainHorizYTrialIfClear(
+              plain.candidate,
+              plain.lane,
+              trialY,
+              plain.jog.candidate,
+              plain.jog.lane,
+              eligible,
+              lanes,
+              sideSpans,
+              diagramCenterX,
+              layoutSync,
+            )
+          ) {
+            break;
+          }
+        }
+      }
+
+      let currentPlainLane = lanes.get(plain.candidate.id)!;
+      if (
+        gapHorizSegmentsOverlap(
+          plain.jog.candidate,
+          plain.jog.lane,
+          plain.candidate,
+          currentPlainLane,
+          sideSpans,
+          diagramCenterX,
+          layoutSync,
+        )
+      ) {
+        const sourceSign = sideHorizLaneSign(ep.sourceY, diagramCenterY);
+        for (const sign of [sourceSign, (sourceSign === 1 ? -1 : 1) as 1 | -1]) {
+          for (let step = 1; step <= MAX_GAP_HORIZ_DECONFLICT_STEPS; step++) {
+            const trialY = plainSourceHorizYTrialLane(
+              currentPlainLane,
+              ep.sourceY + sign * step * SPLICE_LANE_SEP,
+            );
+            if (
+              commitPlainHorizYTrialIfClear(
+                plain.candidate,
+                currentPlainLane,
+                trialY,
+                plain.jog.candidate,
+                plain.jog.lane,
+                eligible,
+                lanes,
+                sideSpans,
+                diagramCenterX,
+                layoutSync,
+              )
+            ) {
+              currentPlainLane = trialY;
+              break;
+            }
+          }
+        }
+      }
+
+      currentPlainLane = lanes.get(plain.candidate.id)!;
+      if (
+        gapHorizSegmentsOverlap(
+          plain.jog.candidate,
+          plain.jog.lane,
+          plain.candidate,
+          currentPlainLane,
+          sideSpans,
+          diagramCenterX,
+          layoutSync,
+        )
+      ) {
+        const jogKinds: Array<"source" | "target"> = ["source", "target"];
+        for (const kind of jogKinds) {
+          const epY = kind === "source" ? jogEp.sourceY : jogEp.targetY;
+          const sourceSign = sideHorizLaneSign(epY, diagramCenterY);
+          for (const sign of [sourceSign, (sourceSign === 1 ? -1 : 1) as 1 | -1]) {
+            for (let step = 1; step <= MAX_GAP_HORIZ_DECONFLICT_STEPS; step++) {
+              const trialJog: SpliceRoutingLane = {
+                ...plain.jog.lane,
+                ...(kind === "source"
+                  ? { sourceHorizY: epY + sign * step * SPLICE_LANE_SEP }
+                  : { targetHorizY: epY + sign * step * SPLICE_LANE_SEP }),
+              };
+              if (
+                !gapHorizSegmentsOverlap(
+                  plain.jog.candidate,
+                  trialJog,
+                  plain.candidate,
+                  currentPlainLane,
+                  sideSpans,
+                  diagramCenterX,
+                  layoutSync,
+                ) &&
+                laneBendsWithinBudget(
+                  plain.jog.candidate,
+                  trialJog,
+                  sideSpans,
+                  diagramCenterX,
+                  layoutSync,
+                ) &&
+                laneHasNoGapHorizConflict(
+                  plain.jog.candidate,
+                  trialJog,
+                  eligible,
+                  lanes,
+                  sideSpans,
+                  diagramCenterX,
+                  layoutSync,
+                )
+              ) {
+                lanes.set(plain.jog.candidate.id, trialJog);
+                break;
+              }
+              const withBend = gapBendXsForHorizOffsets(
+                plain.jog.candidate,
+                trialJog,
+                sideSpans,
+                diagramCenterX,
+                0,
+                layoutSync,
+              );
+              if (
+                !gapHorizSegmentsOverlap(
+                  plain.jog.candidate,
+                  withBend,
+                  plain.candidate,
+                  currentPlainLane,
+                  sideSpans,
+                  diagramCenterX,
+                  layoutSync,
+                ) &&
+                laneBendsWithinBudget(
+                  plain.jog.candidate,
+                  withBend,
+                  sideSpans,
+                  diagramCenterX,
+                  layoutSync,
+                ) &&
+                laneHasNoGapHorizConflict(
+                  plain.jog.candidate,
+                  withBend,
+                  eligible,
+                  lanes,
+                  sideSpans,
+                  diagramCenterX,
+                  layoutSync,
+                )
+              ) {
+                lanes.set(plain.jog.candidate.id, withBend);
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 function sideHorizLaneSign(anchorY: number, diagramCenterY: number): 1 | -1 {
@@ -2606,6 +3176,7 @@ export function assignSideHorizLaneYs(
             candidate,
             forcedTrial,
             sideSpans,
+            diagramCenterX,
           )
         ) {
           result.set(candidate.id, forced);
@@ -2621,7 +3192,12 @@ export function assignSideHorizLaneYs(
         } else if (
           (forced.sourceHorizY !== undefined ||
             forced.targetHorizY !== undefined) &&
-          laneBendsWithinBudget(candidate, { ...lane, ...forced }, sideSpans)
+          laneBendsWithinBudget(
+            candidate,
+            { ...lane, ...forced },
+            sideSpans,
+            diagramCenterX,
+          )
         ) {
           result.set(candidate.id, forced);
           occupied.push(
@@ -2671,10 +3247,16 @@ export function assignSideHorizLaneYs(
             candidate,
             trial,
             sideSpans,
+            diagramCenterX,
           )
         ) {
           if (
-            laneBendsWithinBudget(candidate, { ...lane, ...offsets }, sideSpans)
+            laneBendsWithinBudget(
+              candidate,
+              { ...lane, ...offsets },
+              sideSpans,
+              diagramCenterX,
+            )
           ) {
             occupied.push(
               ...horizontalSegmentsForLane(

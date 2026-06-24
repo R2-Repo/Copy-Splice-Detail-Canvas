@@ -1930,11 +1930,16 @@ function buildLayoutRuleContextWithExpansion(
   expansion: LayoutExpansion,
   overrides?: Pick<LayoutOverrides, "collapseFullButtSplices">,
 ): LayoutRuleContext {
-  const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-  const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
-  const placement = computeCanvasPlacement(graph, visualCables, dominant, rowIndex);
-  const layout = computeAlignedLayout(graph, visualCables, placement, dominant, width);
-  const { nodes, edges } = buildReactFlowGraph(
+  const { visualCables: ruleVisualCables, dominant } = buildVisualCablesForLayout(graph);
+  const rowIndex = connectionRowIndexMap(graph, ruleVisualCables, dominant);
+  const rulePlacement = computeCanvasPlacement(graph, ruleVisualCables, dominant, rowIndex);
+  const layout = computeAlignedLayout(graph, ruleVisualCables, rulePlacement, dominant, width);
+  const {
+    nodes,
+    edges,
+    visualCables: routedVisualCables,
+    placement: routedPlacement,
+  } = buildReactFlowGraph(
     graph,
     overrides?.collapseFullButtSplices
       ? {
@@ -1944,13 +1949,13 @@ function buildLayoutRuleContextWithExpansion(
         }
       : undefined,
     width,
-    { skipFeasibility: true },
+    { skipFeasibility: true, sharedVisualCables: ruleVisualCables },
   );
   return {
     graph,
-    visualCables,
+    visualCables: routedVisualCables ?? ruleVisualCables,
     dominant,
-    placement,
+    placement: routedPlacement ?? rulePlacement,
     layout,
     reactFlow: { nodes, edges },
     layoutWidth: width,

@@ -9,6 +9,7 @@ import {
   assignSpliceRoutingLanes,
   handleEntriesToCandidates,
   handleEntriesWithLiveRowOffsets,
+  syncHandleEntriesToLayoutEndpoints,
 } from "@/features/diagram/spliceCenterLanes";
 import { logLaneAssignmentDiff } from "@/features/diagram/debugLaneDiff";
 import type { LayoutEndpointSync } from "@/features/diagram/spliceCenterLanes";
@@ -123,6 +124,12 @@ export function routeAllOnGrid(input: GridRouterInput): GridRouterResult {
       liveBaseline,
     );
   }
+  if (input.layoutEndpointSync) {
+    syncHandleEntriesToLayoutEndpoints(
+      handleEntries,
+      input.layoutEndpointSync,
+    );
+  }
 
   const baseline = packedBaselineLanes(handleEntries);
   const anchors = anchorsFromEntries(handleEntries);
@@ -182,6 +189,7 @@ export function routeAllOnGrid(input: GridRouterInput): GridRouterResult {
     adjustedLanes,
     input.diagramCenterX,
     tubeDotColumns,
+    input.layoutEndpointSync,
   );
 
   const routes = new Map<string, GridRoute>(reservedRoutes);

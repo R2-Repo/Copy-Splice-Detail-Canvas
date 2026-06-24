@@ -2,22 +2,31 @@
 
 > Agents: keep this file current-only. History lives in git log and [`CHANGELOG.md`](./CHANGELOG.md).
 
-## Focus (2026-06-23)
+## Focus (2026-06-24)
 
-**SDC production path** — public contract = 12 rules in [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md).
+**Grid reconcile EDGE-011 (SPI) — parked.** Public contract = 12 SDC rules in [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md).
 
-- **Test gate:** `npm run test:layout` → `sdcLayoutContract.test.ts` (grid engine)
-- **Legacy:** `layoutRules.ts` private; `npm run test:layout-legacy` optional
-- **Routing:** grid assign + `reconcileGapHorizontalLanesAfterRouting` + horiz guard in `snapLaneMidXAvoidOverlap`
+- **SDC gate:** `npm run test:layout` → `sdcLayoutContract.test.ts` — **10/12 pass** after tail deconflict (SPI **timeout** @120s; `left-sp-3254.5` **SDC-ROUTE-002**)
+- **Legacy routing gate:** `npm run test:routing` → `routingImportContract.test.ts` — **SPI EDGE-011 still red** (~94/96)
+- **Full verify:** `npm run verify` — **not green** (routing EDGE-011)
 
-## Blockers
+## Done this session (keep)
 
-- **Legacy routing contract:** `npm run test:routing` — Example #3 + SPI still fail **EDGE-011** (94/96); SDC contract passes those fixtures
-- `npm run verify` not green — `routingImportContract.test.ts` EDGE-011 on crowded center pairs (`mid=1968/2040`, `3024/2904`); Y-track offset within bend budget not landing on edge data
-- **300N_MAIN:** import rules in `test:layout`; full grid in optional `npm run test:layout-slow`
+- **`buildReactFlowGraph`:** `sharedVisualCables` / `routingVisualCables` — same cables for grid routing **and** `layoutEndpointSync` (was root cause: handle entries vs sync mismatch)
+- **`buildLayoutRuleContextWithExpansion`:** passes `sharedVisualCables: ruleVisualCables`; returns post-route `visualCables` / `placement` from graph build when available
+- **`spliceCenterLanes.ts`:** `laneHasNoGapHorizConflict`; seal/sweep global overlap checks; jog-strand `sourceHorizY` / `targetHorizY` fallback; iterative seal+sweep; tail `deconflictGapHorizontalLanes` after horiz-offset merge
+- Precomputed **`routingTargetHorizY` / `routingSourceHorizY`** now attach on full import path (was missing on split legs)
+
+## Blockers (revisit later)
+
+- **SPI legacy EDGE-011:** remaining pair is **not** the original y=652 jog/plain case — overlap is **h/h mid=3000/2952**: plain `routingSourceHorizY: 700` vs jog `routingTargetHorizY: 676` (`Left-SPI-215_I-80.csv`)
+- **Horiz-offset order:** `assignSideHorizLaneYs` merge runs **after** first deconflict and can re-stack; tail deconflict helps but does not fully clear SPI
+- **Do not** move deconflict entirely after horiz-offsets only — regressed **SDC-ROUTE-002** on `left-sp-3254.5`
+- **Tail deconflict:** extra `deconflictGapHorizontalLanes` after seal/sweep regressed **SDC-ROUTE-002** on `left-sp-3254.5`; SPI SDC test **times out** at 120s (reconcile too slow) — consider reverting tail pass or scoping it
 
 ## Baseline
 
-- Branch: `main`
-- Pass: Examples #1–#2, SP, most Left CSVs, `npm run test:sdc`, `npm run test:layout` (12/12)
-- CI: `sdcLayoutContractSlow.test.ts` excluded from `test:ci`; vitest `pool: forks`, `maxWorkers: 2`
+- Branch: `main` (local changes uncommitted)
+- Pass: `npm run check`, `npm run build`; `npm run test:layout` **10/12** (tail deconflict regressions — see blockers)
+- Fail: `npm run test:routing` (SPI + possibly Example #3 legacy EDGE-011), `npm run verify`
+- Frozen: `.cursor/rules/frozen-routing.mdc` — no `spliceEdgeRouting.ts` edits without user approval

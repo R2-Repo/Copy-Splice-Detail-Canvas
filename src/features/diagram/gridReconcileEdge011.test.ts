@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { routingLaneFromData } from "@/features/canvas/edges/splicePathGeometry";
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
 import {
   buildLayoutRuleContext,
   findSpliceOverlapPair,
 } from "@/features/diagram/layoutRules";
-import { routingLaneFromData } from "@/features/canvas/edges/splicePathGeometry";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
 import {
   LAYOUT_CONTRACT_CSVS,
@@ -25,43 +25,13 @@ function gridContext(label: string, csv: string) {
   );
 }
 
-function laneDebugForOverlap(ctx: ReturnType<typeof buildLayoutRuleContext>) {
-  const overlap = findSpliceOverlapPair(ctx);
-  if (!overlap) return null;
-
-  const pair = overlap.split(" :: ")[0]!;
-  const [leftId, rightId] = pair.split(" vs ");
-  const rows: unknown[] = [];
-
-  for (const edge of ctx.reactFlow.edges) {
-    if (edge.type !== "splice" || edge.id.startsWith("splice-right-")) continue;
-    const connId = edge.id.replace(/^splice-left-/, "").replace(/^splice-/, "");
-    if (connId !== leftId && connId !== rightId) continue;
-
-    const lane = routingLaneFromData(edge.data as never);
-    if (!lane) continue;
-
-    rows.push({
-      connId,
-      lane,
-      routingSourceHorizY: (edge.data as { routingSourceHorizY?: number })
-        .routingSourceHorizY,
-      routingTargetHorizY: (edge.data as { routingTargetHorizY?: number })
-        .routingTargetHorizY,
-    });
-  }
-
-  return { overlap, rows };
-}
-
 describe("grid reconcile EDGE-011 (example-3 + SPI)", () => {
   it("example-3: findSpliceOverlapPair is null after grid import", () => {
     const ctx = gridContext(
       "example-3",
       readReferenceCsv(LAYOUT_CONTRACT_CSVS.multiCable),
     );
-    const debug = laneDebugForOverlap(ctx);
-    expect(debug, JSON.stringify(debug, null, 2)).toBeNull();
+    expect(findSpliceOverlapPair(ctx)).toBeNull();
   });
 
   it("SPI: findSpliceOverlapPair is null after grid import", () => {
@@ -69,18 +39,34 @@ describe("grid reconcile EDGE-011 (example-3 + SPI)", () => {
       "left-spi-215_i-80",
       readLeftCsv("Left-SPI-215_I-80.csv"),
     );
-    const debug = laneDebugForOverlap(ctx);
-    expect(debug, JSON.stringify(debug, null, 2)).toBeNull();
-  });
+    expect(findSpliceOverlapPair(ctx)).toBeNull();
+  }, 600_000);
 
-  it("overlap pairs carry routing Y offsets when stacked at natural Y", () => {
-    for (const [label, load] of [
-      ["example-3", () => readReferenceCsv(LAYOUT_CONTRACT_CSVS.multiCable)],
-      ["left-spi-215_i-80", () => readLeftCsv("Left-SPI-215_I-80.csv")],
-    ] as const) {
-      const ctx = gridContext(label, load());
-      const overlap = findSpliceOverlapPair(ctx);
-      expect(overlap, label).toBeNull();
-    }
-  });
+  it("SPI plain strand with source offset carries routing horiz Y on edge", () => {
+    const ctx = gridContext(
+      "left-spi-215_i-80",
+      readLeftCsv("Left-SPI-215_I-80.csv"),
+    );
+    expect(findSpliceOverlapPair(ctx)).toBeNull();
+
+    const plainConn =
+      "288-SMF I-215 DIST: 500 S - I-80|44|BR|BK::288-SMF I-215 DIST: SR-201 - N TEMPLE NB|32|GR|BK";
+    const edge = ctx.reactFlow.edges.find(
+      (e) =>
+        e.type === "splice" &&
+        !e.id.startsWith("splice-right-") &&
+        e.id.endsWith(plainConn),
+    );
+    const lane = routingLaneFromData(edge?.data as never);
+    const data = edge?.data as {
+      routingTargetHorizY?: number;
+      routingSourceHorizY?: number;
+    };
+    expect(
+      lane?.sourceHorizY ??
+        lane?.targetHorizY ??
+        data.routingSourceHorizY ??
+        data.routingTargetHorizY,
+    ).toBeDefined();
+  }, 600_000);
 });

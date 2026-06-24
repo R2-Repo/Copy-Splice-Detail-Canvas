@@ -20,6 +20,10 @@ import { assignSpliceRoutingLanesFromLiveHandles } from "@/features/diagram/spli
 import { logLaneAssignmentDiff } from "@/features/diagram/debugLaneDiff";
 import type { LayoutMode, LayoutOverrides } from "@/types/splice";
 import type { LayoutEndpointSync } from "@/features/diagram/spliceCenterLanes";
+import {
+  connectionIdFromHandleEntryId,
+  layoutRuleHandleEndpointsForConnection,
+} from "@/features/canvas/edges/spliceHandleEntries";
 import type { VisualCable } from "@/features/diagram/visualCables";
 
 export type PrecomputedSpliceEdgeData = {
@@ -142,6 +146,7 @@ export function attachPrecomputedPaths(
   lanes: Map<string, SpliceRoutingLane>,
   diagramCenterX: number,
   tubeDotColumns: Map<string, number> = new Map(),
+  layoutEndpointSync?: LayoutEndpointSync,
 ): Edge[] {
   const byId = new Map(entries.map((e) => [e.id, e]));
 
@@ -163,12 +168,31 @@ export function attachPrecomputedPaths(
     const { midX, jogX, sourceHorizY, targetHorizY, sourceBendX, targetBendX } =
       lane;
 
+    let sourceX = entry.sourceX;
+    let sourceY = entry.sourceY;
+    let targetX = entry.targetX;
+    let targetY = entry.targetY;
+    if (layoutEndpointSync) {
+      const layoutEp = layoutRuleHandleEndpointsForConnection(
+        layoutEndpointSync.graph,
+        layoutEndpointSync.visualCables,
+        layoutEndpointSync.nodes,
+        connectionIdFromHandleEntryId(entry.id),
+      );
+      if (layoutEp) {
+        sourceX = layoutEp.sourceX;
+        sourceY = layoutEp.sourceY;
+        targetX = layoutEp.targetX;
+        targetY = layoutEp.targetY;
+      }
+    }
+
     const pathResult = fullButt
       ? buildButtSplicePath(
-          entry.sourceX,
-          entry.sourceY,
-          entry.targetX,
-          entry.targetY,
+          sourceX,
+          sourceY,
+          targetX,
+          targetY,
           midX,
           sideSpans,
           diagramCenterX,
@@ -176,10 +200,10 @@ export function attachPrecomputedPaths(
           laneCount,
         )
       : buildSplicePath(
-          entry.sourceX,
-          entry.sourceY,
-          entry.targetX,
-          entry.targetY,
+          sourceX,
+          sourceY,
+          targetX,
+          targetY,
           midX,
           jogX,
           { sourceHorizY, targetHorizY, sourceBendX, targetBendX },

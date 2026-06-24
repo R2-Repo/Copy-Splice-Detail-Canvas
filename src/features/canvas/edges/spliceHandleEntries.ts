@@ -1,5 +1,5 @@
 import type { SideCircuitLabelSpan } from "@/features/diagram/cableLabels";
-import type { ConnectionGraph } from "@/features/diagram/buildConnectionGraph";
+import type { ConnectionGraph, FiberConnection } from "@/types/splice";
 import { endpointOnVisualSide } from "@/features/diagram/visualCables";
 import { resolveSpliceSourceTarget } from "@/features/diagram/resolveSpliceSourceTarget";
 import type { VisualCable } from "@/features/diagram/visualCables";
@@ -186,7 +186,7 @@ export function layoutRuleHandleEndpointsForConnection(
   connectionId: string,
 ): Pick<SpliceHandleEntry, "sourceX" | "sourceY" | "targetX" | "targetY"> | null {
   const conn = graph.connections.find(
-    (c) => c.kind === "fiber" && c.id === connectionId,
+    (c): c is FiberConnection => c.kind === "fiber" && c.id === connectionId,
   );
   if (!conn || conn.kind !== "fiber") return null;
 
