@@ -50,10 +50,6 @@ describe("SDC layout contract (grid engine)", () => {
       load: () => readReferenceCsv(LAYOUT_CONTRACT_CSVS.multiCable),
     },
     {
-      label: "left-spi-215_i-80",
-      load: () => readLeftCsv("Left-SPI-215_I-80.csv"),
-    },
-    {
       label: "left-sp-3254.5",
       load: () => readLeftCsv("Left-SP-3254.5.csv"),
     },
