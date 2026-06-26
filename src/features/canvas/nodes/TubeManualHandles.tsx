@@ -3,7 +3,7 @@ import { useViewport } from "@xyflow/react";
 
 import { collapsedTubeHandleLocalX } from "@/features/canvas/edges/splicePathGeometry";
 import { useManualLayout } from "@/features/canvas/ManualLayoutContext";
-import { clampFanoutShiftY } from "@/features/manualAdjust/constraints";
+import { clampFanoutShiftY, clampStemReachX } from "@/features/manualAdjust/constraints";
 import { MANUAL_ALIGN_SNAP_TOLERANCE } from "@/features/diagram/horizontalAlign";
 import { snapToNearestTarget } from "@/features/diagram/snapGuides";
 import { tubeKeyFor } from "@/features/diagram/tubeRowShift";
@@ -34,6 +34,8 @@ type Props = {
   onTubeContextMenu?: (e: React.MouseEvent, tubeColor: string) => void;
 };
 
+type DragMode = "tipY" | "stemX";
+
 export function TubeManualHandles({
   visualCableId,
   side,
@@ -52,8 +54,10 @@ export function TubeManualHandles({
   const viewport = useViewport();
   const dragRef = useRef<{
     tubeColor: TubeColorCode;
-    startPointerY: number;
+    mode: DragMode;
+    startPointer: number;
     startShiftY: number;
+    startReachX: number;
     baseTipY: number;
   } | null>(null);
 
@@ -66,6 +70,7 @@ export function TubeManualHandles({
       return {
         visualShiftY: preview?.visualShiftY ?? source?.visualShiftY ?? 0,
         savedShiftY: source?.visualShiftY ?? 0,
+        visualReachX: preview?.stemReachX ?? source?.stemReachX ?? 0,
         savedReachX: source?.stemReachX ?? 0,
       };
     },
@@ -77,6 +82,7 @@ export function TubeManualHandles({
   const onPointerDown = (
     event: React.PointerEvent,
     tubeColor: TubeColorCode,
+    mode: DragMode,
     baseTipY: number,
   ) => {
     event.stopPropagation();
@@ -84,8 +90,10 @@ export function TubeManualHandles({
     const state = tubeState(tubeColor);
     dragRef.current = {
       tubeColor,
-      startPointerY: event.clientY,
+      mode,
+      startPointer: mode === "tipY" ? event.clientY : event.clientX,
       startShiftY: state.visualShiftY,
+      startReachX: state.visualReachX,
       baseTipY,
     };
     (event.target as HTMLElement).setPointerCapture(event.pointerId);
@@ -98,11 +106,19 @@ export function TubeManualHandles({
 
     const tubeKey = tubeKeyFor(visualCableId, drag.tubeColor);
     const prevPreview = manual.tubePreview.get(tubeKey);
-    const delta = event.clientY - drag.startPointerY;
+
+    if (drag.mode === "stemX") {
+      const sign = side === "left" ? 1 : -1;
+      const delta = (event.clientX - drag.startPointer) * sign;
+      const nextReach = clampStemReachX(drag.startReachX + delta);
+      manual.setTubePreview(tubeKey, { ...prevPreview, stemReachX: nextReach });
+      manual.setActiveGuides([]);
+      return;
+    }
+
+    const delta = event.clientY - drag.startPointer;
     let next = clampFanoutShiftY(drag.startShiftY + delta);
 
-    // Horizontal leg alignment (EDGE-013): snap the tip to a near-flat row so
-    // the leg / collapsed tube becomes a single flat horizontal line.
     let snapGuideY: number | null = null;
     if (nodeAbsoluteY !== undefined && manual.snapTipTargets.length > 0) {
       const candidateAbsY = nodeAbsoluteY + drag.baseTipY + next;
@@ -139,10 +155,18 @@ export function TubeManualHandles({
 
     const tubeKey = tubeKeyFor(visualCableId, drag.tubeColor);
     const state = tubeState(drag.tubeColor);
+    if (drag.mode === "stemX") {
+      const finalReach = clampStemReachX(state.visualReachX);
+      manual.setTubePreview(tubeKey, null);
+      manual.onTubeOverrideCommit(tubeKey, {
+        stemReachX: Math.abs(finalReach) < 0.5 ? undefined : finalReach,
+      });
+      return;
+    }
+
     const finalShift = clampFanoutShiftY(state.visualShiftY);
     const patch = {
-      visualShiftY:
-        Math.abs(finalShift) < 0.5 ? undefined : finalShift,
+      visualShiftY: Math.abs(finalShift) < 0.5 ? undefined : finalShift,
     };
 
     manual.setTubePreview(tubeKey, null);
@@ -168,39 +192,67 @@ export function TubeManualHandles({
         const state = tubeState(tube.tubeColor);
         const baseTipY = tube.end.y - state.savedShiftY;
         const displayEndY = baseTipY + state.visualShiftY;
+        const reachDelta =
+          side === "left"
+            ? state.visualReachX
+            : -state.visualReachX;
         const displayEndX = collapsed
           ? collapsedTubeHandleLocalX(side, stemX)
-          : tube.end.x -
-            (side === "left" ? state.savedReachX : -state.savedReachX);
+          : tube.end.x - (side === "left" ? state.visualReachX : -state.visualReachX);
+        const stemHandleX =
+          tube.origin.x + (side === "left" ? reachDelta : -reachDelta);
 
         return (
-          <button
-            key={tube.tubeColor}
-            type="button"
-            className={`cable-node__tube-tip-drag nodrag nopan${locked ? " cable-node__tube-tip-drag--locked" : ""}`}
-            style={{
-              left: displayEndX - 6,
-              top: displayEndY - 6,
-            }}
-            title={
-              locked
-                ? "Fan-out group locked (right-click to unlock)"
-                : collapsed
-                  ? "Drag collapsed tube up/down"
-                  : "Drag tube tip (vertical)"
-            }
-            aria-label={
-              locked
-                ? `${tube.tubeColor} fan-out group locked`
-                : `Adjust ${tube.tubeColor} tube height`
-            }
-            onPointerDown={
-              locked
-                ? undefined
-                : (e) => onPointerDown(e, tube.tubeColor, baseTipY)
-            }
-            onContextMenu={(e) => onTubeContextMenu?.(e, tube.tubeColor)}
-          />
+          <span key={tube.tubeColor} className="cable-node__tube-handle-pair">
+            {!collapsed ? (
+              <button
+                type="button"
+                className={`cable-node__tube-stem-drag nodrag nopan${locked ? " cable-node__tube-tip-drag--locked" : ""}`}
+                style={{
+                  left: stemHandleX - 5,
+                  top: tube.origin.y - 5,
+                }}
+                title={
+                  locked
+                    ? "Fan-out group locked"
+                    : "Drag stem reach (horizontal)"
+                }
+                aria-label={`Adjust ${tube.tubeColor} stem reach`}
+                onPointerDown={
+                  locked
+                    ? undefined
+                    : (e) => onPointerDown(e, tube.tubeColor, "stemX", baseTipY)
+                }
+                onContextMenu={(e) => onTubeContextMenu?.(e, tube.tubeColor)}
+              />
+            ) : null}
+            <button
+              type="button"
+              className={`cable-node__tube-tip-drag nodrag nopan${locked ? " cable-node__tube-tip-drag--locked" : ""}`}
+              style={{
+                left: displayEndX - 6,
+                top: displayEndY - 6,
+              }}
+              title={
+                locked
+                  ? "Fan-out group locked (right-click to unlock)"
+                  : collapsed
+                    ? "Drag collapsed tube up/down"
+                    : "Drag tube tip (vertical)"
+              }
+              aria-label={
+                locked
+                  ? `${tube.tubeColor} fan-out group locked`
+                  : `Adjust ${tube.tubeColor} tube height`
+              }
+              onPointerDown={
+                locked
+                  ? undefined
+                  : (e) => onPointerDown(e, tube.tubeColor, "tipY", baseTipY)
+              }
+              onContextMenu={(e) => onTubeContextMenu?.(e, tube.tubeColor)}
+            />
+          </span>
         );
       })}
     </div>

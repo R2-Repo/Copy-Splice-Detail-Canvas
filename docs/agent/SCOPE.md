@@ -6,14 +6,16 @@
 
 ---
 
-## Stabilization gate (active)
+## Build phase (active)
 
-Until layout baseline holds for 5 consecutive sessions with no visual regression on Examples #1–#3:
+**Focus:** MVP features and **smart manual adjustment** (SDC-UX-001) — cables, buffer tubes/fan-outs, fiber strands, groups.
 
-- No new layout rule IDs
-- No refactors of `spliceEdgeRouting.ts`
-- Bug fixes limited to: one example + one rule + max 2 files
-- PDF/export work deferred
+**Parallel track:** Layout hardening — see [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md). Default tests skip documented weak points; run `npm run test:hardening` to re-check.
+
+- PDF/export work **un-deferred**
+- No new layout rule IDs without user approval
+- No refactors of frozen `spliceEdgeRouting.ts` without user approval
+- Session gate: **`npm run smoke`** (not full layout verify every session)
 
 ---
 

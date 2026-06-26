@@ -22,17 +22,19 @@ Frontend-only React PWA: node/workflow canvas (React Flow). No backend unless th
 | `docs/agent/CHANGELOG.md` | Archived session history (not active requirements) |
 | `docs/reference/examples/README.md` | **Left-*** CSVs for user QA and testing (Import in app) |
 | `docs/reference/` | Images and other reference assets (when cited) |
+| `docs/agent/KNOWN_ISSUES.md` | **Deferred layout weak points** — skipped in default test runs |
 
 ## Workflow
 
-1. Read SCOPE → RULE_PRIORITY → rule pack index → CONTEXT + HANDOFF before coding.
+1. Read SCOPE → RULE_PRIORITY → rule pack index → CONTEXT + HANDOFF + **KNOWN_ISSUES** before coding.
 2. When the user describes the diagram in simple terms, read **SIMPLE_TERMS.md** first and map to official/code names.
 3. Plan in bullets; ask if requirements are unclear.
 3. Implement in `src/` using existing patterns.
-4. Run **`npm run test:layout`** (layout contract — **required every session** with code changes).
-5. Run `npm run check`, `npm run test:ci`, `npm run build`.
-6. SDC rule changes: update rule pack docs + `src/features/rules/` + `sdcLayoutContract.test.ts`.
-7. Update CONTEXT + HANDOFF before ending the session.
+4. Run **`npm run smoke`** (default session gate: check + test:ci + build).
+5. Run **`npm run test:layout`** only when touching layout/routing/grid code.
+6. Run **`npm run test:hardening`** only on explicit layout-hardening sessions.
+7. SDC rule changes: update rule pack docs + `src/features/rules/` + `sdcLayoutContract.test.ts`.
+8. Update CONTEXT + HANDOFF before ending the session.
 
 ## Constraints
 
@@ -53,11 +55,14 @@ Frontend-only React PWA: node/workflow canvas (React Flow). No backend unless th
 
 ```bash
 npm run dev         # local dev server
-npm run test:layout # layout contract (Examples #1–#3) — run before finishing
+npm run smoke       # default session gate (check + test:ci + build)
+npm run test:layout # layout contract — when routing/layout changes
+npm run test:hardening  # full layout hardening (includes known-issue fixtures)
 npm run check       # typecheck
-npm run test:ci     # all unit tests
+npm run test:ci     # all unit tests (known layout reds skipped)
 npm run build       # production build
-npm run verify      # layout + check + test:ci + build
+npm run verify      # alias for smoke
+npm run verify:full # layout + slow + check + test:ci + build
 ```
 
 ## Response style

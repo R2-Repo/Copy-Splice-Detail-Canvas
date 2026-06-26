@@ -121,6 +121,7 @@ import {
   repinButtSpliceEdges,
 } from "@/features/manualAdjust/repinButtSpliceEdges";
 import { syncManualVisualCable } from "@/features/manualAdjust/syncManualVisualCable";
+import { tubeKeyForFiberAnchor } from "@/features/manualAdjust/smartSelect";
 import { useManualAdjustEngine } from "@/features/manualAdjust/useManualAdjustEngine";
 import {
   stripRoutingOverridesForConnections,
@@ -363,6 +364,8 @@ function WorkflowCanvasInner() {
   const [tubePreview, setTubePreviewState] = useState<
     Map<TubeOverrideKey, TubeManualOverride>
   >(() => new Map());
+  const tubePreviewRef = useRef(tubePreview);
+  tubePreviewRef.current = tubePreview;
   const tubePreviewRepinRafRef = useRef<number | null>(null);
   const autoAdjustRef = useRef(true);
   const manualCableDragRafRef = useRef<number | null>(null);
@@ -1320,6 +1323,67 @@ function WorkflowCanvasInner() {
     [getEdges, getNodes, setNodes, updateManualWarnings],
   );
 
+  const setTubePreview = useCallback(
+    (tubeKey: TubeOverrideKey, patch: TubeManualOverride | null) => {
+      setTubePreviewState((prev) => {
+        const next = new Map(prev);
+        if (patch === null) {
+          next.delete(tubeKey);
+        } else {
+          next.set(tubeKey, { ...prev.get(tubeKey), ...patch });
+        }
+        tubePreviewRef.current = next;
+        return next;
+      });
+    },
+    [],
+  );
+
+  const repinVisualCablePreview = useCallback(
+    (visualCableId: string) => {
+      const graph = graphRef.current;
+      if (!graph) return;
+      const current = getNodes();
+      const callouts = current.filter((n) => n.type === "cableCallout");
+      const engine = engineNodesFrom(current);
+      const cableId = `cable-${visualCableId}`;
+      const cableNode = engine.find((n) => n.id === cableId);
+      if (!cableNode) return;
+      const data = cableNode.data as CableNodeData;
+      const preview = tubePreviewRef.current;
+      const patchedCable = {
+        ...cableNode,
+        data: {
+          ...data,
+          tubes: data.tubes.map((t) => {
+            const key = tubeKeyFor(visualCableId, t.tubeColor);
+            const live = preview.get(key);
+            if (!live) return t;
+            return {
+              ...t,
+              ...(live.visualShiftY !== undefined
+                ? { visualShiftY: live.visualShiftY }
+                : {}),
+              ...(live.stemReachX !== undefined
+                ? { stemReachX: live.stemReachX }
+                : {}),
+            };
+          }),
+        },
+      };
+      const { nodes: synced, edges: syncedEdges } = syncManualVisualCable(
+        engine.map((n) => (n.id === cableId ? patchedCable : n)),
+        getEdges(),
+        graph,
+        visualCableId,
+        patchedCable,
+      );
+      setNodes([...synced, ...callouts]);
+      setEdges(syncedEdges);
+    },
+    [getEdges, getNodes, setEdges, setNodes],
+  );
+
   const manualAdjustEngine = useManualAdjustEngine({
     enabled:
       !autoAdjustEnabled ||
@@ -1338,6 +1402,10 @@ function WorkflowCanvasInner() {
     setNodes,
     getNodes,
     getEdges,
+    onTubePreview: setTubePreview,
+    onTubeOverrideCommit: handleTubeOverrideCommit,
+    onVisualCableRepin: repinVisualCablePreview,
+    tubePreview,
   });
 
   // Long-press a leg/butt to toggle it "existing" (works in auto + manual).
@@ -1474,7 +1542,10 @@ function WorkflowCanvasInner() {
         return;
       }
       if (!autoAdjustRef.current && node.type === "fiberAnchor") {
-        manualAdjustEngine.onNodeDrag(_, node, nodes);
+        manualAdjustEngine.onFiberAnchorDragStart(
+          _ as React.MouseEvent,
+          node,
+        );
         return;
       }
       if (node.type !== "cable") return;
@@ -1850,20 +1921,63 @@ function WorkflowCanvasInner() {
     [manualAdjustEngine, refreshDragRouting, nodes],
   );
 
-  const setTubePreview = useCallback(
-    (tubeKey: TubeOverrideKey, patch: TubeManualOverride | null) => {
-      setTubePreviewState((prev) => {
-        const next = new Map(prev);
-        if (patch === null) {
-          next.delete(tubeKey);
-        } else {
-          next.set(tubeKey, patch);
+  const unlockSelectedAdjustments = useCallback(() => {
+    const graph = graphRef.current;
+    const reportKey = reportKeyRef.current;
+    if (!graph || !reportKey) return;
+    const selected = manualAdjustEngine.selection.connectionIds;
+    if (selected.size === 0) return;
+    const existing = loadLayoutOverrides(reportKey);
+    let next = existing ?? {
+      reportKey,
+      positions: {},
+    };
+    const tubeOverrides = { ...(next.tubeOverrides ?? {}) };
+    const fanoutOverrides = { ...(next.fanoutOverrides ?? {}) };
+    const legOverrides = { ...(next.legOverrides ?? {}) };
+    for (const connectionId of selected) {
+      delete legOverrides[connectionId];
+      next = unlockHybridItem(next, "fusionDot", connectionId);
+      for (const edge of getEdges()) {
+        if (!edge.id.startsWith("splice-left-")) continue;
+        if (edge.id.slice("splice-left-".length) !== connectionId) continue;
+        const anchor = nodes.find(
+          (n) =>
+            n.type === "fiberAnchor" &&
+            (n.data as { connectionId?: string }).connectionId === connectionId,
+        );
+        const vcId = (anchor?.data as { visualCableId?: string } | undefined)
+          ?.visualCableId;
+        if (vcId) {
+          const tubeKey = tubeKeyForFiberAnchor(graph, connectionId, vcId);
+          if (tubeKey) {
+            delete tubeOverrides[tubeKey];
+            delete fanoutOverrides[tubeKey];
+            next = unlockHybridItem(next, "tubeGroup", tubeKey);
+          }
         }
-        return next;
-      });
-    },
-    [],
-  );
+      }
+    }
+    next = {
+      ...next,
+      tubeOverrides,
+      fanoutOverrides,
+      legOverrides,
+    };
+    saveLayoutOverrides(next);
+    setLegOverridesState(legOverrides);
+    manualAdjustEngine.onClearSelection();
+    applyGraph(graph, reportKey, collapseRef.current, {
+      layoutWidth: layoutWidthRef.current,
+      refreshLayout: true,
+      refreshRowLayout: true,
+    });
+  }, [
+    applyGraph,
+    getEdges,
+    manualAdjustEngine,
+    nodes,
+  ]);
 
   const snapTipTargets = useMemo(() => {
     if (autoAdjustEnabled) return [] as number[];
@@ -2462,6 +2576,13 @@ function WorkflowCanvasInner() {
               onClick={resetToAutoLayout}
             />
           ) : null}
+          {meta && manualAdjustEngine.selection.connectionIds.size > 0 ? (
+            <ToolbarActionButton
+              label="Unlock selection"
+              icon={<ResetIcon />}
+              onClick={unlockSelectedAdjustments}
+            />
+          ) : null}
           <ToolbarSegmentedControl
             className="toolbar-segment--large"
             ariaLabel="Layout mode"
@@ -2492,8 +2613,8 @@ function WorkflowCanvasInner() {
         <div className="workflow-canvas__toolbar-center">
           <span className="workflow-canvas__hint">
             {autoAdjustEnabled
-              ? "Drag to adjust; edits lock in place. Auto layout runs around locked items."
-              : "Manual mode: tube tips ↕; collapsed tube center legs ↔ like fiber legs; shift+click handles; box-select"}
+              ? "Drag cables, tube tips ↕, stem ↔, fiber handles; shift+drag for bundle. Edits lock in place."
+              : "Manual: tube tips ↕, stem ↔, fiber anchors ↕, legs ↔; shift+click or marquee for groups"}
           </span>
           {configErrorBanner ? (
             <span className="workflow-canvas__manual-warning" role="alert">

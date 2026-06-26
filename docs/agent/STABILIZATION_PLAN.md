@@ -1,6 +1,8 @@
 # Splice Detail Canvas — stabilization and fix plan
 
-> Canonical build plan. Kickoff prompt: [`STABILIZATION_BUILD.md`](./STABILIZATION_BUILD.md)
+> **Status: PAUSED (2026-06-25)** — Superseded by **build phase** in [`SCOPE.md`](./SCOPE.md). Layout hardening uses `npm run test:hardening` and [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md).
+
+> Canonical build plan (archived). Kickoff prompt: [`STABILIZATION_BUILD.md`](./STABILIZATION_BUILD.md)
 
 ## Goal and constraints
 

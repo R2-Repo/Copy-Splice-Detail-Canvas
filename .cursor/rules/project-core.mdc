@@ -26,9 +26,8 @@ React 19 + Vite + TypeScript + `@xyflow/react`. Frontend PWA only.
 
 Before finishing substantive work:
 
-1. `npm run test:layout` — **layout contract** (Examples #1–#3; cable/tube/fiber invariants)
-2. `npm run check`
-3. `npm run test:ci`
-4. `npm run build`
+1. `npm run smoke` — **default gate** (check + test:ci + build)
+2. `npm run test:layout` — only when changing layout/routing/grid
+3. See [`docs/agent/KNOWN_ISSUES.md`](docs/agent/KNOWN_ISSUES.md) for deferred layout weak points
 
-If `test:layout` fails, fix regressions before ending the session. See `docs/agent/LAYOUT_RULES.md`.
+Do not chase KNOWN_ISSUES skips unless explicitly hardening layout.

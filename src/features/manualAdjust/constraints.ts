@@ -8,6 +8,7 @@ import {
 } from "@/features/canvas/edges/splicePathGeometry";
 
 import { MAX_MANUAL_FANOUT_SHIFT_Y } from "@/features/diagram/tubeRowShift";
+import { FIBER_ROW_PITCH } from "@/features/diagram/cableLayoutMetrics";
 
 import type { LegSegment } from "./legSegments";
 import { pathToLegSegments } from "./legSegments";
@@ -175,4 +176,9 @@ export function clampFanoutShiftY(
   maxShift = MAX_MANUAL_FANOUT_SHIFT_Y,
 ): number {
   return Math.max(-maxShift, Math.min(maxShift, shiftY));
+}
+
+/** Horizontal stem reach override (px along fan-out direction). */
+export function clampStemReachX(reachX: number, maxReach = FIBER_ROW_PITCH * 3): number {
+  return Math.max(-maxReach, Math.min(maxReach, reachX));
 }

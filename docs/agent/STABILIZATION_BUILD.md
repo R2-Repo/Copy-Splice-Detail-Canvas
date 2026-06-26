@@ -1,6 +1,8 @@
 # Stabilization build — agent kickoff
 
-> **Start here.** This file is the handoff for a fresh agent session to fix and stabilize the existing Splice Detail Canvas — **not** a rewrite, UI overhaul, or routing-philosophy change.
+> **Status: PAUSED (2026-06-25).** Use **build phase** in [`SCOPE.md`](./SCOPE.md) and [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md) instead. Default gate: `npm run smoke`.
+
+> **Start here (archived).** This file was the handoff for stabilization — not active.
 
 ## Full plan
 

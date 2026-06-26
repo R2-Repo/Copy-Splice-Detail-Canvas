@@ -772,6 +772,24 @@
   cursor: ns-resize;
 }
 
+.cable-node--manual-adjust .cable-node__tube-stem-drag {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 1px solid #94a3b8;
+  border-radius: 50%;
+  background: #e2e8f0;
+  box-shadow: 0 0 0 1px #fff;
+  pointer-events: all;
+  z-index: 3;
+  cursor: ew-resize;
+}
+
+.cable-node__tube-handle-pair {
+  position: static;
+}
+
 .cable-node--manual-adjust .cable-node__tube-tip-drag--locked,
 .cable-node__tube-tip-drag--locked {
   cursor: not-allowed;

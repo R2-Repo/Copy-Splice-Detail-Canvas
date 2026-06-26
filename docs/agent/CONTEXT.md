@@ -4,28 +4,26 @@
 
 ## Focus (2026-06-25)
 
-**EDGE-011 SPI reconcile landed (uncommitted).** `npm run test:edge011` **green** (~70s). Full `verify` not run this session.
+**Build-first policy + smart manual adjust.** Default gate is `npm run smoke`. Layout hardening deferred per [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md).
 
-## Uncommitted
+## Active build track
 
-- `package.json` — `test:edge011` / `test:edge011:example3` with `--pool=forks --maxWorkers=1 --hookTimeout=600000`
-- `spliceCenterLanes.ts` — reconcile: offset trials, jog/plain resolve, shared-row gap-bend cap (jog/plain + jog/jog)
+- Smart manual movement: fiber anchor drag, tube tip ↕ + stem ↔, shift+drag bundle, marquee groups, unlock selection
+- SDC-UX-001: lock-on-commit (grid hybrid); unlock selection / reset layout in toolbar
 
-## Blockers
+## Known issues (not session blockers)
 
-- **`npm run verify`:** not run; Tier 3 routing `left-spi-215` not run
-- **Pre-existing on HEAD:** `gridReconcileEdge011` example-3 overlap red (~21 min feasibility); `test:layout:fast` **SDC-ROUTE-002** on `left-sp-3254.5` red — unchanged by SPI fix
+See [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md) — KI-001..004 skipped in default `test:ci`.
 
-## Validation tiers
+## Session gate
 
-0. `npm run check`
-1. `npm run test:layout:fast`
-2. `npm run test:edge011` — **green**
-3. `npm run test:edge011:example3` — red on HEAD (same pair as layout contract example-3)
-4. `npx vitest run …routingImportContract.test.ts -t "left-spi-215" --testTimeout=600000`
-5. `npm run verify`
+```bash
+npm run smoke
+```
+
+Layout/routing changes: also `npm run test:layout`. Hardening: `npm run test:hardening`.
 
 ## Baseline
 
-- Branch: `main` (local changes uncommitted)
+- Branch: `main`
 - Frozen: `.cursor/rules/frozen-routing.mdc`

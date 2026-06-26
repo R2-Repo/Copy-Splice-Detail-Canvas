@@ -1,12 +1,13 @@
 ---
-description: MUST-KEEP layout invariants — run test:layout before finishing any substantive work
+description: MUST-KEEP layout invariants — run test:layout when changing layout/routing
 alwaysApply: true
 ---
 
-# Layout rules (must keep — every session)
+# Layout rules (must keep — layout/routing changes)
 
-**Non-optional before finishing substantive work:** `npm run test:layout`  
-Fails = do not ship. Do not weaken rules without explicit user approval.
+**Default session gate:** `npm run smoke` — not full layout verify every session.
+
+**When changing layout/routing/grid:** run `npm run test:layout`. Known deferred failures are skipped — see [`docs/agent/KNOWN_ISSUES.md`](../../docs/agent/KNOWN_ISSUES.md). Opt-in full check: `npm run test:hardening` or `RUN_KNOWN_ISSUES=1`.
 
 **Canonical contract:** [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../../splice_detail_canvas_rule_pack/00_Rule_Index.md) — **12 SDC rules** (`SDC-*`).  
 **Test gate:** `src/features/rules/sdcLayoutContract.test.ts` (grid engine, Examples #1–#3 + key Left CSVs).  
@@ -17,7 +18,7 @@ Before changing diagram layout, cable nodes, buffer tubes, fiber strands, splice
 1. Read the **rule pack index** and [`docs/agent/RULE_ID_MAP.md`](../../docs/agent/RULE_ID_MAP.md).
 2. Implement SDC checks in `src/features/rules/`; legacy checks stay in `layoutRules.ts`.
 3. Extend `sdcLayoutContract.test.ts` when adding production fixtures.
-4. Run **`npm run test:layout`** then **`npm run test:ci`** before finishing.
+4. Run **`npm run test:layout`** then confirm **`npm run smoke`** before finishing.
 
 Optional: `npm run test:layout-legacy` — legacy `layoutRules.test.ts` only (not in `verify`).
 

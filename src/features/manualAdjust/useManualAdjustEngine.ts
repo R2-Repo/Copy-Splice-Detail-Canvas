@@ -1,7 +1,6 @@
 import type { Edge, Node, OnNodeDrag } from "@xyflow/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
 
 import {
@@ -46,8 +45,15 @@ import {
   setConnectionSelection,
   toggleConnectionSelection,
 } from "./selection";
-import { bundleConnectionIds } from "./smartSelect";
+import {
+  bundleConnectionIds,
+  dragConnectionIdsForFiberAnchor,
+  tubeKeysForConnectionsOnCable,
+} from "./smartSelect";
 import type { LegSide, ManualAdjustSelection } from "./types";
+import type { TubeManualOverride, TubeOverrideKey } from "@/types/splice";
+import { clampFanoutShiftY } from "./constraints";
+import type { CableNodeData } from "@/features/canvas/nodes/types";
 
 type ConnectionLegPathData = {
   leftPath: string;
@@ -81,6 +87,13 @@ type DotDragState = {
   preDragPaths: Map<string, ConnectionLegPathData>;
 };
 
+type FiberAnchorDragState = {
+  visualCableId: string;
+  connectionIds: string[];
+  startAnchorY: number;
+  tubeBaseShiftY: Map<TubeOverrideKey, number>;
+};
+
 export type ManualAdjustEngine = {
   selection: ManualAdjustSelection;
   legSegmentDragActive: boolean;
@@ -112,6 +125,10 @@ export type ManualAdjustEngine = {
   onDotPointerDown: (connectionId: string, event: React.PointerEvent) => void;
   onNodeDrag: OnNodeDrag<Node>;
   onNodeDragStop: OnNodeDrag<Node>;
+  onFiberAnchorDragStart: (
+    event: React.MouseEvent,
+    node: Node,
+  ) => void;
   applyLegOverridesToEdges: (
     edges: Edge[],
     overrides: LayoutOverrides | undefined,
@@ -132,6 +149,10 @@ export function useManualAdjustEngine({
   setNodes,
   getNodes,
   getEdges,
+  onTubePreview,
+  onTubeOverrideCommit,
+  onVisualCableRepin,
+  tubePreview,
 }: {
   enabled: boolean;
   nodes: Node[];
@@ -146,17 +167,57 @@ export function useManualAdjustEngine({
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   getNodes: () => Node[];
   getEdges: () => Edge[];
+  onTubePreview: (
+    tubeKey: TubeOverrideKey,
+    patch: TubeManualOverride | null,
+  ) => void;
+  onTubeOverrideCommit: (
+    tubeKey: TubeOverrideKey,
+    patch: TubeManualOverride,
+  ) => void;
+  onVisualCableRepin: (visualCableId: string) => void;
+  tubePreview: ReadonlyMap<TubeOverrideKey, TubeManualOverride>;
 }): ManualAdjustEngine {
   const [selection, setSelection] = useState<ManualAdjustSelection>(
     emptySelection(),
   );
   const [legSegmentDragActive, setLegSegmentDragActive] = useState(false);
   const segmentDragRef = useRef<SegmentDragState | null>(null);
+  const fiberAnchorDragRef = useRef<FiberAnchorDragState | null>(null);
+
+  const savedTubeShiftY = useCallback(
+    (tubeKey: TubeOverrideKey, visualCableId: string, tubeColor: string) => {
+      const preview = tubePreview.get(tubeKey);
+      if (preview?.visualShiftY !== undefined) return preview.visualShiftY;
+      const cableNode = getNodes().find((n) => n.id === `cable-${visualCableId}`);
+      const tubes = (cableNode?.data as CableNodeData | undefined)?.tubes;
+      const tube = tubes?.find((t) => t.tubeColor === tubeColor);
+      return tube?.visualShiftY ?? 0;
+    },
+    [getNodes, tubePreview],
+  );
+
+  const applyFiberAnchorDragDelta = useCallback(
+    (drag: FiberAnchorDragState, deltaY: number) => {
+      if (!graph) return;
+      const tubeKeys = tubeKeysForConnectionsOnCable(
+        graph,
+        drag.connectionIds,
+        drag.visualCableId,
+      );
+      for (const tubeKey of tubeKeys) {
+        const base = drag.tubeBaseShiftY.get(tubeKey) ?? 0;
+        const nextShift = clampFanoutShiftY(base + deltaY);
+        onTubePreview(tubeKey, { visualShiftY: nextShift });
+      }
+      onVisualCableRepin(drag.visualCableId);
+    },
+    [graph, onTubePreview, onVisualCableRepin],
+  );
 
   const anchorPositions = useCallback(() => {
     if (!graph) return [];
-    const { visualCables } = buildVisualCablesForLayout(graph);
-    const byId = new Map(visualCables.map((vc) => [vc.id, vc]));
+    const cache = buildHandleCoordsCache(nodes, graph);
     return nodes
       .filter((n) => n.type === "fiberAnchor")
       .map((n) => {
@@ -164,12 +225,9 @@ export function useManualAdjustEngine({
           connectionId: string;
           visualCableId: string;
         };
-        const vc = byId.get(data.visualCableId);
-        if (!vc) return null;
-        const cableNode = nodes.find(
-          (c) => c.id === `cable-${data.visualCableId}`,
-        );
-        if (!cableNode) return null;
+        const cableNode = cache.cableById.get(`cable-${data.visualCableId}`);
+        const vc = cache.visualCables.find((v) => v.id === data.visualCableId);
+        if (!cableNode || !vc) return null;
         const pos = fiberAnchorCenter(
           data.connectionId,
           data.visualCableId,
@@ -627,13 +685,90 @@ export function useManualAdjustEngine({
     ],
   );
 
-  const onNodeDrag: OnNodeDrag<Node> = useCallback((_, node) => {
-    if (!enabled || node.type !== "fiberAnchor") return;
-  }, [enabled]);
+  const onFiberAnchorDragStart = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      if (!enabled || !graph || node.type !== "fiberAnchor") return;
+      const data = node.data as {
+        connectionId: string;
+        visualCableId: string;
+      };
+      const connectionIds = dragConnectionIdsForFiberAnchor(
+        getEdges(),
+        graph,
+        data.connectionId,
+        data.visualCableId,
+        selection,
+        { shiftKey: event.shiftKey },
+      );
+      if (event.shiftKey) {
+        setSelection(setConnectionSelection(connectionIds));
+      } else if (!selection.connectionIds.has(data.connectionId)) {
+        setSelection(setConnectionSelection(connectionIds));
+      }
+      const tubeKeys = tubeKeysForConnectionsOnCable(
+        graph,
+        connectionIds,
+        data.visualCableId,
+      );
+      const tubeBaseShiftY = new Map<TubeOverrideKey, number>();
+      for (const tubeKey of tubeKeys) {
+        const tubeColor = tubeKey.split("|")[1]!;
+        tubeBaseShiftY.set(
+          tubeKey,
+          savedTubeShiftY(tubeKey, data.visualCableId, tubeColor),
+        );
+      }
+      fiberAnchorDragRef.current = {
+        visualCableId: data.visualCableId,
+        connectionIds,
+        startAnchorY: node.position.y,
+        tubeBaseShiftY,
+      };
+    },
+    [enabled, getEdges, graph, savedTubeShiftY, selection],
+  );
 
-  const onNodeDragStop: OnNodeDrag<Node> = useCallback((_, node) => {
-    if (!enabled || node.type !== "fiberAnchor") return;
-  }, [enabled]);
+  const onNodeDrag: OnNodeDrag<Node> = useCallback(
+    (_, node, _nodes) => {
+      if (!enabled || node.type !== "fiberAnchor") return;
+      const drag = fiberAnchorDragRef.current;
+      if (!drag) return;
+      const deltaY = node.position.y - drag.startAnchorY;
+      applyFiberAnchorDragDelta(drag, deltaY);
+    },
+    [applyFiberAnchorDragDelta, enabled],
+  );
+
+  const onNodeDragStop: OnNodeDrag<Node> = useCallback(
+    (_, node, _nodes) => {
+      if (!enabled || node.type !== "fiberAnchor") return;
+      const drag = fiberAnchorDragRef.current;
+      if (!drag || !graph) return;
+      fiberAnchorDragRef.current = null;
+      const deltaY = node.position.y - drag.startAnchorY;
+      if (Math.abs(deltaY) < 0.5) {
+        for (const tubeKey of drag.tubeBaseShiftY.keys()) {
+          onTubePreview(tubeKey, null);
+        }
+        onVisualCableRepin(drag.visualCableId);
+        return;
+      }
+      const tubeKeys = tubeKeysForConnectionsOnCable(
+        graph,
+        drag.connectionIds,
+        drag.visualCableId,
+      );
+      for (const tubeKey of tubeKeys) {
+        const base = drag.tubeBaseShiftY.get(tubeKey) ?? 0;
+        const nextShift = clampFanoutShiftY(base + deltaY);
+        onTubePreview(tubeKey, null);
+        onTubeOverrideCommit(tubeKey, {
+          visualShiftY: Math.abs(nextShift) < 0.5 ? undefined : nextShift,
+        });
+      }
+    },
+    [enabled, graph, onTubeOverrideCommit, onTubePreview, onVisualCableRepin],
+  );
 
   const applyLegOverridesToEdges = useCallback(
     (
@@ -705,6 +840,7 @@ export function useManualAdjustEngine({
     onDotPointerDown,
     onNodeDrag,
     onNodeDragStop,
+    onFiberAnchorDragStart,
     applyLegOverridesToEdges,
   };
 }
