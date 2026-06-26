@@ -4,28 +4,26 @@
 
 ## Focus (2026-06-25)
 
-**EDGE-011 forward plan — paused.** Test tier split is **uncommitted**; reconcile code is **HEAD** (session attempts reverted).
+**EDGE-011 SPI reconcile landed (uncommitted).** `npm run test:edge011` **green** (~70s). Full `verify` not run this session.
 
-## Uncommitted (keep)
+## Uncommitted
 
-- `package.json` — `test:layout:fast`, `test:edge011`, updated `verify`
-- `sdcLayoutContract.test.ts` / `sdcLayoutContractSlow.test.ts` — SPI @ 600s in slow suite
-- `gridReconcileEdge011.test.ts` — SPI `beforeAll`, `skipFeasibility` on SPI only
+- `package.json` — `test:edge011` / `test:edge011:example3` with `--pool=forks --maxWorkers=1 --hookTimeout=600000`
+- `spliceCenterLanes.ts` — reconcile: offset trials, jog/plain resolve, shared-row gap-bend cap (jog/plain + jog/jog)
 
 ## Blockers
 
-- **SPI EDGE-011:** h/h **mid=1584/1848** (jog/plain; plain `sourceHorizY:1260`) — `npm run test:edge011` still red on HEAD reconcile
-- **Reconcile hang:** `gapHorizDeconflictAdjustOrder` jog-first + offset trials → ~10+ min import; avoid until scoped
-- **example-3:** partial reconcile regressed overlap check; re-verify on HEAD before landing reconcile
-- **`npm run verify`:** not green
+- **`npm run verify`:** not run; Tier 3 routing `left-spi-215` not run
+- **Pre-existing on HEAD:** `gridReconcileEdge011` example-3 overlap red (~21 min feasibility); `test:layout:fast` **SDC-ROUTE-002** on `left-sp-3254.5` red — unchanged by SPI fix
 
-## Validation tiers (strict order, one SPI job)
+## Validation tiers
 
-0. `npm run check` + `npx vitest run …gridReconcileEdge011.test.ts -t "example-3: findSpliceOverlapPair" --pool=forks --maxWorkers=1`
+0. `npm run check`
 1. `npm run test:layout:fast`
-2. `npm run test:edge011`
-3. `npx vitest run …routingImportContract.test.ts -t "left-spi-215" --testTimeout=600000`
-4. `npm run verify`
+2. `npm run test:edge011` — **green**
+3. `npm run test:edge011:example3` — red on HEAD (same pair as layout contract example-3)
+4. `npx vitest run …routingImportContract.test.ts -t "left-spi-215" --testTimeout=600000`
+5. `npm run verify`
 
 ## Baseline
 
