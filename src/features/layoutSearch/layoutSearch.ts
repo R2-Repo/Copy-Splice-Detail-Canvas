@@ -11,10 +11,12 @@ import type { ConnectionGraph } from "@/types/splice";
 
 import { evaluateLayoutCandidate } from "./evaluateCandidate";
 import {
+  ALL_LAYOUT_SIDES,
   candidateStableId,
   compareCandidates,
   defaultLayoutWidth,
   heuristicBaselineCandidate,
+  reconcileStackOrder,
   type LayoutCandidate,
   type LayoutSide,
 } from "./layoutCandidate";
@@ -101,10 +103,7 @@ function permutations<T>(items: T[]): T[][] {
 function normalizeCandidate(candidate: LayoutCandidate): LayoutCandidate {
   const next: LayoutCandidate = {
     cableSides: { ...candidate.cableSides },
-    stackOrder: {
-      left: [...candidate.stackOrder.left],
-      right: [...candidate.stackOrder.right],
-    },
+    stackOrder: reconcileStackOrder(candidate),
     layoutWidth: candidate.layoutWidth,
     layoutExpansion: { ...candidate.layoutExpansion },
   };
@@ -123,15 +122,16 @@ export function expansionIterations(): number[] {
   return Array.from({ length: MAX_EXPANSION_ITERATION + 1 }, (_, i) => i);
 }
 
-/** n! × 2^n side/stack combinations (upper bound for brute-force sizing). */
+/** n! × 4^n side/stack combinations (upper bound for brute-force sizing). */
 export function estimateBruteForceCandidateCount(cableCount: number): number {
   let factorial = 1;
   for (let i = 2; i <= cableCount; i++) factorial *= i;
-  return factorial * (1 << cableCount);
+  return factorial * 4 ** cableCount;
 }
 
 function expansionItersForBrute(cableCount: number): number[] {
-  if (cableCount <= 3) return [0, 1, 2, 3];
+  // 4-side enumeration grows quickly — keep brute-force expansion steps minimal.
+  if (cableCount <= 2) return [0, 1, 2];
   return [0];
 }
 
@@ -165,31 +165,45 @@ export function enumerateCandidates(
           ? DEFAULT_LAYOUT_EXPANSION
           : layoutExpansionForIteration(expIter);
 
-      for (let mask = 0; mask < 1 << n; mask++) {
-        const leftKeys: string[] = [];
-        const rightKeys: string[] = [];
+      for (let encoding = 0; encoding < 4 ** n; encoding++) {
+        const sideKeys: Record<LayoutSide, string[]> = {
+          left: [],
+          right: [],
+          top: [],
+          bottom: [],
+        };
         const cableSides: Record<string, LayoutSide> = {};
 
         cableKeys.forEach((cable, index) => {
-          const side: LayoutSide = (mask >> index) & 1 ? "right" : "left";
+          const side = ALL_LAYOUT_SIDES[
+            Math.floor(encoding / 4 ** index) % 4
+          ]!;
           cableSides[cable] = side;
-          (side === "left" ? leftKeys : rightKeys).push(cable);
+          sideKeys[side].push(cable);
         });
 
-        const leftPerms = leftKeys.length > 0 ? permutations(leftKeys) : [[]];
-        const rightPerms =
-          rightKeys.length > 0 ? permutations(rightKeys) : [[]];
+        const sidePerms = (keys: string[]) =>
+          keys.length > 0 ? permutations(keys) : [[]];
+
+        const leftPerms = sidePerms(sideKeys.left);
+        const rightPerms = sidePerms(sideKeys.right);
+        const topPerms = sidePerms(sideKeys.top);
+        const bottomPerms = sidePerms(sideKeys.bottom);
 
         for (const left of leftPerms) {
           for (const right of rightPerms) {
-            candidates.push(
-              normalizeCandidate({
-                cableSides,
-                stackOrder: { left, right },
-                layoutWidth,
-                layoutExpansion,
-              }),
-            );
+            for (const top of topPerms) {
+              for (const bottom of bottomPerms) {
+                candidates.push(
+                  normalizeCandidate({
+                    cableSides,
+                    stackOrder: { left, right, top, bottom },
+                    layoutWidth,
+                    layoutExpansion,
+                  }),
+                );
+              }
+            }
           }
         }
       }
@@ -259,25 +273,29 @@ function evaluateCandidate(
   return { score: result.score, feasible: result.feasible };
 }
 
-function removeFromStack(stack: string[], cable: string): string[] {
-  return stack.filter((c) => c !== cable);
+function removeFromAllStacks(
+  stacks: Record<LayoutSide, string[]>,
+  cable: string,
+): Record<LayoutSide, string[]> {
+  const next = { ...stacks };
+  for (const side of ALL_LAYOUT_SIDES) {
+    next[side] = stacks[side].filter((c) => c !== cable);
+  }
+  return next;
 }
 
 function mutateFlipSide(
   candidate: LayoutCandidate,
   cable: string,
+  nextSide: LayoutSide,
 ): LayoutCandidate {
-  const current = candidate.cableSides[cable] ?? "left";
-  const nextSide: LayoutSide = current === "left" ? "right" : "left";
-  const left = removeFromStack(candidate.stackOrder.left, cable);
-  const right = removeFromStack(candidate.stackOrder.right, cable);
-  if (nextSide === "left") left.push(cable);
-  else right.push(cable);
+  const stacks = removeFromAllStacks(candidate.stackOrder, cable);
+  stacks[nextSide] = [...stacks[nextSide], cable];
 
   return normalizeCandidate({
     ...candidate,
     cableSides: { ...candidate.cableSides, [cable]: nextSide },
-    stackOrder: { left, right },
+    stackOrder: stacks,
   });
 }
 
@@ -353,14 +371,19 @@ function randomCandidate(
   widths: number[],
   expansionIters: number[],
 ): LayoutCandidate {
-  const left: string[] = [];
-  const right: string[] = [];
+  const sideKeys: Record<LayoutSide, string[]> = {
+    left: [],
+    right: [],
+    top: [],
+    bottom: [],
+  };
   const cableSides: Record<string, LayoutSide> = {};
 
   for (const cable of cableKeys) {
-    const side: LayoutSide = rng() < 0.5 ? "left" : "right";
+    const side =
+      ALL_LAYOUT_SIDES[Math.floor(rng() * ALL_LAYOUT_SIDES.length)]!;
     cableSides[cable] = side;
-    (side === "left" ? left : right).push(cable);
+    sideKeys[side].push(cable);
   }
 
   const shuffle = (arr: string[]) => {
@@ -378,7 +401,12 @@ function randomCandidate(
 
   return normalizeCandidate({
     cableSides,
-    stackOrder: { left: shuffle(left), right: shuffle(right) },
+    stackOrder: {
+      left: shuffle(sideKeys.left),
+      right: shuffle(sideKeys.right),
+      top: shuffle(sideKeys.top),
+      bottom: shuffle(sideKeys.bottom),
+    },
     layoutWidth: width,
     layoutExpansion:
       expIter <= 0
@@ -388,7 +416,7 @@ function randomCandidate(
 }
 
 type Mutation =
-  | { kind: "flip"; cable: string }
+  | { kind: "flip"; cable: string; nextSide: LayoutSide }
   | { kind: "swap"; side: LayoutSide; index: number }
   | { kind: "width"; delta: -1 | 1 }
   | { kind: "expansion"; delta: -1 | 1 };
@@ -401,12 +429,20 @@ function pickMutation(
   const roll = rng();
   if (roll < 0.4 && cableKeys.length > 0) {
     const cable = cableKeys[Math.floor(rng() * cableKeys.length)]!;
-    return { kind: "flip", cable };
+    const current = candidate.cableSides[cable] ?? "left";
+    const alternatives = ALL_LAYOUT_SIDES.filter((s) => s !== current);
+    const nextSide =
+      alternatives[Math.floor(rng() * alternatives.length)] ?? "left";
+    return { kind: "flip", cable, nextSide };
   }
   if (roll < 0.65) {
-    const side: LayoutSide = rng() < 0.5 ? "left" : "right";
-    const stack = candidate.stackOrder[side];
-    if (stack.length > 1) {
+    const swappable = ALL_LAYOUT_SIDES.filter(
+      (side) => candidate.stackOrder[side].length > 1,
+    );
+    if (swappable.length > 0) {
+      const side =
+        swappable[Math.floor(rng() * swappable.length)] ?? "left";
+      const stack = candidate.stackOrder[side];
       const index = Math.floor(rng() * (stack.length - 1));
       return { kind: "swap", side, index };
     }
@@ -425,7 +461,7 @@ function applyMutation(
 ): LayoutCandidate {
   switch (mutation.kind) {
     case "flip":
-      return mutateFlipSide(candidate, mutation.cable);
+      return mutateFlipSide(candidate, mutation.cable, mutation.nextSide);
     case "swap": {
       const swapped = mutateSwapNeighbors(
         candidate,

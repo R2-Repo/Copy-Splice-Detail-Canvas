@@ -63,6 +63,8 @@ export function buildQuadReactFlowGraph(
     stageWidth?: number;
     skipTubeAutoAlign?: boolean;
     dragSync?: boolean;
+    /** Search harness — stack order per side (cable name keys). */
+    fixedQuadStackOrder?: Partial<Record<QuadSide, string[]>>;
   },
 ): {
   nodes: Node[];
@@ -81,6 +83,7 @@ export function buildQuadReactFlowGraph(
       layoutWidth,
       pinnedSides: overrides?.quadCableSides,
       savedPositions: overrides?.positions,
+      stackOrderByCableKey: _buildOptions?.fixedQuadStackOrder,
     });
 
   const sideOf = (vcId: string): QuadSide => placement.get(vcId)!.side;

@@ -7,6 +7,7 @@ import {
   findVisualCableForConnection,
   type VisualCable,
 } from "@/features/diagram/visualCables";
+import { cableNameKey } from "@/features/import/cableLegIdentity";
 import type { ConnectionGraph, QuadSide } from "@/types/splice";
 
 import { quadCableBoxSize, quadStemAlignment } from "./quadGeometry";
@@ -200,6 +201,24 @@ function sumRun(boxes: number[]): number {
   return boxes.reduce((s, b) => s + b, 0) + GAP * (boxes.length - 1);
 }
 
+/** Sort visual cables on a side by search stack order (cable name keys). */
+function sortCablesForSide(
+  cables: VisualCable[],
+  side: QuadSide,
+  stackOrderByCableKey: Partial<Record<QuadSide, string[]>> | undefined,
+): VisualCable[] {
+  const order = stackOrderByCableKey?.[side];
+  if (!order || order.length === 0) return cables;
+  const rank = new Map(order.map((key, index) => [key, index]));
+  return [...cables].sort((a, b) => {
+    const keyA = cableNameKey(a.cable);
+    const keyB = cableNameKey(b.cable);
+    const rankA = rank.get(keyA) ?? order.length;
+    const rankB = rank.get(keyB) ?? order.length;
+    return rankA - rankB || keyA.localeCompare(keyB);
+  });
+}
+
 export function computeQuadPlacement(
   graph: ConnectionGraph,
   visualCables: VisualCable[],
@@ -208,6 +227,8 @@ export function computeQuadPlacement(
     layoutWidth?: number;
     pinnedSides?: Record<string, QuadSide>;
     savedPositions?: Record<string, { x: number; y: number }>;
+    /** Search harness — stack order per side (physical cable name keys). */
+    stackOrderByCableKey?: Partial<Record<QuadSide, string[]>>;
   },
 ): QuadLayoutResult {
   const sideById = assignSides(graph, visualCables, options?.pinnedSides);
@@ -278,7 +299,11 @@ export function computeQuadPlacement(
   const placement = new Map<string, QuadCablePlacement>();
 
   const placeStack = (side: "left" | "right") => {
-    const cables = byside[side];
+    const cables = sortCablesForSide(
+      byside[side],
+      side,
+      options?.stackOrderByCableKey,
+    );
     let cursor = centerY - edgeRun(side) / 2;
     for (const vc of cables) {
       const box = boxOf.get(vc.id)!;
@@ -294,7 +319,11 @@ export function computeQuadPlacement(
   };
 
   const placeRow = (side: "top" | "bottom") => {
-    const cables = byside[side];
+    const cables = sortCablesForSide(
+      byside[side],
+      side,
+      options?.stackOrderByCableKey,
+    );
     let cursor = centerX - edgeRun(side) / 2;
     for (const vc of cables) {
       const box = boxOf.get(vc.id)!;

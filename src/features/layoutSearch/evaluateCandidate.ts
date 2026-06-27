@@ -9,9 +9,12 @@ import type { RuleResult, SdcRuleContext } from "@/features/rules/types";
 import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
 
 import {
+  candidateQuadStackOrder,
   candidateToCableSidesRecord,
   candidateToPlacementMap,
+  candidateToQuadCableSidesRecord,
   cloneGraphForCandidate,
+  deriveLayoutMode,
   type LayoutCandidate,
 } from "./layoutCandidate";
 import {
@@ -35,6 +38,17 @@ function lanesByConnectionId(
   return byConn;
 }
 
+function diagramHeightFromNodes(
+  nodes: Array<{ position: { x: number; y: number }; height?: number }>,
+  fallback = 800,
+): number {
+  let maxY = 0;
+  for (const node of nodes) {
+    maxY = Math.max(maxY, node.position.y + (node.height ?? 0));
+  }
+  return Math.max(fallback, maxY + 80);
+}
+
 export type LayoutEvaluationResult = LayoutScoreResult & {
   violations: RuleResult[];
   routes?: Map<string, GridRoute>;
@@ -53,8 +67,9 @@ export function evaluateLayoutCandidate(
     const appliedGraph = cloneGraphForCandidate(graph, candidate);
     const { visualCables: seedVisualCables } =
       buildVisualCablesForLayout(appliedGraph);
-    const placement = candidateToPlacementMap(candidate, seedVisualCables);
     const width = candidate.layoutWidth;
+    const layoutMode = deriveLayoutMode(candidate);
+    const useQuad = layoutMode === "quad";
 
     const overrides: LayoutOverrides = {
       reportKey: candidate.id ?? "layout-search-eval",
@@ -63,16 +78,34 @@ export function evaluateLayoutCandidate(
       layoutWidth: width,
       layoutExpansion: candidate.layoutExpansion,
       routingEngine: "legacy",
+      layoutMode,
+      ...(useQuad
+        ? {
+            quadCableSides: candidateToQuadCableSidesRecord(
+              candidate,
+              seedVisualCables,
+            ),
+          }
+        : {}),
     };
 
     const graphResult = buildReactFlowGraph(
       appliedGraph,
       overrides,
       width,
-      { fixedPlacement: placement, skipFeasibility: true },
+      useQuad
+        ? {
+            skipFeasibility: true,
+            fixedQuadStackOrder: candidateQuadStackOrder(candidate),
+          }
+        : {
+            fixedPlacement: candidateToPlacementMap(candidate, seedVisualCables),
+            skipFeasibility: true,
+          },
     );
 
     const visualCables = graphResult.visualCables ?? seedVisualCables;
+    const layoutHeight = diagramHeightFromNodes(graphResult.nodes);
 
     const gridResult = routeAllOnGrid({
       nodes: graphResult.nodes,
@@ -80,6 +113,8 @@ export function evaluateLayoutCandidate(
       visualCables,
       diagramCenterX: width / 2,
       layoutWidth: width,
+      layoutHeight,
+      layoutMode,
       overrides,
     });
 

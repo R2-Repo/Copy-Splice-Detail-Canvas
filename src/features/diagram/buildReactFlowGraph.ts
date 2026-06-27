@@ -213,6 +213,8 @@ export function buildReactFlowGraph(
     sharedVisualCables?: import("@/features/diagram/visualCables").VisualCable[];
     /** Search harness — skip barycenter placement; use candidate stack order. */
     fixedPlacement?: Map<string, import("@/features/diagram/canvasPlacement").CablePlacement>;
+    /** Search harness — quad stack order per side (cable name keys). */
+    fixedQuadStackOrder?: Partial<Record<import("@/types/splice").QuadSide, string[]>>;
   },
 ): {
   nodes: Node[];

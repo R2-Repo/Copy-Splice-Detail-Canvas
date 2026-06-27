@@ -46,6 +46,7 @@ export const SLOW_INTEGRATION_TEST_FILES = [
   "src/features/import/importCableCounts.test.ts",
   "src/features/manualAdjust/checkpointRepro.test.ts",
   "src/features/canvas/edges/spliceEdgeRouting.test.ts",
+  "src/features/layoutSearch/layoutSearch.slow.test.ts",
 ] as const;
 
 export const SUSPENDED_FROM_FAST_GATE = [
