@@ -10,12 +10,13 @@
 
 **Focus:** MVP features and **smart manual adjustment** (SDC-UX-001) — cables, buffer tubes/fan-outs, fiber strands, groups.
 
-**Parallel track:** Layout hardening — see [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md). Default tests skip documented weak points; run `npm run test:hardening` to re-check.
+**Parallel track:** Layout hardening — see [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md). Rule contract tests **suspended** until user requests — see [`TESTING.md`](./TESTING.md).
 
 - PDF/export work **un-deferred**
 - No new layout rule IDs without user approval
 - No refactors of frozen `spliceEdgeRouting.ts` without user approval
-- Session gate: **`npm run smoke`** (not full layout verify every session)
+- Session gate: **`npm run smoke`** (`test:fast` + check + build)
+- Manual QA: import **example-2** after visual/routing changes
 
 ---
 

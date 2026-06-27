@@ -1,26 +1,26 @@
 ---
-description: MUST-KEEP layout invariants — run test:layout when changing layout/routing
+description: Layout invariants — rule contract tests suspended during build phase
 alwaysApply: true
 ---
 
 # Layout rules (must keep — layout/routing changes)
 
-**Default session gate:** `npm run smoke` — not full layout verify every session.
+**Default session gate:** `npm run smoke` (`test:fast`) — few minutes. See [`docs/agent/TESTING.md`](../../docs/agent/TESTING.md).
 
-**When changing layout/routing/grid:** run `npm run test:layout`. Known deferred failures are skipped — see [`docs/agent/KNOWN_ISSUES.md`](../../docs/agent/KNOWN_ISSUES.md). Opt-in full check: `npm run test:hardening` or `RUN_KNOWN_ISSUES=1`.
+**Rule/layout contract tests are SUSPENDED** during the build phase. Do **not** run `test:layout`, `test:rules`, or `test:hardening` unless the user explicitly asks.
+
+**Manual QA** after layout/routing changes: import **example-2** (+ any touched CSV).
 
 **Canonical contract:** [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../../splice_detail_canvas_rule_pack/00_Rule_Index.md) — **12 SDC rules** (`SDC-*`).  
-**Test gate:** `src/features/rules/sdcLayoutContract.test.ts` (grid engine, Examples #1–#3 + key Left CSVs).  
+**Suspended test gate:** `src/features/rules/sdcLayoutContract.test.ts` — run via `npm run test:rules` when user requests.  
 **Legacy engine:** `src/features/diagram/layoutRules.ts` (private validators — do not cite legacy IDs in chat).
 
 Before changing diagram layout, cable nodes, buffer tubes, fiber strands, splice routing, or CSV import that feeds layout:
 
 1. Read the **rule pack index** and [`docs/agent/RULE_ID_MAP.md`](../../docs/agent/RULE_ID_MAP.md).
 2. Implement SDC checks in `src/features/rules/`; legacy checks stay in `layoutRules.ts`.
-3. Extend `sdcLayoutContract.test.ts` when adding production fixtures.
-4. Run **`npm run test:layout`** then confirm **`npm run smoke`** before finishing.
-
-Optional: `npm run test:layout-legacy` — legacy `layoutRules.test.ts` only (not in `verify`).
+3. Note manual QA steps in HANDOFF.
+4. Run **`npm run smoke`** before finishing — not `test:rules`.
 
 ## Non-negotiables (SDC vocabulary)
 

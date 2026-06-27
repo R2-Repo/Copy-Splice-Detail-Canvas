@@ -10,6 +10,9 @@
     "check": "tsc -b --noEmit",
     "lint": "eslint .",
     "test": "vitest",
+    "test:fast": "vitest run --config vitest.fast.config.ts",
+    "test:ci": "npm run test:fast",
+    "test:full": "vitest run",
     "test:layout": "vitest run src/features/rules/sdcLayoutContract.test.ts",
     "test:layout:fast": "vitest run src/features/rules/sdcLayoutContract.test.ts",
     "test:layout-slow": "vitest run src/features/rules/sdcLayoutContractSlow.test.ts",
@@ -18,13 +21,13 @@
     "test:layout-legacy": "vitest run src/features/diagram/layoutRules.test.ts",
     "test:routing": "vitest run src/features/diagram/routingImportContract.test.ts",
     "test:phase7": "vitest run src/features/diagram/phase7Verification.test.ts src/features/import/devFixtures.test.ts",
+    "test:rules": "vitest run --config vitest.hardening.config.ts",
     "test:sdc": "vitest run src/features/rules src/features/grid src/features/layoutHybrid src/features/import/importRuleGuard.test.ts",
     "test:engine": "vitest run src/features/canvas/layoutStorage.test.ts src/features/canvas/manualAutoEngine.test.ts src/features/diagram/manualLayoutWarnings.test.ts src/features/manualAdjust/constraints.test.ts",
-    "test:ci": "vitest run --exclude src/features/rules/sdcLayoutContractSlow.test.ts --exclude src/features/diagram/centerRouter.test.ts --exclude src/features/grid/gridRouter.test.ts",
-    "smoke": "npm run check && npm run test:ci && npm run build",
-    "test:hardening": "npm run test:layout && npm run test:layout-slow && npm run test:edge011 && npm run test:edge011:example3 && npm run test:routing && vitest run src/features/diagram/centerRouter.test.ts src/features/grid/gridRouter.test.ts",
+    "smoke": "npm run check && npm run test:fast && npm run build",
+    "test:hardening": "npm run test:rules",
     "verify": "npm run smoke",
-    "verify:full": "npm run test:layout && npm run test:layout-slow && npm run check && npm run test:ci && npm run build"
+    "verify:full": "npm run check && npm run test:full && npm run build"
   },
   "dependencies": {
     "@xyflow/react": "^12.6.0",

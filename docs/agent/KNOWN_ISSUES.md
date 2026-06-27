@@ -1,6 +1,6 @@
 # Known layout issues (deferred hardening)
 
-> Canonical log of **documented weak points**. Default test runs skip these; run `npm run test:hardening` to re-check.
+> Documented weak points. **Rule contract tests are suspended** from default gates during build phase — see [`TESTING.md`](./TESTING.md). Re-check via `npm run test:rules` when the user explicitly requests hardening.
 
 | ID | Fixture | Symptom | Rule | Track | Reproduce |
 |----|---------|---------|------|-------|-----------|

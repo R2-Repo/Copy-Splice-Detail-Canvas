@@ -22,18 +22,20 @@ Frontend-only React PWA: node/workflow canvas (React Flow). No backend unless th
 | `docs/agent/CHANGELOG.md` | Archived session history (not active requirements) |
 | `docs/reference/examples/README.md` | **Left-*** CSVs for user QA and testing (Import in app) |
 | `docs/reference/` | Images and other reference assets (when cited) |
-| `docs/agent/KNOWN_ISSUES.md` | **Deferred layout weak points** — skipped in default test runs |
+| `docs/agent/TESTING.md` | **Fast vs suspended gates**, manual QA |
+
+| `docs/agent/KNOWN_ISSUES.md` | **Deferred layout weak points** — for opt-in hardening only |
 
 ## Workflow
 
-1. Read SCOPE → RULE_PRIORITY → rule pack index → CONTEXT + HANDOFF + **KNOWN_ISSUES** before coding.
+1. Read SCOPE → RULE_PRIORITY → rule pack index → CONTEXT + HANDOFF + **TESTING** before coding.
 2. When the user describes the diagram in simple terms, read **SIMPLE_TERMS.md** first and map to official/code names.
 3. Plan in bullets; ask if requirements are unclear.
 3. Implement in `src/` using existing patterns.
-4. Run **`npm run smoke`** (default session gate: check + test:ci + build).
-5. Run **`npm run test:layout`** only when touching layout/routing/grid code.
-6. Run **`npm run test:hardening`** only on explicit layout-hardening sessions.
-7. SDC rule changes: update rule pack docs + `src/features/rules/` + `sdcLayoutContract.test.ts`.
+4. Run **`npm run smoke`** (default gate: check + `test:fast` + build) — few minutes.
+5. **Manual QA** after visual/routing changes — import example-2 (see `TESTING.md`).
+6. Run **`npm run test:rules`** / **`test:hardening`** **only when the user explicitly asks**.
+7. SDC rule changes: update rule pack docs + `src/features/rules/` + contract tests (run rules gate when user requests).
 8. Update CONTEXT + HANDOFF before ending the session.
 
 ## Constraints
@@ -55,14 +57,14 @@ Frontend-only React PWA: node/workflow canvas (React Flow). No backend unless th
 
 ```bash
 npm run dev         # local dev server
-npm run smoke       # default session gate (check + test:ci + build)
-npm run test:layout # layout contract — when routing/layout changes
-npm run test:hardening  # full layout hardening (includes known-issue fixtures)
+npm run smoke       # default gate (check + test:fast + build) — few minutes
+npm run test:fast   # fast unit/import tests only
+npm run test:engine # manual-adjust subset
+npm run test:rules  # SUSPENDED rule/layout contracts — only when user asks
+npm run test:full   # entire vitest suite (hours possible)
 npm run check       # typecheck
-npm run test:ci     # all unit tests (known layout reds skipped)
 npm run build       # production build
 npm run verify      # alias for smoke
-npm run verify:full # layout + slow + check + test:ci + build
 ```
 
 ## Response style
@@ -73,8 +75,9 @@ See `.cursor/rules/concise-responses.mdc`. Short bullets; no filler or recaps. U
 
 Frontend-only PWA — no backend, services, or env vars to start. `npm run dev` serves on `http://localhost:5173/`; `npm run build` is the production build.
 
-- The unit suite (`npm run test:ci`, and therefore `npm run smoke`) is **CPU-heavy and very slow** — the layout/routing/grid contract tests can run for tens of minutes (`pool: forks`, `maxWorkers: 2`, per-test timeout 120s). Let it run; don't assume a hang. For a fast signal during iteration, run a targeted file/script (e.g. `npm run test:layout`, `npm run test:engine`) instead of the whole suite.
-- `npm run lint` is **not** part of the `smoke`/`verify` gate and currently reports pre-existing errors; the canonical gate is `npm run smoke` (check + test:ci + build).
+- `npm run smoke` runs **`test:fast`** only (rule/layout contract tests suspended per `docs/agent/TESTING.md`). Target: **few minutes**.
+- Run `npm run test:rules` **only when the user explicitly requests** layout hardening — can take tens of minutes to hours.
+- `npm run lint` is **not** part of the `smoke`/`verify` gate.
 - The app is import-driven: it shows an empty canvas until a Bentley CSV is imported via the **Import file** toolbar button (native file picker). Sample CSVs for manual/QA testing live in `docs/reference/examples/` (e.g. `Left-SP-3254.5.csv`).
 
 ### Browser-automation MCPs

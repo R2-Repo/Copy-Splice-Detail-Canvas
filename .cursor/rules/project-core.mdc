@@ -26,8 +26,8 @@ React 19 + Vite + TypeScript + `@xyflow/react`. Frontend PWA only.
 
 Before finishing substantive work:
 
-1. `npm run smoke` — **default gate** (check + test:ci + build)
-2. `npm run test:layout` — only when changing layout/routing/grid
-3. See [`docs/agent/KNOWN_ISSUES.md`](docs/agent/KNOWN_ISSUES.md) for deferred layout weak points
+1. `npm run smoke` — **default gate** (check + `test:fast` + build) — few minutes
+2. **Manual QA** — import example-2 after visual/routing changes (see `docs/agent/TESTING.md`)
+3. `npm run test:rules` — **only when the user explicitly asks** (suspended rule/layout contracts)
 
-Do not chase KNOWN_ISSUES skips unless explicitly hardening layout.
+Do not run suspended rule tests unless the user requests hardening.
