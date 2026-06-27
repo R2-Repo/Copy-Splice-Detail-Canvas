@@ -8,7 +8,7 @@
 
 ## Active build track
 
-- **Routing-first auto layout — Phase 1 done** — [`ROUTING_FIRST_LAYOUT.md`](./ROUTING_FIRST_LAYOUT.md): `src/features/layoutSearch/` evaluation harness (`evaluateLayoutCandidate`, scorer, L/R candidates). Import not wired yet (Phase 4).
+- **Routing-first auto layout — Phase 2 done** — [`ROUTING_FIRST_LAYOUT.md`](./ROUTING_FIRST_LAYOUT.md): `layoutSearch()` guided search loop (seed, brute-force tiny graphs, hill-climb, deterministic restarts). Import not wired yet (Phase 4).
 - Smart manual movement: fiber anchor drag, tube tip ↕ + stem ↔, shift+drag bundle, marquee groups, unlock selection
 - SDC-UX-001: lock-on-commit (grid hybrid); unlock selection / reset layout in toolbar
 
