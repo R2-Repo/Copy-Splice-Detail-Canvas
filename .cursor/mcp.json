@@ -10,6 +10,10 @@
       "env": {
         "PUPPETEER_LAUNCH_OPTIONS": "{\"headless\":true}"
       }
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest", "--headless", "--isolated"]
     }
   }
 }
