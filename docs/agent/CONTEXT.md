@@ -8,6 +8,7 @@
 
 ## Active build track
 
+- **Routing-first auto layout** — [`ROUTING_FIRST_LAYOUT.md`](./ROUTING_FIRST_LAYOUT.md): search thousands of placements; grid route + SDC rules pick best; no 2/4-side toggle; manual side drag later
 - Smart manual movement: fiber anchor drag, tube tip ↕ + stem ↔, shift+drag bundle, marquee groups, unlock selection
 - SDC-UX-001: lock-on-commit (grid hybrid); unlock selection / reset layout in toolbar
 
