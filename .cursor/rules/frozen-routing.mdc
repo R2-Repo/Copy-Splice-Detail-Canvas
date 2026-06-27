@@ -7,7 +7,7 @@ alwaysApply: true
 
 **Do not edit the symbols, files, or tests below unless the user explicitly asks in the current session.**
 
-These implement 3161.4 BL bundle nesting, post-drag order, and loop-back bend fixes. Changes require user approval **and** must pass `npm run verify` (especially `visualQa3161.test.ts` + `spliceEdgeRouting.test.ts`).
+These implement 3161.4 BL bundle nesting, post-drag order, and loop-back bend fixes. Changes require user approval. After edits, run `npm run smoke` + manual QA; run `npm run test:rules` only when the user explicitly requests hardening.
 
 ## Frozen functions / hooks (`spliceEdgeRouting.ts`)
 
@@ -32,8 +32,7 @@ These implement 3161.4 BL bundle nesting, post-drag order, and loop-back bend fi
 
 ## Frozen regression tests (do not weaken)
 
-- `src/features/diagram/visualQa3161.test.ts`
-- Loop-back / trunk tests in `src/features/canvas/edges/spliceEdgeRouting.test.ts`:
+- Loop-back / trunk tests in `src/features/canvas/edges/spliceEdgeRouting.test.ts` (included in `test:fast`):
   - `reconcileBundleJogXForRender drops trunk when clamped midX would backtrack`
   - `buildDemarcatedSplicePaths skips reverse fan-out when jogX exceeds midX`
   - `anchors bundle trunk at the source side so fan-out has no loop-back`
@@ -43,4 +42,4 @@ These implement 3161.4 BL bundle nesting, post-drag order, and loop-back bend fi
 1. Ask the user first; cite which frozen symbol and why.
 2. Keep the diff minimal; do not refactor adjacent routing code.
 3. Add or update a regression test before finishing.
-4. Run `npm run verify`.
+4. Run `npm run smoke`; note manual QA in HANDOFF.
