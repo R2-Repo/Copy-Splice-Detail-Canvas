@@ -83,3 +83,5 @@ Frontend-only PWA — no backend, services, or env vars to start. `npm run dev` 
 
 - **Playwright MCP** (`@playwright/mcp`, `--headless`). Browser binary is **not** persisted on a fresh VM — install once: `npx --yes playwright install --with-deps chromium`. Writes session output to `.playwright-mcp/` (gitignored).
 - **Chrome DevTools MCP** (`chrome-devtools-mcp`, `--headless --isolated`). Drives the **system** Google Chrome (already in the VM image, Chrome 144+ required) — no per-VM browser install needed. `--isolated` uses a throwaway profile. Exposes DevTools-grade tools (network, performance/Lighthouse, console, screenshots) beyond basic navigation.
+
+`.cursor/mcp.json` also registers the **official GitHub MCP** (remote, `https://api.githubcopilot.com/mcp/`) for issues/PRs/CI/code search. It authenticates via `Authorization: Bearer ${env:GITHUB_MCP_PAT}`, so set a **`GITHUB_MCP_PAT`** secret (a GitHub Personal Access Token) — without it the server returns 401 / "needs login". No token is committed. (The old npm `@modelcontextprotocol/server-github` is deprecated; do not use it.)
