@@ -1,25 +1,24 @@
 import { describe, expect, it } from "vitest";
 
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
-import { compareCandidates, heuristicBaselineCandidate } from "./layoutCandidate";
-import { evaluateLayoutCandidate } from "./evaluateCandidate";
-import type { LayoutCandidate, LayoutSide } from "./layoutCandidate";
-import { defaultLayoutWidth } from "./layoutCandidate";
-import { DEFAULT_LAYOUT_EXPANSION } from "@/features/diagram/layoutExpansion";
-import { cableNameKey } from "@/features/import/cableLegIdentity";
+import { reportStorageKey } from "@/features/diagram/layoutSpliceDiagram";
+import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
+import { readReferenceCsv } from "@/testHelpers/layoutContractCsvPaths";
 import type { SplicePair } from "@/types/splice";
 
-function permutations<T>(items: T[]): T[][] {
-  if (items.length <= 1) return [items];
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i++) {
-    const rest = [...items.slice(0, i), ...items.slice(i + 1)];
-    for (const perm of permutations(rest)) {
-      out.push([items[i]!, ...perm]);
-    }
-  }
-  return out;
-}
+import { evaluateLayoutCandidate } from "./evaluateCandidate";
+import {
+  compareCandidates,
+  heuristicBaselineCandidate,
+  type LayoutCandidate,
+} from "./layoutCandidate";
+import { defaultLayoutWidth } from "./layoutCandidate";
+import {
+  cableKeysFromGraph,
+  enumerateCandidates,
+  layoutSearch,
+  seedFromReportKey,
+} from "./layoutSearch";
 
 /**
  * Three-cable splice where stack order strongly affects strand crossings.
@@ -113,54 +112,6 @@ function syntheticThreeCableGraph() {
   });
 }
 
-function cableKeysFromGraph(
-  graph: ReturnType<typeof syntheticThreeCableGraph>,
-): string[] {
-  return [...new Set(graph.legs.map((leg) => cableNameKey(leg.cable)))].sort(
-    (a, b) => a.localeCompare(b),
-  );
-}
-
-function enumerateCandidates(
-  cableKeys: string[],
-  layoutWidths: number[],
-): LayoutCandidate[] {
-  const n = cableKeys.length;
-  const candidates: LayoutCandidate[] = [];
-
-  for (const layoutWidth of layoutWidths) {
-    for (let mask = 0; mask < 1 << n; mask++) {
-      const leftKeys: string[] = [];
-      const rightKeys: string[] = [];
-      const cableSides: Record<string, LayoutSide> = {};
-
-      cableKeys.forEach((cable, index) => {
-        const side: LayoutSide = (mask >> index) & 1 ? "right" : "left";
-        cableSides[cable] = side;
-        (side === "left" ? leftKeys : rightKeys).push(cable);
-      });
-
-      const leftPerms = leftKeys.length > 0 ? permutations(leftKeys) : [[]];
-      const rightPerms = rightKeys.length > 0 ? permutations(rightKeys) : [[]];
-
-      for (const left of leftPerms) {
-        for (const right of rightPerms) {
-          const candidate: LayoutCandidate = {
-            cableSides,
-            stackOrder: { left, right },
-            layoutWidth,
-            layoutExpansion: DEFAULT_LAYOUT_EXPANSION,
-          };
-          candidate.id = `W${layoutWidth}-mask${mask}-${left.join(".")}|${right.join(".")}`;
-          candidates.push(candidate);
-        }
-      }
-    }
-  }
-
-  return candidates;
-}
-
 function bestCandidateByEvaluation(
   graph: ReturnType<typeof syntheticThreeCableGraph>,
   candidates: LayoutCandidate[],
@@ -187,6 +138,13 @@ function bestCandidateByEvaluation(
   return best;
 }
 
+function exampleTwoGraph() {
+  const report = parseBentleyCsv(
+    readReferenceCsv("CSV Splice Detail Example #2.csv"),
+  );
+  return buildConnectionGraph(report);
+}
+
 describe("layoutSearch Phase 1", () => {
   it("evaluateLayoutCandidate runs grid route + rule check for one candidate", () => {
     const graph = syntheticThreeCableGraph();
@@ -206,8 +164,10 @@ describe("layoutSearch Phase 1", () => {
     const cableKeys = cableKeysFromGraph(graph);
     expect(cableKeys).toHaveLength(3);
 
-    // Heuristic seed uses default width only; search also tries a narrower width.
-    const candidates = enumerateCandidates(cableKeys, [1200, defaultLayoutWidth()]);
+    const candidates = enumerateCandidates(cableKeys, [
+      1200,
+      defaultLayoutWidth(),
+    ]);
     expect(candidates.length).toBeGreaterThan(16);
 
     const best = bestCandidateByEvaluation(graph, candidates);
@@ -223,7 +183,10 @@ describe("layoutSearch Phase 1", () => {
   it("brute-force selection is deterministic for a fixed candidate set", () => {
     const graph = syntheticThreeCableGraph();
     const cableKeys = cableKeysFromGraph(graph);
-    const candidates = enumerateCandidates(cableKeys, [1200, defaultLayoutWidth()]);
+    const candidates = enumerateCandidates(cableKeys, [
+      1200,
+      defaultLayoutWidth(),
+    ]);
 
     const run1 = bestCandidateByEvaluation(graph, candidates);
     const run2 = bestCandidateByEvaluation(graph, candidates);
@@ -232,4 +195,63 @@ describe("layoutSearch Phase 1", () => {
     expect(run1.evaluation.score).toBe(run2.evaluation.score);
     expect(run1.evaluation.softScore).toEqual(run2.evaluation.softScore);
   });
+});
+
+describe("layoutSearch Phase 2", () => {
+  it("layoutSearch brute-forces 3-cable fixture and beats heuristic baseline", () => {
+    const graph = syntheticThreeCableGraph();
+    const seed = seedFromReportKey(reportStorageKey(graph));
+    const result = layoutSearch(graph, { seed, maxRounds: 0 });
+
+    const baseline = heuristicBaselineCandidate(graph);
+    const baselineEval = evaluateLayoutCandidate(graph, baseline);
+    const searchEval = evaluateLayoutCandidate(graph, result.best);
+
+    expect(result.evaluations).toBeGreaterThan(1);
+    expect(searchEval.feasible).toBe(true);
+    expect(searchEval.score).toBeLessThanOrEqual(baselineEval.score);
+    expect(searchEval.softScore.crossings).toBeLessThanOrEqual(
+      baselineEval.softScore.crossings,
+    );
+  });
+
+  it("layoutSearch is deterministic for same graph + seed", () => {
+    const graph = syntheticThreeCableGraph();
+    const seed = seedFromReportKey(reportStorageKey(graph));
+    const config = { seed, maxRounds: 32, plateauRounds: 0 };
+
+    const run1 = layoutSearch(graph, config);
+    const run2 = layoutSearch(graph, config);
+
+    expect(run1.best.id).toBe(run2.best.id);
+    expect(run1.bestScore).toBe(run2.bestScore);
+    expect(run1.evaluations).toBe(run2.evaluations);
+  });
+
+  it("Example #2: search matches or beats heuristic on crossings / soft score", () => {
+    const graph = exampleTwoGraph();
+    const seed = seedFromReportKey(reportStorageKey(graph));
+    const result = layoutSearch(graph, { seed, maxRounds: 500, plateauRounds: 64 });
+
+    const baseline = heuristicBaselineCandidate(graph);
+    const baselineEval = evaluateLayoutCandidate(graph, baseline);
+    const searchEval = evaluateLayoutCandidate(graph, result.best);
+
+    expect(searchEval.feasible).toBe(true);
+    const crossingsOk =
+      searchEval.softScore.crossings <= baselineEval.softScore.crossings;
+    const scoreOk = searchEval.score <= baselineEval.score;
+    expect(crossingsOk || scoreOk).toBe(true);
+  }, 120_000);
+
+  it("Example #2 determinism: same seed yields same best candidate id", () => {
+    const graph = exampleTwoGraph();
+    const seed = seedFromReportKey(reportStorageKey(graph));
+    const config = { seed, maxRounds: 100, plateauRounds: 0 };
+
+    const run1 = layoutSearch(graph, config);
+    const run2 = layoutSearch(graph, config);
+
+    expect(run1.best.id).toBe(run2.best.id);
+  }, 60_000);
 });
