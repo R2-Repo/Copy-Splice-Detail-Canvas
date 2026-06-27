@@ -77,12 +77,9 @@ Frontend-only PWA — no backend, services, or env vars to start. `npm run dev` 
 - `npm run lint` is **not** part of the `smoke`/`verify` gate and currently reports pre-existing errors; the canonical gate is `npm run smoke` (check + test:ci + build).
 - The app is import-driven: it shows an empty canvas until a Bentley CSV is imported via the **Import file** toolbar button (native file picker). Sample CSVs for manual/QA testing live in `docs/reference/examples/` (e.g. `Left-SP-3254.5.csv`).
 
-### Playwright MCP
+### Browser-automation MCPs
 
-`.cursor/mcp.json` registers the **Playwright MCP** (`@playwright/mcp`, headless) so agents can drive a browser against the dev server. The MCP browser binary is **not** persisted on a fresh VM — install it once per VM before use:
+`.cursor/mcp.json` registers two headless browser MCPs so agents can drive a browser against the dev server (`http://localhost:5173/`):
 
-```bash
-npx --yes playwright install --with-deps chromium
-```
-
-Point it at the running dev server (`http://localhost:5173/`). The MCP writes session output to `.playwright-mcp/` (gitignored).
+- **Playwright MCP** (`@playwright/mcp`, `--headless`). Browser binary is **not** persisted on a fresh VM — install once: `npx --yes playwright install --with-deps chromium`. Writes session output to `.playwright-mcp/` (gitignored).
+- **Puppeteer MCP** (`@modelcontextprotocol/server-puppeteer`, `PUPPETEER_LAUNCH_OPTIONS={"headless":true}`). Browser binary is **not** persisted on a fresh VM — install once: `npx --yes puppeteer browsers install chrome`. It launches headless fine **without** `--no-sandbox` here; do not pass sandbox/`--no-sandbox` args (the server rejects them as dangerous unless `ALLOW_DANGEROUS=true`). Note: this package is archived/unmaintained and has open security advisories — fine for local dev driving the local dev server, not for untrusted URLs.
