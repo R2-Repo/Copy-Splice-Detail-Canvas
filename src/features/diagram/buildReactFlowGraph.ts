@@ -211,6 +211,8 @@ export function buildReactFlowGraph(
     priorGridRoutes?: Map<string, import("@/features/grid/gridTypes").GridRoute>;
     /** Reuse layout-rule visualCables so grid reconcile matches EDGE-011 geometry. */
     sharedVisualCables?: import("@/features/diagram/visualCables").VisualCable[];
+    /** Search harness — skip barycenter placement; use candidate stack order. */
+    fixedPlacement?: Map<string, import("@/features/diagram/canvasPlacement").CablePlacement>;
   },
 ): {
   nodes: Node[];
@@ -233,12 +235,9 @@ export function buildReactFlowGraph(
 
   const { visualCables, dominant } = buildVisualCablesForLayout(graph);
   const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
-  const placement = computeCanvasPlacement(
-    graph,
-    visualCables,
-    dominant,
-    rowIndex,
-  );
+  const placement =
+    buildOptions?.fixedPlacement ??
+    computeCanvasPlacement(graph, visualCables, dominant, rowIndex);
   applyCableSideOverrides(placement, visualCables, overrides?.cableSides);
   applyPlacementToLegs(graph, visualCables, placement);
 
