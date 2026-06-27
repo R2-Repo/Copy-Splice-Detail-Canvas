@@ -68,3 +68,20 @@ npm run verify:full # layout + slow + check + test:ci + build
 ## Response style
 
 See `.cursor/rules/concise-responses.mdc`. Short bullets; no filler or recaps. User types **expand** for detail.
+
+## Cursor Cloud specific instructions
+
+Frontend-only PWA — no backend, services, or env vars to start. `npm run dev` serves on `http://localhost:5173/`; `npm run build` is the production build.
+
+- The unit suite (`npm run test:ci`, and therefore `npm run smoke`) is **CPU-heavy and very slow** — the layout/routing/grid contract tests can run for tens of minutes (`pool: forks`, `maxWorkers: 2`, per-test timeout 120s). Let it run; don't assume a hang. For a fast signal during iteration, run a targeted file/script (e.g. `npm run test:layout`, `npm run test:engine`) instead of the whole suite.
+- `npm run lint` is **not** part of the `smoke`/`verify` gate and currently reports pre-existing errors; the canonical gate is `npm run smoke` (check + test:ci + build).
+- The app is import-driven: it shows an empty canvas until a Bentley CSV is imported via the **Import file** toolbar button (native file picker). Sample CSVs for manual/QA testing live in `docs/reference/examples/` (e.g. `Left-SP-3254.5.csv`).
+
+### Browser-automation MCPs
+
+`.cursor/mcp.json` registers two headless browser MCPs so agents can drive a browser against the dev server (`http://localhost:5173/`):
+
+- **Playwright MCP** (`@playwright/mcp`, `--headless`). Browser binary is **not** persisted on a fresh VM — install once: `npx --yes playwright install --with-deps chromium`. Writes session output to `.playwright-mcp/` (gitignored).
+- **Chrome DevTools MCP** (`chrome-devtools-mcp`, `--headless --isolated`). Drives the **system** Google Chrome (already in the VM image, Chrome 144+ required) — no per-VM browser install needed. `--isolated` uses a throwaway profile. Exposes DevTools-grade tools (network, performance/Lighthouse, console, screenshots) beyond basic navigation.
+
+`.cursor/mcp.json` also registers the **official GitHub MCP** (remote, `https://api.githubcopilot.com/mcp/`) for issues/PRs/CI/code search. It authenticates via `Authorization: Bearer ${env:GITHUB_MCP_PAT}`, so set a **`GITHUB_MCP_PAT`** secret (a GitHub Personal Access Token) — without it the server returns 401 / "needs login". No token is committed. (The old npm `@modelcontextprotocol/server-github` is deprecated; do not use it.)
