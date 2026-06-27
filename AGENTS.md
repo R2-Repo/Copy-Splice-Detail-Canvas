@@ -76,3 +76,13 @@ Frontend-only PWA — no backend, services, or env vars to start. `npm run dev` 
 - The unit suite (`npm run test:ci`, and therefore `npm run smoke`) is **CPU-heavy and very slow** — the layout/routing/grid contract tests can run for tens of minutes (`pool: forks`, `maxWorkers: 2`, per-test timeout 120s). Let it run; don't assume a hang. For a fast signal during iteration, run a targeted file/script (e.g. `npm run test:layout`, `npm run test:engine`) instead of the whole suite.
 - `npm run lint` is **not** part of the `smoke`/`verify` gate and currently reports pre-existing errors; the canonical gate is `npm run smoke` (check + test:ci + build).
 - The app is import-driven: it shows an empty canvas until a Bentley CSV is imported via the **Import file** toolbar button (native file picker). Sample CSVs for manual/QA testing live in `docs/reference/examples/` (e.g. `Left-SP-3254.5.csv`).
+
+### Playwright MCP
+
+`.cursor/mcp.json` registers the **Playwright MCP** (`@playwright/mcp`, headless) so agents can drive a browser against the dev server. The MCP browser binary is **not** persisted on a fresh VM — install it once per VM before use:
+
+```bash
+npx --yes playwright install --with-deps chromium
+```
+
+Point it at the running dev server (`http://localhost:5173/`). The MCP writes session output to `.playwright-mcp/` (gitignored).
