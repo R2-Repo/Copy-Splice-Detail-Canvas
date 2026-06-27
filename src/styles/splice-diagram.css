@@ -701,6 +701,7 @@
 .workflow-canvas__stage {
   flex: 1;
   min-height: 0;
+  position: relative;
 }
 
 .workflow-canvas__body {
