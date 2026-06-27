@@ -10,6 +10,13 @@ const base = isGitHubPagesBuild ? `/${ghRepoName}/` : "/";
 
 export default defineConfig({
   base,
+  define: {
+    "import.meta.env.VITE_USE_LEGACY_IMPORT_LAYOUT": JSON.stringify(
+      process.env.USE_LEGACY_IMPORT_LAYOUT ??
+        process.env.VITE_USE_LEGACY_IMPORT_LAYOUT ??
+        "",
+    ),
+  },
   plugins: [
     react(),
     VitePWA({

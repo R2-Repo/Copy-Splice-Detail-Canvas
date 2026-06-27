@@ -54,6 +54,9 @@ export function buildDiagramConfig(
     legOverrides: input.legOverrides ?? stored?.legOverrides,
     connectionOverrides: stored?.connectionOverrides,
     bundleOverrides: stored?.bundleOverrides,
+    layoutMode: stored?.layoutMode,
+    quadCableSides: stored?.quadCableSides,
+    optimizedLayoutCandidate: stored?.optimizedLayoutCandidate,
   });
 
   const { reportKey: _reportKey, ...layout } = merged;

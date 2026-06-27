@@ -3,6 +3,10 @@ import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
 import { FIBER_ROW_PITCH } from "@/features/diagram/cableLayoutMetrics";
 import { reportStorageKey } from "@/features/diagram/layoutSpliceDiagram";
 import {
+  toLayoutCandidate,
+  verifyLayoutCandidate,
+} from "@/features/layoutSearch/verifyLayoutCandidate";
+import {
   LAYOUT_OVERRIDE_VERSION,
   type ConnectionGraph,
   type LayoutOverrides,
@@ -85,6 +89,8 @@ export type RestoredDiagram = {
   overrides: LayoutOverrides;
   viewport?: DiagramConfigFile["viewport"];
   sourceLabel: string;
+  /** Set when stored candidate fails one-shot rule verification. */
+  candidateVerificationWarning?: string;
 };
 
 export function restoreDiagramFromConfig(
@@ -93,6 +99,18 @@ export function restoreDiagramFromConfig(
   const graph = connectionGraphFromConfig(config);
   const reportKey = reportStorageKey(graph);
   const overrides = layoutOverridesFromConfig(config, reportKey);
+
+  let candidateVerificationWarning: string | undefined;
+  if (overrides.optimizedLayoutCandidate) {
+    const verify = verifyLayoutCandidate(
+      graph,
+      toLayoutCandidate(overrides.optimizedLayoutCandidate),
+    );
+    if (!verify.feasible) {
+      candidateVerificationWarning = `Stored layout candidate failed verification: ${verify.failedRules.join("; ")}`;
+    }
+  }
+
   saveLayoutOverrides(overrides);
 
   const sourceLabel =
@@ -107,5 +125,6 @@ export function restoreDiagramFromConfig(
     overrides,
     viewport: config.viewport,
     sourceLabel,
+    candidateVerificationWarning,
   };
 }

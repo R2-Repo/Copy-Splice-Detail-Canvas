@@ -41,6 +41,17 @@ export type LayoutSearchConfig = {
   plateauRounds?: number;
   /** Dev logging: how many top candidates to print (default 5). */
   debugTopN?: number;
+  /** Import UI — called after each search round with best-so-far. */
+  onProgress?: (progress: LayoutSearchProgress) => void;
+  /** Import UI — when true, stop search and return best-so-far. */
+  shouldCancel?: () => boolean;
+};
+
+export type LayoutSearchProgress = {
+  round: number;
+  evaluations: number;
+  bestScore: number;
+  feasible: boolean;
 };
 
 export type LayoutSearchResult = {
@@ -59,6 +70,18 @@ const NARROW_WIDTH = 1200;
 const MAX_EXPANSION_ITERATION = 8;
 /** Skip brute force when estimated enumeration exceeds this (n≥5 factorial growth). */
 const BRUTE_FORCE_CANDIDATE_CAP = 20_000;
+export const INFEASIBLE_LAYOUT_SCORE = Number.MAX_SAFE_INTEGER;
+
+function scoreFeasible(score: number): boolean {
+  return score < INFEASIBLE_LAYOUT_SCORE;
+}
+
+function emitProgress(
+  config: LayoutSearchConfig,
+  progress: LayoutSearchProgress,
+): void {
+  config.onProgress?.(progress);
+}
 
 /** FNV-1a 32-bit hash for deterministic seeds from report keys. */
 export function seedFromReportKey(reportKey: string): number {
@@ -489,6 +512,7 @@ function runBruteForce(
   seedBest: RankedCandidate,
   startMs: number,
   timeBudgetMs: number | undefined,
+  config: LayoutSearchConfig,
 ): { best: RankedCandidate; evaluations: number; seen: RankedCandidate[] } {
   const candidates = enumerateCandidates(cableKeys, widths, expansionIters);
   let best = seedBest;
@@ -496,12 +520,18 @@ function runBruteForce(
   const seen: RankedCandidate[] = [{ ...seedBest }];
 
   for (const candidate of candidates) {
-    if (timeExceeded(startMs, timeBudgetMs)) break;
+    if (timeExceeded(startMs, timeBudgetMs) || config.shouldCancel?.()) break;
     const { score } = evaluateCandidate(graph, candidate);
     evaluations += 1;
     const ranked = { candidate, score };
     seen.push(ranked);
     best = tryImproveBest(best, candidate, score);
+    emitProgress(config, {
+      round: evaluations - 1,
+      evaluations,
+      bestScore: best.score,
+      feasible: scoreFeasible(best.score),
+    });
   }
 
   return { best, evaluations, seen };
@@ -519,6 +549,7 @@ function runGuidedSearch(
   plateauRounds: number,
   startMs: number,
   timeBudgetMs: number | undefined,
+  config: LayoutSearchConfig,
 ): { best: RankedCandidate; evaluations: number; seen: RankedCandidate[] } {
   let best = seedBest;
   let current = seedBest.candidate;
@@ -526,8 +557,15 @@ function runGuidedSearch(
   let roundsWithoutImprovement = 0;
   const seen: RankedCandidate[] = [{ ...seedBest }];
 
+  emitProgress(config, {
+    round: 0,
+    evaluations,
+    bestScore: best.score,
+    feasible: scoreFeasible(best.score),
+  });
+
   for (let round = 1; round <= maxRounds; round++) {
-    if (timeExceeded(startMs, timeBudgetMs)) break;
+    if (timeExceeded(startMs, timeBudgetMs) || config.shouldCancel?.()) break;
 
     let trial: LayoutCandidate;
     if (restartInterval > 0 && round % restartInterval === 0) {
@@ -557,7 +595,14 @@ function runGuidedSearch(
       current = best.candidate;
     }
 
-    const bestFeasible = best.score < Number.MAX_SAFE_INTEGER;
+    emitProgress(config, {
+      round,
+      evaluations,
+      bestScore: best.score,
+      feasible: scoreFeasible(best.score),
+    });
+
+    const bestFeasible = scoreFeasible(best.score);
     if (
       plateauRounds > 0 &&
       bestFeasible &&
@@ -570,14 +615,93 @@ function runGuidedSearch(
   return { best, evaluations, seen };
 }
 
-/**
- * Routing-first layout search: seed heuristic baseline, then brute-force (tiny
- * graphs) or guided hill-climb with deterministic restarts.
- */
-export function layoutSearch(
+async function runGuidedSearchAsync(
   graph: ConnectionGraph,
-  config: LayoutSearchConfig = {},
-): LayoutSearchResult {
+  cableKeys: string[],
+  widths: number[],
+  expansionIters: number[],
+  seedBest: RankedCandidate,
+  rng: () => number,
+  maxRounds: number,
+  restartInterval: number,
+  plateauRounds: number,
+  startMs: number,
+  timeBudgetMs: number | undefined,
+  config: LayoutSearchConfig,
+): Promise<{ best: RankedCandidate; evaluations: number; seen: RankedCandidate[] }> {
+  let best = seedBest;
+  let current = seedBest.candidate;
+  let evaluations = 1;
+  let roundsWithoutImprovement = 0;
+  const seen: RankedCandidate[] = [{ ...seedBest }];
+
+  emitProgress(config, {
+    round: 0,
+    evaluations,
+    bestScore: best.score,
+    feasible: scoreFeasible(best.score),
+  });
+
+  for (let round = 1; round <= maxRounds; round++) {
+    if (timeExceeded(startMs, timeBudgetMs) || config.shouldCancel?.()) break;
+
+    let trial: LayoutCandidate;
+    if (restartInterval > 0 && round % restartInterval === 0) {
+      trial = randomCandidate(rng, cableKeys, widths, expansionIters);
+    } else {
+      const mutation = pickMutation(rng, cableKeys, current);
+      trial = applyMutation(current, mutation, widths, expansionIters);
+    }
+
+    const { score } = evaluateCandidate(graph, trial);
+    evaluations += 1;
+    seen.push({ candidate: trial, score });
+
+    const prevBest = best;
+    best = tryImproveBest(best, trial, score);
+
+    if (
+      compareCandidates(
+        { score: best.score, candidate: best.candidate },
+        { score: prevBest.score, candidate: prevBest.candidate },
+      ) < 0
+    ) {
+      roundsWithoutImprovement = 0;
+      current = best.candidate;
+    } else {
+      roundsWithoutImprovement += 1;
+      current = best.candidate;
+    }
+
+    emitProgress(config, {
+      round,
+      evaluations,
+      bestScore: best.score,
+      feasible: scoreFeasible(best.score),
+    });
+
+    const bestFeasible = scoreFeasible(best.score);
+    if (
+      plateauRounds > 0 &&
+      bestFeasible &&
+      roundsWithoutImprovement >= plateauRounds
+    ) {
+      break;
+    }
+
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+  }
+
+  return { best, evaluations, seen };
+}
+
+function runLayoutSearchCore(
+  graph: ConnectionGraph,
+  config: LayoutSearchConfig,
+  guidedRunner: typeof runGuidedSearch | typeof runGuidedSearchAsync,
+): LayoutSearchResult | Promise<LayoutSearchResult> {
   const maxRounds = config.maxRounds ?? DEFAULT_MAX_ROUNDS;
   const bruteForceMaxCables =
     config.bruteForceMaxCables ?? DEFAULT_BRUTE_FORCE_MAX_CABLES;
@@ -602,6 +726,24 @@ export function layoutSearch(
   let evaluations = 1;
   let seen: RankedCandidate[] = [{ ...best }];
 
+  emitProgress(config, {
+    round: 0,
+    evaluations,
+    bestScore: best.score,
+    feasible: scoreFeasible(best.score),
+  });
+
+  const finalize = (): LayoutSearchResult => {
+    if (debugEnabled(config)) {
+      logTopCandidates(seen, debugTopN, evaluations);
+    }
+    return {
+      best: best.candidate,
+      evaluations,
+      bestScore: best.score,
+    };
+  };
+
   if (
     shouldUseBruteForce(
       cableKeys.length,
@@ -618,36 +760,66 @@ export function layoutSearch(
       best,
       startMs,
       config.timeBudgetMs,
+      config,
     );
     best = brute.best;
     evaluations = brute.evaluations;
     seen = brute.seen;
-  } else {
-    const guided = runGuidedSearch(
-      graph,
-      cableKeys,
-      widths,
-      expansionIters,
-      best,
-      rng,
-      maxRounds,
-      restartInterval,
-      plateauRounds,
-      startMs,
-      config.timeBudgetMs,
-    );
-    best = guided.best;
-    evaluations = guided.evaluations;
-    seen = guided.seen;
+    return finalize();
   }
 
-  if (debugEnabled(config)) {
-    logTopCandidates(seen, debugTopN, evaluations);
+  const guidedPromise = guidedRunner(
+    graph,
+    cableKeys,
+    widths,
+    expansionIters,
+    best,
+    rng,
+    maxRounds,
+    restartInterval,
+    plateauRounds,
+    startMs,
+    config.timeBudgetMs,
+    config,
+  );
+
+  if (guidedPromise instanceof Promise) {
+    return guidedPromise.then((guided) => {
+      best = guided.best;
+      evaluations = guided.evaluations;
+      seen = guided.seen;
+      return finalize();
+    });
   }
 
-  return {
-    best: best.candidate,
-    evaluations,
-    bestScore: best.score,
-  };
+  best = guidedPromise.best;
+  evaluations = guidedPromise.evaluations;
+  seen = guidedPromise.seen;
+  return finalize();
+}
+
+/**
+ * Routing-first layout search: seed heuristic baseline, then brute-force (tiny
+ * graphs) or guided hill-climb with deterministic restarts.
+ */
+export function layoutSearch(
+  graph: ConnectionGraph,
+  config: LayoutSearchConfig = {},
+): LayoutSearchResult {
+  return runLayoutSearchCore(graph, config, runGuidedSearch) as LayoutSearchResult;
+}
+
+/** Async import path — yields between rounds for progress UI + cancel. */
+export async function layoutSearchAsync(
+  graph: ConnectionGraph,
+  config: LayoutSearchConfig = {},
+): Promise<LayoutSearchResult> {
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+  return runLayoutSearchCore(
+    graph,
+    config,
+    runGuidedSearchAsync,
+  ) as Promise<LayoutSearchResult>;
 }

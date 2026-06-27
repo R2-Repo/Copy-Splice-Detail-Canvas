@@ -882,6 +882,52 @@
   max-width: 28rem;
 }
 
+.layout-search-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.35);
+  pointer-events: auto;
+}
+
+.layout-search-overlay__panel {
+  min-width: 16rem;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  background: var(--neo-surface, #f8fafc);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  text-align: center;
+}
+
+.layout-search-overlay__title {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--neo-text-strong, #0f172a);
+}
+
+.layout-search-overlay__detail {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  color: var(--neo-text-muted, #64748b);
+}
+
+.layout-search-overlay__cancel {
+  font-size: 0.8rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(100, 116, 139, 0.35);
+  background: transparent;
+  cursor: pointer;
+}
+
+.layout-search-overlay__cancel:hover {
+  background: rgba(148, 163, 184, 0.15);
+}
+
 .workflow-canvas__stage > .react-flow {
   width: 100%;
   height: 100%;
