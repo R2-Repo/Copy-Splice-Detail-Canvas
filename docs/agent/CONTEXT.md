@@ -8,7 +8,7 @@
 
 ## Active build track
 
-- **Routing-first auto layout — Phase 3 done** — four-side `LayoutCandidate` (L/R/T/B), quad evaluate path in `evaluateLayoutCandidate`, 4-side `layoutSearch` mutations/enumeration. Import not wired (Phase 4).
+- **Routing-first auto layout — Phase 4 done** — CSV import runs `layoutSearchAsync`; unified `buildCanvasFromCandidate` render; `optimizedLayoutCandidate` persisted; legacy fallback `USE_LEGACY_IMPORT_LAYOUT=1`.
 - Smart manual movement: fiber anchor drag, tube tip ↕ + stem ↔, shift+drag bundle, marquee groups, unlock selection
 - SDC-UX-001: lock-on-commit (grid hybrid); unlock selection / reset layout in toolbar
 
@@ -28,5 +28,5 @@ npm run smoke
 
 ## Baseline
 
-- Branch: `main`
+- Branch: `cursor/routing-first-phase4-import-wire-301a`
 - Frozen: `.cursor/rules/frozen-routing.mdc`

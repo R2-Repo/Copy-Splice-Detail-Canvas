@@ -7,6 +7,7 @@ import { readLeftCsv } from "@/testHelpers/leftCsvPaths";
 import type { SplicePair } from "@/types/splice";
 
 import { evaluateLayoutCandidate } from "./evaluateCandidate";
+import { buildCanvasFromCandidate } from "./candidateToGraph";
 import {
   ALL_LAYOUT_SIDES,
   compareCandidates,
@@ -289,5 +290,16 @@ describe("layoutSearch Phase 3", () => {
     ).find((c) => c.stackOrder.top.length > 0);
     expect(withTop?.id).toMatch(/^T\[/);
     expect(withTop?.id).toContain("B[");
+  });
+
+  it("buildCanvasFromCandidate renders nodes for a search winner", () => {
+    const graph = syntheticThreeCableGraph();
+    const candidate = heuristicBaselineCandidate(graph);
+    const { nodes, edges } = buildCanvasFromCandidate(graph, candidate, {
+      reportKey: "phase4-test",
+      positions: {},
+    });
+    expect(nodes.some((n) => n.type === "cable")).toBe(true);
+    expect(edges.length).toBeGreaterThan(0);
   });
 });

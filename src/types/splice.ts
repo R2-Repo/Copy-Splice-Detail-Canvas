@@ -265,6 +265,17 @@ export type LayoutOverrides = {
     cables: string[];
     tubeGroups: string[];
   };
+  /** Routing-first auto layout: winning search candidate snapshot. */
+  optimizedLayoutCandidate?: OptimizedLayoutCandidate;
+};
+
+/** Serializable layout-search candidate (stored in overrides + `.sdc.json`). */
+export type OptimizedLayoutCandidate = {
+  cableSides: Record<string, QuadSide>;
+  stackOrder: Record<QuadSide, string[]>;
+  layoutWidth: number;
+  layoutExpansion: LayoutExpansion;
+  id?: string;
 };
 
 /** Original (left/right) vs additive 4-side layout engine. */

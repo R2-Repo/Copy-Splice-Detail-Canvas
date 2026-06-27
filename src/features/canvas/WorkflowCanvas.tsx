@@ -139,6 +139,26 @@ import {
   spliceEdgeIdsForTubeKey,
 } from "@/features/diagram/snapGuides";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
+import {
+  buildCanvasFromCandidate,
+  candidateOverridePatch,
+} from "@/features/layoutSearch/candidateToGraph";
+import {
+  deriveLayoutMode,
+  heuristicBaselineCandidate,
+} from "@/features/layoutSearch/layoutCandidate";
+import { LayoutSearchOverlay } from "@/features/layoutSearch/LayoutSearchOverlay";
+import { legacyImportLayoutEnabled, showLayoutModeToggle } from "@/features/layoutSearch/legacyImportLayout";
+import {
+  layoutSearchAsync,
+  seedFromReportKey,
+  type LayoutSearchProgress,
+} from "@/features/layoutSearch/layoutSearch";
+import { evaluateLayoutCandidate } from "@/features/layoutSearch/evaluateCandidate";
+import {
+  toLayoutCandidate,
+  verifyLayoutCandidate,
+} from "@/features/layoutSearch/verifyLayoutCandidate";
 import { rerouteConnectionIdsForVisualCableDrag } from "@/features/diagram/connectionIdsForCable";
 import { syncNodesEngineDragLayout } from "@/features/diagram/syncNodesEngineDragLayout";
 import { detectFullButtSpliceTubes } from "@/features/diagram/fullButtSplice";
@@ -358,6 +378,10 @@ function WorkflowCanvasInner() {
   const [configErrorBanner, setConfigErrorBanner] = useState<string | null>(
     null,
   );
+  const [layoutSearchProgress, setLayoutSearchProgress] =
+    useState<LayoutSearchProgress | null>(null);
+  const layoutSearchCancelRef = useRef(false);
+  const layoutSearchRunRef = useRef(0);
   const [activeGuides, setActiveGuides] = useState<ManualLayoutGuideLine[]>(
     [],
   );
@@ -699,7 +723,12 @@ function WorkflowCanvasInner() {
 
       let layoutExpansion: LayoutExpansion =
         existing?.layoutExpansion ?? DEFAULT_LAYOUT_EXPANSION;
+      const useLegacyLayout = legacyImportLayoutEnabled();
+      const storedCandidate = existing?.optimizedLayoutCandidate;
+      const useOptimizedCandidate =
+        !useLegacyLayout && storedCandidate !== undefined;
       const shouldResolveFeasibleLayout =
+        !useOptimizedCandidate &&
         options?.layoutWidth === undefined &&
         !options?.refreshRowLayout &&
         (options?.fitAtUnitZoom === true ||
@@ -717,6 +746,9 @@ function WorkflowCanvasInner() {
         });
         layoutWidthArg = resolved.layoutWidth;
         layoutExpansion = resolved.expansion;
+      } else if (useOptimizedCandidate && storedCandidate) {
+        layoutWidthArg = storedCandidate.layoutWidth;
+        layoutExpansion = storedCandidate.layoutExpansion;
       }
 
       layoutWidthRef.current = layoutWidthArg;
@@ -725,9 +757,52 @@ function WorkflowCanvasInner() {
       const savedPositions =
         options?.refreshLayout ?? false ? {} : existing?.positions ?? {};
 
+      const candidateForRender =
+        useOptimizedCandidate && storedCandidate
+          ? toLayoutCandidate(storedCandidate)
+          : undefined;
+      if (candidateForRender) {
+        const nextLayoutMode = deriveLayoutMode(candidateForRender);
+        layoutModeRef.current = nextLayoutMode;
+        setLayoutModeState(nextLayoutMode);
+      }
+
+      const graphBuildOptions = {
+        refreshColumnX: options?.refreshColumnX,
+        refreshRowLayout: options?.refreshRowLayout,
+        skipFeasibility: true,
+        skipTubeAutoAlign: overrides.autoAdjustEnabled === false,
+      };
+
       const { nodes: nextNodes, edges: nextEdges, layout, xBounds, autoLayoutY } =
-        runWithLayoutExpansion(layoutExpansion, () =>
-          buildReactFlowGraph(
+        runWithLayoutExpansion(layoutExpansion, () => {
+          if (candidateForRender) {
+            return buildCanvasFromCandidate(
+              graph,
+              candidateForRender,
+              {
+                ...overrides,
+                reportKey,
+                collapseFullButtSplices: collapse,
+                positions: savedPositions,
+                existingEdgeIds: existing?.existingEdgeIds,
+                layoutWidth: layoutWidthArg,
+                autoAdjustEnabled: overrides.autoAdjustEnabled,
+                tubeOverrides: overrides.tubeOverrides,
+                fanoutOverrides: overrides.fanoutOverrides,
+                legOverrides: overrides.legOverrides,
+                routingEngine: overrides.routingEngine ?? existing?.routingEngine,
+                gridRoutes: overrides.gridRoutes ?? existing?.gridRoutes,
+                gridLocks: overrides.gridLocks ?? existing?.gridLocks,
+                layoutMode: candidateForRender
+                  ? deriveLayoutMode(candidateForRender)
+                  : overrides.layoutMode ?? existing?.layoutMode,
+                optimizedLayoutCandidate: storedCandidate,
+              },
+              graphBuildOptions,
+            );
+          }
+          return buildReactFlowGraph(
             graph,
             {
               ...overrides,
@@ -746,14 +821,9 @@ function WorkflowCanvasInner() {
               layoutMode: overrides.layoutMode ?? existing?.layoutMode,
             },
             layoutWidthArg,
-            {
-              refreshColumnX: options?.refreshColumnX,
-              refreshRowLayout: options?.refreshRowLayout,
-              skipFeasibility: true,
-              skipTubeAutoAlign: overrides.autoAdjustEnabled === false,
-            },
-          ),
-        );
+            graphBuildOptions,
+          );
+        });
       xBoundsRef.current = xBounds;
       const merged = attachDiagramOverlayNodes(
         nextNodes,
@@ -786,6 +856,9 @@ function WorkflowCanvasInner() {
             tubeOverrides: overrides.tubeOverrides,
             fanoutOverrides: overrides.fanoutOverrides,
             legOverrides: overrides.legOverrides,
+            layoutMode: layoutModeRef.current,
+            optimizedLayoutCandidate: storedCandidate,
+            quadCableSides: existing?.quadCableSides,
           }),
         );
       }
@@ -887,6 +960,9 @@ function WorkflowCanvasInner() {
         useSavedLayoutWidth?: boolean;
         refreshLayout?: boolean;
         viewport?: { x: number; y: number; zoom: number };
+        /** Fresh CSV import — run routing-first layout search. */
+        optimizeLayout?: boolean;
+        candidateVerificationWarning?: string;
       },
     ) => {
       reportKeyRef.current = reportKey;
@@ -912,16 +988,90 @@ function WorkflowCanvasInner() {
       calloutAutoZoomRef.current = loadedCalloutAutoZoom;
       setAutoAdjustEnabled(saved?.autoAdjustEnabled !== false);
       setLegOverridesState(saved?.legOverrides);
-      const initialLayoutMode = saved?.layoutMode ?? "horizontal";
+      const savedCandidate = saved?.optimizedLayoutCandidate;
+      const initialLayoutMode = savedCandidate
+        ? deriveLayoutMode(toLayoutCandidate(savedCandidate))
+        : (saved?.layoutMode ?? "horizontal");
       layoutModeRef.current = initialLayoutMode;
       setLayoutModeState(initialLayoutMode);
       setManualWarningBanner(null);
-      setConfigErrorBanner(null);
+      setConfigErrorBanner(
+        options.candidateVerificationWarning ?? null,
+      );
       userExpandedLayoutRef.current = Boolean(
         options.useSavedLayoutWidth &&
           saved?.layoutWidth &&
           saved.layoutWidth > CABLE_LAYOUT.width + 1,
       );
+
+      const finishImport = (
+        layoutWidth: number,
+        refreshLayout: boolean,
+      ) => {
+        applyGraph(graph, reportKey, collapsed, {
+          fitView: options.viewport === undefined,
+          fitAtUnitZoom: options.viewport === undefined,
+          layoutWidth,
+          refreshLayout,
+          refreshColumnX: true,
+          refreshRowLayout: true,
+        });
+
+        if (options.viewport) {
+          void setViewport(options.viewport, { duration: 0 });
+        }
+
+        setMeta(
+          `${options.sourceLabel} — ${graph.report.pairs.length} pair(s), ${graph.connections.length} connection(s)`,
+        );
+      };
+
+      const runOptimizedImport = async (layoutWidth: number) => {
+        const runId = ++layoutSearchRunRef.current;
+        layoutSearchCancelRef.current = false;
+        setLayoutSearchProgress({
+          round: 0,
+          evaluations: 0,
+          bestScore: Number.MAX_SAFE_INTEGER,
+          feasible: false,
+        });
+
+        const searchResult = await layoutSearchAsync(graph, {
+          seed: seedFromReportKey(reportKey),
+          onProgress: (progress) => {
+            if (layoutSearchRunRef.current !== runId) return;
+            setLayoutSearchProgress(progress);
+          },
+          shouldCancel: () => layoutSearchCancelRef.current,
+        });
+
+        if (layoutSearchRunRef.current !== runId) return;
+
+        setLayoutSearchProgress(null);
+
+        let candidate = searchResult.best;
+        const evaluation = evaluateLayoutCandidate(graph, candidate);
+        if (!evaluation.feasible) {
+          candidate = heuristicBaselineCandidate(graph, layoutWidth);
+          const failed = evaluation.violations
+            .filter((r) => !r.ok && r.severity === "fail")
+            .map((r) => r.detail ?? r.id);
+          setConfigErrorBanner(
+            `Layout optimizer found no feasible candidate; using heuristic fallback.${failed.length > 0 ? ` ${failed.join("; ")}` : ""}`,
+          );
+        }
+
+        saveLayoutOverrides(
+          mergeLayoutOverrides(reportKey, {
+            ...candidateOverridePatch(graph, candidate, reportKey),
+            collapseFullButtSplices: collapsed,
+            autoAdjustEnabled: saved?.autoAdjustEnabled !== false,
+          }),
+        );
+        layoutModeRef.current = deriveLayoutMode(candidate);
+        setLayoutModeState(deriveLayoutMode(candidate));
+        finishImport(candidate.layoutWidth, true);
+      };
 
       const importWhenStageReady = (attempt = 0) => {
         const measured = stageRef.current?.clientWidth ?? 0;
@@ -943,21 +1093,35 @@ function WorkflowCanvasInner() {
             ? saved.layoutWidth
             : stageDefaultWidth;
 
-        applyGraph(graph, reportKey, collapsed, {
-          fitView: options.viewport === undefined,
-          fitAtUnitZoom: options.viewport === undefined,
-          layoutWidth,
-          refreshLayout: options.refreshLayout ?? false,
-          refreshColumnX: true,
-          refreshRowLayout: true,
-        });
+        const shouldOptimize =
+          options.optimizeLayout === true &&
+          !legacyImportLayoutEnabled() &&
+          !(savedCandidate && options.refreshLayout === false);
 
-        if (options.viewport) {
-          void setViewport(options.viewport, { duration: 0 });
+        if (shouldOptimize) {
+          void runOptimizedImport(layoutWidth);
+          return;
         }
 
-        setMeta(
-          `${options.sourceLabel} — ${graph.report.pairs.length} pair(s), ${graph.connections.length} connection(s)`,
+        if (
+          savedCandidate &&
+          !legacyImportLayoutEnabled() &&
+          options.refreshLayout !== true
+        ) {
+          const verify = verifyLayoutCandidate(
+            graph,
+            toLayoutCandidate(savedCandidate),
+          );
+          if (!verify.feasible && !options.candidateVerificationWarning) {
+            setConfigErrorBanner(
+              `Stored layout failed verification: ${verify.failedRules.join("; ")}`,
+            );
+          }
+        }
+
+        finishImport(
+          layoutWidth,
+          options.refreshLayout ?? false,
         );
       };
       importWhenStageReady();
@@ -982,6 +1146,7 @@ function WorkflowCanvasInner() {
         sourceLabel: title,
         refreshLayout: true,
         useSavedLayoutWidth: false,
+        optimizeLayout: true,
       });
     },
     [activateDiagram],
@@ -1008,6 +1173,7 @@ function WorkflowCanvasInner() {
           useSavedLayoutWidth: true,
           refreshLayout: false,
           viewport: restored.viewport,
+          candidateVerificationWarning: restored.candidateVerificationWarning,
         });
       } catch (err) {
         const message =
@@ -2583,25 +2749,27 @@ function WorkflowCanvasInner() {
               onClick={unlockSelectedAdjustments}
             />
           ) : null}
-          <ToolbarSegmentedControl
-            className="toolbar-segment--large"
-            ariaLabel="Layout mode"
-            disabled={!meta}
-            value={layoutMode}
-            onChange={(next) => setLayoutMode(next as LayoutMode)}
-            options={[
-              {
-                value: "horizontal",
-                label: "Left / right layout",
-                icon: <HorizontalLayoutIcon />,
-              },
-              {
-                value: "quad",
-                label: "4-side layout",
-                icon: <QuadLayoutIcon />,
-              },
-            ]}
-          />
+          {meta && showLayoutModeToggle() ? (
+            <ToolbarSegmentedControl
+              className="toolbar-segment--large"
+              ariaLabel="Layout mode"
+              disabled={!meta}
+              value={layoutMode}
+              onChange={(next) => setLayoutMode(next as LayoutMode)}
+              options={[
+                {
+                  value: "horizontal",
+                  label: "Left / right layout",
+                  icon: <HorizontalLayoutIcon />,
+                },
+                {
+                  value: "quad",
+                  label: "4-side layout",
+                  icon: <QuadLayoutIcon />,
+                },
+              ]}
+            />
+          ) : null}
           {!autoAdjustEnabled && meta && !gridHybrid ? (
             <ToolbarActionButton
               label="Reset to auto layout"
@@ -2681,6 +2849,14 @@ function WorkflowCanvasInner() {
             onDrop={handleStageDrop}
           >
             <ManualLayoutGuideOverlay guides={activeGuides} />
+            {layoutSearchProgress ? (
+              <LayoutSearchOverlay
+                progress={layoutSearchProgress}
+                onCancel={() => {
+                  layoutSearchCancelRef.current = true;
+                }}
+              />
+            ) : null}
             <CalloutPersistContext.Provider
               value={{ onTextChange: handleCalloutTextChange }}
             >

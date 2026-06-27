@@ -130,5 +130,7 @@ export function mergeLayoutOverrides(
     routingEngine: patch.routingEngine ?? existing?.routingEngine,
     gridRoutes: patch.gridRoutes ?? existing?.gridRoutes,
     gridLocks: patch.gridLocks ?? existing?.gridLocks,
+    optimizedLayoutCandidate:
+      patch.optimizedLayoutCandidate ?? existing?.optimizedLayoutCandidate,
   };
 }

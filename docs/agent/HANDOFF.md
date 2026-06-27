@@ -4,36 +4,42 @@
 
 ## Last updated
 
-2026-06-27 — **Routing-first layout Phase 3 (four-side candidates)**
+2026-06-27 — **Routing-first layout Phase 4 (import wire + unified render)**
 
 ### Done
 
 | Area | Change |
 |------|--------|
-| `layoutCandidate.ts` | `LayoutSide` = L/R/T/B; `stackOrder` for all sides; `deriveLayoutMode`, quad side helpers, stable id with T/B stacks |
-| `evaluateCandidate.ts` | Quad path via `buildQuadReactFlowGraph` adapters + `routeAllOnGrid` with `layoutMode: "quad"` when top/bottom populated |
-| `layoutSearch.ts` | 4^n enumeration, flip to any side, stack swaps on all sides, deterministic mutations |
-| `quadPlacement.ts` | `stackOrderByCableKey` for search stack order on quad edges |
-| `layoutSearch.test.ts` | Fast gate: synthetic 3-cable + Left-SP-3254.5 smoke (~45s for file) |
-| `layoutSearch.slow.test.ts` | Opt-in: Left-SPI-215_I-80 + Example #2 (excluded from smoke) |
+| `candidateToGraph.ts` | `buildCanvasFromCandidate` — unified L/R + quad render from `LayoutCandidate` |
+| `layoutSearch.ts` | `layoutSearchAsync`, progress/cancel hooks (`onProgress`, `shouldCancel`) |
+| `WorkflowCanvas.tsx` | CSV import runs optimizer; overlay “Optimizing layout…”; cancel → best-so-far |
+| `LayoutOverrides` | `optimizedLayoutCandidate` snapshot persisted (localStorage + `.sdc.json`) |
+| `restoreDiagramConfig.ts` | One-shot `verifyLayoutCandidate` on restore |
+| Toolbar | Layout mode toggle hidden unless `VITE_SHOW_LAYOUT_MODE_TOGGLE=1` |
+| Legacy escape | `USE_LEGACY_IMPORT_LAYOUT=1` → old `resolveFeasibleImportLayout` path |
 
 ### Test status
 
 | Gate | Command | Result |
 |------|---------|--------|
-| smoke | `npm run smoke` | **Pass** (~2.5 min) |
-| fast | `npm run test:fast` | Pass (includes Phase 3 fast `layoutSearch` tests) |
-| slow CSV search | `npx vitest run src/features/layoutSearch/layoutSearch.slow.test.ts` | Opt-in — minutes per file |
-| rules | `npm run test:rules` | **Suspended** — user must ask |
+| smoke | `npm run smoke` | **Pass** (~38s) |
+| fast | `npm run test:fast` | Pass (includes `buildCanvasFromCandidate` smoke test) |
+| slow CSV search | `npx vitest run src/features/layoutSearch/layoutSearch.slow.test.ts` | Opt-in |
+| rules | `npm run test:rules` | **Suspended** |
 
-### Manual QA
+### Manual QA (required)
 
-No user-visible change — import path unchanged. No manual QA required this session.
+1. `npm run dev`
+2. Import **example-2** — confirm “Optimizing layout…” overlay, then diagram renders without layout mode picker
+3. Import **Left-SP-3254.5.csv**, **Left-SPI-215_I-80.csv** if time permits
+4. Export `.sdc.json` → re-import → layout restores from candidate
+5. Cancel mid-search → best-so-far applies
+6. Optional: `USE_LEGACY_IMPORT_LAYOUT=1 npm run dev` — heuristic import still works
 
 ### Next
 
-1. **Phase 4** [`ROUTING_FIRST_LAYOUT.md`](./ROUTING_FIRST_LAYOUT.md): wire `layoutSearch` into import + unified render
-2. Phase 5 re-enables `test:rules`
+1. **Phase 5** — re-enable `test:rules` + `SDC-SCORE-001` rule pack
+2. Phase 6 manual side drag
 
 ### Frozen
 
