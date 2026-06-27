@@ -14,7 +14,8 @@ Frontend-only React PWA: node/workflow canvas (React Flow). No backend unless th
 | `splice_detail_canvas_rule_pack/00_Rule_Index.md` | **Canonical 12 SDC rules** — public contract |
 | `docs/agent/RULE_ID_MAP.md` | SDC ↔ legacy map (legacy = private engine) |
 | `docs/agent/LAYOUT_RULES.md` | **Deprecated** — legacy IDs; see rule pack |
-| `docs/agent/QUAD_LAYOUT.md` | **4-side (quad) layout** — architecture, backlog, handoff (**read before quad work**) |
+| `docs/agent/QUAD_LAYOUT.md` | **4-side (quad) layout** — geometry reference; auto import direction in ROUTING_FIRST_LAYOUT |
+| `docs/agent/ROUTING_FIRST_LAYOUT.md` | **Routing-first auto layout** — search pipeline build plan (canonical for import placement) |
 | `.cursor/rules/frozen-routing.mdc` | **Frozen** splice routing symbols — user approval required |
 | `docs/agent/RULE_DICTIONARY.md` | Plain-English **SDC** rule IDs for chat |
 | `docs/agent/SIMPLE_TERMS.md` | **User simple names** (canonical chat vocabulary) — one-line diagram + simple ↔ official dictionary |

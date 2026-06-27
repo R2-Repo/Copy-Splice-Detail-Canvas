@@ -4,12 +4,13 @@
 
 ## Last updated
 
-2026-06-27 — **Fast test gates; rule validation suspended**
+2026-06-27 — **Routing-first layout plan (unified auto sides)**
 
 ### Done
 
 | Area | Change |
 |------|--------|
+| `docs/agent/ROUTING_FIRST_LAYOUT.md` | Build plan: search → grid route → SDC score; L/R/T/B sides; no layout mode picker on import |
 | `vitest.slowTests.ts` | Manifest of suspended rule/layout contract files |
 | `vitest.fast.config.ts` | Default gate — excludes slow tests |
 | `vitest.hardening.config.ts` | Opt-in — runs suspended tests only |
@@ -35,9 +36,9 @@
 
 ### Next
 
-1. Continue smart manual adjust + MVP features
-2. PDF/export polish
-3. Re-enable `test:rules` hardening when user schedules it
+1. **Phase 1** [`ROUTING_FIRST_LAYOUT.md`](./ROUTING_FIRST_LAYOUT.md): `evaluateLayoutCandidate` (L/R) + brute-force test fixture
+2. Continue smart manual adjust + MVP features
+3. Re-enable `test:rules` after Phase 5 (search on reference CSVs)
 
 ### Frozen
 
