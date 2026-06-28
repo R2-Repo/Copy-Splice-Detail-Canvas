@@ -20,11 +20,13 @@ import {
   type LayoutSide,
 } from "./layoutCandidate";
 import {
+  adaptiveMaxRounds,
   cableKeysFromGraph,
   enumerateCandidates,
   layoutSearch,
   seedFromReportKey,
 } from "./layoutSearch";
+import { importTimeBudgetMs } from "./importSearchConfig";
 import { syntheticHubSpliceGraph, syntheticTwo144Graph } from "./fixtures/syntheticGraphs";
 import { analyzeTopology } from "./topology/analyzeTopology";
 import { evaluateCandidateTiered, evaluateT0, evaluateT2 } from "./tieredEvaluate";
@@ -328,6 +330,42 @@ describe("layoutSearch P1 topology constraints", () => {
     expect(constrained.length).toBeLessThanOrEqual(
       Math.ceil(all.length * 0.5),
     );
+  });
+});
+
+describe("layoutSearch P3 memo + budgets", () => {
+  it("adaptiveMaxRounds caps when topology locks leave few searchable cables", () => {
+    const graph = syntheticHubSpliceGraph(24);
+    const constraints = analyzeTopology(graph).constraints;
+    expect(adaptiveMaxRounds(constraints, 2000)).toBeLessThanOrEqual(256);
+  });
+
+  it("timeBudgetMs returns best-so-far without running full search", () => {
+    const graph = leftSp3254Graph();
+    const start = performance.now();
+    const result = layoutSearch(graph, {
+      maxRounds: 2000,
+      plateauRounds: 0,
+      timeBudgetMs: 1,
+    });
+    expect(performance.now() - start).toBeLessThan(2_000);
+    expect(result.evaluations).toBeGreaterThanOrEqual(1);
+    expect(result.best).toBeDefined();
+  }, 15_000);
+
+  it("returns winnerEvaluation when seed candidate is fully evaluated at T2", () => {
+    const graph = syntheticThreeCableGraph();
+    const result = layoutSearch(graph, {
+      maxRounds: 0,
+      disableTieredEval: true,
+    });
+    expect(result.winnerEvaluation).toBeDefined();
+    expect(result.winnerEvaluation!.feasible).toBe(true);
+  }, 30_000);
+
+  it("importTimeBudgetMs scales with strand count and caps at 5 minutes", () => {
+    expect(importTimeBudgetMs(10)).toBe(115_000);
+    expect(importTimeBudgetMs(10_000)).toBe(300_000);
   });
 });
 

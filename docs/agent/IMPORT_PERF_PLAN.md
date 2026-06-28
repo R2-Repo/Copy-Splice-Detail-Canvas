@@ -1,6 +1,6 @@
 # Import performance + progress UX — build plan
 
-> **Status (2026-06-28):** P0 **shipped** (worker + overlay + heuristic paint). P1–P4 pending. Builds on routing-first search (Phases 1–6 in [`ROUTING_FIRST_LAYOUT.md`](./ROUTING_FIRST_LAYOUT.md)).
+> **Status (2026-06-28):** P0–P3 **shipped**. P4 (worker pool) optional. Builds on routing-first search (Phases 1–6 in [`ROUTING_FIRST_LAYOUT.md`](./ROUTING_FIRST_LAYOUT.md)).
 >
 > **Problem:** Optimized import runs ~2000 full candidate evaluations on the **main thread**. Large CSVs take minutes; the browser shows “page unresponsive” dialogs; the overlay only updates between rounds so it feels frozen.
 >
@@ -122,7 +122,7 @@ Flow: every candidate → T0 → (pass) T1 → (pass) T2. Track tier in progress
 
 ---
 
-### Phase P3 — Memoization + budget tuning
+### Phase P3 — Memoization + budget tuning ✅ shipped 2026-06-28
 
 | Task | Detail |
 |------|--------|

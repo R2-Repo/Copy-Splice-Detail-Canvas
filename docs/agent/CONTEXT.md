@@ -4,37 +4,33 @@
 
 ## Focus (2026-06-28)
 
-**Import perf P1+P2 shipped** — topology locks + tiered eval (T0/T1/T2). See [`IMPORT_PERF_PLAN.md`](./IMPORT_PERF_PLAN.md). P3 (memo/budgets) next.
+**Import perf P0–P3 shipped** — worker + topology locks + tiered eval + memo/budgets/skip-duplicate-T2. See [`IMPORT_PERF_PLAN.md`](./IMPORT_PERF_PLAN.md), [`IMPORT_FINISH_PLAN.md`](./IMPORT_FINISH_PLAN.md).
 
-**Post-import zoom/pan** — done (stage width one-pass, RAF cable drag).
+**SPI-215 (KI-003):** import completes via heuristic fallback when search times out (~4 min); full optimizer still slow on 68-pair fixture.
 
 ## Active build track
 
-- **Import perf P1+P2** — `topology/` module; constrained search; `tieredEvaluate.ts`; worker unchanged (calls `layoutSearch`).
-- **Import perf P0** — worker + overlay + heuristic-first paint (merged direction).
-- **Routing-first auto layout — Phase 6 gated** — horizontal drag restored; quad side-move on drag-stop near canvas edge only.
-- Legacy `USE_LEGACY_IMPORT_LAYOUT=1` fallback still present.
+- **Import perf P3** — score memo, `importTimeBudgetMs`, adaptive `maxRounds`, `winnerEvaluation`, worker deadline + graceful timeout
+- **Import perf P1+P2** — topology + tiered eval
+- **Import perf P0** — worker + overlay + heuristic-first paint
+- Routing-first auto layout — Phase 6 gated
+- Legacy `USE_LEGACY_IMPORT_LAYOUT=1` fallback still present
 
 ## Testing policy
 
-- **Default:** `npm run smoke` (check + `test:fast` + build) — few minutes
-- **Manual QA:** import example-2 / Left-SP-3254.5 — overlay animates; feasible layout; zoom + cable Y-drag after import
-- KI-003 (Left-SPI-215) still skipped unless `RUN_KNOWN_ISSUES=1`
+- **Default:** `npm run smoke`
+- **Manual QA:** all 3 Left CSVs — `?fixture=sp`, `state`, `spi`
+- KI-003 (Left-SPI-215) — timeout fallback documented; full feasibility opt-in only
 
-## Session gate
+## Perf baseline (P3, worker path / main-thread probe)
 
-```bash
-npm run smoke          # every session
-```
-
-## Perf baseline (P1+P2, 2026-06-28, worker path)
-
-| CSV | Before (P0) | After (P1+P2) |
-|-----|---------------|---------------|
-| example-2 | ~60s · ~2000 evals | **4.3s · 43 evals** |
-| Left-SP-3254.5 | ~51s · ~2000 evals | **5.4s · 55 evals** |
+| CSV | evals | wall | feasible |
+|-----|-------|------|----------|
+| example-2 | ~42 | ~1.6s | yes |
+| Left-SP-3254.5 | ~55 | ~5s | yes |
+| Left-STATE_OFFICE | ~3 | ~2 min | yes (browser) |
+| Left-SPI-215_I-80 | — | ~4 min | timeout → heuristic |
 
 ## Branch
 
-- `cursor/import-perf-p1-p2-topology-3acd`
-- Frozen: `.cursor/rules/frozen-routing.mdc`
+- `cursor/import-perf-p3-finish-5032`

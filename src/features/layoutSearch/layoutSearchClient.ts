@@ -15,6 +15,8 @@ import type {
 let nextWorkerId = 1;
 
 const CANCEL_POLL_MS = 50;
+/** Extra wall time beyond `timeBudgetMs` before the client terminates the worker. */
+const SEARCH_GRACE_MS = 45_000;
 
 function workerAvailable(): boolean {
   return typeof Worker !== "undefined";
@@ -41,16 +43,19 @@ export function layoutSearchViaWorker(
     const id = nextWorkerId++;
     const worker = new LayoutSearchWorker();
     let settled = false;
+    let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
 
     const finish = (handler: () => void) => {
       if (settled) return;
       settled = true;
       clearInterval(cancelPoll);
+      if (deadlineTimer !== undefined) clearTimeout(deadlineTimer);
       worker.terminate();
       handler();
     };
 
-    const { onProgress, shouldCancel, ...serializableConfig } = config;
+    const { onProgress, shouldCancel, timeBudgetMs, ...serializableConfig } =
+      config;
 
     const cancelPoll = setInterval(() => {
       if (shouldCancel?.()) {
@@ -58,6 +63,20 @@ export function layoutSearchViaWorker(
         worker.postMessage(req);
       }
     }, CANCEL_POLL_MS);
+
+    if (timeBudgetMs !== undefined) {
+      deadlineTimer = setTimeout(() => {
+        const req: LayoutSearchWorkerRequest = { type: "cancel", id };
+        worker.postMessage(req);
+        finish(() =>
+          reject(
+            new Error(
+              `Layout search timed out after ${Math.round((timeBudgetMs + SEARCH_GRACE_MS) / 1000)}s`,
+            ),
+          ),
+        );
+      }, timeBudgetMs + SEARCH_GRACE_MS);
+    }
 
     worker.onmessage = (event: MessageEvent<LayoutSearchWorkerResponse>) => {
       const msg = event.data;
