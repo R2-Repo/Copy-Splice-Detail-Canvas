@@ -1,0 +1,23 @@
+{
+  "cableSides": {
+    "144-SMF 3500 S DIST": "right",
+    "6 DROP (TSC): 3500 S & GARDEN GATE RD": "left"
+  },
+  "stackOrder": {
+    "left": [
+      "6 DROP (TSC): 3500 S & GARDEN GATE RD"
+    ],
+    "right": [
+      "144-SMF 3500 S DIST"
+    ],
+    "top": [],
+    "bottom": []
+  },
+  "layoutWidth": 1200,
+  "layoutExpansion": {
+    "centerGapPadding": 0,
+    "cableGapExtra": 0,
+    "tubeGroupGapExtra": 0
+  },
+  "id": "T[]B[]L[6 DROP (TSC): 3500 S & GARDEN GATE RD]R[144-SMF 3500 S DIST]S{144-SMF 3500 S DIST:right|6 DROP (TSC): 3500 S & GARDEN GATE RD:left}W1200"
+}

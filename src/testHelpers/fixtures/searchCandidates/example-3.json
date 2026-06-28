@@ -1,0 +1,27 @@
+{
+  "cableSides": {
+    "144-SMF 4700 S DIST: 500 W - I-15": "right",
+    "24 DIST I-15 TO MAIN ST.": "left",
+    "DK-6 I-15SPUI & 4500S": "left",
+    "DK6-4500S & 300W": "right"
+  },
+  "stackOrder": {
+    "left": [
+      "24 DIST I-15 TO MAIN ST.",
+      "DK-6 I-15SPUI & 4500S"
+    ],
+    "right": [
+      "144-SMF 4700 S DIST: 500 W - I-15",
+      "DK6-4500S & 300W"
+    ],
+    "top": [],
+    "bottom": []
+  },
+  "layoutWidth": 1400,
+  "layoutExpansion": {
+    "centerGapPadding": 0,
+    "cableGapExtra": 0,
+    "tubeGroupGapExtra": 0
+  },
+  "id": "T[]B[]L[24 DIST I-15 TO MAIN ST.,DK-6 I-15SPUI & 4500S]R[144-SMF 4700 S DIST: 500 W - I-15,DK6-4500S & 300W]S{144-SMF 4700 S DIST: 500 W - I-15:right|24 DIST I-15 TO MAIN ST.:left|DK-6 I-15SPUI & 4500S:left|DK6-4500S & 300W:right}W1400"
+}

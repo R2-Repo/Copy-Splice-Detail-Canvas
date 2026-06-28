@@ -1,41 +1,29 @@
 # Known layout issues (deferred hardening)
 
-> Documented weak points. **Rule contract tests are suspended** from default gates during build phase — see [`TESTING.md`](./TESTING.md). Re-check via `npm run test:rules` when the user explicitly requests hardening.
+> Re-evaluated **2026-06-27 (Phase 5)** with search-produced layouts. **KI-001, KI-002, KI-004 resolved** — example-3 and Left-SP-3254.5 pass `test:layout` on search winners. Remaining skips: KI-003 (Left-SPI-215). See [`TESTING.md`](./TESTING.md).
 
 | ID | Fixture | Symptom | Rule | Track | Reproduce |
 |----|---------|---------|------|-------|-----------|
-| KI-001 | example-3 | `findSpliceOverlapPair` non-null after grid import | EDGE-011 / overlap | Layout hardening | `npm run test:edge011:example3` |
-| KI-002 | left-sp-3254.5 | SDC-ROUTE-002 nesting/lane fail on grid import | SDC-ROUTE-002 | Layout hardening | `npm run test:layout` |
-| KI-003 | Left-SPI-215_I-80 | Full feasibility overlap (~21 min) | EDGE-011 | Slow hardening | `npm run test:edge011` |
-| KI-004 | example-3 (SDC contract) | Grid rule failures tied to KI-001 | SDC-ROUTE-* | Same as KI-001 | `npm run test:layout` |
+| KI-003 | Left-SPI-215_I-80 | Full feasibility overlap (~21 min) | EDGE-011 | Slow hardening | `RUN_KNOWN_ISSUES=1 npm run test:layout-slow` |
+
+## Phase 5 resolution (2026-06-27)
+
+| Former ID | Fixture | Phase 5 outcome |
+|-----------|---------|-----------------|
+| ~~KI-001~~ | example-3 | **Fixed** — search-produced layout passes grid rules |
+| ~~KI-002~~ | left-sp-3254.5 | **Fixed** — search-produced layout passes SDC-ROUTE-002 |
+| ~~KI-004~~ | example-3 (SDC contract) | **Fixed** — same root cause as KI-001 |
+
+Default `npm run test:layout`: **12/12 pass** (example-1..3, left-sp-3254.5, import-only 300n_main, SDC-SCORE-001 assertions).
 
 ## Details
-
-### KI-001 — example-3 splice overlap
-
-- **Symptom:** At least one splice pair still has horizontal lead overlap after grid reconcile.
-- **Last verified:** 2026-06-25
-- **Owner track:** Layout hardening (not blocking feature work)
-- **Notes:** Same underlying issue as KI-004; full feasibility can take ~21 min.
-
-### KI-002 — left-sp-3254.5 route nesting
-
-- **Symptom:** SDC-ROUTE-002 fails on Left-SP-3254.5 import.
-- **Last verified:** 2026-06-25 (pre-existing on HEAD)
-- **Owner track:** Layout hardening
 
 ### KI-003 — Left-SPI-215 full feasibility
 
 - **Symptom:** SPI overlap reconcile may fail when full feasibility runs (not skipped).
-- **Last verified:** 2026-06-25
+- **Last verified:** 2026-06-27
 - **Owner track:** Slow hardening
-- **Notes:** `test:edge011` with `skipFeasibility: true` is green; full run is opt-in.
-
-### KI-004 — example-3 SDC grid rules
-
-- **Symptom:** Grid routing rule failures on example-3 in `sdcLayoutContract.test.ts`.
-- **Last verified:** 2026-06-25
-- **Owner track:** Same root cause as KI-001
+- **Notes:** `test:edge011` with `skipFeasibility: true` is green; full run is opt-in. Skipped in `sdcLayoutContractSlow.test.ts` unless `RUN_KNOWN_ISSUES=1`.
 
 ### KI-005 — centerRouter SPI oracle (slow)
 
@@ -45,17 +33,10 @@
 
 ## Opt-in full check
 
-Set `RUN_KNOWN_ISSUES=1` to run skipped tests in CI/local:
-
 ```bash
-RUN_KNOWN_ISSUES=1 npm run test:layout
+RUN_KNOWN_ISSUES=1 npm run test:layout-slow   # Left-SPI-215 grid contract
 RUN_KNOWN_ISSUES=1 npm run test:edge011
-```
-
-Or run the full hardening suite:
-
-```bash
-npm run test:hardening
+npm run test:hardening                         # full suspended suite
 ```
 
 ## When to update

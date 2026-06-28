@@ -1,0 +1,27 @@
+{
+  "cableSides": {
+    "6 DROP (TSC): 3300 S & 3175 E": "left",
+    "DIST 18. 3300 S 2700 E/3175 E": "left",
+    "DIST 18. 3300 S 3175 E/3300 E": "right",
+    "DK-6 3300 S &2940 E": "right"
+  },
+  "stackOrder": {
+    "left": [
+      "6 DROP (TSC): 3300 S & 3175 E",
+      "DIST 18. 3300 S 2700 E/3175 E"
+    ],
+    "right": [
+      "DIST 18. 3300 S 3175 E/3300 E",
+      "DK-6 3300 S &2940 E"
+    ],
+    "top": [],
+    "bottom": []
+  },
+  "layoutWidth": 1060,
+  "layoutExpansion": {
+    "centerGapPadding": 0,
+    "cableGapExtra": 0,
+    "tubeGroupGapExtra": 0
+  },
+  "id": "T[]B[]L[6 DROP (TSC): 3300 S & 3175 E,DIST 18. 3300 S 2700 E/3175 E]R[DIST 18. 3300 S 3175 E/3300 E,DK-6 3300 S &2940 E]S{6 DROP (TSC): 3300 S & 3175 E:left|DIST 18. 3300 S 2700 E/3175 E:left|DIST 18. 3300 S 3175 E/3300 E:right|DK-6 3300 S &2940 E:right}W1060"
+}

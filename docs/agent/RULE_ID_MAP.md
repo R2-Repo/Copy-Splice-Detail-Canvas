@@ -16,6 +16,7 @@ Legacy layout contract IDs remain in [`LAYOUT_RULES.md`](./LAYOUT_RULES.md) unti
 | SDC-ROUTE-001 | EDGE-009 | `route001.ts` |
 | SDC-ROUTE-002 | EDGE-005, EDGE-010 | `route002.ts` |
 | SDC-ROUTE-003 | EDGE-001, EDGE-004, EDGE-007, EDGE-011, EDGE-012 | `route003.ts` |
+| SDC-SCORE-001 | — (Tier 2 soft score) | `score001.ts` + `src/features/layoutSearch/layoutScorer.ts` |
 | SDC-UX-001 | DOT-*, manual toggle | `ux001.ts` + `src/features/layoutHybrid/` |
 
 ## Processing order
