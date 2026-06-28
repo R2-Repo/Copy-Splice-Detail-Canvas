@@ -55,6 +55,11 @@ export type LayoutEvaluationResult = LayoutScoreResult & {
   grid?: GridMap;
 };
 
+export type EvaluateLayoutCandidateOptions = {
+  /** Stop rule checks on first hard fail — search-only; keep off for final verify. */
+  stopOnFail?: boolean;
+};
+
 /**
  * Full evaluate loop: apply candidate → React Flow graph → grid route → SDC rules → score.
  * Calls frozen routing APIs only; does not edit spliceEdgeRouting symbols.
@@ -62,6 +67,7 @@ export type LayoutEvaluationResult = LayoutScoreResult & {
 export function evaluateLayoutCandidate(
   graph: ConnectionGraph,
   candidate: LayoutCandidate,
+  options?: EvaluateLayoutCandidateOptions,
 ): LayoutEvaluationResult {
   return runWithLayoutExpansion(candidate.layoutExpansion, () => {
     const appliedGraph = cloneGraphForCandidate(graph, candidate);
@@ -134,7 +140,10 @@ export function evaluateLayoutCandidate(
       layoutWidth: width,
     };
 
-    const violations = runRules(ctx);
+    const violations = runRules(
+      ctx,
+      options?.stopOnFail ? { stopOnFail: true } : undefined,
+    );
     const scored = scoreLayoutEvaluation(
       violations,
       candidate,
