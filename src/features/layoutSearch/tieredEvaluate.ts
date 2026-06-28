@@ -40,7 +40,16 @@ import {
 import {
   getActiveSearchDiagnostics,
   recordEvalSubPhase,
+  recordRuleReject,
 } from "./importDiagnostics";
+import {
+  CandidateRuleValidationCache,
+  candidateGeometryKey,
+} from "./candidateGeometry";
+import {
+  predictEarlyRejectAtT1,
+  recordPrunePredictedRules,
+} from "./candidatePruners";
 
 export type EvalTier = "T0" | "T1" | "T2";
 
@@ -53,6 +62,42 @@ export type TieredEvalResult = LayoutScoreResult & {
 };
 
 const proxyRouteMemo = new Map<string, TieredEvalResult>();
+
+/** Per-search rule validation cache keyed by candidate geometry (width-invariant tiers). */
+let activeRuleValidationCache: CandidateRuleValidationCache | null = null;
+
+export function beginRuleValidationCache(): CandidateRuleValidationCache {
+  activeRuleValidationCache = new CandidateRuleValidationCache();
+  return activeRuleValidationCache;
+}
+
+export function getRuleValidationCache(): CandidateRuleValidationCache | null {
+  return activeRuleValidationCache;
+}
+
+export function clearRuleValidationCache(): void {
+  activeRuleValidationCache = null;
+}
+
+function infeasibleT0(candidate: LayoutCandidate): TieredEvalResult {
+  return {
+    feasible: false,
+    score: INFEASIBLE_LAYOUT_SCORE,
+    softScore: {
+      crossings: 0,
+      bendsOverBudget: 0,
+      sameSideLoopbacks: 0,
+      sidesUsed: 0,
+      centerWidth: 0,
+      heightImbalance: 0,
+      pathLength: 0,
+      total: INFEASIBLE_LAYOUT_SCORE,
+    },
+    tieBreak: { sidesUsed: 0, candidateId: candidate.id ?? "" },
+    tier: "T0",
+    violations: [],
+  };
+}
 
 export function proxyRouteKey(
   candidate: LayoutCandidate,
@@ -223,28 +268,18 @@ export function evaluateT0(
     candidateViolatesLocks(candidate, constraints) ||
     candidateViolatesForbiddenPairs(candidate, constraints)
   ) {
-    const result = {
-      feasible: false,
-      score: INFEASIBLE_LAYOUT_SCORE,
-      softScore: {
-        crossings: 0,
-        bendsOverBudget: 0,
-        sameSideLoopbacks: 0,
-        sidesUsed: 0,
-        centerWidth: 0,
-        heightImbalance: 0,
-        pathLength: 0,
-        total: INFEASIBLE_LAYOUT_SCORE,
-      },
-      tieBreak: { sidesUsed: 0, candidateId: candidate.id ?? "" },
-      tier: "T0" as const,
-      violations: [] as RuleResult[],
-    };
+    const result = infeasibleT0(candidate);
     if (diag) {
       recordEvalSubPhase(diag, "evaluateT0", performance.now() - t0Start);
     }
     return result;
   }
+
+  const geomKey = candidateGeometryKey(candidate);
+  const ruleCache = getRuleValidationCache();
+  const ruleCacheKey = ruleCache?.cacheKey(geomKey, "T0", "candidate-screen");
+  const cachedRules =
+    ruleCacheKey !== undefined ? ruleCache?.get(ruleCacheKey) : undefined;
 
   const screen = scoreCandidateScreen(
     candidate,
@@ -258,14 +293,28 @@ export function evaluateT0(
     graph,
     visualCables,
   };
-  const ruleStart = performance.now();
-  const violations = runRulesForTier(graphCtx, "candidate-screen", {
-    stopOnFail: true,
-  });
-  if (diag) {
-    recordEvalSubPhase(diag, "runRules", performance.now() - ruleStart);
+  let violations: RuleResult[];
+  if (cachedRules) {
+    violations = cachedRules.violations;
+  } else {
+    const ruleStart = performance.now();
+    violations = runRulesForTier(graphCtx, "candidate-screen", {
+      stopOnFail: true,
+    });
+    if (diag) {
+      recordEvalSubPhase(diag, "runRules", performance.now() - ruleStart);
+    }
+    const hasFail = violations.some((r) => !r.ok && r.severity === "fail");
+    if (ruleCache && ruleCacheKey) {
+      ruleCache.set(ruleCacheKey, { feasible: !hasFail, violations });
+    }
   }
   const hasFail = violations.some((r) => !r.ok && r.severity === "fail");
+  if (hasFail && diag) {
+    for (const v of violations) {
+      if (!v.ok && v.severity === "fail") recordRuleReject(diag, v.id);
+    }
+  }
 
   const result = {
     feasible: !hasFail,
@@ -299,6 +348,23 @@ export function evaluateT1(
 
   const t1Start = performance.now();
   const diag = getActiveSearchDiagnostics();
+
+  const built = buildVisualCablesForLayout(graph);
+  const rowIndex = connectionRowIndexMap(graph, built.visualCables, built.dominant);
+  const t1Reject = predictEarlyRejectAtT1(
+    candidate,
+    graph,
+    constraints,
+    built.visualCables,
+    rowIndex,
+  );
+  if (t1Reject.reject) {
+    if (diag) {
+      recordPrunePredictedRules(diag.ruleRejectCounts, t1Reject.predictedRules);
+      recordEvalSubPhase(diag, "evaluateT1", performance.now() - t1Start);
+    }
+    return { ...infeasibleT0(candidate), tier: "T1" as const };
+  }
 
   const result = runWithLayoutExpansion(candidate.layoutExpansion, () => {
     const buildStart = performance.now();

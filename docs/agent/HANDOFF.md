@@ -4,47 +4,42 @@
 
 ## Last updated
 
-2026-06-28 — **Recoverable import fallback**
+2026-06-28 — **Import perf fast-path + T1 pruning**
 
 ### Done
 
 | Area | Change |
 |------|--------|
-| `pickBestRecoverableCandidate.ts` | Weighted rule-penalty ranking; heuristic in same pool as finalists |
-| `WorkflowCanvas.tsx` | Fast heuristic paint unchanged; final layout from recoverable pick |
-| `seedCandidateGeneration.ts` | More route-aware seeds (dominant T/B, bundle groups, width variants, stack reversals) |
-| `importDiagnostics.ts` | `recoverableSelection` block + console tables (vs heuristic, rejected) |
-| Tests | `pickBestRecoverableCandidate.test.ts` (4 tests) |
+| `WorkflowCanvas.tsx` | Heuristic T2 check → immediate paint when feasible; background worker with `searchProfile: background` |
+| `candidatePruners.ts` | T1 gate: `top-bottom-no-relief`, quad span, adjacent-pair predictors |
+| `candidateGeometry.ts` | Width-invariant geometry key + rule validation cache |
+| `layoutSearch.ts` | Geometry memo at T0; `searchCapsForProfile` |
+| `importSearchConfig.ts` | `BACKGROUND_SEARCH_CAPS`, 10s/15s perf budget helpers |
+| `importDiagnostics.ts` | `fastPath`, `performanceBudget` blocks |
+| `import-diagnostics-qa.mjs` | `fastPath` / `performanceBudget` in summary; optional `SDC_ENFORCE_PERF_BUDGET=1` |
+| Tests | `candidateGeometry`, `candidatePruners`, `seedCandidateGeneration`, `importSearchConfig` |
 
-### Selection order (no passing finalist)
+### Fast-path (production)
 
-1. Fewest hard failures
-2. Lowest weighted penalty (SDC-LAYOUT-002 high, SDC-ROUTE-001 high, SDC-ROUTE-002/003 medium)
-3. Fewer route-zone / layout failures
-4. Better soft score → deterministic id tie-break
+1. Paint heuristic
+2. Full T2 eval on heuristic
+3. If feasible + not debug → dismiss overlay, finish diagnostics session after background search
+4. Background search may upgrade layout if strictly better score
 
-### Enable diagnostics
+### T1 pruning
 
-```
-VITE_DEBUG_IMPORT_OPTIMIZER=1
-```
-
-Import Left-STATE_OFFICE.csv → console shows `recoverable selection` with beat-heuristic reason.
+- **Do not** prune no-relief top/bottom at T0 (breaks beam ranking on relief fixture)
+- **Do** prune at T1 before `buildReactFlowGraph` / proxy route
 
 ### Gates
 
-- `npm run smoke` — pass (350 fast tests + build)
+- `npm run smoke` — pass (358 fast tests + build)
 
-### Manual QA (dev)
+### Manual QA
 
-Import Left-STATE_OFFICE with optimizer on; confirm final layout is a top/bottom finalist (not blind heuristic) when finalists score better. Check `window.__SDC_LAST_IMPORT_DIAGNOSTICS__.recoverableSelection`.
+- Import Left-STATE_OFFICE **without** debug flags → canvas live in ~1–2s
+- With `VITE_DEBUG_IMPORT_OPTIMIZER=1` → full diagnostics baseline unchanged
 
 ### Frozen
 
-`spliceEdgeRouting.ts` drag hooks — not touched.
-
----
-
-## Prior session
-
-2026-06-28 — Import optimizer diagnostics. See git history.
+`spliceEdgeRouting.ts` — not touched.

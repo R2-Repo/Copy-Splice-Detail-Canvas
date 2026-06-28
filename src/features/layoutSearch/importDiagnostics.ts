@@ -177,6 +177,23 @@ export type ImportDiagnostics = {
     }>;
   };
 
+  fastPath?: {
+    used: boolean;
+    heuristicPassed: boolean;
+    backgroundSearch: boolean;
+    backgroundSearchMs?: number;
+    upgradedLayout?: boolean;
+  };
+
+  performanceBudget?: {
+    enabled: boolean;
+    warnThresholdMs: number;
+    failThresholdMs: number;
+    optimizerWallMs: number;
+    warn: boolean;
+    exceeded: boolean;
+  };
+
   notes: string[];
 };
 
@@ -435,6 +452,30 @@ export function recordRuleFailures(
     if (r.ok || r.severity !== "fail") continue;
     diag.ruleRejectCounts[r.id] = (diag.ruleRejectCounts[r.id] ?? 0) + 1;
   }
+}
+
+export function recordRuleReject(diag: ImportDiagnostics, ruleId: string): void {
+  diag.ruleRejectCounts[ruleId] = (diag.ruleRejectCounts[ruleId] ?? 0) + 1;
+}
+
+export function recordFastPath(
+  diag: ImportDiagnostics,
+  partial: Partial<NonNullable<ImportDiagnostics["fastPath"]>>,
+): void {
+  diag.fastPath = {
+    used: false,
+    heuristicPassed: false,
+    backgroundSearch: false,
+    ...diag.fastPath,
+    ...partial,
+  };
+}
+
+export function recordPerformanceBudget(
+  diag: ImportDiagnostics,
+  result: NonNullable<ImportDiagnostics["performanceBudget"]>,
+): void {
+  diag.performanceBudget = result;
 }
 
 function updateBestScores(

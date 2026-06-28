@@ -8,6 +8,10 @@ import { analyzeTopology } from "./topology/analyzeTopology";
 import { deriveRoutingIntent } from "./routingIntent";
 import { generateSeedCandidates } from "./seedCandidateGeneration";
 import { sidesUsedCount } from "./layoutCandidate";
+import { predictEarlyRejectAtT1 } from "./candidatePruners";
+import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
+import { connectionRowIndexMap } from "@/features/diagram/connectionRowOrder";
+import { topBottomBenefit } from "./layoutScorer";
 
 describe("seedCandidateGeneration", () => {
   it("produces deterministic seeds for same graph + seed", () => {
@@ -72,5 +76,49 @@ describe("seedCandidateGeneration", () => {
 
     const twoSided = seeds.filter((c) => sidesUsedCount(c) <= 2);
     expect(twoSided.length).toBeGreaterThan(0);
+  });
+
+  it("top/bottom relief seeds are not pruned before T1 proxy", () => {
+    const graph = syntheticTopBottomReliefGraph();
+    const topology = analyzeTopology(graph);
+    const intent = deriveRoutingIntent(graph, topology);
+    const cableKeys = cableKeysFromGraph(graph);
+    const constraints = {
+      lockedCableSides: {},
+      forbiddenSameSidePairs: [],
+      searchableCables: cableKeys,
+      hubCables: [],
+      satelliteCables: cableKeys,
+      proxyBundleGroups: [],
+      lockedCableCount: 0,
+    };
+    const { visualCables, dominant } = buildVisualCablesForLayout(graph);
+    const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
+
+    const seeds = generateSeedCandidates(graph, intent, constraints, {
+      cableKeys,
+      layoutWidths: [1200],
+      expansionIters: [0],
+      seed: 42,
+    });
+
+    const reliefSeeds = seeds.filter(
+      (c) =>
+        c.cableSides["CABLE-A"] === "top" &&
+        c.cableSides["CABLE-B"] === "bottom",
+    );
+    expect(reliefSeeds.length).toBeGreaterThan(0);
+    for (const seed of reliefSeeds) {
+      expect(topBottomBenefit(seed, graph, visualCables, rowIndex)).toBeLessThan(0);
+      expect(
+        predictEarlyRejectAtT1(
+          seed,
+          graph,
+          constraints,
+          visualCables,
+          rowIndex,
+        ).reject,
+      ).toBe(false);
+    }
   });
 });
