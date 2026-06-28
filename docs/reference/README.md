@@ -9,6 +9,7 @@ This folder is **not** bundled into the production app unless you explicitly imp
 | Folder | Use for |
 |--------|---------|
 | [`examples/README.md`](./examples/README.md) | Bentley **Left-*** CSVs for user QA and testing |
+| [`import-diagnostics/`](./import-diagnostics/) | Sample import optimizer console log + diagnostics JSON (Left-STATE_OFFICE) |
 | [`images/`](./images/) | PNG screenshots of splice detail layouts, 144ct color code chart |
 | [`resources/`](./resources/) | Other assets |
 
