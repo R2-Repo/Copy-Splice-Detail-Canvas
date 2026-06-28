@@ -4,7 +4,7 @@
 
 ## Focus (2026-06-28)
 
-**Post-import interaction restore.** Optimized import kept; Phase 6 side-drag gated to quad layouts only (edge-proximity on drag-stop). Horizontal layouts use legacy incremental drag + fixedPlacement from candidate.
+**Post-import zoom/pan fix.** Optimized import now renders at stage width in one pass (no second applyGraph + fitView). Engine cable drag RAF-batched. Resize reflow no longer resets viewport.
 
 ## Active build track
 
@@ -15,7 +15,7 @@
 ## Testing policy
 
 - **Default:** `npm run smoke` (check + `test:fast` + build) — few minutes
-- **Manual QA:** import example-2 — zoom, cable Y-drag, fiber/tube adjust in auto + manual modes
+- **Manual QA:** import example-2 / Left-SP-3254.5 — zoom immediately after import, cable Y-drag, fiber/tube adjust
 - KI-003 (Left-SPI-215) still skipped unless `RUN_KNOWN_ISSUES=1`
 
 ## Session gate
@@ -26,5 +26,5 @@ npm run smoke          # every session
 
 ## Baseline
 
-- Branch: `cursor/restore-post-import-interaction-14a3`
+- Branch: `cursor/fix-post-import-zoom-pan-5919`
 - Frozen: `.cursor/rules/frozen-routing.mdc`
