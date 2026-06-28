@@ -56,4 +56,18 @@ describe("SDC-UX-001", () => {
 
     expect(results.some((r) => r.severity === "warn")).toBe(true);
   });
+
+  it("warns when quad proxy side disagrees with quadCableSides", () => {
+    const results = sdcUx001.check({
+      ...stubCtx,
+      overrides: {
+        reportKey: "test",
+        positions: {},
+        cableSides: { "vc-a": "right" },
+        quadCableSides: { "vc-a": "top" },
+      },
+    });
+
+    expect(results.some((r) => r.severity === "warn")).toBe(true);
+  });
 });
