@@ -4,6 +4,25 @@
 
 ## Last updated
 
+2026-06-28 — **Import perf build plan**
+
+### Done
+
+| Area | Change |
+|------|--------|
+| Build plan | [`docs/agent/IMPORT_PERF_PLAN.md`](./IMPORT_PERF_PLAN.md) — P0 worker+UX through P4 pool; topology locks; tiered eval; proxy bundles |
+
+### Next (P0)
+
+1. `layoutSearch.worker.ts` + client bridge
+2. Rich `LayoutSearchOverlay` (bar, phases, elapsed)
+3. Heuristic paint before search; swap on winner
+4. `npm run smoke` + manual QA example-2
+
+---
+
+## Prior session
+
 2026-06-28 — **Fix post-import zoom + drag jank**
 
 ### Done
