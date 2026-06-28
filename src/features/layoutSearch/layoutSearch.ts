@@ -9,7 +9,9 @@ import {
 import { cableNameKey } from "@/features/import/cableLegIdentity";
 import type { ConnectionGraph } from "@/types/splice";
 
-import { evaluateLayoutCandidate } from "./evaluateCandidate";
+import { connectionRowIndexMap } from "@/features/diagram/connectionRowOrder";
+import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
+
 import {
   ALL_LAYOUT_SIDES,
   candidateStableId,
@@ -21,6 +23,16 @@ import {
   type LayoutSide,
 } from "./layoutCandidate";
 import type { LayoutSearchProgress } from "./layoutSearchTypes";
+import { analyzeTopology } from "./topology/analyzeTopology";
+import {
+  applyConstraintLocks,
+  candidateViolatesForbiddenPairs,
+} from "./topology/deriveConstraints";
+import type { TopologyConstraints } from "./topology/topologyTypes";
+import {
+  evaluateCandidateTiered,
+  type EvalTier,
+} from "./tieredEvaluate";
 
 export type { LayoutSearchPhase, LayoutSearchProgress } from "./layoutSearchTypes";
 
@@ -48,6 +60,10 @@ export type LayoutSearchConfig = {
   onProgress?: (progress: LayoutSearchProgress) => void;
   /** Import UI — when true, stop search and return best-so-far. */
   shouldCancel?: () => boolean;
+  /** Skip topology locks (perf A/B tests). */
+  disableTopologyConstraints?: boolean;
+  /** Always run full T2 eval (perf A/B tests). */
+  disableTieredEval?: boolean;
 };
 
 export type LayoutSearchResult = {
@@ -81,6 +97,8 @@ type ProgressTrackerState = {
   evaluationBudget: number;
   strandCount: number;
   cableCount: number;
+  lockedCableCount: number;
+  currentTier?: EvalTier;
 };
 
 function createProgressTracker(
@@ -88,7 +106,7 @@ function createProgressTracker(
   state: ProgressTrackerState,
 ): (progress: Pick<
   LayoutSearchProgress,
-  "round" | "evaluations" | "bestScore" | "feasible"
+  "round" | "evaluations" | "bestScore" | "feasible" | "currentTier"
 >) => void {
   return (partial) => {
     if (!config.onProgress) return;
@@ -96,6 +114,7 @@ function createProgressTracker(
     const now = performance.now();
     const elapsedMs = now - state.startMs;
     const evalAdvanced = partial.evaluations !== state.lastEmittedEvaluations;
+    if (partial.currentTier) state.currentTier = partial.currentTier;
     const shouldEmit =
       partial.evaluations === 1 ||
       (evalAdvanced && now - state.lastEmitMs >= HEARTBEAT_MS) ||
@@ -122,6 +141,8 @@ function createProgressTracker(
       evalsPerSecond,
       strandCount: state.strandCount,
       cableCount: state.cableCount,
+      lockedCableCount: state.lockedCableCount,
+      currentTier: state.currentTier,
     });
   };
 }
@@ -220,6 +241,7 @@ export function enumerateCandidates(
   cableKeys: string[],
   layoutWidths: number[],
   expansionIters: number[] = [0],
+  constraints?: TopologyConstraints,
 ): LayoutCandidate[] {
   const n = cableKeys.length;
   const candidates: LayoutCandidate[] = [];
@@ -239,14 +261,30 @@ export function enumerateCandidates(
           bottom: [],
         };
         const cableSides: Record<string, LayoutSide> = {};
+        let violatesLock = false;
 
         cableKeys.forEach((cable, index) => {
           const side = ALL_LAYOUT_SIDES[
             Math.floor(encoding / 4 ** index) % 4
           ]!;
-          cableSides[cable] = side;
-          sideKeys[side].push(cable);
+          const locked = constraints?.lockedCableSides[cable];
+          if (locked && locked !== side) {
+            violatesLock = true;
+          }
+          cableSides[cable] = locked ?? side;
+          sideKeys[locked ?? side].push(cable);
         });
+
+        if (violatesLock) continue;
+        if (
+          constraints &&
+          candidateViolatesForbiddenPairs(
+            { cableSides, stackOrder: sideKeys, layoutWidth, layoutExpansion },
+            constraints,
+          )
+        ) {
+          continue;
+        }
 
         const sidePerms = (keys: string[]) =>
           keys.length > 0 ? permutations(keys) : [[]];
@@ -334,9 +372,26 @@ function tryImproveBest(
 function evaluateCandidate(
   graph: ConnectionGraph,
   candidate: LayoutCandidate,
-): { score: number; feasible: boolean } {
-  const result = evaluateLayoutCandidate(graph, candidate);
-  return { score: result.score, feasible: result.feasible };
+  constraints: TopologyConstraints,
+  bestScore: number,
+  tieredEvalEnabled: boolean,
+  evalCache?: {
+    visualCables: ReturnType<typeof buildVisualCablesForLayout>["visualCables"];
+    rowIndex: Map<string, number>;
+    dominant: ReturnType<typeof buildVisualCablesForLayout>["dominant"];
+  },
+): { score: number; feasible: boolean; tier: EvalTier } {
+  const result = evaluateCandidateTiered(
+    graph,
+    candidate,
+    {
+      constraints,
+      bestScore,
+      tieredEvalEnabled,
+    },
+    evalCache,
+  );
+  return { score: result.score, feasible: result.feasible, tier: result.tier };
 }
 
 function removeFromAllStacks(
@@ -436,6 +491,7 @@ function randomCandidate(
   cableKeys: string[],
   widths: number[],
   expansionIters: number[],
+  constraints?: TopologyConstraints,
 ): LayoutCandidate {
   const sideKeys: Record<LayoutSide, string[]> = {
     left: [],
@@ -446,6 +502,12 @@ function randomCandidate(
   const cableSides: Record<string, LayoutSide> = {};
 
   for (const cable of cableKeys) {
+    const locked = constraints?.lockedCableSides[cable];
+    if (locked) {
+      cableSides[cable] = locked;
+      sideKeys[locked].push(cable);
+      continue;
+    }
     const side =
       ALL_LAYOUT_SIDES[Math.floor(rng() * ALL_LAYOUT_SIDES.length)]!;
     cableSides[cable] = side;
@@ -491,10 +553,16 @@ function pickMutation(
   rng: () => number,
   cableKeys: string[],
   candidate: LayoutCandidate,
+  constraints?: TopologyConstraints,
 ): Mutation {
+  const flippable =
+    constraints && constraints.searchableCables.length > 0
+      ? constraints.searchableCables
+      : cableKeys.filter((c) => !constraints?.lockedCableSides[c]);
+
   const roll = rng();
-  if (roll < 0.4 && cableKeys.length > 0) {
-    const cable = cableKeys[Math.floor(rng() * cableKeys.length)]!;
+  if (roll < 0.4 && flippable.length > 0) {
+    const cable = flippable[Math.floor(rng() * flippable.length)]!;
     const current = candidate.cableSides[cable] ?? "left";
     const alternatives = ALL_LAYOUT_SIDES.filter((s) => s !== current);
     const nextSide =
@@ -556,16 +624,35 @@ function runBruteForce(
   startMs: number,
   timeBudgetMs: number | undefined,
   config: LayoutSearchConfig,
+  constraints: TopologyConstraints,
+  tieredEvalEnabled: boolean,
+  evalCache: {
+    visualCables: ReturnType<typeof buildVisualCablesForLayout>["visualCables"];
+    rowIndex: Map<string, number>;
+    dominant: ReturnType<typeof buildVisualCablesForLayout>["dominant"];
+  },
   emitProgress: ReturnType<typeof createProgressTracker>,
 ): { best: RankedCandidate; evaluations: number; seen: RankedCandidate[] } {
-  const candidates = enumerateCandidates(cableKeys, widths, expansionIters);
+  const candidates = enumerateCandidates(
+    cableKeys,
+    widths,
+    expansionIters,
+    constraints,
+  );
   let best = seedBest;
   let evaluations = 1;
   const seen: RankedCandidate[] = [{ ...seedBest }];
 
   for (const candidate of candidates) {
     if (timeExceeded(startMs, timeBudgetMs) || config.shouldCancel?.()) break;
-    const { score } = evaluateCandidate(graph, candidate);
+    const { score, tier } = evaluateCandidate(
+      graph,
+      candidate,
+      constraints,
+      best.score,
+      tieredEvalEnabled,
+      evalCache,
+    );
     evaluations += 1;
     const ranked = { candidate, score };
     seen.push(ranked);
@@ -575,6 +662,7 @@ function runBruteForce(
       evaluations,
       bestScore: best.score,
       feasible: scoreFeasible(best.score),
+      currentTier: tier,
     });
   }
 
@@ -594,6 +682,13 @@ function runGuidedSearch(
   startMs: number,
   timeBudgetMs: number | undefined,
   config: LayoutSearchConfig,
+  constraints: TopologyConstraints,
+  tieredEvalEnabled: boolean,
+  evalCache: {
+    visualCables: ReturnType<typeof buildVisualCablesForLayout>["visualCables"];
+    rowIndex: Map<string, number>;
+    dominant: ReturnType<typeof buildVisualCablesForLayout>["dominant"];
+  },
   emitProgress: ReturnType<typeof createProgressTracker>,
 ): { best: RankedCandidate; evaluations: number; seen: RankedCandidate[] } {
   let best = seedBest;
@@ -607,6 +702,7 @@ function runGuidedSearch(
     evaluations,
     bestScore: best.score,
     feasible: scoreFeasible(best.score),
+    currentTier: "T2",
   });
 
   for (let round = 1; round <= maxRounds; round++) {
@@ -614,13 +710,28 @@ function runGuidedSearch(
 
     let trial: LayoutCandidate;
     if (restartInterval > 0 && round % restartInterval === 0) {
-      trial = randomCandidate(rng, cableKeys, widths, expansionIters);
+      trial = randomCandidate(
+        rng,
+        cableKeys,
+        widths,
+        expansionIters,
+        constraints,
+      );
     } else {
-      const mutation = pickMutation(rng, cableKeys, current);
+      const mutation = pickMutation(rng, cableKeys, current, constraints);
       trial = applyMutation(current, mutation, widths, expansionIters);
     }
 
-    const { score } = evaluateCandidate(graph, trial);
+    trial = applyConstraintLocks(trial, constraints);
+
+    const { score, tier } = evaluateCandidate(
+      graph,
+      trial,
+      constraints,
+      best.score,
+      tieredEvalEnabled,
+      evalCache,
+    );
     evaluations += 1;
     seen.push({ candidate: trial, score });
 
@@ -645,6 +756,7 @@ function runGuidedSearch(
       evaluations,
       bestScore: best.score,
       feasible: scoreFeasible(best.score),
+      currentTier: tier,
     });
 
     const bestFeasible = scoreFeasible(best.score);
@@ -673,6 +785,13 @@ async function runGuidedSearchAsync(
   startMs: number,
   timeBudgetMs: number | undefined,
   config: LayoutSearchConfig,
+  constraints: TopologyConstraints,
+  tieredEvalEnabled: boolean,
+  evalCache: {
+    visualCables: ReturnType<typeof buildVisualCablesForLayout>["visualCables"];
+    rowIndex: Map<string, number>;
+    dominant: ReturnType<typeof buildVisualCablesForLayout>["dominant"];
+  },
   emitProgress: ReturnType<typeof createProgressTracker>,
 ): Promise<{ best: RankedCandidate; evaluations: number; seen: RankedCandidate[] }> {
   let best = seedBest;
@@ -686,6 +805,7 @@ async function runGuidedSearchAsync(
     evaluations,
     bestScore: best.score,
     feasible: scoreFeasible(best.score),
+    currentTier: "T2",
   });
 
   for (let round = 1; round <= maxRounds; round++) {
@@ -693,13 +813,28 @@ async function runGuidedSearchAsync(
 
     let trial: LayoutCandidate;
     if (restartInterval > 0 && round % restartInterval === 0) {
-      trial = randomCandidate(rng, cableKeys, widths, expansionIters);
+      trial = randomCandidate(
+        rng,
+        cableKeys,
+        widths,
+        expansionIters,
+        constraints,
+      );
     } else {
-      const mutation = pickMutation(rng, cableKeys, current);
+      const mutation = pickMutation(rng, cableKeys, current, constraints);
       trial = applyMutation(current, mutation, widths, expansionIters);
     }
 
-    const { score } = evaluateCandidate(graph, trial);
+    trial = applyConstraintLocks(trial, constraints);
+
+    const { score, tier } = evaluateCandidate(
+      graph,
+      trial,
+      constraints,
+      best.score,
+      tieredEvalEnabled,
+      evalCache,
+    );
     evaluations += 1;
     seen.push({ candidate: trial, score });
 
@@ -724,6 +859,7 @@ async function runGuidedSearchAsync(
       evaluations,
       bestScore: best.score,
       feasible: scoreFeasible(best.score),
+      currentTier: tier,
     });
 
     const bestFeasible = scoreFeasible(best.score);
@@ -759,9 +895,27 @@ function runLayoutSearchCore(
   const rng = createRng(seed);
   const startMs = performance.now();
 
+  const topology = analyzeTopology(graph);
+  const constraints = config.disableTopologyConstraints
+    ? ({
+        lockedCableSides: {},
+        forbiddenSameSidePairs: [],
+        searchableCables: cableKeysFromGraph(graph),
+        hubCables: [],
+        satelliteCables: cableKeysFromGraph(graph),
+        proxyBundleGroups: [],
+        lockedCableCount: 0,
+      } satisfies TopologyConstraints)
+    : topology.constraints;
+  const tieredEvalEnabled = config.disableTieredEval !== true;
+
   const cableKeys = cableKeysFromGraph(graph);
   const widths = widthStepsForGraph(graph);
   const expansionIters = expansionIterations();
+  const { visualCables, dominant } = buildVisualCablesForLayout(graph);
+  const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
+  const evalCache = { visualCables, rowIndex, dominant };
+
   const progressState: ProgressTrackerState = {
     startMs,
     lastEmitMs: 0,
@@ -769,11 +923,21 @@ function runLayoutSearchCore(
     evaluationBudget: maxRounds,
     strandCount: graph.connections.length,
     cableCount: cableKeys.length,
+    lockedCableCount: constraints.lockedCableCount,
   };
   const emitProgress = createProgressTracker(config, progressState);
 
-  const baseline = normalizeCandidate(heuristicBaselineCandidate(graph));
-  const seedEval = evaluateCandidate(graph, baseline);
+  let baseline = normalizeCandidate(
+    applyConstraintLocks(heuristicBaselineCandidate(graph), constraints),
+  );
+  const seedEval = evaluateCandidate(
+    graph,
+    baseline,
+    constraints,
+    INFEASIBLE_LAYOUT_SCORE,
+    tieredEvalEnabled,
+    evalCache,
+  );
   let best: RankedCandidate = {
     candidate: baseline,
     score: seedEval.score,
@@ -786,6 +950,7 @@ function runLayoutSearchCore(
     evaluations,
     bestScore: best.score,
     feasible: scoreFeasible(best.score),
+    currentTier: seedEval.tier,
   });
 
   const finalize = (): LayoutSearchResult => {
@@ -816,6 +981,9 @@ function runLayoutSearchCore(
       startMs,
       config.timeBudgetMs,
       config,
+      constraints,
+      tieredEvalEnabled,
+      evalCache,
       emitProgress,
     );
     best = brute.best;
@@ -837,6 +1005,9 @@ function runLayoutSearchCore(
     startMs,
     config.timeBudgetMs,
     config,
+    constraints,
+    tieredEvalEnabled,
+    evalCache,
     emitProgress,
   );
 
