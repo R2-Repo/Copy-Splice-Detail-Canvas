@@ -152,6 +152,7 @@ import {
 import {
   deriveLayoutMode,
   heuristicBaselineCandidate,
+  type LayoutCandidate,
 } from "@/features/layoutSearch/layoutCandidate";
 import { LayoutSearchOverlay } from "@/features/layoutSearch/LayoutSearchOverlay";
 import { legacyImportLayoutEnabled, showLayoutModeToggle } from "@/features/layoutSearch/legacyImportLayout";
@@ -164,6 +165,7 @@ import {
   adaptiveMaxRounds,
   DEFAULT_MAX_ROUNDS,
   seedFromReportKey,
+  pickBestPassingFinalist,
   type LayoutSearchProgress,
 } from "@/features/layoutSearch/layoutSearch";
 import { importTimeBudgetMs } from "@/features/layoutSearch/importSearchConfig";
@@ -1211,18 +1213,40 @@ function WorkflowCanvasInner() {
           ),
         );
 
-        let candidate = searchResult.best;
-        const evaluation =
-          searchResult.winnerEvaluation ??
-          evaluateLayoutCandidate(graph, candidate);
-        if (!evaluation.feasible) {
+        const pickedFinalist = pickBestPassingFinalist(
+          searchResult.finalists ?? [],
+        );
+
+        let candidate: LayoutCandidate;
+        let evaluation: ReturnType<typeof evaluateLayoutCandidate>;
+
+        if (pickedFinalist) {
+          candidate = pickedFinalist.candidate;
+          evaluation =
+            pickedFinalist.evaluation ??
+            evaluateLayoutCandidate(graph, candidate);
+        } else if ((searchResult.finalists?.length ?? 0) > 0) {
           candidate = heuristicBaselineCandidate(graph, layoutWidth);
-          const failed = evaluation.violations
-            .filter((r) => !r.ok && r.severity === "fail")
-            .map((r) => r.detail ?? r.id);
+          const topFailed = searchResult.finalists![0]!;
+          const failedIds = topFailed.failedRuleIds;
           setConfigErrorBanner(
-            `Layout optimizer found no feasible candidate; using heuristic fallback.${failed.length > 0 ? ` ${failed.join("; ")}` : ""}`,
+            `Layout optimizer found no rule-passing finalist; using heuristic fallback.${failedIds.length > 0 ? ` Failed: ${failedIds.join(", ")}` : ""}`,
           );
+          evaluation = evaluateLayoutCandidate(graph, candidate);
+        } else {
+          candidate = searchResult.best;
+          evaluation = evaluateLayoutCandidate(graph, candidate);
+          const feasible =
+            searchResult.winnerEvaluation?.feasible ?? evaluation.feasible;
+          if (!feasible) {
+            candidate = heuristicBaselineCandidate(graph, layoutWidth);
+            const failed = evaluation.violations
+              .filter((r) => !r.ok && r.severity === "fail")
+              .map((r) => r.detail ?? r.id);
+            setConfigErrorBanner(
+              `Layout optimizer found no feasible candidate; using heuristic fallback.${failed.length > 0 ? ` ${failed.join("; ")}` : ""}`,
+            );
+          }
         }
 
         const stageWidth =

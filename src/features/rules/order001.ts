@@ -9,6 +9,7 @@ export const sdcOrder001: SdcRule = {
   title: "Buffer tube color order",
   dependencies: ["SDC-DATA-001"],
   requires: ["visualCables"],
+  tiers: ["import-data", "candidate-screen", "proxy-route", "final-layout"],
   check(ctx) {
     if (!ctx.visualCables?.length) {
       return [fail("SDC-ORDER-001", "No visual cables to validate")];

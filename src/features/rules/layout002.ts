@@ -11,6 +11,7 @@ export const sdcLayout002: SdcRule = {
   title: "Fiber strand fan out",
   dependencies: ["SDC-ORDER-001", "SDC-ORDER-002"],
   requires: ["visualCables", "reactFlow"],
+  tiers: ["candidate-screen", "proxy-route", "final-layout"],
   check(ctx) {
     if (!ctx.visualCables?.length) {
       return [fail("SDC-LAYOUT-002", "No visual cables for fan-out validation")];

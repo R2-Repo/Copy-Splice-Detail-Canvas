@@ -24,10 +24,11 @@ import {
   cableKeysFromGraph,
   enumerateCandidates,
   layoutSearch,
+  pickBestPassingFinalist,
   seedFromReportKey,
 } from "./layoutSearch";
-import { importTimeBudgetMs } from "./importSearchConfig";
-import { syntheticHubSpliceGraph, syntheticTwo144Graph } from "./fixtures/syntheticGraphs";
+import { importTimeBudgetMs, layoutSearchMode } from "./importSearchConfig";
+import { syntheticHubSpliceGraph, syntheticTopBottomReliefGraph, syntheticTwo144Graph } from "./fixtures/syntheticGraphs";
 import { analyzeTopology } from "./topology/analyzeTopology";
 import { evaluateCandidateTiered, evaluateT0, evaluateT2 } from "./tieredEvaluate";
 
@@ -417,5 +418,94 @@ describe("layoutSearch P2 tiered evaluation", () => {
     const t2Ms = performance.now() - t2Start;
 
     expect(t0Ms).toBeLessThanOrEqual(t2Ms * 0.4);
+  }, 30_000);
+});
+
+describe("import optimizer beam search", () => {
+  const beamConfig = { bruteForceMaxCables: 1 } as const;
+
+  it("defaults to beam search mode", () => {
+    expect(layoutSearchMode()).toBe("beam");
+  });
+
+  it("beam search is deterministic for same graph + seed", () => {
+    const graph = syntheticThreeCableGraph();
+    const seed = seedFromReportKey(reportStorageKey(graph));
+    const config = { seed, timeBudgetMs: 8_000, ...beamConfig };
+
+    const run1 = layoutSearch(graph, config);
+    const run2 = layoutSearch(graph, config);
+
+    expect(run1.best.id).toBe(run2.best.id);
+    expect(run1.bestScore).toBe(run2.bestScore);
+  }, 30_000);
+
+  it("top/bottom can win on synthetic relief fixture", () => {
+    const graph = syntheticTopBottomReliefGraph();
+    const result = layoutSearch(graph, {
+      seed: 42,
+      timeBudgetMs: 10_000,
+      disableTopologyConstraints: true,
+      ...beamConfig,
+    });
+
+    expect(result.diagnostics?.topGenerated).toBeGreaterThan(0);
+    const tbFinalist = result.finalists?.find(
+      (f) =>
+        f.candidate.stackOrder.top.length > 0 ||
+        f.candidate.stackOrder.bottom.length > 0,
+    );
+    expect(tbFinalist).toBeDefined();
+    expect(tbFinalist!.score).toBeLessThan(Number.MAX_SAFE_INTEGER);
+  }, 45_000);
+
+  it("simple splice prefers L/R over quad when top/bottom does not help", () => {
+    const graph = syntheticThreeCableGraph();
+    const result = layoutSearch(graph, {
+      seed: seedFromReportKey(reportStorageKey(graph)),
+      timeBudgetMs: 8_000,
+      ...beamConfig,
+    });
+
+    expect(sidesUsedCount(result.best)).toBeLessThanOrEqual(2);
+  }, 30_000);
+
+  it("pickBestPassingFinalist selects rule-passing #2 when #1 fails", () => {
+    const graph = syntheticThreeCableGraph();
+    const baseline = heuristicBaselineCandidate(graph);
+    const bad = { ...baseline, layoutWidth: 400 };
+    const good = heuristicBaselineCandidate(graph);
+
+    const finalists = [
+      {
+        candidate: bad,
+        score: 100,
+        feasible: false,
+        failedRuleIds: ["SDC-LAYOUT-001"],
+      },
+      {
+        candidate: good,
+        score: 200,
+        feasible: true,
+        failedRuleIds: [],
+      },
+    ];
+
+    const picked = pickBestPassingFinalist(finalists);
+    expect(picked?.candidate.id).toBe(good.id);
+    expect(picked?.feasible).toBe(true);
+  });
+
+  it("returns finalists and diagnostics in beam mode", () => {
+    const graph = syntheticThreeCableGraph();
+    const result = layoutSearch(graph, {
+      seed: 7,
+      timeBudgetMs: 6_000,
+      ...beamConfig,
+    });
+
+    expect(result.finalists?.length).toBeGreaterThan(0);
+    expect(result.diagnostics?.evaluatedT0).toBeGreaterThan(0);
+    expect(result.diagnostics?.selectedCandidateReason).toBeTruthy();
   }, 30_000);
 });

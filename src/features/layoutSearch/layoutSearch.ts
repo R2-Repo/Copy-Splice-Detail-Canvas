@@ -19,11 +19,28 @@ import {
   defaultLayoutWidth,
   heuristicBaselineCandidate,
   reconcileStackOrder,
+  sidesUsedCount,
   type LayoutCandidate,
   type LayoutSide,
 } from "./layoutCandidate";
 import type { LayoutSearchProgress } from "./layoutSearchTypes";
+import type {
+  FinalistSummary,
+  LayoutSearchDiagnostics,
+  RankedFinalist,
+} from "./layoutSearchTypes";
 import { analyzeTopology } from "./topology/analyzeTopology";
+import { deriveRoutingIntent } from "./routingIntent";
+import {
+  generateSeedCandidates,
+  type SeedGenerationOptions,
+} from "./seedCandidateGeneration";
+import {
+  SEARCH_CAPS,
+  debugLayoutSearchEnabled,
+  layoutSearchMode,
+  parseForcedLayoutSides,
+} from "./importSearchConfig";
 import {
   applyConstraintLocks,
   candidateViolatesForbiddenPairs,
@@ -32,9 +49,13 @@ import type { TopologyConstraints } from "./topology/topologyTypes";
 import type { LayoutEvaluationResult } from "./evaluateCandidate";
 import {
   evaluateCandidateTiered,
+  evaluateT1,
+  evaluateT2,
   type EvalTier,
   type TieredEvalResult,
 } from "./tieredEvaluate";
+import type { RuleResult } from "@/features/rules/types";
+import type { RoutingIntent } from "./routingIntent";
 
 export type { LayoutSearchPhase, LayoutSearchProgress } from "./layoutSearchTypes";
 
@@ -80,7 +101,11 @@ export type LayoutSearchResult = {
   bestScore: number;
   /** Present when the winning candidate was fully evaluated at T2 during search. */
   winnerEvaluation?: LayoutWinnerEvaluation;
+  finalists?: RankedFinalist[];
+  diagnostics?: LayoutSearchDiagnostics;
 };
+
+export type { RankedFinalist, LayoutSearchDiagnostics, FinalistSummary };
 
 const DEFAULT_MAX_ROUNDS = 2000;
 export { DEFAULT_MAX_ROUNDS };
@@ -678,6 +703,432 @@ function timeExceeded(startMs: number, budgetMs?: number): boolean {
   return budgetMs !== undefined && performance.now() - startMs >= budgetMs;
 }
 
+function emptyDiagnostics(): LayoutSearchDiagnostics {
+  return {
+    topGenerated: 0,
+    bottomGenerated: 0,
+    topOrBottomReachedT1: 0,
+    topOrBottomReachedT2: 0,
+    evaluatedT0: 0,
+    evaluatedT1: 0,
+    evaluatedT2: 0,
+    rejectedByRule: 0,
+    finalistSummaries: [],
+    selectedCandidateReason: "heuristic baseline",
+  };
+}
+
+function candidateUsesTopOrBottom(candidate: LayoutCandidate): boolean {
+  return (
+    candidate.stackOrder.top.length > 0 ||
+    candidate.stackOrder.bottom.length > 0
+  );
+}
+
+function failedRuleIds(violations: RuleResult[]): string[] {
+  return violations
+    .filter((r) => !r.ok && r.severity === "fail")
+    .map((r) => r.id);
+}
+
+function recordTierDiagnostics(
+  diagnostics: LayoutSearchDiagnostics,
+  candidate: LayoutCandidate,
+  tier: EvalTier,
+  feasible: boolean,
+): void {
+  if (candidate.stackOrder.top.length > 0) diagnostics.topGenerated += 1;
+  if (candidate.stackOrder.bottom.length > 0) diagnostics.bottomGenerated += 1;
+  if (tier === "T0") diagnostics.evaluatedT0 += 1;
+  if (tier === "T1") {
+    diagnostics.evaluatedT1 += 1;
+    if (candidateUsesTopOrBottom(candidate)) {
+      diagnostics.topOrBottomReachedT1 += 1;
+    }
+  }
+  if (tier === "T2") {
+    diagnostics.evaluatedT2 += 1;
+    if (candidateUsesTopOrBottom(candidate)) {
+      diagnostics.topOrBottomReachedT2 += 1;
+    }
+  }
+  if (!feasible) diagnostics.rejectedByRule += 1;
+}
+
+function sidesUsedLabels(candidate: LayoutCandidate): string[] {
+  const labels: string[] = [];
+  for (const side of ALL_LAYOUT_SIDES) {
+    if (candidate.stackOrder[side].length > 0) labels.push(side);
+  }
+  return labels;
+}
+
+function selectedReasonFor(
+  finalist: RankedFinalist | undefined,
+  fallback: LayoutCandidate,
+): string {
+  if (!finalist) return "heuristic baseline";
+  if (candidateUsesTopOrBottom(finalist.candidate)) {
+    return "top/bottom relief reduced loopbacks or crossings";
+  }
+  if (sidesUsedCount(finalist.candidate) <= 2) {
+    return "two-sided L/R placement scored best";
+  }
+  if (finalist.candidate.id === fallback.id) {
+    return "heuristic baseline remained best after beam search";
+  }
+  return "beam search finalist passed full rules";
+}
+
+export function pickBestPassingFinalist(
+  finalists: RankedFinalist[],
+): RankedFinalist | undefined {
+  return finalists.find((f) => f.feasible);
+}
+
+function topRanked(candidates: RankedCandidate[], limit: number): RankedCandidate[] {
+  return [...candidates]
+    .sort((a, b) =>
+      compareCandidates(
+        { score: a.score, candidate: a.candidate },
+        { score: b.score, candidate: b.candidate },
+      ),
+    )
+    .slice(0, limit);
+}
+
+function beamMutations(
+  candidate: LayoutCandidate,
+  cableKeys: string[],
+  constraints: TopologyConstraints,
+  intent: RoutingIntent,
+  widths: number[],
+  expansionIters: number[],
+): LayoutCandidate[] {
+  const mutations: LayoutCandidate[] = [];
+  const searchable =
+    constraints.searchableCables.length > 0
+      ? constraints.searchableCables
+      : cableKeys;
+
+  for (const cable of searchable.slice(0, 4)) {
+    const current = candidate.cableSides[cable] ?? "left";
+    for (const side of ALL_LAYOUT_SIDES) {
+      if (side === current) continue;
+      mutations.push(mutateFlipSide(candidate, cable, side));
+    }
+  }
+
+  for (const cable of intent.topBottomReliefCandidates.slice(0, 2)) {
+    if (constraints.lockedCableSides[cable]) continue;
+    mutations.push(mutateFlipSide(candidate, cable, "top"));
+    mutations.push(mutateFlipSide(candidate, cable, "bottom"));
+  }
+
+  for (const side of ALL_LAYOUT_SIDES) {
+    const stack = candidate.stackOrder[side];
+    for (let i = 0; i < stack.length - 1; i++) {
+      const swapped = mutateSwapNeighbors(candidate, side, i);
+      if (swapped) mutations.push(swapped);
+    }
+  }
+
+  mutations.push(mutateWidth(candidate, widths, 1));
+  mutations.push(mutateWidth(candidate, widths, -1));
+  mutations.push(mutateExpansion(candidate, expansionIters, 1));
+  mutations.push(mutateExpansion(candidate, expansionIters, -1));
+
+  return mutations.map((m) => applyConstraintLocks(m, constraints));
+}
+
+function buildFinalistSummaries(finalists: RankedFinalist[]): FinalistSummary[] {
+  return finalists.map((f, index) => ({
+    rank: index + 1,
+    candidateId: f.candidate.id ?? candidateStableId(f.candidate),
+    sidesUsed: sidesUsedLabels(f.candidate),
+    score: f.score,
+    feasible: f.feasible,
+    failedRuleIds: f.failedRuleIds,
+  }));
+}
+
+type BeamSearchOutcome = {
+  best: RankedCandidate;
+  evaluations: number;
+  seen: RankedCandidate[];
+  finalists: RankedFinalist[];
+  diagnostics: LayoutSearchDiagnostics;
+  winnerEvaluation?: LayoutWinnerEvaluation;
+};
+
+function runBeamSearch(
+  graph: ConnectionGraph,
+  cableKeys: string[],
+  widths: number[],
+  expansionIters: number[],
+  seedBest: RankedCandidate,
+  startMs: number,
+  timeBudgetMs: number | undefined,
+  config: LayoutSearchConfig,
+  constraints: TopologyConstraints,
+  intent: RoutingIntent,
+  seed: number,
+  evalCache: {
+    visualCables: ReturnType<typeof buildVisualCablesForLayout>["visualCables"];
+    rowIndex: Map<string, number>;
+    dominant: ReturnType<typeof buildVisualCablesForLayout>["dominant"];
+  },
+  scoreMemo: ScoreMemo,
+  emitProgress: ReturnType<typeof createProgressTracker>,
+): BeamSearchOutcome {
+  const diagnostics = emptyDiagnostics();
+  let evaluations = 1;
+  const seen: RankedCandidate[] = [{ ...seedBest }];
+  let best = seedBest;
+  let winnerEvaluation: LayoutWinnerEvaluation | undefined;
+
+  const seedOptions: SeedGenerationOptions = {
+    cableKeys,
+    layoutWidths: widths,
+    expansionIters,
+    seed,
+    forcedSides: parseForcedLayoutSides(),
+  };
+  let beamPool = generateSeedCandidates(
+    graph,
+    intent,
+    constraints,
+    seedOptions,
+  );
+
+  const evaluateAtTier = (
+    candidate: LayoutCandidate,
+    tier: EvalTier,
+    bestScore: number,
+  ): CandidateEvalOutcome => {
+    const id = candidate.id ?? candidateStableId(candidate);
+    const cacheKey = `${id}|${tier}`;
+    const cached = scoreMemo.get(cacheKey);
+    if (cached) {
+      return {
+        score: cached.score,
+        feasible: cached.feasible,
+        tier: cached.tier,
+        fullResult: cached.fullResult,
+        cacheHit: true,
+      };
+    }
+
+    const result =
+      tier === "T2"
+        ? evaluateT2(graph, candidate)
+        : tier === "T1"
+          ? evaluateT1(graph, candidate, constraints)
+          : evaluateCandidateTiered(
+              graph,
+              candidate,
+              {
+                constraints,
+                bestScore,
+                tieredEvalEnabled: true,
+                maxTier: "T0",
+              },
+              evalCache,
+            );
+
+    scoreMemo.set(cacheKey, result);
+    recordTierDiagnostics(
+      diagnostics,
+      candidate,
+      tier,
+      result.feasible,
+    );
+
+    return {
+      score: result.score,
+      feasible: result.feasible,
+      tier: result.tier,
+      fullResult: result.fullResult,
+      cacheHit: false,
+    };
+  };
+
+  const rankT0 = (candidates: LayoutCandidate[]): RankedCandidate[] => {
+    const ranked: RankedCandidate[] = [];
+    for (const candidate of candidates) {
+      if (timeExceeded(startMs, timeBudgetMs) || config.shouldCancel?.()) break;
+      const outcome = evaluateAtTier(candidate, "T0", best.score);
+      if (!outcome.cacheHit) evaluations += 1;
+      const entry = { candidate, score: outcome.score };
+      ranked.push(entry);
+      seen.push(entry);
+      const prevBest = best;
+      best = tryImproveBest(best, candidate, outcome.score);
+      if (
+        compareCandidates(
+          { score: best.score, candidate: best.candidate },
+          { score: prevBest.score, candidate: prevBest.candidate },
+        ) < 0
+      ) {
+        const captured = winnerEvalFromOutcome(outcome);
+        if (captured) winnerEvaluation = captured;
+      }
+      emitProgress({
+        round: evaluations,
+        evaluations,
+        bestScore: best.score,
+        feasible: scoreFeasible(best.score),
+        currentTier: "T0",
+      });
+    }
+    return topRanked(ranked, SEARCH_CAPS.beamWidth);
+  };
+
+  let beam = rankT0(beamPool.slice(0, SEARCH_CAPS.t0Max));
+
+  for (let depth = 0; depth < SEARCH_CAPS.beamDepth; depth++) {
+    if (timeExceeded(startMs, timeBudgetMs) || config.shouldCancel?.()) break;
+    const expanded: LayoutCandidate[] = [];
+    for (const slot of beam) {
+      expanded.push(
+        ...beamMutations(
+          slot.candidate,
+          cableKeys,
+          constraints,
+          intent,
+          widths,
+          expansionIters,
+        ),
+      );
+      if (expanded.length >= SEARCH_CAPS.t0Max) break;
+    }
+    beam = rankT0(expanded.slice(0, SEARCH_CAPS.t0Max));
+    beamPool = beam.map((b) => b.candidate);
+  }
+
+  const uniqueT1 = new Map<string, RankedCandidate>();
+  for (const entry of seen) {
+    const id = entry.candidate.id ?? candidateStableId(entry.candidate);
+    const prev = uniqueT1.get(id);
+    if (
+      !prev ||
+      compareCandidates(
+        { score: entry.score, candidate: entry.candidate },
+        { score: prev.score, candidate: prev.candidate },
+      ) < 0
+    ) {
+      uniqueT1.set(id, entry);
+    }
+  }
+
+  const t1Pool = topRanked([...uniqueT1.values()], SEARCH_CAPS.t1Promote);
+  const t1Ranked: RankedCandidate[] = [];
+
+  for (const entry of t1Pool) {
+    if (timeExceeded(startMs, timeBudgetMs) || config.shouldCancel?.()) break;
+    const outcome = evaluateAtTier(entry.candidate, "T1", best.score);
+    if (!outcome.cacheHit) evaluations += 1;
+    const ranked = { candidate: entry.candidate, score: outcome.score };
+    t1Ranked.push(ranked);
+    const prevBest = best;
+    best = tryImproveBest(best, entry.candidate, outcome.score);
+    if (
+      compareCandidates(
+        { score: best.score, candidate: best.candidate },
+        { score: prevBest.score, candidate: prevBest.candidate },
+      ) < 0
+    ) {
+      const captured = winnerEvalFromOutcome(outcome);
+      if (captured) winnerEvaluation = captured;
+    }
+    emitProgress({
+      round: evaluations,
+      evaluations,
+      bestScore: best.score,
+      feasible: scoreFeasible(best.score),
+      currentTier: "T1",
+    });
+  }
+
+  const finalists: RankedFinalist[] = [];
+  const t2Pool = topRanked(t1Ranked.length > 0 ? t1Ranked : beam, SEARCH_CAPS.t2Max);
+
+  for (const entry of t2Pool) {
+    if (timeExceeded(startMs, timeBudgetMs) || config.shouldCancel?.()) break;
+    const outcome = evaluateAtTier(entry.candidate, "T2", best.score);
+    if (!outcome.cacheHit) evaluations += 1;
+    const failedIds = outcome.fullResult
+      ? failedRuleIds(outcome.fullResult.violations)
+      : [];
+    finalists.push({
+      candidate: entry.candidate,
+      score: outcome.score,
+      feasible: outcome.feasible,
+      evaluation: outcome.fullResult,
+      failedRuleIds: failedIds,
+    });
+    const prevBest = best;
+    best = tryImproveBest(best, entry.candidate, outcome.score);
+    if (
+      compareCandidates(
+        { score: best.score, candidate: best.candidate },
+        { score: prevBest.score, candidate: prevBest.candidate },
+      ) < 0 &&
+      outcome.tier === "T2" &&
+      outcome.fullResult
+    ) {
+      winnerEvaluation = {
+        feasible: outcome.fullResult.feasible,
+        score: outcome.fullResult.score,
+        violations: outcome.fullResult.violations,
+      };
+    }
+    emitProgress({
+      round: evaluations,
+      evaluations,
+      bestScore: best.score,
+      feasible: scoreFeasible(best.score),
+      currentTier: "T2",
+    });
+  }
+
+  finalists.sort((a, b) =>
+    compareCandidates(
+      { score: a.score, candidate: a.candidate },
+      { score: b.score, candidate: b.candidate },
+    ),
+  );
+
+  diagnostics.finalistSummaries = buildFinalistSummaries(finalists);
+  const picked = pickBestPassingFinalist(finalists);
+  if (picked) {
+    best = { candidate: picked.candidate, score: picked.score };
+    if (picked.evaluation) {
+      winnerEvaluation = {
+        feasible: picked.evaluation.feasible,
+        score: picked.evaluation.score,
+        violations: picked.evaluation.violations,
+      };
+    }
+    diagnostics.selectedCandidateReason = selectedReasonFor(picked, seedBest.candidate);
+  } else {
+    diagnostics.selectedCandidateReason = selectedReasonFor(undefined, seedBest.candidate);
+  }
+
+  if (debugLayoutSearchEnabled() || config.debug) {
+    console.table(diagnostics.finalistSummaries);
+  }
+
+  return {
+    best,
+    evaluations,
+    seen,
+    finalists,
+    diagnostics,
+    winnerEvaluation,
+  };
+}
+
 function runBruteForce(
   graph: ConnectionGraph,
   cableKeys: string[],
@@ -1010,11 +1461,16 @@ function runLayoutSearchCore(
     if (captured) winnerEvaluation = captured;
   };
 
+  const routingIntent = deriveRoutingIntent(graph, topology);
+  let finalists: RankedFinalist[] | undefined;
+  let searchDiagnostics: LayoutSearchDiagnostics | undefined;
+
   const progressState: ProgressTrackerState = {
     startMs,
     lastEmitMs: 0,
     lastEmittedEvaluations: -1,
-    evaluationBudget: maxRounds,
+    evaluationBudget:
+      layoutSearchMode() === "beam" ? SEARCH_CAPS.t0Max : maxRounds,
     strandCount: graph.connections.length,
     cableCount: cableKeys.length,
     lockedCableCount: constraints.lockedCableCount,
@@ -1066,6 +1522,8 @@ function runLayoutSearchCore(
       evaluations,
       bestScore: best.score,
       winnerEvaluation,
+      finalists,
+      diagnostics: searchDiagnostics,
     };
   };
 
@@ -1096,6 +1554,32 @@ function runLayoutSearchCore(
     best = brute.best;
     evaluations = brute.evaluations;
     seen = brute.seen;
+    return finalize();
+  }
+
+  if (layoutSearchMode() === "beam") {
+    const beam = runBeamSearch(
+      graph,
+      cableKeys,
+      widths,
+      expansionIters,
+      best,
+      startMs,
+      config.timeBudgetMs,
+      config,
+      constraints,
+      routingIntent,
+      seed,
+      evalCache,
+      scoreMemo,
+      emitProgress,
+    );
+    best = beam.best;
+    evaluations = beam.evaluations;
+    seen = beam.seen;
+    finalists = beam.finalists;
+    searchDiagnostics = beam.diagnostics;
+    if (beam.winnerEvaluation) winnerEvaluation = beam.winnerEvaluation;
     return finalize();
   }
 

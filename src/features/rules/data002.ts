@@ -23,6 +23,7 @@ export const sdcData002: SdcRule = {
   title: "Buffer tube count",
   dependencies: ["SDC-DATA-001"],
   requires: ["graph"],
+  tiers: ["import-data", "candidate-screen", "proxy-route", "final-layout"],
   check(ctx) {
     const issues: string[] = [];
     const { pairs } = ctx.graph.report;
