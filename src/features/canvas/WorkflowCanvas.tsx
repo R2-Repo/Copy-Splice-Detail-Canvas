@@ -65,6 +65,7 @@ import {
 } from "@/features/canvas/ManualLayoutContext";
 import { ManualLayoutGuideOverlay } from "@/features/canvas/ManualLayoutGuideOverlay";
 import { spliceEdgeTypes } from "@/features/canvas/edgeTypes";
+import { updateSpliceRoutingNodeInternals } from "@/features/canvas/updateSpliceRoutingNodeInternals";
 import {
   calloutsShouldShow,
   existingIdsFromEdges,
@@ -938,9 +939,7 @@ function WorkflowCanvasInner() {
         fitViewRequestRef.current += 1;
       }
       requestAnimationFrame(() => {
-        for (const node of nextNodes) {
-          if (node.type === "cable") updateNodeInternals(node.id);
-        }
+        updateSpliceRoutingNodeInternals(merged, updateNodeInternals);
       });
       void layout;
     },
@@ -1466,9 +1465,7 @@ function WorkflowCanvasInner() {
         spliceEdgeIdsForTubeKey(graph, tubeKey),
       );
       requestAnimationFrame(() => {
-        for (const node of mergedNodes) {
-          if (node.type === "cable") updateNodeInternals(node.id);
-        }
+        updateSpliceRoutingNodeInternals(mergedNodes, updateNodeInternals);
       });
     },
     [getNodes, setEdges, setNodes, updateManualWarnings, updateNodeInternals],
