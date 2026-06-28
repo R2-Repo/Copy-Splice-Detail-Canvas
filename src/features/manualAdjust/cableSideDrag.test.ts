@@ -15,6 +15,7 @@ import type { LayoutOverrides } from "@/types/splice";
 import {
   applyCableSideDragCommit,
   detectSideFromDragPosition,
+  detectSideFromEdgeProximity,
   moveCableInCandidate,
   stackCoordForSide,
 } from "./cableSideDrag";
@@ -43,6 +44,49 @@ describe("detectSideFromDragPosition", () => {
     expect(
       detectSideFromDragPosition(100, 40, BOUNDS, { allowVertical: false }),
     ).toBe("left");
+  });
+});
+
+describe("detectSideFromEdgeProximity", () => {
+  const EDGE_BOUNDS = {
+    centerX: 530,
+    centerY: 400,
+    layoutWidth: 1060,
+    minY: 0,
+    maxY: 800,
+  };
+
+  it("keeps current side when not near any canvas edge", () => {
+    expect(
+      detectSideFromEdgeProximity(400, 400, EDGE_BOUNDS, "left"),
+    ).toBe("left");
+    expect(
+      detectSideFromEdgeProximity(600, 400, EDGE_BOUNDS, "right"),
+    ).toBe("right");
+  });
+
+  it("switches side only when within threshold of an edge", () => {
+    expect(
+      detectSideFromEdgeProximity(40, 400, EDGE_BOUNDS, "right"),
+    ).toBe("left");
+    expect(
+      detectSideFromEdgeProximity(1020, 400, EDGE_BOUNDS, "left"),
+    ).toBe("right");
+    expect(
+      detectSideFromEdgeProximity(530, 30, EDGE_BOUNDS, "left"),
+    ).toBe("top");
+    expect(
+      detectSideFromEdgeProximity(530, 770, EDGE_BOUNDS, "left"),
+    ).toBe("bottom");
+  });
+
+  it("does not promote to top/bottom on a small diagonal nudge from center", () => {
+    expect(
+      detectSideFromEdgeProximity(120, 120, EDGE_BOUNDS, "left"),
+    ).toBe("left");
+    expect(
+      detectSideFromEdgeProximity(900, 120, EDGE_BOUNDS, "right"),
+    ).toBe("right");
   });
 });
 

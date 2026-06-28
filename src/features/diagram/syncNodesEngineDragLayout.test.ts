@@ -3,7 +3,14 @@ import { describe, expect, it } from "vitest";
 import { buildConnectionGraph } from "./buildConnectionGraph";
 import { buildReactFlowGraph } from "./buildReactFlowGraph";
 import { syncNodesEngineDragLayout } from "./syncNodesEngineDragLayout";
+import { buildVisualCablesForLayout } from "./visualCables";
+import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
+import { candidateToPlacementMap } from "@/features/layoutSearch/layoutCandidate";
+import { toLayoutCandidate } from "@/features/layoutSearch/verifyLayoutCandidate";
+import { resolveReferenceCsvPath } from "@/testHelpers/layoutContractCsvPaths";
+import { loadSearchCandidateSnapshot } from "@/testHelpers/searchLayoutContext";
 import type { SplicePair } from "@/types/splice";
+import { readFileSync } from "node:fs";
 
 function syntheticSameSideStackGraph() {
   const pairs: SplicePair[] = [
@@ -144,5 +151,75 @@ describe("syncNodesEngineDragLayout", () => {
 
     const result = nodes.find((n) => n.id === dragged.id)!;
     expect(result.position.y).toBe(dragY);
+  });
+
+  it("preserves optimized horizontal stack order during drag sync", () => {
+    const graph = buildConnectionGraph(
+      parseBentleyCsv(
+        readFileSync(
+          resolveReferenceCsvPath("CSV Splice Detail Example #2.csv"),
+          "utf8",
+        ),
+      ),
+    );
+    const snapshot = loadSearchCandidateSnapshot("example-2");
+    expect(snapshot).toBeDefined();
+    const candidate = toLayoutCandidate(snapshot!);
+    const { visualCables } = buildVisualCablesForLayout(graph);
+    const fixedPlacement = candidateToPlacementMap(candidate, visualCables);
+
+    const base = buildReactFlowGraph(
+      graph,
+      {
+        reportKey: "example-2-drag",
+        positions: {},
+        optimizedLayoutCandidate: snapshot,
+        layoutWidth: candidate.layoutWidth,
+        routingEngine: "grid",
+      },
+      candidate.layoutWidth,
+      { fixedPlacement, skipFeasibility: true },
+    );
+    const leftCables = base.nodes
+      .filter(
+        (n) =>
+          n.type === "cable" &&
+          (n.data as { side: string }).side === "left",
+      )
+      .sort((a, b) => a.position.y - b.position.y);
+    expect(leftCables.length).toBeGreaterThan(0);
+
+    const dragged = leftCables[0]!;
+    const dragY = dragged.position.y + 24;
+    const draggedNode = {
+      ...dragged,
+      position: { x: dragged.position.x, y: dragY },
+    };
+    const positions = {
+      ...Object.fromEntries(
+        base.nodes
+          .filter((n) => n.type === "cable")
+          .map((n) => [n.id, { x: n.position.x, y: n.position.y }]),
+      ),
+      [dragged.id]: draggedNode.position,
+    };
+
+    const { nodes } = syncNodesEngineDragLayout({
+      graph,
+      overrides: {
+        reportKey: "example-2-drag",
+        positions,
+        optimizedLayoutCandidate: snapshot,
+        layoutWidth: candidate.layoutWidth,
+        routingEngine: "grid",
+      },
+      layoutWidth: candidate.layoutWidth,
+      positions,
+      draggedNode,
+    });
+
+    const result = nodes.find((n) => n.id === dragged.id)!;
+    expect(result.position.y).toBe(dragY);
+    expect((result.data as { side: string }).side).toBe("left");
   });
 });
