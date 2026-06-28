@@ -145,6 +145,37 @@ export type ImportDiagnostics = {
     reason: string;
     failedRuleIds?: string[];
   };
+  recoverableSelection?: {
+    selectionKind:
+      | "fully-passing"
+      | "best-recoverable"
+      | "heuristic-best"
+      | "search-failed";
+    selectedCandidateId: string;
+    isHeuristic: boolean;
+    reason: string;
+    weightedFallbackScore: number;
+    hardFailureCount: number;
+    routeZoneFailures: number;
+    layoutLabelFanoutFailures: number;
+    routingValidityFailures: number;
+    comparisonVsHeuristic?: {
+      heuristicCandidateId: string;
+      heuristicPenalty: number;
+      pickedPenalty: number;
+      heuristicHardFails: number;
+      pickedHardFails: number;
+      heuristicWon: boolean;
+    };
+    rejected: Array<{
+      candidateId: string;
+      source: string;
+      isHeuristic: boolean;
+      whyLost: string;
+      weightedFallbackScore: number;
+      hardFailureCount: number;
+    }>;
+  };
 
   notes: string[];
 };
@@ -558,6 +589,25 @@ export function recordFallback(
   diag.fallback = { used: true, reason, failedRuleIds };
 }
 
+export function recordRecoverableSelection(
+  diag: ImportDiagnostics,
+  result: NonNullable<ImportDiagnostics["recoverableSelection"]>,
+): void {
+  diag.recoverableSelection = result;
+  if (
+    result.selectionKind === "best-recoverable" ||
+    result.selectionKind === "heuristic-best"
+  ) {
+    diag.fallback = {
+      used: true,
+      reason: result.reason,
+      failedRuleIds: result.hardFailureCount > 0
+        ? [`${result.hardFailureCount} hard failure(s)`]
+        : undefined,
+    };
+  }
+}
+
 export function recordEvalSubPhase(
   diag: ImportDiagnostics,
   phase: keyof ImportDiagnostics["evalSubPhaseMs"],
@@ -785,6 +835,25 @@ export function printImportDiagnostics(diag: ImportDiagnostics): void {
 
   if (diag.fallback?.used) {
     console.log("Fallback:", diag.fallback);
+  }
+
+  if (diag.recoverableSelection) {
+    console.log("[import optimizer] recoverable selection:");
+    console.table({
+      kind: diag.recoverableSelection.selectionKind,
+      candidate: diag.recoverableSelection.selectedCandidateId,
+      heuristic: diag.recoverableSelection.isHeuristic,
+      reason: diag.recoverableSelection.reason,
+      penalty: diag.recoverableSelection.weightedFallbackScore,
+      hardFails: diag.recoverableSelection.hardFailureCount,
+    });
+    if (diag.recoverableSelection.comparisonVsHeuristic) {
+      console.log("vs heuristic:", diag.recoverableSelection.comparisonVsHeuristic);
+    }
+    if (diag.recoverableSelection.rejected.length > 0) {
+      console.log("Rejected candidates:");
+      console.table(diag.recoverableSelection.rejected);
+    }
   }
 
   for (const note of diag.notes) {

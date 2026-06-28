@@ -308,7 +308,7 @@ export function generateSeedCandidates(
     pushUnique(seeds, seen, expanded, constraints);
   }
 
-  for (const pair of intent.sameSideRiskPairs.slice(0, 2)) {
+  for (const pair of intent.sameSideRiskPairs.slice(0, 3)) {
     const riskMap: Record<string, LayoutSide> = {};
     for (const cable of cableKeys) {
       riskMap[cable] = constraints.lockedCableSides[cable] ?? "left";
@@ -320,7 +320,112 @@ export function generateSeedCandidates(
       riskMap[pair.cableB] = "right";
     }
     pushUnique(seeds, seen, buildFromSideMap(cableKeys, riskMap, width), constraints);
+
+    const tbRisk: Record<string, LayoutSide> = { ...riskMap };
+    if (!constraints.lockedCableSides[pair.cableA]) tbRisk[pair.cableA] = "top";
+    if (!constraints.lockedCableSides[pair.cableB]) tbRisk[pair.cableB] = "bottom";
+    pushUnique(seeds, seen, buildFromSideMap(cableKeys, tbRisk, width), constraints);
   }
 
-  return seeds.slice(0, 30);
+  const secondaryCables = cableKeys.filter(
+    (c) =>
+      !constraints.lockedCableSides[c] &&
+      !constraints.hubCables.includes(c) &&
+      intent.topBottomReliefCandidates.includes(c),
+  );
+  if (dominant && secondaryCables.length > 0) {
+    const domTop: Record<string, LayoutSide> = {};
+    for (const cable of cableKeys) {
+      domTop[cable] = constraints.lockedCableSides[cable] ?? "left";
+    }
+    if (!constraints.lockedCableSides[dominant.cableA]) {
+      domTop[dominant.cableA] = "top";
+    }
+    if (!constraints.lockedCableSides[dominant.cableB]) {
+      domTop[dominant.cableB] = "right";
+    }
+    for (const sec of secondaryCables.slice(0, 2)) {
+      domTop[sec] = sec === secondaryCables[0] ? "bottom" : "left";
+    }
+    pushUnique(
+      seeds,
+      seen,
+      buildFromSideMap(cableKeys, domTop, width, (_side, cables) =>
+        medianSortStacks(intent, cables),
+      ),
+      constraints,
+    );
+
+    const domBottom: Record<string, LayoutSide> = { ...domTop };
+    if (!constraints.lockedCableSides[dominant.cableA]) {
+      domBottom[dominant.cableA] = "bottom";
+    }
+    for (const sec of secondaryCables.slice(0, 2)) {
+      domBottom[sec] = sec === secondaryCables[0] ? "top" : "right";
+    }
+    pushUnique(
+      seeds,
+      seen,
+      buildFromSideMap(cableKeys, domBottom, width, (_side, cables) =>
+        medianSortStacks(intent, cables),
+      ),
+      constraints,
+    );
+  }
+
+  for (const group of intent.bundleGroups.slice(0, 2)) {
+    if (group.cables.length < 2) continue;
+    const bundleMap: Record<string, LayoutSide> = {};
+    for (const cable of cableKeys) {
+      bundleMap[cable] = constraints.lockedCableSides[cable] ?? "left";
+    }
+    const [first, second] = group.cables;
+    if (first && !constraints.lockedCableSides[first]) bundleMap[first] = "top";
+    if (second && !constraints.lockedCableSides[second]) {
+      bundleMap[second] = "bottom";
+    }
+    pushUnique(seeds, seen, buildFromSideMap(cableKeys, bundleMap, width), constraints);
+  }
+
+  for (const cable of intent.topBottomReliefCandidates.slice(0, 2)) {
+    if (constraints.lockedCableSides[cable]) continue;
+    for (const widthStep of layoutWidths.slice(0, 2)) {
+      const reliefMap: Record<string, LayoutSide> = {};
+      for (const key of cableKeys) {
+        reliefMap[key] = constraints.lockedCableSides[key] ?? "left";
+      }
+      reliefMap[cable] = "top";
+      pushUnique(
+        seeds,
+        seen,
+        buildFromSideMap(cableKeys, reliefMap, widthStep),
+        constraints,
+      );
+      const reliefBottom = { ...reliefMap, [cable]: "bottom" as LayoutSide };
+      pushUnique(
+        seeds,
+        seen,
+        buildFromSideMap(cableKeys, reliefBottom, widthStep),
+        constraints,
+      );
+    }
+  }
+
+  if (cableKeys.length >= 3) {
+    const reversed = buildFromSideMap(
+      cableKeys,
+      Object.fromEntries(
+        cableKeys.map((cable, index) => [
+          cable,
+          constraints.lockedCableSides[cable] ??
+            (["right", "left", "bottom", "top"] as LayoutSide[])[index % 4]!,
+        ]),
+      ),
+      width,
+      (_side, cables) => medianSortStacks(intent, [...cables].reverse()),
+    );
+    pushUnique(seeds, seen, reversed, constraints);
+  }
+
+  return seeds.slice(0, 36);
 }
