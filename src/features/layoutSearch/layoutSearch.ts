@@ -40,6 +40,8 @@ import {
   debugLayoutSearchEnabled,
   layoutSearchMode,
   parseForcedLayoutSides,
+  searchCapsForProfile,
+  type SearchCaps,
 } from "./importSearchConfig";
 import {
   beginSearchDiagnostics,
@@ -65,9 +67,12 @@ import {
   evaluateCandidateTiered,
   evaluateT1,
   evaluateT2,
+  beginRuleValidationCache,
+  clearRuleValidationCache,
   type EvalTier,
   type TieredEvalResult,
 } from "./tieredEvaluate";
+import { candidateGeometryKey } from "./candidateGeometry";
 import type { RuleResult } from "@/features/rules/types";
 import type { RoutingIntent } from "./routingIntent";
 
@@ -101,6 +106,8 @@ export type LayoutSearchConfig = {
   disableTopologyConstraints?: boolean;
   /** Always run full T2 eval (perf A/B tests). */
   disableTieredEval?: boolean;
+  /** Full search vs reduced background refinement when heuristic already passes. */
+  searchProfile?: "full" | "background";
 };
 
 /** Serializable subset for worker postMessage — skips duplicate final T2 on main thread. */
@@ -896,6 +903,7 @@ function runBeamSearch(
   },
   scoreMemo: ScoreMemo,
   emitProgress: ReturnType<typeof createProgressTracker>,
+  caps: SearchCaps = SEARCH_CAPS,
 ): BeamSearchOutcome {
   const diagnostics = emptyDiagnostics();
   let evaluations = 1;
@@ -924,8 +932,11 @@ function runBeamSearch(
     bestScore: number,
   ): CandidateEvalOutcome => {
     const id = candidate.id ?? candidateStableId(candidate);
+    const geometryKey = candidateGeometryKey(candidate);
+    const geometryTierKey = `${geometryKey}|${tier}`;
+    const cachedByGeometry = tier === "T0" ? scoreMemo.get(geometryTierKey) : undefined;
     const cacheKey = `${id}|${tier}`;
-    const cached = scoreMemo.get(cacheKey);
+    const cached = cachedByGeometry ?? scoreMemo.get(cacheKey);
     const searchDiag = getActiveSearchDiagnostics();
     if (cached) {
       if (searchDiag) recordCacheAccess(searchDiag, true);
@@ -959,6 +970,7 @@ function runBeamSearch(
     const tierMs = performance.now() - tierStart;
 
     scoreMemo.set(cacheKey, result);
+    if (tier === "T0") scoreMemo.set(geometryTierKey, result);
     recordTierDiagnostics(
       diagnostics,
       candidate,
@@ -1020,12 +1032,12 @@ function runBeamSearch(
         currentTier: "T0",
       });
     }
-    return topRanked(ranked, SEARCH_CAPS.beamWidth);
+    return topRanked(ranked, caps.beamWidth);
   };
 
-  let beam = rankT0(beamPool.slice(0, SEARCH_CAPS.t0Max));
+  let beam = rankT0(beamPool.slice(0, caps.t0Max));
 
-  for (let depth = 0; depth < SEARCH_CAPS.beamDepth; depth++) {
+  for (let depth = 0; depth < caps.beamDepth; depth++) {
     if (timeExceeded(startMs, timeBudgetMs) || config.shouldCancel?.()) break;
     const expanded: LayoutCandidate[] = [];
     for (const slot of beam) {
@@ -1039,9 +1051,9 @@ function runBeamSearch(
           expansionIters,
         ),
       );
-      if (expanded.length >= SEARCH_CAPS.t0Max) break;
+      if (expanded.length >= caps.t0Max) break;
     }
-    beam = rankT0(expanded.slice(0, SEARCH_CAPS.t0Max));
+    beam = rankT0(expanded.slice(0, caps.t0Max));
     beamPool = beam.map((b) => b.candidate);
   }
 
@@ -1060,7 +1072,7 @@ function runBeamSearch(
     }
   }
 
-  const t1Pool = topRanked([...uniqueT1.values()], SEARCH_CAPS.t1Promote);
+  const t1Pool = topRanked([...uniqueT1.values()], caps.t1Promote);
   const t1Ranked: RankedCandidate[] = [];
 
   for (const entry of t1Pool) {
@@ -1090,7 +1102,7 @@ function runBeamSearch(
   }
 
   const finalists: RankedFinalist[] = [];
-  const t2Pool = topRanked(t1Ranked.length > 0 ? t1Ranked : beam, SEARCH_CAPS.t2Max);
+  const t2Pool = topRanked(t1Ranked.length > 0 ? t1Ranked : beam, caps.t2Max);
 
   for (const entry of t2Pool) {
     if (timeExceeded(startMs, timeBudgetMs) || config.shouldCancel?.()) break;
@@ -1492,6 +1504,7 @@ function runLayoutSearchCore(
   const startMs = performance.now();
 
   beginSearchDiagnostics();
+  beginRuleValidationCache();
   const searchDiag = getActiveSearchDiagnostics();
 
   const topology = timePhase(searchDiag, "topology", () =>
@@ -1528,13 +1541,14 @@ function runLayoutSearchCore(
   const routingIntent = deriveRoutingIntent(graph, topology);
   let finalists: RankedFinalist[] | undefined;
   let searchDiagnostics: LayoutSearchDiagnostics | undefined;
+  const searchCaps = searchCapsForProfile(config.searchProfile ?? "full");
 
   const progressState: ProgressTrackerState = {
     startMs,
     lastEmitMs: 0,
     lastEmittedEvaluations: -1,
     evaluationBudget:
-      layoutSearchMode() === "beam" ? SEARCH_CAPS.t0Max : maxRounds,
+      layoutSearchMode() === "beam" ? searchCaps.t0Max : maxRounds,
     strandCount: graph.connections.length,
     cableCount: cableKeys.length,
     lockedCableCount: constraints.lockedCableCount,
@@ -1581,6 +1595,7 @@ function runLayoutSearchCore(
     if (debugEnabled(config)) {
       logTopCandidates(seen, debugTopN, evaluations);
     }
+    clearRuleValidationCache();
     const importDiagnosticsSlice = endSearchDiagnostics();
     return {
       best: best.candidate,
@@ -1639,6 +1654,7 @@ function runLayoutSearchCore(
       evalCache,
       scoreMemo,
       emitProgress,
+      searchCaps,
     );
     best = beam.best;
     evaluations = beam.evaluations;

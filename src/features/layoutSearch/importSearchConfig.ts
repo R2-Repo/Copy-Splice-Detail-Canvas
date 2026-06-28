@@ -99,3 +99,56 @@ export const SEARCH_CAPS = {
   beamDepth: 4,
   t1Promote: 25,
 } as const;
+
+/** Reduced caps when heuristic already passes — background refinement only. */
+export const BACKGROUND_SEARCH_CAPS = {
+  t0Max: 120,
+  t1Max: 20,
+  t2Max: 4,
+  beamWidth: 6,
+  beamDepth: 2,
+  t1Promote: 12,
+} as const;
+
+export type SearchCaps = {
+  t0Max: number;
+  t1Max: number;
+  t2Max: number;
+  beamWidth: number;
+  beamDepth: number;
+  t1Promote: number;
+};
+
+export function searchCapsForProfile(
+  profile: "full" | "background",
+): SearchCaps {
+  return profile === "background" ? BACKGROUND_SEARCH_CAPS : SEARCH_CAPS;
+}
+
+/** Non-debug optimizer wall budget — warn / fail thresholds (ms). */
+export const IMPORT_PERF_BUDGET_WARN_MS = 10_000;
+export const IMPORT_PERF_BUDGET_FAIL_MS = 15_000;
+
+export type ImportPerformanceBudgetResult = {
+  warn: boolean;
+  exceeded: boolean;
+  warnThresholdMs: number;
+  failThresholdMs: number;
+  actualMs: number;
+};
+
+export function importPerformanceBudgetEnabled(): boolean {
+  return !debugImportOptimizerEnabled();
+}
+
+export function checkImportPerformanceBudget(
+  actualMs: number,
+): ImportPerformanceBudgetResult {
+  return {
+    warn: actualMs >= IMPORT_PERF_BUDGET_WARN_MS,
+    exceeded: actualMs >= IMPORT_PERF_BUDGET_FAIL_MS,
+    warnThresholdMs: IMPORT_PERF_BUDGET_WARN_MS,
+    failThresholdMs: IMPORT_PERF_BUDGET_FAIL_MS,
+    actualMs,
+  };
+}

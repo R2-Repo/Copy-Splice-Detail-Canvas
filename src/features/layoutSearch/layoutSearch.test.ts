@@ -31,6 +31,7 @@ import { importTimeBudgetMs, layoutSearchMode } from "./importSearchConfig";
 import { syntheticHubSpliceGraph, syntheticTopBottomReliefGraph, syntheticTwo144Graph } from "./fixtures/syntheticGraphs";
 import { analyzeTopology } from "./topology/analyzeTopology";
 import { evaluateCandidateTiered, evaluateT0, evaluateT2 } from "./tieredEvaluate";
+import { predictEarlyRejectAtT0 } from "./candidatePruners";
 
 function syntheticThreeCableGraph() {
   const pairs: SplicePair[] = [
@@ -439,6 +440,39 @@ describe("import optimizer beam search", () => {
     expect(run1.best.id).toBe(run2.best.id);
     expect(run1.bestScore).toBe(run2.bestScore);
   }, 30_000);
+
+  it("relief top/bottom passes T0 on synthetic relief fixture", () => {
+    const graph = syntheticTopBottomReliefGraph();
+    const cableKeys = cableKeysFromGraph(graph);
+    const { visualCables, dominant } = buildVisualCablesForLayout(graph);
+    const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
+    const constraints = {
+      lockedCableSides: {},
+      forbiddenSameSidePairs: [],
+      searchableCables: cableKeys,
+      hubCables: [],
+      satelliteCables: cableKeys,
+      proxyBundleGroups: [],
+      lockedCableCount: 0,
+    };
+
+    const relief = enumerateCandidates(cableKeys, [1200]).find(
+      (c) =>
+        c.cableSides["CABLE-A"] === "top" &&
+        c.cableSides["CABLE-B"] === "bottom",
+    )!;
+    expect(predictEarlyRejectAtT0(
+      relief,
+      graph,
+      constraints,
+      visualCables,
+      rowIndex,
+    ).reject).toBe(false);
+
+    const t0 = evaluateT0(graph, relief, constraints, visualCables, rowIndex);
+    expect(t0.feasible).toBe(true);
+    expect(t0.score).toBeLessThan(Number.MAX_SAFE_INTEGER);
+  });
 
   it("top/bottom can win on synthetic relief fixture", () => {
     const graph = syntheticTopBottomReliefGraph();
