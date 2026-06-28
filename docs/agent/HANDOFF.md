@@ -23,7 +23,18 @@
 |------|---------|--------|
 | smoke | `npm run smoke` | **Pass** |
 
-### Manual QA
+### Manual QA (browser VM, 2026-06-28)
+
+| CSV | Search time | Result |
+|-----|-------------|--------|
+| example-2 (`?fixture=example-2`) | ~60s | Overlay animates; full diagram after search |
+| Left-SP-3254.5 | ~51s overlay | Heuristic paint immediate; full GR/VI/BL routing after search |
+
+Screenshots: `/opt/cursor/artifacts/screenshots/*-final-v3.png`
+
+**Fix during QA:** post-search viewport used wrong unit-zoom math — final swap now calls React Flow `fitView()` after nodes settle.
+
+### Manual QA steps
 
 1. `npm run dev` → import **example-2** or **Left-SP-3254.5**
 2. Diagram appears immediately (heuristic); overlay shows continuous progress

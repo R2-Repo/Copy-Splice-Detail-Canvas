@@ -356,13 +356,14 @@ function boundsForOutwardDrag(
 }
 
 function WorkflowCanvasInner() {
-  const { getNodesBounds, setViewport, getNodes, getEdges, getViewport } =
+  const { getNodesBounds, setViewport, getNodes, getEdges, getViewport, fitView } =
     useReactFlow();
   const nodesInitialized = useNodesInitialized();
   const updateNodeInternals = useUpdateNodeInternals();
   const fitViewRequestRef = useRef(0);
   const fitViewHandledRef = useRef(0);
   const fitViewUnitZoomRef = useRef(false);
+  const [fitViewTick, setFitViewTick] = useState(0);
   /** Set when the user drags a cable column outward beyond the viewport fill. */
   const userExpandedLayoutRef = useRef(false);
   const [nodes, setNodes, onNodesChange] = useNodesState(emptyNodes);
@@ -711,7 +712,16 @@ function WorkflowCanvasInner() {
         );
 
     void setViewport(viewport, { duration: 0 });
-  }, [nodesInitialized, nodes, getNodesBounds, setViewport]);
+  }, [nodesInitialized, nodes, setViewport, fitViewTick]);
+
+  /** Refit viewport after async layout swap once React Flow has measured new nodes. */
+  const scheduleFitViewAfterLayout = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        void fitView({ padding: 0.08, duration: 0, maxZoom: 1 });
+      });
+    });
+  }, [fitView]);
 
   type ApplyGraphOptions = {
     fitView?: boolean;
@@ -933,6 +943,7 @@ function WorkflowCanvasInner() {
       if (options?.fitView) {
         fitViewUnitZoomRef.current = options.fitAtUnitZoom === true;
         fitViewRequestRef.current += 1;
+        setFitViewTick((tick) => tick + 1);
       }
       requestAnimationFrame(() => {
         updateSpliceRoutingNodeInternals(merged, updateNodeInternals);
@@ -1216,7 +1227,18 @@ function WorkflowCanvasInner() {
         );
         layoutModeRef.current = deriveLayoutMode(renderCandidate);
         setLayoutModeState(deriveLayoutMode(renderCandidate));
-        finishImport(renderWidth, true);
+        applyGraph(graph, reportKey, collapsed, {
+          fitView: false,
+          fitAtUnitZoom: false,
+          layoutWidth: renderWidth,
+          refreshLayout: true,
+          refreshColumnX: true,
+          refreshRowLayout: true,
+        });
+        setMeta(
+          `${options.sourceLabel} — ${graph.report.pairs.length} pair(s), ${graph.connections.length} connection(s)`,
+        );
+        scheduleFitViewAfterLayout();
         setLayoutSearchProgress(null);
       };
 
@@ -1273,7 +1295,7 @@ function WorkflowCanvasInner() {
       };
       importWhenStageReady();
     },
-    [applyGraph, setViewport],
+    [applyGraph, scheduleFitViewAfterLayout, setViewport],
   );
 
   const loadFromCsv = useCallback(
