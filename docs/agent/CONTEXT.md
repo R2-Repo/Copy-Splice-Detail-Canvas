@@ -4,18 +4,18 @@
 
 ## Focus (2026-06-28)
 
-**Import center-strand render fix.** Grid/nodes routing edges now paint on first CSV import (static engine-node handles + handle remeasure).
+**Post-import interaction restore.** Optimized import kept; Phase 6 side-drag gated to quad layouts only (edge-proximity on drag-stop). Horizontal layouts use legacy incremental drag + fixedPlacement from candidate.
 
 ## Active build track
 
-- **Routing-first auto layout — Phase 6 done** — side drag + lock-on-commit (SDC-UX-001).
-- **Import paint fix** — `fiberAnchor` / `splicePoint` nodes declare `width`/`height`/`handles` so React Flow mounts precomputed leg edges immediately.
+- **Routing-first auto layout — Phase 6 gated** — horizontal drag restored; quad side-move on drag-stop near canvas edge only.
+- **Import paint fix** — static engine-node handles + handle remeasure on import.
 - Legacy `USE_LEGACY_IMPORT_LAYOUT=1` fallback still present.
 
 ## Testing policy
 
 - **Default:** `npm run smoke` (check + `test:fast` + build) — few minutes
-- **Manual QA:** import example-2 — confirm center legs + fusion dots visible before any drag
+- **Manual QA:** import example-2 — zoom, cable Y-drag, fiber/tube adjust in auto + manual modes
 - KI-003 (Left-SPI-215) still skipped unless `RUN_KNOWN_ISSUES=1`
 
 ## Session gate
@@ -26,5 +26,5 @@ npm run smoke          # every session
 
 ## Baseline
 
-- Branch: `cursor/fix-splice-edge-render-b752`
+- Branch: `cursor/restore-post-import-interaction-14a3`
 - Frozen: `.cursor/rules/frozen-routing.mdc`

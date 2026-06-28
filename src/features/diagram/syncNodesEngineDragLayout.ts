@@ -6,6 +6,12 @@ import { rerouteConnectionIdsForVisualCableDrag } from "@/features/diagram/conne
 import { useGridRoutingEngine } from "@/features/diagram/routingEngine";
 import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import type { GridRoute } from "@/features/grid/gridTypes";
+import {
+  candidateToPlacementMap,
+  cloneGraphForCandidate,
+  deriveLayoutMode,
+} from "@/features/layoutSearch/layoutCandidate";
+import { toLayoutCandidate } from "@/features/layoutSearch/verifyLayoutCandidate";
 import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
 
 export type SyncNodesEngineDragLayoutArgs = {
@@ -32,27 +38,45 @@ export function syncNodesEngineDragLayout({
   priorGridRoutes,
   preservedNodes = [],
 }: SyncNodesEngineDragLayoutArgs): { nodes: Node[]; edges: Edge[] } {
-  const { visualCables } = buildVisualCablesForLayout(graph);
+  let appliedGraph = graph;
+  const buildOptions: Parameters<typeof buildReactFlowGraph>[3] = {
+    dragSync: true,
+    skipTubeAutoAlign: true,
+    dragCacheEdges,
+    priorGridRoutes,
+  };
+
+  if (overrides.optimizedLayoutCandidate) {
+    const candidate = toLayoutCandidate(overrides.optimizedLayoutCandidate);
+    if (deriveLayoutMode(candidate) === "horizontal") {
+      appliedGraph = cloneGraphForCandidate(graph, candidate);
+      const { visualCables: candidateVisualCables } =
+        buildVisualCablesForLayout(appliedGraph);
+      buildOptions.fixedPlacement = candidateToPlacementMap(
+        candidate,
+        candidateVisualCables,
+      );
+    }
+  }
+
+  const { visualCables } = buildVisualCablesForLayout(appliedGraph);
   const visualId = visualCableIdFromNodeId(draggedNode.id);
   const rerouteConnectionIds =
     visualId && useGridRoutingEngine(overrides)
       ? rerouteConnectionIdsForVisualCableDrag(visualCables, visualId)
       : undefined;
+  if (rerouteConnectionIds) {
+    buildOptions.rerouteConnectionIds = rerouteConnectionIds;
+  }
 
   const { nodes: engineNodes, edges } = buildReactFlowGraph(
-    graph,
+    appliedGraph,
     {
       ...overrides,
       positions,
     },
     layoutWidth,
-    {
-      dragSync: true,
-      skipTubeAutoAlign: true,
-      rerouteConnectionIds,
-      dragCacheEdges,
-      priorGridRoutes,
-    },
+    buildOptions,
   );
 
   const engineIds = new Set(engineNodes.map((n) => n.id));

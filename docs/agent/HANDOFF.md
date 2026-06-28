@@ -4,16 +4,18 @@
 
 ## Last updated
 
-2026-06-28 — **Fix center fiber strands missing on CSV import**
+2026-06-28 — **Restore post-import canvas interaction**
 
 ### Done
 
 | Area | Change |
 |------|--------|
-| Root cause | React Flow skipped splice leg edges until `fiberAnchor` / `splicePoint` handle bounds existed; import only remeasured cable nodes |
-| Engine nodes | `buildNodesEngineGraph.ts` — static `width`/`height`/`handles` on anchor + splice-point nodes via `spliceEngineNodeHandles.ts` |
-| Remeasure | `updateSpliceRoutingNodeInternals.ts`; `WorkflowCanvas` + anchor node components call `updateNodeInternals` after layout |
-| Tests | `spliceEngineNodeHandles.test.ts` |
+| Drag gate | `routingFirstSideDragActive` removed; `usePhase6SideDrag` only when optimized candidate is **quad** |
+| Horizontal optimized | `syncNodesEngineDragLayout` passes `fixedPlacement` from candidate; legacy auto/manual drag paths restored |
+| Quad live drag | `syncQuadCableDrag` (position-only); no per-frame `applyCableSideDragCommit` preview |
+| Quad side commit | `detectSideFromEdgeProximity` (~80px edge threshold) on drag-stop only |
+| Non-cable drag | Fiber anchor / manual adjust no longer blocked when optimized candidate exists |
+| Tests | `detectSideFromEdgeProximity` + example-2 drag-sync regression |
 
 ### Test status
 
@@ -23,14 +25,16 @@
 
 ### Manual QA
 
-1. `npm run dev` → import **example-2** (or `?fixture=example-2`)
-2. After layout search finishes (~1 min): **6 center splice rows** visible (colored legs + fusion dots between cables)
-3. Optional: **Left-SP-3254.5** — same check on a reference CSV
+1. `npm run dev` → import **example-2**
+2. After layout search: scroll zoom + controls work
+3. Drag cables vertically — no jump to top/bottom; center legs stay visible
+4. Toggle manual adjust — fiber anchors / tube tips draggable
+5. Optional: quad CSV — side change only when cable dragged near canvas edge
 
 ### Next
 
-1. Phase 6 side-drag QA if not already signed off
-2. Remove `USE_LEGACY_IMPORT_LAYOUT=1` fallback after full `test:rules` green
+1. Quad side-drag UX polish if edge threshold feels too tight/loose
+2. Phase 6 full sign-off after manual QA on quad CSVs
 
 ### Frozen
 

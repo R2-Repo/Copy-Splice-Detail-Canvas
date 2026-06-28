@@ -33,8 +33,48 @@ export type SideDragBounds = {
   centerY: number;
 };
 
+/** Canvas edge envelope for proximity-based side commit (Phase 6 quad). */
+export type SideDragEdgeBounds = SideDragBounds & {
+  layoutWidth: number;
+  minY: number;
+  maxY: number;
+};
+
+/** Drag-stop gate — cable must be within this distance of a canvas edge to change sides. */
+export const SIDE_DRAG_EDGE_THRESHOLD_PX = 80;
+
 export function effectiveCableSide(data: CableNodeData): LayoutSide {
   return data.quadSide ?? data.side;
+}
+
+/** Nearest side when within thresholdPx of a canvas edge; otherwise keeps currentSide. */
+export function detectSideFromEdgeProximity(
+  x: number,
+  y: number,
+  bounds: SideDragEdgeBounds,
+  currentSide: LayoutSide,
+  options?: { allowVertical?: boolean; thresholdPx?: number },
+): LayoutSide {
+  const threshold = options?.thresholdPx ?? SIDE_DRAG_EDGE_THRESHOLD_PX;
+  const allowVertical = options?.allowVertical !== false;
+
+  type EdgeCandidate = { side: LayoutSide; dist: number };
+  const candidates: EdgeCandidate[] = [
+    { side: "left", dist: x },
+    { side: "right", dist: bounds.layoutWidth - x },
+  ];
+  if (allowVertical) {
+    candidates.push({ side: "top", dist: y - bounds.minY });
+    candidates.push({ side: "bottom", dist: bounds.maxY - y });
+  }
+
+  const nearest = candidates.reduce((best, c) =>
+    c.dist < best.dist ? c : best,
+  );
+  if (nearest.dist <= threshold) {
+    return nearest.side;
+  }
+  return currentSide;
 }
 
 /** Nearest canvas edge from drag position (angle from diagram center). */
