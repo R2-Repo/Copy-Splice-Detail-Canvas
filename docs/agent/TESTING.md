@@ -46,6 +46,29 @@ Listed in `vitest.slowTests.ts` — two groups:
 
 Sample CSVs: [`docs/reference/examples/`](../reference/examples/README.md).
 
+### Import optimizer diagnostics (dev)
+
+When debugging slow imports or finalist/fallback behavior:
+
+1. Add to `.env.local` (see [`.env.example`](../../.env.example)):
+
+   ```
+   VITE_DEBUG_IMPORT_OPTIMIZER=1
+   ```
+
+2. `npm run dev` → import a CSV → one collapsed **`[import optimizer]`** group in the browser console.
+
+3. Inspect `window.__SDC_LAST_IMPORT_DIAGNOSTICS__` or run `window.__SDC_PRINT_LAST_IMPORT_DIAGNOSTICS__()`.
+
+**Headless Left-CSV QA** (optional, requires Playwright installed separately):
+
+```bash
+npm run dev   # separate terminal
+node scripts/import-diagnostics-qa.mjs docs/reference/examples/Left-STATE_OFFICE.csv
+```
+
+Prints heuristic/total wall time, `searchStats`, `ruleRejectCounts`, and `fallback` from the last import.
+
 ## Re-enabling intense validation
 
 When the user says to harden layout/rules:
