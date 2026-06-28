@@ -65,6 +65,18 @@ const DEFAULT_BRUTE_FORCE_MAX_CABLES = 8;
 const DEFAULT_RESTART_INTERVAL = 64;
 /** Plateau threshold — documented in ROUTING_FIRST_LAYOUT.md Phase 2 gate. */
 const DEFAULT_PLATEAU_ROUNDS = 128;
+/** Yield to the event loop every N guided-search rounds (async import path). */
+const ASYNC_YIELD_EVERY_ROUNDS = 8;
+
+/** Import-time search tuning — guided path for 4+ cables; wall-clock safety cap. */
+export const IMPORT_LAYOUT_SEARCH_CONFIG: Pick<
+  LayoutSearchConfig,
+  "bruteForceMaxCables" | "plateauRounds" | "timeBudgetMs"
+> = {
+  bruteForceMaxCables: 3,
+  plateauRounds: 64,
+  timeBudgetMs: 45_000,
+};
 const DEFAULT_DEBUG_TOP_N = 5;
 const NARROW_WIDTH = 1200;
 const MAX_EXPANSION_ITERATION = 8;
@@ -288,12 +300,24 @@ function tryImproveBest(
   return best;
 }
 
+type EvaluatedCandidate = {
+  score: number;
+  feasible: boolean;
+  skipped: boolean;
+};
+
 function evaluateCandidate(
   graph: ConnectionGraph,
   candidate: LayoutCandidate,
-): { score: number; feasible: boolean } {
-  const result = evaluateLayoutCandidate(graph, candidate);
-  return { score: result.score, feasible: result.feasible };
+  evaluatedIds: Set<string>,
+): EvaluatedCandidate {
+  const id = candidate.id ?? candidateStableId(candidate);
+  if (evaluatedIds.has(id)) {
+    return { score: INFEASIBLE_LAYOUT_SCORE, feasible: false, skipped: true };
+  }
+  evaluatedIds.add(id);
+  const result = evaluateLayoutCandidate(graph, candidate, { stopOnFail: true });
+  return { score: result.score, feasible: result.feasible, skipped: false };
 }
 
 function removeFromAllStacks(
@@ -510,6 +534,7 @@ function runBruteForce(
   widths: number[],
   expansionIters: number[],
   seedBest: RankedCandidate,
+  evaluatedIds: Set<string>,
   startMs: number,
   timeBudgetMs: number | undefined,
   config: LayoutSearchConfig,
@@ -521,7 +546,8 @@ function runBruteForce(
 
   for (const candidate of candidates) {
     if (timeExceeded(startMs, timeBudgetMs) || config.shouldCancel?.()) break;
-    const { score } = evaluateCandidate(graph, candidate);
+    const { score, skipped } = evaluateCandidate(graph, candidate, evaluatedIds);
+    if (skipped) continue;
     evaluations += 1;
     const ranked = { candidate, score };
     seen.push(ranked);
@@ -543,6 +569,7 @@ function runGuidedSearch(
   widths: number[],
   expansionIters: number[],
   seedBest: RankedCandidate,
+  evaluatedIds: Set<string>,
   rng: () => number,
   maxRounds: number,
   restartInterval: number,
@@ -575,32 +602,36 @@ function runGuidedSearch(
       trial = applyMutation(current, mutation, widths, expansionIters);
     }
 
-    const { score } = evaluateCandidate(graph, trial);
-    evaluations += 1;
-    seen.push({ candidate: trial, score });
-
-    const prevBest = best;
-    best = tryImproveBest(best, trial, score);
-
-    if (
-      compareCandidates(
-        { score: best.score, candidate: best.candidate },
-        { score: prevBest.score, candidate: prevBest.candidate },
-      ) < 0
-    ) {
-      roundsWithoutImprovement = 0;
-      current = best.candidate;
-    } else {
+    const { score, skipped } = evaluateCandidate(graph, trial, evaluatedIds);
+    if (skipped) {
       roundsWithoutImprovement += 1;
-      current = best.candidate;
-    }
+    } else {
+      evaluations += 1;
+      seen.push({ candidate: trial, score });
 
-    emitProgress(config, {
-      round,
-      evaluations,
-      bestScore: best.score,
-      feasible: scoreFeasible(best.score),
-    });
+      const prevBest = best;
+      best = tryImproveBest(best, trial, score);
+
+      if (
+        compareCandidates(
+          { score: best.score, candidate: best.candidate },
+          { score: prevBest.score, candidate: prevBest.candidate },
+        ) < 0
+      ) {
+        roundsWithoutImprovement = 0;
+        current = best.candidate;
+      } else {
+        roundsWithoutImprovement += 1;
+        current = best.candidate;
+      }
+
+      emitProgress(config, {
+        round,
+        evaluations,
+        bestScore: best.score,
+        feasible: scoreFeasible(best.score),
+      });
+    }
 
     const bestFeasible = scoreFeasible(best.score);
     if (
@@ -621,6 +652,7 @@ async function runGuidedSearchAsync(
   widths: number[],
   expansionIters: number[],
   seedBest: RankedCandidate,
+  evaluatedIds: Set<string>,
   rng: () => number,
   maxRounds: number,
   restartInterval: number,
@@ -653,32 +685,36 @@ async function runGuidedSearchAsync(
       trial = applyMutation(current, mutation, widths, expansionIters);
     }
 
-    const { score } = evaluateCandidate(graph, trial);
-    evaluations += 1;
-    seen.push({ candidate: trial, score });
-
-    const prevBest = best;
-    best = tryImproveBest(best, trial, score);
-
-    if (
-      compareCandidates(
-        { score: best.score, candidate: best.candidate },
-        { score: prevBest.score, candidate: prevBest.candidate },
-      ) < 0
-    ) {
-      roundsWithoutImprovement = 0;
-      current = best.candidate;
-    } else {
+    const { score, skipped } = evaluateCandidate(graph, trial, evaluatedIds);
+    if (skipped) {
       roundsWithoutImprovement += 1;
-      current = best.candidate;
-    }
+    } else {
+      evaluations += 1;
+      seen.push({ candidate: trial, score });
 
-    emitProgress(config, {
-      round,
-      evaluations,
-      bestScore: best.score,
-      feasible: scoreFeasible(best.score),
-    });
+      const prevBest = best;
+      best = tryImproveBest(best, trial, score);
+
+      if (
+        compareCandidates(
+          { score: best.score, candidate: best.candidate },
+          { score: prevBest.score, candidate: prevBest.candidate },
+        ) < 0
+      ) {
+        roundsWithoutImprovement = 0;
+        current = best.candidate;
+      } else {
+        roundsWithoutImprovement += 1;
+        current = best.candidate;
+      }
+
+      emitProgress(config, {
+        round,
+        evaluations,
+        bestScore: best.score,
+        feasible: scoreFeasible(best.score),
+      });
+    }
 
     const bestFeasible = scoreFeasible(best.score);
     if (
@@ -689,9 +725,11 @@ async function runGuidedSearchAsync(
       break;
     }
 
-    await new Promise<void>((resolve) => {
-      setTimeout(resolve, 0);
-    });
+    if (round % ASYNC_YIELD_EVERY_ROUNDS === 0) {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
+    }
   }
 
   return { best, evaluations, seen };
@@ -718,7 +756,8 @@ function runLayoutSearchCore(
   const expansionIters = expansionIterations();
 
   const baseline = normalizeCandidate(heuristicBaselineCandidate(graph));
-  const seedEval = evaluateCandidate(graph, baseline);
+  const evaluatedIds = new Set<string>();
+  const seedEval = evaluateCandidate(graph, baseline, evaluatedIds);
   let best: RankedCandidate = {
     candidate: baseline,
     score: seedEval.score,
@@ -758,6 +797,7 @@ function runLayoutSearchCore(
       widths,
       expansionItersForBrute(cableKeys.length),
       best,
+      evaluatedIds,
       startMs,
       config.timeBudgetMs,
       config,
@@ -774,6 +814,7 @@ function runLayoutSearchCore(
     widths,
     expansionIters,
     best,
+    evaluatedIds,
     rng,
     maxRounds,
     restartInterval,

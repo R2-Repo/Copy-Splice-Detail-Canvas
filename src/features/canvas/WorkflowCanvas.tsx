@@ -157,6 +157,7 @@ import { LayoutSearchOverlay } from "@/features/layoutSearch/LayoutSearchOverlay
 import { legacyImportLayoutEnabled, showLayoutModeToggle } from "@/features/layoutSearch/legacyImportLayout";
 import {
   layoutSearchAsync,
+  IMPORT_LAYOUT_SEARCH_CONFIG,
   seedFromReportKey,
   type LayoutSearchProgress,
 } from "@/features/layoutSearch/layoutSearch";
@@ -1107,6 +1108,7 @@ function WorkflowCanvasInner() {
         });
 
         const searchResult = await layoutSearchAsync(graph, {
+          ...IMPORT_LAYOUT_SEARCH_CONFIG,
           seed: seedFromReportKey(reportKey),
           onProgress: (progress) => {
             if (layoutSearchRunRef.current !== runId) return;

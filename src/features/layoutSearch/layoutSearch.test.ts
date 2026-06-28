@@ -20,6 +20,7 @@ import {
 import {
   cableKeysFromGraph,
   enumerateCandidates,
+  IMPORT_LAYOUT_SEARCH_CONFIG,
   layoutSearch,
   seedFromReportKey,
 } from "./layoutSearch";
@@ -301,5 +302,12 @@ describe("layoutSearch Phase 3", () => {
     });
     expect(nodes.some((n) => n.type === "cable")).toBe(true);
     expect(edges.length).toBeGreaterThan(0);
+  });
+
+  it("IMPORT_LAYOUT_SEARCH_CONFIG uses guided search for 4+ cables", () => {
+    expect(IMPORT_LAYOUT_SEARCH_CONFIG.bruteForceMaxCables).toBe(3);
+    expect(IMPORT_LAYOUT_SEARCH_CONFIG.plateauRounds).toBe(64);
+    expect(IMPORT_LAYOUT_SEARCH_CONFIG.timeBudgetMs).toBe(45_000);
+    expect(cableKeysFromGraph(syntheticThreeCableGraph()).length).toBe(3);
   });
 });

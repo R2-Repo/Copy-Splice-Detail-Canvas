@@ -4,16 +4,15 @@
 
 ## Last updated
 
-2026-06-28 — **Fix center fiber strands missing on CSV import**
+2026-06-28 — **Speed up import layout search**
 
 ### Done
 
 | Area | Change |
 |------|--------|
-| Root cause | React Flow skipped splice leg edges until `fiberAnchor` / `splicePoint` handle bounds existed; import only remeasured cable nodes |
-| Engine nodes | `buildNodesEngineGraph.ts` — static `width`/`height`/`handles` on anchor + splice-point nodes via `spliceEngineNodeHandles.ts` |
-| Remeasure | `updateSpliceRoutingNodeInternals.ts`; `WorkflowCanvas` + anchor node components call `updateNodeInternals` after layout |
-| Tests | `spliceEngineNodeHandles.test.ts` |
+| Import config | `IMPORT_LAYOUT_SEARCH_CONFIG` — `bruteForceMaxCables: 3`, `plateauRounds: 64`, `timeBudgetMs: 45_000` wired in `WorkflowCanvas` |
+| Search eval | `stopOnFail` during search; dedupe by candidate id; async yield every 8 rounds |
+| Why | example-2 (4 cables) was brute-forcing 2,520 full evals (~60–70 s); guided path hits same score in ~20 s |
 
 ### Test status
 
@@ -23,14 +22,14 @@
 
 ### Manual QA
 
-1. `npm run dev` → import **example-2** (or `?fixture=example-2`)
-2. After layout search finishes (~1 min): **6 center splice rows** visible (colored legs + fusion dots between cables)
-3. Optional: **Left-SP-3254.5** — same check on a reference CSV
+1. `npm run dev` → `?fixture=example-2`
+2. Layout search should finish in **~20–35 s** (was ~60–70 s)
+3. Confirm **6 center splice rows** (colored legs + fusion dots) after search
 
 ### Next
 
-1. Phase 6 side-drag QA if not already signed off
-2. Remove `USE_LEGACY_IMPORT_LAYOUT=1` fallback after full `test:rules` green
+1. SPI-scale CSV timing with 45 s cap — confirm best-so-far quality
+2. Optional Web Worker for UI responsiveness during search
 
 ### Frozen
 
