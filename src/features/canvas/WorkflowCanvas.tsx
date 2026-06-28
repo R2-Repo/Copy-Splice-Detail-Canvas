@@ -156,7 +156,12 @@ import {
 import { LayoutSearchOverlay } from "@/features/layoutSearch/LayoutSearchOverlay";
 import { legacyImportLayoutEnabled, showLayoutModeToggle } from "@/features/layoutSearch/legacyImportLayout";
 import {
-  layoutSearchAsync,
+  initialSearchProgress,
+  layoutSearchViaWorker,
+} from "@/features/layoutSearch/layoutSearchClient";
+import {
+  cableKeysFromGraph,
+  DEFAULT_MAX_ROUNDS,
   seedFromReportKey,
   type LayoutSearchProgress,
 } from "@/features/layoutSearch/layoutSearch";
@@ -351,13 +356,14 @@ function boundsForOutwardDrag(
 }
 
 function WorkflowCanvasInner() {
-  const { getNodesBounds, setViewport, getNodes, getEdges, getViewport } =
+  const { getNodesBounds, setViewport, getNodes, getEdges, getViewport, fitView } =
     useReactFlow();
   const nodesInitialized = useNodesInitialized();
   const updateNodeInternals = useUpdateNodeInternals();
   const fitViewRequestRef = useRef(0);
   const fitViewHandledRef = useRef(0);
   const fitViewUnitZoomRef = useRef(false);
+  const [fitViewTick, setFitViewTick] = useState(0);
   /** Set when the user drags a cable column outward beyond the viewport fill. */
   const userExpandedLayoutRef = useRef(false);
   const [nodes, setNodes, onNodesChange] = useNodesState(emptyNodes);
@@ -706,7 +712,16 @@ function WorkflowCanvasInner() {
         );
 
     void setViewport(viewport, { duration: 0 });
-  }, [nodesInitialized, nodes, getNodesBounds, setViewport]);
+  }, [nodesInitialized, nodes, setViewport, fitViewTick]);
+
+  /** Refit viewport after async layout swap once React Flow has measured new nodes. */
+  const scheduleFitViewAfterLayout = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        void fitView({ padding: 0.08, duration: 0, maxZoom: 1 });
+      });
+    });
+  }, [fitView]);
 
   type ApplyGraphOptions = {
     fitView?: boolean;
@@ -928,6 +943,7 @@ function WorkflowCanvasInner() {
       if (options?.fitView) {
         fitViewUnitZoomRef.current = options.fitAtUnitZoom === true;
         fitViewRequestRef.current += 1;
+        setFitViewTick((tick) => tick + 1);
       }
       requestAnimationFrame(() => {
         updateSpliceRoutingNodeInternals(merged, updateNodeInternals);
@@ -1096,25 +1112,88 @@ function WorkflowCanvasInner() {
       const runOptimizedImport = async (layoutWidth: number) => {
         const runId = ++layoutSearchRunRef.current;
         layoutSearchCancelRef.current = false;
-        setLayoutSearchProgress({
-          round: 0,
-          evaluations: 0,
-          bestScore: Number.MAX_SAFE_INTEGER,
-          feasible: false,
-        });
 
-        const searchResult = await layoutSearchAsync(graph, {
-          seed: seedFromReportKey(reportKey),
-          onProgress: (progress) => {
-            if (layoutSearchRunRef.current !== runId) return;
-            setLayoutSearchProgress(progress);
-          },
-          shouldCancel: () => layoutSearchCancelRef.current,
-        });
+        const strandCount = graph.connections.length;
+        const cableCount = cableKeysFromGraph(graph).length;
+        const searchMeta = {
+          strandCount,
+          cableCount,
+          evaluationBudget: DEFAULT_MAX_ROUNDS,
+        };
+
+        setLayoutSearchProgress(
+          initialSearchProgress(
+            {
+              phase: "heuristic_paint",
+              ...searchMeta,
+            },
+            { message: `Routing ${strandCount.toLocaleString()} fibers…` },
+          ),
+        );
+
+        const heuristic = heuristicBaselineCandidate(graph, layoutWidth);
+        saveLayoutOverrides(
+          mergeLayoutOverrides(reportKey, {
+            ...candidateOverridePatch(graph, heuristic, reportKey),
+            collapseFullButtSplices: collapsed,
+            autoAdjustEnabled: saved?.autoAdjustEnabled !== false,
+          }),
+        );
+        layoutModeRef.current = deriveLayoutMode(heuristic);
+        setLayoutModeState(deriveLayoutMode(heuristic));
+        finishImport(layoutWidth, true);
+
+        setLayoutSearchProgress(
+          initialSearchProgress(
+            {
+              phase: "optimizing",
+              ...searchMeta,
+            },
+            { message: `Routing ${strandCount.toLocaleString()} fibers…` },
+          ),
+        );
+
+        let searchResult;
+        try {
+          searchResult = await layoutSearchViaWorker(
+            graph,
+            {
+              seed: seedFromReportKey(reportKey),
+              onProgress: (progress) => {
+                if (layoutSearchRunRef.current !== runId) return;
+                setLayoutSearchProgress(progress);
+              },
+              shouldCancel: () => layoutSearchCancelRef.current,
+            },
+            searchMeta,
+          );
+        } catch (err) {
+          if (layoutSearchRunRef.current !== runId) return;
+          setLayoutSearchProgress(null);
+          setConfigErrorBanner(
+            `Layout search failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          return;
+        }
 
         if (layoutSearchRunRef.current !== runId) return;
 
-        setLayoutSearchProgress(null);
+        setLayoutSearchProgress(
+          initialSearchProgress(
+            {
+              phase: "finalizing",
+              ...searchMeta,
+            },
+            {
+              round: searchResult.evaluations,
+              evaluations: searchResult.evaluations,
+              bestScore: searchResult.bestScore,
+              feasible: searchResult.bestScore < Number.MAX_SAFE_INTEGER,
+              elapsedMs: 0,
+              message: "Applying best layout…",
+            },
+          ),
+        );
 
         let candidate = searchResult.best;
         const evaluation = evaluateLayoutCandidate(graph, candidate);
@@ -1148,7 +1227,19 @@ function WorkflowCanvasInner() {
         );
         layoutModeRef.current = deriveLayoutMode(renderCandidate);
         setLayoutModeState(deriveLayoutMode(renderCandidate));
-        finishImport(renderWidth, true);
+        applyGraph(graph, reportKey, collapsed, {
+          fitView: false,
+          fitAtUnitZoom: false,
+          layoutWidth: renderWidth,
+          refreshLayout: true,
+          refreshColumnX: true,
+          refreshRowLayout: true,
+        });
+        setMeta(
+          `${options.sourceLabel} — ${graph.report.pairs.length} pair(s), ${graph.connections.length} connection(s)`,
+        );
+        scheduleFitViewAfterLayout();
+        setLayoutSearchProgress(null);
       };
 
       const importWhenStageReady = (attempt = 0) => {
@@ -1204,7 +1295,7 @@ function WorkflowCanvasInner() {
       };
       importWhenStageReady();
     },
-    [applyGraph, setViewport],
+    [applyGraph, scheduleFitViewAfterLayout, setViewport],
   );
 
   const loadFromCsv = useCallback(

@@ -1,6 +1,6 @@
 # Import performance + progress UX — build plan
 
-> **Status (2026-06-28):** Approved direction. Builds on routing-first search (Phases 1–6 in [`ROUTING_FIRST_LAYOUT.md`](./ROUTING_FIRST_LAYOUT.md)).
+> **Status (2026-06-28):** P0 **shipped** (worker + overlay + heuristic paint). P1–P4 pending. Builds on routing-first search (Phases 1–6 in [`ROUTING_FIRST_LAYOUT.md`](./ROUTING_FIRST_LAYOUT.md)).
 >
 > **Problem:** Optimized import runs ~2000 full candidate evaluations on the **main thread**. Large CSVs take minutes; the browser shows “page unresponsive” dialogs; the overlay only updates between rounds so it feels frozen.
 >
@@ -71,7 +71,7 @@ Locked constraints **narrow mutations**, not final accuracy — winning candidat
 
 ## Phased delivery
 
-### Phase P0 — Progress UX + main-thread relief (ship first)
+### Phase P0 — Progress UX + main-thread relief ✅ shipped 2026-06-28
 
 **Why first:** Fixes “frozen browser” even before search gets faster. Highest user impact per day.
 
