@@ -49,12 +49,21 @@ export type SdcRuleContext = {
   layoutWidth?: number;
 };
 
+/** When a rule may run during staged import evaluation. */
+export type RuleRunMode =
+  | "import-data"
+  | "candidate-screen"
+  | "proxy-route"
+  | "final-layout";
+
 export type SdcRule = {
   id: SdcRuleId;
   title: string;
   dependencies?: SdcRuleId[];
   /** Rules that must pass before this rule is meaningful. */
   requires?: Array<"graph" | "visualCables" | "grid" | "reactFlow">;
+  /** Staged tiers; default `["final-layout"]` — full rule pass only. */
+  tiers?: RuleRunMode[];
   check: (ctx: SdcRuleContext) => RuleResult[];
 };
 

@@ -142,6 +142,7 @@ export function evaluateLayoutCandidate(
       gridResult.grid,
       visualCables,
       width,
+      appliedGraph,
     );
 
     return {

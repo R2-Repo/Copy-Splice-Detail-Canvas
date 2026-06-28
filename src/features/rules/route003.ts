@@ -56,6 +56,7 @@ export const sdcRoute003: SdcRule = {
   title: "Fiber strand overlap, crossing, and collision",
   dependencies: ["SDC-GRID-001"],
   requires: ["reactFlow"],
+  tiers: ["proxy-route", "final-layout"],
   check(ctx) {
     if (!ctx.reactFlow) {
       return [warn("SDC-ROUTE-003", "No React Flow graph — collision checks skipped")];

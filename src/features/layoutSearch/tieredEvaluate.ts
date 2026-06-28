@@ -1,5 +1,4 @@
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
-import { stackOrderCrossingCount } from "@/features/diagram/canvasPlacement";
 import { connectionRowIndexMap } from "@/features/diagram/connectionRowOrder";
 import { runWithLayoutExpansion } from "@/features/diagram/layoutExpansion";
 import type { SpliceRoutingLane } from "@/features/diagram/centerRouter";
@@ -9,7 +8,7 @@ import {
 } from "@/features/diagram/visualCables";
 import { routeAllOnGrid } from "@/features/grid/gridRouter";
 import type { GridMap, GridRoute } from "@/features/grid/gridTypes";
-import { runRules } from "@/features/rules/runRules";
+import { runRulesForTier } from "@/features/rules/runRules";
 import type { RuleResult, SdcRuleContext } from "@/features/rules/types";
 import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
 import { cableNameKey } from "@/features/import/cableLegIdentity";
@@ -29,7 +28,7 @@ import {
 } from "./evaluateCandidate";
 import { INFEASIBLE_LAYOUT_SCORE } from "./layoutSearch";
 import {
-  DEFAULT_SOFT_SCORE_WEIGHTS,
+  scoreCandidateScreen,
   scoreLayoutEvaluation,
   type LayoutScoreResult,
 } from "./layoutScorer";
@@ -48,6 +47,16 @@ export type TieredEvalResult = LayoutScoreResult & {
   grid?: GridMap;
   fullResult?: LayoutEvaluationResult;
 };
+
+const proxyRouteMemo = new Map<string, TieredEvalResult>();
+
+export function proxyRouteKey(
+  candidate: LayoutCandidate,
+  proxyIds: Set<string>,
+): string {
+  const proxyList = [...proxyIds].sort().join(",");
+  return `${candidate.id ?? "candidate"}|${proxyList}`;
+}
 
 function lanesByConnectionId(
   lanes: Map<string, SpliceRoutingLane>,
@@ -75,33 +84,10 @@ function diagramHeightFromNodes(
   return Math.max(fallback, maxY + 80);
 }
 
-function visualCableOrder(
-  candidate: LayoutCandidate,
-  visualCables: VisualCable[],
-  side: "left" | "right",
-): VisualCable[] {
-  const stack = candidate.stackOrder[side];
-  const byCable = new Map<string, VisualCable>();
-  for (const vc of visualCables) {
-    if (vc.side !== side) continue;
-    const key = cableNameKey(vc.cable);
-    if (!byCable.has(key)) byCable.set(key, vc);
-  }
-  const ordered: VisualCable[] = [];
-  for (const cable of stack) {
-    const vc = byCable.get(cable);
-    if (vc) ordered.push(vc);
-  }
-  for (const vc of visualCables) {
-    if (vc.side !== side) continue;
-    if (!ordered.some((o) => o.id === vc.id)) ordered.push(vc);
-  }
-  return ordered;
-}
-
 export function proxyConnectionIds(
   graph: ConnectionGraph,
   constraints: TopologyConstraints,
+  candidate?: LayoutCandidate,
 ): Set<string> {
   const ids = new Set<string>();
   for (const group of constraints.proxyBundleGroups) {
@@ -119,6 +105,19 @@ export function proxyConnectionIds(
     ids.add(conn.id);
   }
 
+  if (candidate) {
+    for (const conn of graph.connections) {
+      if (conn.kind !== "fiber") continue;
+      const epA = cableNameKey(conn.pair.endpointA.cable);
+      const epB = cableNameKey(conn.pair.endpointB.cable);
+      const sideA = candidate.cableSides[epA];
+      const sideB = candidate.cableSides[epB];
+      if (sideA && sideB && sideA === sideB) {
+        ids.add(conn.id);
+      }
+    }
+  }
+
   if (ids.size === 0) {
     const first = graph.connections.find((c) => c.kind === "fiber");
     if (first) ids.add(first.id);
@@ -126,84 +125,23 @@ export function proxyConnectionIds(
   return ids;
 }
 
-/** T0 — placement validity + cheap stack-crossing estimate (no grid). */
-export function evaluateT0(
-  graph: ConnectionGraph,
-  candidate: LayoutCandidate,
-  constraints: TopologyConstraints,
-  visualCables: VisualCable[],
-  rowIndex: Map<string, number>,
-): TieredEvalResult {
-  if (
-    candidateViolatesLocks(candidate, constraints) ||
-    candidateViolatesForbiddenPairs(candidate, constraints)
-  ) {
-    return {
-      feasible: false,
-      score: INFEASIBLE_LAYOUT_SCORE,
-      softScore: {
-        crossings: 0,
-        bendsOverBudget: 0,
-        sameSideLoopbacks: 0,
-        sidesUsed: 0,
-        centerWidth: 0,
-        heightImbalance: 0,
-        pathLength: 0,
-        total: INFEASIBLE_LAYOUT_SCORE,
-      },
-      tieBreak: { sidesUsed: 0, candidateId: candidate.id ?? "" },
-      tier: "T0",
-      violations: [],
-    };
-  }
-
-  const leftOrder = visualCableOrder(candidate, visualCables, "left");
-  const rightOrder = visualCableOrder(candidate, visualCables, "right");
-  const crossings = stackOrderCrossingCount(
-    leftOrder,
-    rightOrder,
-    graph,
-    rowIndex,
-    visualCables,
-  );
-  const score =
-    crossings * DEFAULT_SOFT_SCORE_WEIGHTS.crossings +
-    (candidate.stackOrder.top.length > 0 ||
-    candidate.stackOrder.bottom.length > 0
-      ? DEFAULT_SOFT_SCORE_WEIGHTS.sidesUsed
-      : 0);
-
-  return {
-    feasible: true,
-    score,
-    softScore: {
-      crossings,
-      bendsOverBudget: 0,
-      sameSideLoopbacks: 0,
-      sidesUsed: 0,
-      centerWidth: 0,
-      heightImbalance: 0,
-      pathLength: 0,
-      total: score,
-    },
-    tieBreak: { sidesUsed: 0, candidateId: candidate.id ?? "" },
-    tier: "T0",
-    violations: [],
-  };
-}
-
-function buildEvalContext(
-  graph: ConnectionGraph,
-  candidate: LayoutCandidate,
-  proxyIds: Set<string>,
-): {
+export type ProxyEvalContext = {
   appliedGraph: ConnectionGraph;
   graphResult: ReturnType<typeof buildReactFlowGraph>;
   visualCables: VisualCable[];
   width: number;
   layoutMode: ReturnType<typeof deriveLayoutMode>;
   overrides: LayoutOverrides;
-} {
+  proxyIds: Set<string>;
+};
+
+/** Lightweight T1 context — representative splice edges only. */
+export function buildProxyEvalContext(
+  graph: ConnectionGraph,
+  candidate: LayoutCandidate,
+  constraints: TopologyConstraints,
+): ProxyEvalContext {
+  const proxyIds = proxyConnectionIds(graph, constraints, candidate);
   const appliedGraph = cloneGraphForCandidate(graph, candidate);
   const { visualCables: seedVisualCables } =
     buildVisualCablesForLayout(appliedGraph);
@@ -262,6 +200,68 @@ function buildEvalContext(
     width,
     layoutMode,
     overrides,
+    proxyIds,
+  };
+}
+
+/** T0 — four-side candidate screen (no grid). */
+export function evaluateT0(
+  graph: ConnectionGraph,
+  candidate: LayoutCandidate,
+  constraints: TopologyConstraints,
+  visualCables: VisualCable[],
+  rowIndex: Map<string, number>,
+): TieredEvalResult {
+  if (
+    candidateViolatesLocks(candidate, constraints) ||
+    candidateViolatesForbiddenPairs(candidate, constraints)
+  ) {
+    return {
+      feasible: false,
+      score: INFEASIBLE_LAYOUT_SCORE,
+      softScore: {
+        crossings: 0,
+        bendsOverBudget: 0,
+        sameSideLoopbacks: 0,
+        sidesUsed: 0,
+        centerWidth: 0,
+        heightImbalance: 0,
+        pathLength: 0,
+        total: INFEASIBLE_LAYOUT_SCORE,
+      },
+      tieBreak: { sidesUsed: 0, candidateId: candidate.id ?? "" },
+      tier: "T0",
+      violations: [],
+    };
+  }
+
+  const screen = scoreCandidateScreen(
+    candidate,
+    graph,
+    visualCables,
+    rowIndex,
+  );
+
+  const graphCtx: SdcRuleContext = {
+    report: graph.report,
+    graph,
+    visualCables,
+  };
+  const violations = runRulesForTier(graphCtx, "candidate-screen", {
+    stopOnFail: true,
+  });
+  const hasFail = violations.some((r) => !r.ok && r.severity === "fail");
+
+  return {
+    feasible: !hasFail,
+    score: hasFail ? INFEASIBLE_LAYOUT_SCORE : screen.total,
+    softScore: screen,
+    tieBreak: {
+      sidesUsed: screen.sidesUsed,
+      candidateId: candidate.id ?? "",
+    },
+    tier: "T0",
+    violations,
   };
 }
 
@@ -271,9 +271,15 @@ export function evaluateT1(
   candidate: LayoutCandidate,
   constraints: TopologyConstraints,
 ): TieredEvalResult {
-  return runWithLayoutExpansion(candidate.layoutExpansion, () => {
-    const proxyIds = proxyConnectionIds(graph, constraints);
-    const ctx = buildEvalContext(graph, candidate, proxyIds);
+  const memoKey = proxyRouteKey(
+    candidate,
+    proxyConnectionIds(graph, constraints, candidate),
+  );
+  const cached = proxyRouteMemo.get(memoKey);
+  if (cached) return cached;
+
+  const result = runWithLayoutExpansion(candidate.layoutExpansion, () => {
+    const ctx = buildProxyEvalContext(graph, candidate, constraints);
     const layoutHeight = diagramHeightFromNodes(ctx.graphResult.nodes);
 
     const gridResult = routeAllOnGrid({
@@ -301,7 +307,7 @@ export function evaluateT1(
       layoutWidth: ctx.width,
     };
 
-    const violations = runRules(ruleCtx);
+    const violations = runRulesForTier(ruleCtx, "proxy-route");
     const scored = scoreLayoutEvaluation(
       violations,
       candidate,
@@ -309,16 +315,20 @@ export function evaluateT1(
       gridResult.grid,
       ctx.visualCables,
       ctx.width,
+      ctx.appliedGraph,
     );
 
     return {
       ...scored,
-      tier: "T1",
+      tier: "T1" as const,
       violations,
       routes: gridResult.routes,
       grid: gridResult.grid,
     };
   });
+
+  proxyRouteMemo.set(memoKey, result);
+  return result;
 }
 
 /** T2 — full per-strand route + rules (current evaluate path). */
@@ -335,11 +345,11 @@ export type TieredEvalOptions = {
   bestScore: number;
   /** When false, always run T2 (baseline comparisons). */
   tieredEvalEnabled?: boolean;
-  /** Promote to T2 when proxy score within this factor of best. */
-  t2PromoteFactor?: number;
+  /** Stop evaluation at this tier (beam pipeline). */
+  maxTier?: EvalTier;
+  /** Skip tier gating and run full T2. */
+  forceT2?: boolean;
 };
-
-const DEFAULT_T2_PROMOTE_FACTOR = 1.25;
 
 export function evaluateCandidateTiered(
   graph: ConnectionGraph,
@@ -351,7 +361,7 @@ export function evaluateCandidateTiered(
     dominant: ReturnType<typeof buildVisualCablesForLayout>["dominant"];
   },
 ): TieredEvalResult {
-  if (options.tieredEvalEnabled === false) {
+  if (options.tieredEvalEnabled === false || options.forceT2) {
     return evaluateT2(graph, candidate);
   }
 
@@ -367,7 +377,7 @@ export function evaluateCandidateTiered(
     connectionRowIndexMap(graph, visualCables, built.dominant);
 
   const t0 = evaluateT0(graph, candidate, options.constraints, visualCables, rowIndex);
-  if (!t0.feasible) return t0;
+  if (!t0.feasible || options.maxTier === "T0") return t0;
 
   const t0Margin =
     options.bestScore < INFEASIBLE_LAYOUT_SCORE
@@ -376,20 +386,21 @@ export function evaluateCandidateTiered(
   if (t0.score > t0Margin) return t0;
 
   const totalFibers = graph.connections.filter((c) => c.kind === "fiber").length;
-  const proxyCount = proxyConnectionIds(graph, options.constraints).size;
+  const proxyCount = proxyConnectionIds(graph, options.constraints, candidate).size;
   const useProxyRoute = proxyCount < totalFibers * 0.75;
 
   const t1 = useProxyRoute
     ? evaluateT1(graph, candidate, options.constraints)
     : { ...t0, tier: "T1" as const };
-  if (!t1.feasible) return t1;
+  if (!t1.feasible || options.maxTier === "T1") return t1;
 
-  const promoteFactor = options.t2PromoteFactor ?? DEFAULT_T2_PROMOTE_FACTOR;
-  const competitive =
-    options.bestScore >= INFEASIBLE_LAYOUT_SCORE ||
-    t1.score <= options.bestScore * promoteFactor;
+  if (options.maxTier === "T2") {
+    return evaluateT2(graph, candidate);
+  }
 
-  if (!competitive) return t1;
+  return t1;
+}
 
-  return evaluateT2(graph, candidate);
+export function clearProxyRouteMemo(): void {
+  proxyRouteMemo.clear();
 }

@@ -12,6 +12,7 @@ export const sdcOrder002: SdcRule = {
   title: "Fiber strand color order",
   dependencies: ["SDC-DATA-001"],
   requires: ["visualCables"],
+  tiers: ["import-data", "candidate-screen", "proxy-route", "final-layout"],
   check(ctx) {
     if (!ctx.visualCables?.length) {
       return [fail("SDC-ORDER-002", "No visual cables to validate")];

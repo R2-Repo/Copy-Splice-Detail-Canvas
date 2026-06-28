@@ -26,6 +26,7 @@ export const sdcScore001: SdcRule = {
       ctx.gridRoutes,
       ctx.grid,
       ctx.visualCables,
+      ctx.graph,
       centerX,
       DEFAULT_SOFT_SCORE_WEIGHTS,
     );

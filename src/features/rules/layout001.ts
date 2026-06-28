@@ -11,6 +11,7 @@ export const sdcLayout001: SdcRule = {
   title: "Spacing",
   dependencies: ["SDC-LAYOUT-002"],
   requires: ["visualCables", "reactFlow"],
+  tiers: ["candidate-screen", "proxy-route", "final-layout"],
   check(ctx) {
     if (!ctx.reactFlow) {
       return [warn("SDC-LAYOUT-001", "No React Flow graph — spacing checks skipped")];

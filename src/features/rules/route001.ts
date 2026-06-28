@@ -9,6 +9,7 @@ export const sdcRoute001: SdcRule = {
   title: "Fiber strand routing zone",
   dependencies: ["SDC-LAYOUT-002"],
   requires: ["grid"],
+  tiers: ["proxy-route", "final-layout"],
   check(ctx) {
     if (!ctx.grid) {
       return [warn("SDC-ROUTE-001", "No grid — routing zone validation skipped")];

@@ -4,35 +4,32 @@
 
 ## Focus (2026-06-28)
 
-**Next build:** [`IMPORT_OPTIMIZER_BUILD.md`](./IMPORT_OPTIMIZER_BUILD.md) — four-side scoring, beam search, finalist fallback, proxy T1 optimization (single-agent one-pass).
+**Import optimizer shipped** — beam search (default), four-side scoring, routing intent + seed generation, finalist fallback, proxy T1, tiered `runRulesForTier`. See [`IMPORT_OPTIMIZER_BUILD.md`](./IMPORT_OPTIMIZER_BUILD.md).
 
-**Import perf P0–P3 shipped** — worker + topology locks + tiered eval + memo/budgets/skip-duplicate-T2. See [`IMPORT_PERF_PLAN.md`](./IMPORT_PERF_PLAN.md), [`IMPORT_FINISH_PLAN.md`](./IMPORT_FINISH_PLAN.md).
-
-**SPI-215 (KI-003):** import completes via heuristic fallback when search times out (~4 min); full optimizer still slow on 68-pair fixture.
+**SPI-215 (KI-003):** import completes via heuristic fallback when search times out; beam + caps improve smaller fixtures.
 
 ## Active build track
 
-- **Import perf P3** — score memo, `importTimeBudgetMs`, adaptive `maxRounds`, `winnerEvaluation`, worker deadline + graceful timeout
-- **Import perf P1+P2** — topology + tiered eval
-- **Import perf P0** — worker + overlay + heuristic-first paint
+- **Import optimizer** — Phases 1–6 complete on `cursor/import-optimizer-impl-20e4`
+- Import perf P0–P3 — worker, tiered eval, memo/budgets (baseline)
 - Routing-first auto layout — Phase 6 gated
-- Legacy `USE_LEGACY_IMPORT_LAYOUT=1` fallback still present
+- Legacy `VITE_USE_LEGACY_IMPORT_LAYOUT=1` + `legacy-guided` search mode still available
+
+## Search modes
+
+| Env | Behavior |
+|-----|----------|
+| default / `VITE_LAYOUT_SEARCH_MODE=beam` | Structured beam → T0/T1/T2 finalists |
+| `VITE_LAYOUT_SEARCH_MODE=legacy-guided` | Hill-climb restarts (pre-optimizer) |
+| `VITE_FORCE_LAYOUT_SIDES=Cable:top,...` | Debug seed injection |
+| `VITE_DEBUG_LAYOUT_SEARCH=1` | `console.table(finalistSummaries)` |
 
 ## Testing policy
 
 - **Default:** `npm run smoke`
-- **Manual QA:** all 3 Left CSVs — `?fixture=sp`, `state`, `spi`
-- KI-003 (Left-SPI-215) — timeout fallback documented; full feasibility opt-in only
-
-## Perf baseline (P3, worker path / main-thread probe)
-
-| CSV | evals | wall | feasible |
-|-----|-------|------|----------|
-| example-2 | ~42 | ~1.6s | yes |
-| Left-SP-3254.5 | ~55 | ~5s | yes |
-| Left-STATE_OFFICE | ~3 | ~2 min | yes (browser) |
-| Left-SPI-215_I-80 | — | ~4 min | timeout → heuristic |
+- **Manual QA:** example-2 + `?fixture=sp`, `state`, `spi`
+- KI-003 full feasibility — opt-in only (`test:rules`)
 
 ## Branch
 
-- `cursor/import-perf-p3-finish-5032`
+- `cursor/import-optimizer-impl-20e4`

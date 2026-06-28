@@ -9,6 +9,7 @@ export const sdcGrid001: SdcRule = {
   title: "Canvas grid system",
   dependencies: ["SDC-ROUTE-001"],
   requires: ["grid"],
+  tiers: ["proxy-route", "final-layout"],
   check(ctx) {
     if (!ctx.grid) {
       return [warn("SDC-GRID-001", "No grid map — grid validation skipped")];

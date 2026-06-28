@@ -10,6 +10,7 @@ export const sdcData001: SdcRule = {
   title: "Fiber optic cable hierarchy",
   dependencies: ["SDC-CORE-001"],
   requires: ["graph"],
+  tiers: ["import-data", "candidate-screen", "proxy-route", "final-layout"],
   check(ctx) {
     const issues: string[] = [];
     const legIds = new Set(ctx.graph.legs.map((l) => l.id));

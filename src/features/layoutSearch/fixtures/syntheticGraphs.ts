@@ -102,3 +102,20 @@ export function syntheticTwo144Graph(fibersPerTube = 6): ConnectionGraph {
     ]),
   });
 }
+
+/** Two-cable same-side-heavy splice — top/bottom relief should beat L/L placement. */
+export function syntheticTopBottomReliefGraph(): ConnectionGraph {
+  const pairs: SplicePair[] = [];
+  let id = 0;
+  for (let i = 1; i <= 12; i++) {
+    pairs.push(pair(`loop-${id++}`, "CABLE-A", i, "CABLE-B", i));
+  }
+  return buildConnectionGraph({
+    header: { spliceNumber: "SYN-TB-RELIEF" },
+    pairs,
+    cableAppearances: appearances([
+      { cable: "CABLE-A", leftFrom: 12, rightTo: 0 },
+      { cable: "CABLE-B", leftFrom: 12, rightTo: 0 },
+    ]),
+  });
+}

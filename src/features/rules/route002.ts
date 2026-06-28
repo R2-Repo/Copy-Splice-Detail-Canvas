@@ -15,6 +15,7 @@ export const sdcRoute002: SdcRule = {
   title: "Fiber strand nesting",
   dependencies: ["SDC-ROUTE-001"],
   requires: ["reactFlow"],
+  tiers: ["proxy-route", "final-layout"],
   check(ctx) {
     if (!ctx.reactFlow) {
       return [warn("SDC-ROUTE-002", "No React Flow graph — nesting checks skipped")];

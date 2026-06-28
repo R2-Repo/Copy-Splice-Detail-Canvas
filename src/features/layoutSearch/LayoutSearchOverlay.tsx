@@ -105,6 +105,16 @@ export function LayoutSearchOverlay({
           </p>
         ) : null}
 
+        {progress.diagnostics &&
+        typeof import.meta !== "undefined" &&
+        import.meta.env?.DEV ? (
+          <p className="layout-search-overlay__diagnostics">
+            T/B tried: T1 {progress.diagnostics.topOrBottomReachedT1} · T2{" "}
+            {progress.diagnostics.topOrBottomReachedT2} ·{" "}
+            {progress.diagnostics.selectedCandidateReason}
+          </p>
+        ) : null}
+
         <button
           type="button"
           className="layout-search-overlay__cancel"

@@ -6,6 +6,7 @@ export const sdcCore001: SdcRule = {
   id: "SDC-CORE-001",
   title: "Glossary and diagram structure",
   requires: ["graph"],
+  tiers: ["import-data", "candidate-screen", "proxy-route", "final-layout"],
   check(ctx) {
     const { graph } = ctx;
     if (!graph.report?.pairs?.length) {
