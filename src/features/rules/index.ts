@@ -15,4 +15,5 @@ export { sdcGrid001 } from "./grid001";
 export { sdcRoute001 } from "./route001";
 export { sdcRoute002 } from "./route002";
 export { sdcRoute003 } from "./route003";
+export { sdcScore001 } from "./score001";
 export { sdcUx001 } from "./ux001";

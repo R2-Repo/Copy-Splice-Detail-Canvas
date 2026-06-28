@@ -4,29 +4,29 @@
 
 ## Focus (2026-06-27)
 
-**Fast gates + manual QA.** Rule/layout contract tests **suspended** until user explicitly requests hardening. See [`TESTING.md`](./TESTING.md).
+**Phase 5 rule hardening done.** `test:rules` re-enabled for search-produced layouts; `SDC-SCORE-001` active. Fast gate remains `npm run smoke`.
 
 ## Active build track
 
-- **Routing-first auto layout — Phase 4 done** — CSV import runs `layoutSearchAsync`; unified `buildCanvasFromCandidate` render; `optimizedLayoutCandidate` persisted; legacy fallback `USE_LEGACY_IMPORT_LAYOUT=1`.
-- Smart manual movement: fiber anchor drag, tube tip ↕ + stem ↔, shift+drag bundle, marquee groups, unlock selection
-- SDC-UX-001: lock-on-commit (grid hybrid); unlock selection / reset layout in toolbar
+- **Routing-first auto layout — Phase 5 done** — `SDC-SCORE-001` in rule pack + engine; `sdcLayoutContract.test.ts` uses `layoutSearch` + `evaluateLayoutCandidate`; search candidate snapshots in `src/testHelpers/fixtures/searchCandidates/`.
+- Phase 4 import wire (`layoutSearchAsync`, `buildCanvasFromCandidate`, `optimizedLayoutCandidate`) on main.
+- Smart manual movement + SDC-UX-001 lock-on-commit (Phase 6 side drag not started).
 
 ## Testing policy
 
 - **Default:** `npm run smoke` (check + `test:fast` + build) — few minutes
-- **Layout search CSV regressions (Left-SPI-215, Example #2):** `layoutSearch.slow.test.ts` — opt-in via `test:full` / hardening, not smoke
-- **Manual QA:** import example-2 (+ touched CSVs) after visual/routing changes
-- **Suspended:** `test:rules` / `test:hardening` — only when user asks
-- Deferred weak points: [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md)
+- **Layout hardening:** `npm run test:rules` — search-produced SDC contract + suspended suite (~tens of minutes)
+- **Manual QA:** import example-2 after visual/routing changes
+- KI-003 (Left-SPI-215) still skipped unless `RUN_KNOWN_ISSUES=1` — see [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md)
 
 ## Session gate
 
 ```bash
-npm run smoke
+npm run smoke          # every session
+npm run test:rules     # user-scheduled hardening (Phase 5 gate)
 ```
 
 ## Baseline
 
-- Branch: `cursor/routing-first-phase4-import-wire-301a`
+- Branch: `cursor/routing-first-phase5-rule-hardening-d051`
 - Frozen: `.cursor/rules/frozen-routing.mdc`

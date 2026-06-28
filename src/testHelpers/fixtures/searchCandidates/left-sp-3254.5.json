@@ -1,0 +1,27 @@
+{
+  "cableSides": {
+    "144-SMF I-15 DIST: 4800 S - MP 259.46": "left",
+    "144-SMF I-15 DIST: MP 258.96 - 4800 S": "left",
+    "6 DROP (TSC): I-15 NB & 1600 S": "right",
+    "72-SMF 4800 S DIST: MAIN ST - I-15": "right"
+  },
+  "stackOrder": {
+    "left": [
+      "144-SMF I-15 DIST: 4800 S - MP 259.46",
+      "144-SMF I-15 DIST: MP 258.96 - 4800 S"
+    ],
+    "right": [
+      "6 DROP (TSC): I-15 NB & 1600 S",
+      "72-SMF 4800 S DIST: MAIN ST - I-15"
+    ],
+    "top": [],
+    "bottom": []
+  },
+  "layoutWidth": 1133,
+  "layoutExpansion": {
+    "centerGapPadding": 0,
+    "cableGapExtra": 0,
+    "tubeGroupGapExtra": 0
+  },
+  "id": "T[]B[]L[144-SMF I-15 DIST: 4800 S - MP 259.46,144-SMF I-15 DIST: MP 258.96 - 4800 S]R[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]S{144-SMF I-15 DIST: 4800 S - MP 259.46:left|144-SMF I-15 DIST: MP 258.96 - 4800 S:left|6 DROP (TSC): I-15 NB & 1600 S:right|72-SMF 4800 S DIST: MAIN ST - I-15:right}W1133"
+}

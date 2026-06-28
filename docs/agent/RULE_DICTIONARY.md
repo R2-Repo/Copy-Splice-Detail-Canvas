@@ -14,6 +14,7 @@
 | **SDC-LAYOUT-001** | Cable/tube/row spacing and stacking |
 | **SDC-LAYOUT-002** | Fan-out geometry from tube to handles |
 | **SDC-ROUTE-003** | No path overlap; max 2 corners; distinct lanes |
+| **SDC-SCORE-001** | Soft score for search winner (crossings, bends, sides, compactness) |
 | **SDC-ROUTE-002** | Tube bundle nesting and jog trunk |
 | **SDC-GRID-001** | Grid lane reservation |
 | **SDC-UX-001** | Manual locks and overrides |

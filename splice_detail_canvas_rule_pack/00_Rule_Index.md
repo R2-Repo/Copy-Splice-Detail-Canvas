@@ -34,6 +34,7 @@ Recommended groups:
 | SDC-ROUTE-001 | Fiber Strand Routing Zone | Valid center routing area and bend clearance requirements. |
 | SDC-ROUTE-002 | Fiber Strand Nesting | Hierarchy-aware group routing and lane bands. |
 | SDC-ROUTE-003 | Fiber Strand Overlap, Crossing, and Collision | Invalid route interference and allowed crossing exception. |
+| SDC-SCORE-001 | Composite Layout Soft Score | Tier-2 optimization score for routing-first search (crossings, bends, sides, compactness). |
 | SDC-UX-001 | Auto Layout and Manual Locks | Always-on auto layout with locked manual overrides. |
 
 ## Recommended Rule Processing Order
@@ -48,7 +49,7 @@ Recommended groups:
 8. Build nested routing groups and lane bands [SDC-ROUTE-002].
 9. Route strands inside the routing zone [SDC-GRID-001], [SDC-ROUTE-001].
 10. Validate overlap, crossing, collision, spacing, labels, and reserved areas [SDC-ROUTE-003], [SDC-LAYOUT-001].
-11. Score the layout and retry if needed. Future rule: [SDC-SCORE-001].
+11. Score the layout and retry if needed [SDC-SCORE-001].
 12. Save/export PDF/config. Future rule: [SDC-EXPORT-001].
 
 ## Conflict Priority
@@ -79,4 +80,5 @@ When rules conflict, resolve them in this order:
 | SDC-ROUTE-001 | SDC-GRID-001, SDC-LAYOUT-001, SDC-LAYOUT-002, SDC-ROUTE-002, SDC-ROUTE-003, SDC-UX-001 |
 | SDC-ROUTE-002 | SDC-DATA-001, SDC-LAYOUT-002, SDC-GRID-001, SDC-LAYOUT-001, SDC-ROUTE-001, SDC-ROUTE-003 |
 | SDC-ROUTE-003 | SDC-GRID-001, SDC-LAYOUT-001, SDC-ROUTE-001, SDC-ROUTE-002, SDC-UX-001 |
+| SDC-SCORE-001 | SDC-GRID-001, SDC-ROUTE-001, SDC-ROUTE-002, SDC-ROUTE-003, SDC-LAYOUT-001 |
 | SDC-UX-001 | SDC-GRID-001, SDC-ROUTE-001, SDC-ROUTE-003, SDC-LAYOUT-001, SDC-LAYOUT-002, SDC-ROUTE-002 |

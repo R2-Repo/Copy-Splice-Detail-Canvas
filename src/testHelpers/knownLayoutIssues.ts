@@ -9,8 +9,6 @@ export type KnownLayoutIssue = {
 };
 
 export const KNOWN_LAYOUT_ISSUES: Record<string, KnownLayoutIssue> = {
-  "example-3": { id: "KI-001", skipGridRules: true, skipEdge011: true },
-  "left-sp-3254.5": { id: "KI-002", skipGridRules: true },
   "left-spi-215_i-80": { id: "KI-003", skipGridRules: true, skipEdge011: true },
 };
 

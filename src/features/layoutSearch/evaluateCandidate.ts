@@ -77,6 +77,7 @@ export function evaluateLayoutCandidate(
       cableSides: candidateToCableSidesRecord(candidate, seedVisualCables),
       layoutWidth: width,
       layoutExpansion: candidate.layoutExpansion,
+      optimizedLayoutCandidate: candidate,
       routingEngine: "legacy",
       layoutMode,
       ...(useQuad
