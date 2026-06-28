@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
+import { connectionRowIndexMap } from "@/features/diagram/connectionRowOrder";
+import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import { reportStorageKey } from "@/features/diagram/layoutSpliceDiagram";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
 import { readLeftCsv } from "@/testHelpers/leftCsvPaths";
@@ -23,6 +25,9 @@ import {
   layoutSearch,
   seedFromReportKey,
 } from "./layoutSearch";
+import { syntheticHubSpliceGraph, syntheticTwo144Graph } from "./fixtures/syntheticGraphs";
+import { analyzeTopology } from "./topology/analyzeTopology";
+import { evaluateCandidateTiered, evaluateT0, evaluateT2 } from "./tieredEvaluate";
 
 function syntheticThreeCableGraph() {
   const pairs: SplicePair[] = [
@@ -302,4 +307,77 @@ describe("layoutSearch Phase 3", () => {
     expect(nodes.some((n) => n.type === "cable")).toBe(true);
     expect(edges.length).toBeGreaterThan(0);
   });
+});
+
+describe("layoutSearch P1 topology constraints", () => {
+  it("hub fixture: constrained enumeration skips locked side encodings", () => {
+    const graph = syntheticHubSpliceGraph(24);
+    const cableKeys = cableKeysFromGraph(graph);
+    const analysis = analyzeTopology(graph);
+    const widths = [1200];
+
+    const all = enumerateCandidates(cableKeys, widths, [0]);
+    const constrained = enumerateCandidates(
+      cableKeys,
+      widths,
+      [0],
+      analysis.constraints,
+    );
+
+    expect(constrained.length).toBeLessThan(all.length);
+    expect(constrained.length).toBeLessThanOrEqual(
+      Math.ceil(all.length * 0.5),
+    );
+  });
+});
+
+describe("layoutSearch P2 tiered evaluation", () => {
+  it("two-144 fixture: tiered path skips T2 when not competitive", () => {
+    const graph = syntheticTwo144Graph(6);
+    const baseline = heuristicBaselineCandidate(graph);
+    const constraints = analyzeTopology(graph).constraints;
+    const { visualCables, dominant } = buildVisualCablesForLayout(graph);
+    const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
+    const cache = { visualCables, rowIndex, dominant };
+
+    const tiered = evaluateCandidateTiered(
+      graph,
+      baseline,
+      {
+        constraints,
+        bestScore: -1,
+        tieredEvalEnabled: true,
+      },
+      cache,
+    );
+
+    expect(tiered.tier).not.toBe("T2");
+  });
+
+  it("two-144 fixture: T0 rejects lock violations faster than full T2", () => {
+    const graph = syntheticTwo144Graph(6);
+    const baseline = heuristicBaselineCandidate(graph);
+    const constraints = analyzeTopology(graph).constraints;
+    const { visualCables, dominant } = buildVisualCablesForLayout(graph);
+    const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
+
+    const bad = {
+      ...baseline,
+      cableSides: {
+        ...baseline.cableSides,
+        [constraints.dominantPairLock!.cableA]:
+          constraints.dominantPairLock!.sideB,
+      },
+    };
+
+    const t0Start = performance.now();
+    evaluateT0(graph, bad, constraints, visualCables, rowIndex);
+    const t0Ms = performance.now() - t0Start;
+
+    const t2Start = performance.now();
+    evaluateT2(graph, bad);
+    const t2Ms = performance.now() - t2Start;
+
+    expect(t0Ms).toBeLessThanOrEqual(t2Ms * 0.4);
+  }, 30_000);
 });
