@@ -29,9 +29,11 @@ import {
   candidateViolatesForbiddenPairs,
 } from "./topology/deriveConstraints";
 import type { TopologyConstraints } from "./topology/topologyTypes";
+import type { LayoutEvaluationResult } from "./evaluateCandidate";
 import {
   evaluateCandidateTiered,
   type EvalTier,
+  type TieredEvalResult,
 } from "./tieredEvaluate";
 
 export type { LayoutSearchPhase, LayoutSearchProgress } from "./layoutSearchTypes";
@@ -66,10 +68,18 @@ export type LayoutSearchConfig = {
   disableTieredEval?: boolean;
 };
 
+/** Serializable subset for worker postMessage — skips duplicate final T2 on main thread. */
+export type LayoutWinnerEvaluation = Pick<
+  LayoutEvaluationResult,
+  "feasible" | "score" | "violations"
+>;
+
 export type LayoutSearchResult = {
   best: LayoutCandidate;
   evaluations: number;
   bestScore: number;
+  /** Present when the winning candidate was fully evaluated at T2 during search. */
+  winnerEvaluation?: LayoutWinnerEvaluation;
 };
 
 const DEFAULT_MAX_ROUNDS = 2000;
@@ -352,6 +362,39 @@ function logTopCandidates(
   );
 }
 
+type ScoreMemo = Map<string, TieredEvalResult>;
+
+type CandidateEvalOutcome = {
+  score: number;
+  feasible: boolean;
+  tier: EvalTier;
+  fullResult?: LayoutEvaluationResult;
+  cacheHit: boolean;
+};
+
+function adaptiveMaxRounds(
+  constraints: TopologyConstraints,
+  requestedMax: number,
+): number {
+  const searchable = constraints.searchableCables.length;
+  if (searchable <= 2) return Math.min(requestedMax, 128);
+  if (searchable <= 4) return Math.min(requestedMax, 256);
+  return requestedMax;
+}
+
+export { adaptiveMaxRounds };
+
+function winnerEvalFromOutcome(
+  outcome: CandidateEvalOutcome,
+): LayoutWinnerEvaluation | undefined {
+  if (outcome.tier !== "T2" || !outcome.fullResult) return undefined;
+  return {
+    feasible: outcome.fullResult.feasible,
+    score: outcome.fullResult.score,
+    violations: outcome.fullResult.violations,
+  };
+}
+
 function tryImproveBest(
   best: RankedCandidate,
   candidate: LayoutCandidate,
@@ -380,7 +423,20 @@ function evaluateCandidate(
     rowIndex: Map<string, number>;
     dominant: ReturnType<typeof buildVisualCablesForLayout>["dominant"];
   },
-): { score: number; feasible: boolean; tier: EvalTier } {
+  scoreMemo?: ScoreMemo,
+): CandidateEvalOutcome {
+  const id = candidate.id ?? candidateStableId(candidate);
+  const cached = scoreMemo?.get(id);
+  if (cached) {
+    return {
+      score: cached.score,
+      feasible: cached.feasible,
+      tier: cached.tier,
+      fullResult: cached.fullResult,
+      cacheHit: true,
+    };
+  }
+
   const result = evaluateCandidateTiered(
     graph,
     candidate,
@@ -391,7 +447,14 @@ function evaluateCandidate(
     },
     evalCache,
   );
-  return { score: result.score, feasible: result.feasible, tier: result.tier };
+  scoreMemo?.set(id, result);
+  return {
+    score: result.score,
+    feasible: result.feasible,
+    tier: result.tier,
+    fullResult: result.fullResult,
+    cacheHit: false,
+  };
 }
 
 function removeFromAllStacks(
@@ -631,7 +694,9 @@ function runBruteForce(
     rowIndex: Map<string, number>;
     dominant: ReturnType<typeof buildVisualCablesForLayout>["dominant"];
   },
+  scoreMemo: ScoreMemo,
   emitProgress: ReturnType<typeof createProgressTracker>,
+  onWinnerEval: (outcome: CandidateEvalOutcome) => void,
 ): { best: RankedCandidate; evaluations: number; seen: RankedCandidate[] } {
   const candidates = enumerateCandidates(
     cableKeys,
@@ -645,24 +710,35 @@ function runBruteForce(
 
   for (const candidate of candidates) {
     if (timeExceeded(startMs, timeBudgetMs) || config.shouldCancel?.()) break;
-    const { score, tier } = evaluateCandidate(
+    const outcome = evaluateCandidate(
       graph,
       candidate,
       constraints,
       best.score,
       tieredEvalEnabled,
       evalCache,
+      scoreMemo,
     );
-    evaluations += 1;
+    if (!outcome.cacheHit) evaluations += 1;
+    const { score } = outcome;
     const ranked = { candidate, score };
     seen.push(ranked);
+    const prevBest = best;
     best = tryImproveBest(best, candidate, score);
+    if (
+      compareCandidates(
+        { score: best.score, candidate: best.candidate },
+        { score: prevBest.score, candidate: prevBest.candidate },
+      ) < 0
+    ) {
+      onWinnerEval(outcome);
+    }
     emitProgress({
       round: evaluations - 1,
       evaluations,
       bestScore: best.score,
       feasible: scoreFeasible(best.score),
-      currentTier: tier,
+      currentTier: outcome.tier,
     });
   }
 
@@ -689,7 +765,9 @@ function runGuidedSearch(
     rowIndex: Map<string, number>;
     dominant: ReturnType<typeof buildVisualCablesForLayout>["dominant"];
   },
+  scoreMemo: ScoreMemo,
   emitProgress: ReturnType<typeof createProgressTracker>,
+  onWinnerEval: (outcome: CandidateEvalOutcome) => void,
 ): { best: RankedCandidate; evaluations: number; seen: RankedCandidate[] } {
   let best = seedBest;
   let current = seedBest.candidate;
@@ -724,15 +802,17 @@ function runGuidedSearch(
 
     trial = applyConstraintLocks(trial, constraints);
 
-    const { score, tier } = evaluateCandidate(
+    const outcome = evaluateCandidate(
       graph,
       trial,
       constraints,
       best.score,
       tieredEvalEnabled,
       evalCache,
+      scoreMemo,
     );
-    evaluations += 1;
+    if (!outcome.cacheHit) evaluations += 1;
+    const { score } = outcome;
     seen.push({ candidate: trial, score });
 
     const prevBest = best;
@@ -744,6 +824,7 @@ function runGuidedSearch(
         { score: prevBest.score, candidate: prevBest.candidate },
       ) < 0
     ) {
+      onWinnerEval(outcome);
       roundsWithoutImprovement = 0;
       current = best.candidate;
     } else {
@@ -756,7 +837,7 @@ function runGuidedSearch(
       evaluations,
       bestScore: best.score,
       feasible: scoreFeasible(best.score),
-      currentTier: tier,
+      currentTier: outcome.tier,
     });
 
     const bestFeasible = scoreFeasible(best.score);
@@ -792,7 +873,9 @@ async function runGuidedSearchAsync(
     rowIndex: Map<string, number>;
     dominant: ReturnType<typeof buildVisualCablesForLayout>["dominant"];
   },
+  scoreMemo: ScoreMemo,
   emitProgress: ReturnType<typeof createProgressTracker>,
+  onWinnerEval: (outcome: CandidateEvalOutcome) => void,
 ): Promise<{ best: RankedCandidate; evaluations: number; seen: RankedCandidate[] }> {
   let best = seedBest;
   let current = seedBest.candidate;
@@ -827,15 +910,17 @@ async function runGuidedSearchAsync(
 
     trial = applyConstraintLocks(trial, constraints);
 
-    const { score, tier } = evaluateCandidate(
+    const outcome = evaluateCandidate(
       graph,
       trial,
       constraints,
       best.score,
       tieredEvalEnabled,
       evalCache,
+      scoreMemo,
     );
-    evaluations += 1;
+    if (!outcome.cacheHit) evaluations += 1;
+    const { score } = outcome;
     seen.push({ candidate: trial, score });
 
     const prevBest = best;
@@ -847,6 +932,7 @@ async function runGuidedSearchAsync(
         { score: prevBest.score, candidate: prevBest.candidate },
       ) < 0
     ) {
+      onWinnerEval(outcome);
       roundsWithoutImprovement = 0;
       current = best.candidate;
     } else {
@@ -859,7 +945,7 @@ async function runGuidedSearchAsync(
       evaluations,
       bestScore: best.score,
       feasible: scoreFeasible(best.score),
-      currentTier: tier,
+      currentTier: outcome.tier,
     });
 
     const bestFeasible = scoreFeasible(best.score);
@@ -884,7 +970,7 @@ function runLayoutSearchCore(
   config: LayoutSearchConfig,
   guidedRunner: typeof runGuidedSearch | typeof runGuidedSearchAsync,
 ): LayoutSearchResult | Promise<LayoutSearchResult> {
-  const maxRounds = config.maxRounds ?? DEFAULT_MAX_ROUNDS;
+  const requestedMaxRounds = config.maxRounds ?? DEFAULT_MAX_ROUNDS;
   const bruteForceMaxCables =
     config.bruteForceMaxCables ?? DEFAULT_BRUTE_FORCE_MAX_CABLES;
   const restartInterval = config.restartInterval ?? DEFAULT_RESTART_INTERVAL;
@@ -910,11 +996,19 @@ function runLayoutSearchCore(
   const tieredEvalEnabled = config.disableTieredEval !== true;
 
   const cableKeys = cableKeysFromGraph(graph);
+  const maxRounds = adaptiveMaxRounds(constraints, requestedMaxRounds);
   const widths = widthStepsForGraph(graph);
   const expansionIters = expansionIterations();
   const { visualCables, dominant } = buildVisualCablesForLayout(graph);
   const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
   const evalCache = { visualCables, rowIndex, dominant };
+  const scoreMemo: ScoreMemo = new Map();
+  let winnerEvaluation: LayoutWinnerEvaluation | undefined;
+
+  const captureWinnerEval = (outcome: CandidateEvalOutcome) => {
+    const captured = winnerEvalFromOutcome(outcome);
+    if (captured) winnerEvaluation = captured;
+  };
 
   const progressState: ProgressTrackerState = {
     startMs,
@@ -927,6 +1021,14 @@ function runLayoutSearchCore(
   };
   const emitProgress = createProgressTracker(config, progressState);
 
+  emitProgress({
+    round: 0,
+    evaluations: 0,
+    bestScore: INFEASIBLE_LAYOUT_SCORE,
+    feasible: false,
+    currentTier: "T0",
+  });
+
   let baseline = normalizeCandidate(
     applyConstraintLocks(heuristicBaselineCandidate(graph), constraints),
   );
@@ -937,6 +1039,7 @@ function runLayoutSearchCore(
     INFEASIBLE_LAYOUT_SCORE,
     tieredEvalEnabled,
     evalCache,
+    scoreMemo,
   );
   let best: RankedCandidate = {
     candidate: baseline,
@@ -944,6 +1047,7 @@ function runLayoutSearchCore(
   };
   let evaluations = 1;
   let seen: RankedCandidate[] = [{ ...best }];
+  captureWinnerEval(seedEval);
 
   emitProgress({
     round: 0,
@@ -961,6 +1065,7 @@ function runLayoutSearchCore(
       best: best.candidate,
       evaluations,
       bestScore: best.score,
+      winnerEvaluation,
     };
   };
 
@@ -984,7 +1089,9 @@ function runLayoutSearchCore(
       constraints,
       tieredEvalEnabled,
       evalCache,
+      scoreMemo,
       emitProgress,
+      captureWinnerEval,
     );
     best = brute.best;
     evaluations = brute.evaluations;
@@ -1008,7 +1115,9 @@ function runLayoutSearchCore(
     constraints,
     tieredEvalEnabled,
     evalCache,
+    scoreMemo,
     emitProgress,
+    captureWinnerEval,
   );
 
   if (guidedPromise instanceof Promise) {

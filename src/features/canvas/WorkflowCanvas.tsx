@@ -161,10 +161,13 @@ import {
 } from "@/features/layoutSearch/layoutSearchClient";
 import {
   cableKeysFromGraph,
+  adaptiveMaxRounds,
   DEFAULT_MAX_ROUNDS,
   seedFromReportKey,
   type LayoutSearchProgress,
 } from "@/features/layoutSearch/layoutSearch";
+import { importTimeBudgetMs } from "@/features/layoutSearch/importSearchConfig";
+import { analyzeTopology } from "@/features/layoutSearch/topology/analyzeTopology";
 import { evaluateLayoutCandidate } from "@/features/layoutSearch/evaluateCandidate";
 import {
   toLayoutCandidate,
@@ -1115,10 +1118,16 @@ function WorkflowCanvasInner() {
 
         const strandCount = graph.connections.length;
         const cableCount = cableKeysFromGraph(graph).length;
+        const topology = analyzeTopology(graph);
+        const maxRounds = adaptiveMaxRounds(
+          topology.constraints,
+          DEFAULT_MAX_ROUNDS,
+        );
+        const timeBudgetMs = importTimeBudgetMs(strandCount);
         const searchMeta = {
           strandCount,
           cableCount,
-          evaluationBudget: DEFAULT_MAX_ROUNDS,
+          evaluationBudget: maxRounds,
         };
 
         setLayoutSearchProgress(
@@ -1159,6 +1168,8 @@ function WorkflowCanvasInner() {
             graph,
             {
               seed: seedFromReportKey(reportKey),
+              maxRounds,
+              timeBudgetMs,
               onProgress: (progress) => {
                 if (layoutSearchRunRef.current !== runId) return;
                 setLayoutSearchProgress(progress);
@@ -1170,8 +1181,13 @@ function WorkflowCanvasInner() {
         } catch (err) {
           if (layoutSearchRunRef.current !== runId) return;
           setLayoutSearchProgress(null);
+          const message =
+            err instanceof Error ? err.message : String(err);
+          const timedOut = message.includes("timed out");
           setConfigErrorBanner(
-            `Layout search failed: ${err instanceof Error ? err.message : String(err)}`,
+            timedOut
+              ? "Layout search timed out; keeping heuristic layout."
+              : `Layout search failed: ${message}`,
           );
           return;
         }
@@ -1196,7 +1212,9 @@ function WorkflowCanvasInner() {
         );
 
         let candidate = searchResult.best;
-        const evaluation = evaluateLayoutCandidate(graph, candidate);
+        const evaluation =
+          searchResult.winnerEvaluation ??
+          evaluateLayoutCandidate(graph, candidate);
         if (!evaluation.feasible) {
           candidate = heuristicBaselineCandidate(graph, layoutWidth);
           const failed = evaluation.violations
