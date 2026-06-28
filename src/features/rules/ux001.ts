@@ -10,6 +10,24 @@ export const sdcUx001: SdcRule = {
     const locks = ctx.overrides?.locks ?? ctx.locks;
     const gridLocks = ctx.overrides?.gridLocks;
 
+    if (ctx.overrides?.quadCableSides && ctx.overrides?.cableSides) {
+      for (const [vcId, quadSide] of Object.entries(
+        ctx.overrides.quadCableSides,
+      )) {
+        const proxy = ctx.overrides.cableSides[vcId];
+        const expected = quadSide === "right" ? "right" : "left";
+        if (proxy && proxy !== expected) {
+          return [
+            warn(
+              "SDC-UX-001",
+              `Cable ${vcId} horizontal proxy side disagrees with quad side ${quadSide}`,
+              [vcId],
+            ),
+          ];
+        }
+      }
+    }
+
     if (!locks && !gridLocks) {
       return [pass("SDC-UX-001")];
     }

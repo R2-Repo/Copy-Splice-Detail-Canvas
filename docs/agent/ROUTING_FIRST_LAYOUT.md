@@ -205,7 +205,7 @@ Optional later: Web Worker for UI responsiveness (`layoutSearch.worker.ts`).
 ### Phase 6 — Manual side drag (later)
 
 - Drag cable to any side; re-run local reroute; lock on commit (SDC-UX-001).
-- Not part of v1 auto search.
+- **Done (2026-06-28):** `cableSideDrag.ts` + WorkflowCanvas; updates `optimizedLayoutCandidate`; no `layoutSearch` on drag.
 
 ## What we retire (after phases 1–4 stable)
 
