@@ -8,33 +8,64 @@
  *
  * Usage:
  *   node scripts/import-diagnostics-qa.mjs <csv-path> [screenshot-path]
+ *   node scripts/import-diagnostics-qa.mjs <csv-path> --out-dir <dir> [--basename <name>]
  *
  * Example:
- *   node scripts/import-diagnostics-qa.mjs docs/reference/examples/Left-STATE_OFFICE.csv
+ *   node scripts/import-diagnostics-qa.mjs docs/reference/examples/Left-STATE_OFFICE.csv \
+ *     --out-dir docs/reference/import-diagnostics --basename Left-STATE_OFFICE
  */
-import { readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const BASE_URL = process.env.SDC_DEV_URL ?? "http://127.0.0.1:5173/";
+const BASE_URL = process.env.SDC_DEV_URL ?? "http://localhost:5173/";
 
-const csvArg = process.argv[2];
-if (!csvArg) {
-  console.error(
-    "Usage: node scripts/import-diagnostics-qa.mjs <csv-path> [screenshot-path]",
-  );
-  process.exit(1);
+function parseArgs(argv) {
+  const csvArg = argv[2];
+  if (!csvArg) {
+    console.error(
+      "Usage: node scripts/import-diagnostics-qa.mjs <csv-path> [screenshot-path]\n" +
+        "       node scripts/import-diagnostics-qa.mjs <csv-path> --out-dir <dir> [--basename <name>]",
+    );
+    process.exit(1);
+  }
+
+  let screenshotPath;
+  let outDir;
+  let baseName;
+
+  for (let i = 3; i < argv.length; i++) {
+    if (argv[i] === "--out-dir" && argv[i + 1]) {
+      outDir = resolve(ROOT, argv[++i]);
+      continue;
+    }
+    if (argv[i] === "--basename" && argv[i + 1]) {
+      baseName = argv[++i];
+      continue;
+    }
+    if (!screenshotPath && !argv[i].startsWith("--")) {
+      screenshotPath = resolve(argv[i]);
+    }
+  }
+
+  const csvPath = resolve(ROOT, csvArg);
+  readFileSync(csvPath, "utf8");
+
+  if (outDir) {
+    mkdirSync(outDir, { recursive: true });
+    const stem = baseName ?? basename(csvPath, ".csv");
+    screenshotPath = join(outDir, `${stem}-screenshot.png`);
+  } else {
+    screenshotPath ??= join(ROOT, "import-qa-screenshot.png");
+  }
+
+  return { csvPath, screenshotPath, outDir, baseName: baseName ?? basename(csvPath, ".csv") };
 }
 
-const csvPath = resolve(ROOT, csvArg);
-readFileSync(csvPath, "utf8");
-
-const screenshotPath = process.argv[3]
-  ? resolve(process.argv[3])
-  : join(ROOT, "import-qa-screenshot.png");
+const { csvPath, screenshotPath, outDir, baseName } = parseArgs(process.argv);
 
 let chromium;
 try {
@@ -54,6 +85,15 @@ function formatMs(ms) {
   return `${m}m ${(s % 60).toFixed(1)}s`;
 }
 
+function formatConsoleLine(msg) {
+  const type = msg.type();
+  const text = msg.text();
+  if (type === "startGroupCollapsed") return `[startGroupCollapsed] ${text}`;
+  if (type === "endGroup") return `[endGroup]`;
+  if (type === "table") return `[table] ${text}`;
+  return `[${type}] ${text}`;
+}
+
 async function waitForImportComplete(page, startMs) {
   const overlay = page.locator(".layout-search-overlay");
   await page.waitForFunction(
@@ -68,10 +108,15 @@ async function waitForImportComplete(page, startMs) {
   return { heuristicMs, totalMs: performance.now() - startMs };
 }
 
+const consoleLines = [];
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
 page.setDefaultTimeout(360_000);
 page.setDefaultNavigationTimeout(120_000);
+
+page.on("console", (msg) => {
+  consoleLines.push(formatConsoleLine(msg));
+});
 
 const start = performance.now();
 await page.goto(BASE_URL, { waitUntil: "networkidle" });
@@ -81,7 +126,11 @@ const [chooser] = await Promise.all([
 ]);
 await chooser.setFiles(csvPath);
 const timing = await waitForImportComplete(page, start);
+
 await page.screenshot({ path: screenshotPath, fullPage: false });
+
+const nodeCount = await page.locator(".react-flow__node").count();
+const edgeCount = await page.locator(".react-flow__edge").count();
 
 const diagnostics = await page.evaluate(() => {
   const w = window;
@@ -96,22 +145,41 @@ const banner = await page
   .innerText()
   .catch(() => "");
 
-console.log(
-  JSON.stringify(
-    {
-      csv: csvPath,
-      heuristic: formatMs(timing.heuristicMs),
-      total: formatMs(timing.totalMs),
-      diagnosticsTotalMs: diagnostics?.totalMs,
-      searchStats: diagnostics?.searchStats,
-      fallback: diagnostics?.fallback,
-      ruleRejectCounts: diagnostics?.ruleRejectCounts,
-      banner: banner || null,
-      screenshot: screenshotPath,
-    },
-    null,
-    2,
-  ),
-);
+const runSummary = {
+  capturedAt: new Date().toISOString(),
+  csv: basename(csvPath),
+  csvPath,
+  heuristic: formatMs(timing.heuristicMs),
+  total: formatMs(timing.totalMs),
+  nodes: nodeCount,
+  edges: edgeCount,
+  banner: banner || null,
+  screenshot: screenshotPath,
+  diagnosticsTotalMs: diagnostics?.totalMs,
+  phaseTimings: diagnostics?.phaseTimings,
+  searchStats: diagnostics?.searchStats,
+  fallback: diagnostics?.fallback,
+  recoverableSelection: diagnostics?.recoverableSelection,
+  ruleRejectCounts: diagnostics?.ruleRejectCounts,
+  topBottomSummary: diagnostics?.topBottomSummary,
+  finalistSummaries: diagnostics?.finalistSummaries,
+  winner: diagnostics?.winner,
+};
+
+if (outDir) {
+  const consolePath = join(outDir, `${baseName}-console.log`);
+  const diagnosticsPath = join(outDir, `${baseName}-diagnostics.json`);
+  const summaryPath = join(outDir, `${baseName}-run-summary.json`);
+
+  writeFileSync(consolePath, `${consoleLines.join("\n")}\n`, "utf8");
+  writeFileSync(diagnosticsPath, `${JSON.stringify(diagnostics, null, 2)}\n`, "utf8");
+  writeFileSync(summaryPath, `${JSON.stringify(runSummary, null, 2)}\n`, "utf8");
+
+  runSummary.consoleLog = consolePath;
+  runSummary.diagnosticsPath = diagnosticsPath;
+  runSummary.summaryPath = summaryPath;
+}
+
+console.log(JSON.stringify(runSummary, null, 2));
 
 await browser.close();

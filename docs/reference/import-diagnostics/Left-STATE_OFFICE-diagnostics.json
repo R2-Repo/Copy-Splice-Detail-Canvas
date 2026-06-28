@@ -1,793 +1,799 @@
 {
   "importId": "import-1",
   "reportKey": "splice-detail-layout:STATE_OFFICE",
-  "startedAt": 795.1999999880791,
+  "startedAt": 836.0999999940395,
   "phaseTimings": [
     {
       "phase": "parse",
-      "startMs": 795.3999999761581,
-      "endMs": 800.6999999880791,
+      "startMs": 836.1999999880791,
+      "endMs": 841.2999999821186,
       "durationMs": 5
     },
     {
       "phase": "buildGraph",
-      "startMs": 800.7999999821186,
-      "endMs": 811.3999999761581,
-      "durationMs": 11
+      "startMs": 841.2999999821186,
+      "endMs": 850.1999999880791,
+      "durationMs": 9
     },
     {
       "phase": "importRules",
-      "startMs": 820.8999999761581,
-      "endMs": 821.5999999940395,
+      "startMs": 855.6999999880791,
+      "endMs": 856.4000000059605,
       "durationMs": 1
     },
     {
       "phase": "heuristicCandidate",
-      "startMs": 848.5,
-      "endMs": 857.3999999761581,
-      "durationMs": 9
+      "startMs": 872.0999999940395,
+      "endMs": 876.6999999880791,
+      "durationMs": 5
     },
     {
       "phase": "heuristicPaint",
-      "startMs": 857.3999999761581,
-      "endMs": 904.7999999821186,
-      "durationMs": 47
+      "startMs": 876.6999999880791,
+      "endMs": 920.4000000059605,
+      "durationMs": 44
     },
     {
       "phase": "topology",
-      "startMs": 113.5,
-      "endMs": 125.30000001192093,
-      "durationMs": 12
+      "startMs": 96.7000000178814,
+      "endMs": 105.10000002384186,
+      "durationMs": 8
     },
     {
       "phase": "candidateGeneration",
-      "startMs": 40459.09999999404,
-      "endMs": 40463.20000001788,
+      "startMs": 37572.60000002384,
+      "endMs": 37576.40000000596,
       "durationMs": 4
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40463.30000001192,
-      "endMs": 40463.80000001192,
+      "startMs": 37576.60000002384,
+      "endMs": 37577.10000002384,
       "durationMs": 1
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40463.80000001192,
-      "endMs": 40464.80000001192,
+      "startMs": 37577.10000002384,
+      "endMs": 37578,
       "durationMs": 1
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40464.80000001192,
-      "endMs": 40465.40000000596,
+      "startMs": 37578.10000002384,
+      "endMs": 37578.80000001192,
       "durationMs": 1
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40465.40000000596,
-      "endMs": 40465.90000000596,
+      "startMs": 37578.80000001192,
+      "endMs": 37579.20000001788,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 37579.20000001788,
+      "endMs": 37579.40000000596,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 37579.40000000596,
+      "endMs": 37579.5,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 37580.60000002384,
+      "endMs": 37581.10000002384,
       "durationMs": 1
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40465.90000000596,
-      "endMs": 40466.09999999404,
+      "startMs": 37581.10000002384,
+      "endMs": 37581.30000001192,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40466.09999999404,
-      "endMs": 40466.20000001788,
+      "startMs": 37581.40000000596,
+      "endMs": 37581.40000000596,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40467.40000000596,
-      "endMs": 40467.90000000596,
+      "startMs": 37581.5,
+      "endMs": 37581.5,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 37581.5,
+      "endMs": 37581.5,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 37581.5,
+      "endMs": 37582.30000001192,
       "durationMs": 1
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40467.90000000596,
-      "endMs": 40467.90000000596,
-      "durationMs": 0
-    },
-    {
-      "phase": "t0Evaluation",
-      "startMs": 40468.70000001788,
-      "endMs": 40469,
-      "durationMs": 0
-    },
-    {
-      "phase": "t0Evaluation",
-      "startMs": 40469,
-      "endMs": 40469,
-      "durationMs": 0
-    },
-    {
-      "phase": "t0Evaluation",
-      "startMs": 40469,
-      "endMs": 40469,
-      "durationMs": 0
-    },
-    {
-      "phase": "t0Evaluation",
-      "startMs": 40469,
-      "endMs": 40470.20000001788,
+      "startMs": 37582.30000001192,
+      "endMs": 37583,
       "durationMs": 1
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40470.20000001788,
-      "endMs": 40470.90000000596,
+      "startMs": 37583,
+      "endMs": 37583.60000002384,
       "durationMs": 1
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40470.90000000596,
-      "endMs": 40471.59999999404,
+      "startMs": 37583.60000002384,
+      "endMs": 37583.60000002384,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 37583.60000002384,
+      "endMs": 37584.30000001192,
       "durationMs": 1
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40471.59999999404,
-      "endMs": 40471.59999999404,
+      "startMs": 37584.30000001192,
+      "endMs": 37584.30000001192,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40471.59999999404,
-      "endMs": 40473,
+      "startMs": 37584.30000001192,
+      "endMs": 37584.30000001192,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 37584.30000001192,
+      "endMs": 37585,
       "durationMs": 1
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40473,
-      "endMs": 40473.09999999404,
+      "startMs": 37585,
+      "endMs": 37585,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40473.09999999404,
-      "endMs": 40473.09999999404,
+      "startMs": 37585,
+      "endMs": 37585.30000001192,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40473.09999999404,
-      "endMs": 40473.70000001788,
+      "startMs": 37585.30000001192,
+      "endMs": 37585.70000001788,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 37585.70000001788,
+      "endMs": 37586.10000002384,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 37586.10000002384,
+      "endMs": 37586.10000002384,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 37586.10000002384,
+      "endMs": 37586.10000002384,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 37586.10000002384,
+      "endMs": 37586.60000002384,
       "durationMs": 1
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40473.70000001788,
-      "endMs": 40473.70000001788,
+      "startMs": 37586.60000002384,
+      "endMs": 37587,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40473.70000001788,
-      "endMs": 40474,
+      "startMs": 37587,
+      "endMs": 37587.40000000596,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40474,
-      "endMs": 40474.40000000596,
+      "startMs": 37587.40000000596,
+      "endMs": 37587.40000000596,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40474.40000000596,
-      "endMs": 40475.5,
-      "durationMs": 1
-    },
-    {
-      "phase": "t0Evaluation",
-      "startMs": 40475.5,
-      "endMs": 40475.5,
-      "durationMs": 0
-    },
-    {
-      "phase": "t0Evaluation",
-      "startMs": 40475.5,
-      "endMs": 40475.5,
-      "durationMs": 0
-    },
-    {
-      "phase": "t0Evaluation",
-      "startMs": 40475.5,
-      "endMs": 40476,
-      "durationMs": 1
-    },
-    {
-      "phase": "t0Evaluation",
-      "startMs": 40476,
-      "endMs": 40476.20000001788,
-      "durationMs": 0
-    },
-    {
-      "phase": "t0Evaluation",
-      "startMs": 40476.30000001192,
-      "endMs": 40476.5,
+      "startMs": 37587.40000000596,
+      "endMs": 37587.80000001192,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40476.59999999404,
-      "endMs": 40476.59999999404,
+      "startMs": 37587.80000001192,
+      "endMs": 37588.20000001788,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40476.59999999404,
-      "endMs": 40476.80000001192,
+      "startMs": 37588.20000001788,
+      "endMs": 37588.20000001788,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40476.80000001192,
-      "endMs": 40477.09999999404,
+      "startMs": 37588.20000001788,
+      "endMs": 37588.5,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40477.09999999404,
-      "endMs": 40477.09999999404,
+      "startMs": 37588.5,
+      "endMs": 37588.90000000596,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40477.09999999404,
-      "endMs": 40477.30000001192,
+      "startMs": 37588.90000000596,
+      "endMs": 37588.90000000596,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40477.30000001192,
-      "endMs": 40477.70000001788,
+      "startMs": 37588.90000000596,
+      "endMs": 37589,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40477.70000001788,
-      "endMs": 40477.80000001192,
+      "startMs": 37589,
+      "endMs": 37589.10000002384,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40477.80000001192,
-      "endMs": 40478,
+      "startMs": 37589.20000001788,
+      "endMs": 37589.20000001788,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40478,
-      "endMs": 40478,
+      "startMs": 37589.20000001788,
+      "endMs": 37589.20000001788,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40478,
-      "endMs": 40478.09999999404,
+      "startMs": 37589.20000001788,
+      "endMs": 37589.5,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40478.20000001788,
-      "endMs": 40478.20000001788,
+      "startMs": 37589.5,
+      "endMs": 37589.80000001192,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40478.20000001788,
-      "endMs": 40478.40000000596,
+      "startMs": 37589.80000001192,
+      "endMs": 37589.80000001192,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40478.40000000596,
-      "endMs": 40478.59999999404,
+      "startMs": 37589.80000001192,
+      "endMs": 37590,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40478.59999999404,
-      "endMs": 40478.59999999404,
+      "startMs": 37590,
+      "endMs": 37590.30000001192,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40478.59999999404,
-      "endMs": 40478.80000001192,
+      "startMs": 37590.30000001192,
+      "endMs": 37590.40000000596,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40478.80000001192,
-      "endMs": 40479.09999999404,
+      "startMs": 37590.40000000596,
+      "endMs": 37590.5,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40479.09999999404,
-      "endMs": 40479.20000001788,
+      "startMs": 37590.5,
+      "endMs": 37590.60000002384,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40479.20000001788,
-      "endMs": 40479.20000001788,
+      "startMs": 37590.60000002384,
+      "endMs": 37590.60000002384,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40479.20000001788,
-      "endMs": 40479.40000000596,
+      "startMs": 37590.60000002384,
+      "endMs": 37590.90000000596,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40479.40000000596,
-      "endMs": 40479.40000000596,
+      "startMs": 37590.90000000596,
+      "endMs": 37591.10000002384,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40479.40000000596,
-      "endMs": 40479.59999999404,
+      "startMs": 37591.10000002384,
+      "endMs": 37591.10000002384,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40479.59999999404,
-      "endMs": 40479.90000000596,
+      "startMs": 37591.10000002384,
+      "endMs": 37591.30000001192,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40479.90000000596,
-      "endMs": 40479.90000000596,
+      "startMs": 37591.30000001192,
+      "endMs": 37591.60000002384,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40479.90000000596,
-      "endMs": 40480.09999999404,
+      "startMs": 37591.60000002384,
+      "endMs": 37591.70000001788,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40480.09999999404,
-      "endMs": 40480.30000001192,
+      "startMs": 37591.70000001788,
+      "endMs": 37591.80000001192,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40480.30000001192,
-      "endMs": 40480.30000001192,
+      "startMs": 37591.80000001192,
+      "endMs": 37591.90000000596,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40480.30000001192,
-      "endMs": 40480.5,
+      "startMs": 37591.90000000596,
+      "endMs": 37591.90000000596,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40480.5,
-      "endMs": 40480.5,
+      "startMs": 37592.80000001192,
+      "endMs": 37592.80000001192,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40480.5,
-      "endMs": 40480.59999999404,
+      "startMs": 37592.80000001192,
+      "endMs": 37592.80000001192,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40481.59999999404,
-      "endMs": 40481.59999999404,
+      "startMs": 37592.90000000596,
+      "endMs": 37593.30000001192,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40481.59999999404,
-      "endMs": 40481.59999999404,
+      "startMs": 37593.30000001192,
+      "endMs": 37593.70000001788,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40481.59999999404,
-      "endMs": 40482,
+      "startMs": 37593.70000001788,
+      "endMs": 37594,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40482,
-      "endMs": 40482.30000001192,
+      "startMs": 37594,
+      "endMs": 37594.30000001192,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40482.30000001192,
-      "endMs": 40482.59999999404,
+      "startMs": 37594.30000001192,
+      "endMs": 37594.30000001192,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40482.59999999404,
-      "endMs": 40483.09999999404,
-      "durationMs": 1
-    },
-    {
-      "phase": "t0Evaluation",
-      "startMs": 40483.09999999404,
-      "endMs": 40483.09999999404,
+      "startMs": 37594.30000001192,
+      "endMs": 37594.70000001788,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40483.09999999404,
-      "endMs": 40483.5,
+      "startMs": 37594.70000001788,
+      "endMs": 37594.70000001788,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40483.5,
-      "endMs": 40483.5,
+      "startMs": 37594.70000001788,
+      "endMs": 37595,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40483.5,
-      "endMs": 40483.80000001192,
+      "startMs": 37595,
+      "endMs": 37595.30000001192,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40483.80000001192,
-      "endMs": 40484.09999999404,
+      "startMs": 37595.30000001192,
+      "endMs": 37595.5,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40484.20000001788,
-      "endMs": 40484.40000000596,
+      "startMs": 37595.5,
+      "endMs": 37595.5,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40484.40000000596,
-      "endMs": 40484.40000000596,
+      "startMs": 37595.5,
+      "endMs": 37595.5,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40484.40000000596,
-      "endMs": 40484.40000000596,
+      "startMs": 37595.5,
+      "endMs": 37595.60000002384,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40484.40000000596,
-      "endMs": 40484.40000000596,
+      "startMs": 37595.60000002384,
+      "endMs": 37595.60000002384,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40484.40000000596,
-      "endMs": 40484.40000000596,
+      "startMs": 37595.60000002384,
+      "endMs": 37595.90000000596,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40484.40000000596,
-      "endMs": 40484.80000001192,
+      "startMs": 37595.90000000596,
+      "endMs": 37596.20000001788,
       "durationMs": 0
-    },
-    {
-      "phase": "t0Evaluation",
-      "startMs": 40484.80000001192,
-      "endMs": 40485.59999999404,
-      "durationMs": 1
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40485.59999999404,
-      "endMs": 40485.59999999404,
+      "startMs": 37596.20000001788,
+      "endMs": 37596.20000001788,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40485.59999999404,
-      "endMs": 40485.90000000596,
+      "startMs": 37596.20000001788,
+      "endMs": 37596.60000002384,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40485.90000000596,
-      "endMs": 40485.90000000596,
+      "startMs": 37596.60000002384,
+      "endMs": 37596.60000002384,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40485.90000000596,
-      "endMs": 40486.30000001192,
+      "startMs": 37596.60000002384,
+      "endMs": 37596.80000001192,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40486.30000001192,
-      "endMs": 40486.59999999404,
+      "startMs": 37596.80000001192,
+      "endMs": 37597.20000001788,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40486.59999999404,
-      "endMs": 40486.59999999404,
+      "startMs": 37597.20000001788,
+      "endMs": 37597.20000001788,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40486.59999999404,
-      "endMs": 40486.59999999404,
+      "startMs": 37597.20000001788,
+      "endMs": 37597.20000001788,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40486.59999999404,
-      "endMs": 40486.90000000596,
+      "startMs": 37597.20000001788,
+      "endMs": 37597.40000000596,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40486.90000000596,
-      "endMs": 40487.30000001192,
+      "startMs": 37597.40000000596,
+      "endMs": 37597.5,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40488.30000001192,
-      "endMs": 40488.30000001192,
+      "startMs": 37598.40000000596,
+      "endMs": 37598.40000000596,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40488.30000001192,
-      "endMs": 40488.30000001192,
+      "startMs": 37598.40000000596,
+      "endMs": 37598.40000000596,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40488.30000001192,
-      "endMs": 40488.70000001788,
+      "startMs": 37598.40000000596,
+      "endMs": 37598.70000001788,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40488.70000001788,
-      "endMs": 40488.90000000596,
+      "startMs": 37598.70000001788,
+      "endMs": 37598.90000000596,
       "durationMs": 0
     },
     {
       "phase": "t0Evaluation",
-      "startMs": 40489,
-      "endMs": 40489.30000001192,
+      "startMs": 37598.90000000596,
+      "endMs": 37599.10000002384,
       "durationMs": 0
     },
     {
       "phase": "t1ProxyRouting",
-      "startMs": 40490.90000000596,
-      "endMs": 41465.5,
-      "durationMs": 975
+      "startMs": 37600.40000000596,
+      "endMs": 38505.5,
+      "durationMs": 905
     },
     {
       "phase": "t1ProxyRouting",
-      "startMs": 41465.59999999404,
-      "endMs": 42411.30000001192,
-      "durationMs": 946
+      "startMs": 38505.60000002384,
+      "endMs": 39379.5,
+      "durationMs": 874
     },
     {
       "phase": "t1ProxyRouting",
-      "startMs": 42411.30000001192,
-      "endMs": 43346.30000001192,
-      "durationMs": 935
+      "startMs": 39379.60000002384,
+      "endMs": 40251.10000002384,
+      "durationMs": 872
     },
     {
       "phase": "t1ProxyRouting",
-      "startMs": 43346.40000000596,
-      "endMs": 44290.90000000596,
-      "durationMs": 945
+      "startMs": 40251.20000001788,
+      "endMs": 41126,
+      "durationMs": 875
     },
     {
       "phase": "t1ProxyRouting",
-      "startMs": 44290.90000000596,
-      "endMs": 45224.09999999404,
-      "durationMs": 933
+      "startMs": 41126,
+      "endMs": 42005.20000001788,
+      "durationMs": 879
     },
     {
       "phase": "t1ProxyRouting",
-      "startMs": 45224.09999999404,
-      "endMs": 46159.59999999404,
-      "durationMs": 936
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 46159.70000001788,
-      "endMs": 47094.90000000596,
-      "durationMs": 935
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 47095,
-      "endMs": 48026.40000000596,
-      "durationMs": 931
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 48026.5,
-      "endMs": 48956.09999999404,
-      "durationMs": 930
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 48956.09999999404,
-      "endMs": 49885.5,
-      "durationMs": 929
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 49885.5,
-      "endMs": 50816.70000001788,
-      "durationMs": 931
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 50816.70000001788,
-      "endMs": 51749.70000001788,
-      "durationMs": 933
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 51749.70000001788,
-      "endMs": 52682.70000001788,
-      "durationMs": 933
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 52682.70000001788,
-      "endMs": 53614.30000001192,
-      "durationMs": 932
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 53614.30000001192,
-      "endMs": 54548.09999999404,
-      "durationMs": 934
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 54548.09999999404,
-      "endMs": 55477.09999999404,
-      "durationMs": 929
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 55477.20000001788,
-      "endMs": 56400.80000001192,
-      "durationMs": 924
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 56400.90000000596,
-      "endMs": 57329.09999999404,
-      "durationMs": 928
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 57329.09999999404,
-      "endMs": 58255.70000001788,
-      "durationMs": 927
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 58255.70000001788,
-      "endMs": 59709,
-      "durationMs": 1453
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 59709.09999999404,
-      "endMs": 61075.80000001192,
-      "durationMs": 1367
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 61075.80000001192,
-      "endMs": 62019.90000000596,
-      "durationMs": 944
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 62019.90000000596,
-      "endMs": 64277,
-      "durationMs": 2257
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 64277,
-      "endMs": 65215,
-      "durationMs": 938
-    },
-    {
-      "phase": "t1ProxyRouting",
-      "startMs": 65215,
-      "endMs": 66171.80000001192,
-      "durationMs": 957
-    },
-    {
-      "phase": "t2FullRouting",
-      "startMs": 66171.90000000596,
-      "endMs": 67658.70000001788,
-      "durationMs": 1487
-    },
-    {
-      "phase": "t2FullRouting",
-      "startMs": 67658.90000000596,
-      "endMs": 69059.20000001788,
-      "durationMs": 1400
-    },
-    {
-      "phase": "t2FullRouting",
-      "startMs": 69059.30000001192,
-      "endMs": 70016.40000000596,
-      "durationMs": 957
-    },
-    {
-      "phase": "t2FullRouting",
-      "startMs": 70016.40000000596,
-      "endMs": 72188.20000001788,
-      "durationMs": 2172
-    },
-    {
-      "phase": "t2FullRouting",
-      "startMs": 72188.20000001788,
-      "endMs": 73128.90000000596,
-      "durationMs": 941
-    },
-    {
-      "phase": "t2FullRouting",
-      "startMs": 73128.90000000596,
-      "endMs": 74064.30000001192,
-      "durationMs": 935
-    },
-    {
-      "phase": "t2FullRouting",
-      "startMs": 74064.30000001192,
-      "endMs": 74987.40000000596,
+      "startMs": 42005.30000001192,
+      "endMs": 42928.30000001192,
       "durationMs": 923
     },
     {
+      "phase": "t1ProxyRouting",
+      "startMs": 42928.30000001192,
+      "endMs": 43834.60000002384,
+      "durationMs": 906
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 43834.70000001788,
+      "endMs": 44715.60000002384,
+      "durationMs": 881
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 44715.60000002384,
+      "endMs": 45591.30000001192,
+      "durationMs": 876
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 45591.30000001192,
+      "endMs": 46467.70000001788,
+      "durationMs": 876
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 46467.80000001192,
+      "endMs": 47343.70000001788,
+      "durationMs": 876
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 47343.70000001788,
+      "endMs": 48220.30000001192,
+      "durationMs": 877
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 48220.30000001192,
+      "endMs": 49095.80000001192,
+      "durationMs": 876
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 49095.80000001192,
+      "endMs": 49982.40000000596,
+      "durationMs": 887
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 49982.5,
+      "endMs": 50863,
+      "durationMs": 881
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 50863,
+      "endMs": 51741,
+      "durationMs": 878
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 51741,
+      "endMs": 52612.5,
+      "durationMs": 872
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 52612.60000002384,
+      "endMs": 53574.30000001192,
+      "durationMs": 962
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 53574.30000001192,
+      "endMs": 54531.70000001788,
+      "durationMs": 957
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 54531.80000001192,
+      "endMs": 55903.40000000596,
+      "durationMs": 1372
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 55903.40000000596,
+      "endMs": 57203.10000002384,
+      "durationMs": 1300
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 57203.20000001788,
+      "endMs": 58092.40000000596,
+      "durationMs": 889
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 58092.40000000596,
+      "endMs": 60294.5,
+      "durationMs": 2202
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 60294.5,
+      "endMs": 61178.60000002384,
+      "durationMs": 884
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 61178.70000001788,
+      "endMs": 62059,
+      "durationMs": 880
+    },
+    {
       "phase": "t2FullRouting",
-      "startMs": 74987.40000000596,
-      "endMs": 75929.09999999404,
-      "durationMs": 942
+      "startMs": 62059.10000002384,
+      "endMs": 63364,
+      "durationMs": 1305
+    },
+    {
+      "phase": "t2FullRouting",
+      "startMs": 63364.20000001788,
+      "endMs": 64668.20000001788,
+      "durationMs": 1304
+    },
+    {
+      "phase": "t2FullRouting",
+      "startMs": 64668.30000001192,
+      "endMs": 65556.60000002384,
+      "durationMs": 888
+    },
+    {
+      "phase": "t2FullRouting",
+      "startMs": 65556.60000002384,
+      "endMs": 67631.80000001192,
+      "durationMs": 2075
+    },
+    {
+      "phase": "t2FullRouting",
+      "startMs": 67631.90000000596,
+      "endMs": 68499,
+      "durationMs": 867
+    },
+    {
+      "phase": "t2FullRouting",
+      "startMs": 68499,
+      "endMs": 69366.90000000596,
+      "durationMs": 868
+    },
+    {
+      "phase": "t2FullRouting",
+      "startMs": 69366.90000000596,
+      "endMs": 70229.90000000596,
+      "durationMs": 863
+    },
+    {
+      "phase": "t2FullRouting",
+      "startMs": 70229.90000000596,
+      "endMs": 71103.90000000596,
+      "durationMs": 874
+    },
+    {
+      "phase": "finalRuleValidation",
+      "startMs": 72425.5,
+      "endMs": 110376.90000000596,
+      "durationMs": 37951
     },
     {
       "phase": "fallback",
-      "startMs": 77213.19999998808,
-      "endMs": 77213.19999998808,
+      "startMs": 110377,
+      "endMs": 110377.29999998212,
       "durationMs": 0
     },
     {
       "phase": "applyWinner",
-      "startMs": 117121.89999997616,
-      "endMs": 117135.69999998808,
-      "durationMs": 14
+      "startMs": 110379.79999998212,
+      "endMs": 110392.40000000596,
+      "durationMs": 13
     }
   ],
   "searchStats": {
@@ -810,13 +816,13 @@
     "bestTopBottomScore": -13550
   },
   "evalSubPhaseMs": {
-    "buildReactFlowGraph": 153.89999997615814,
-    "routeAllOnGrid": 15.200000077486038,
-    "runRules": 75570.79999989271,
-    "scoreLayoutEvaluation": 2.4999999701976776,
-    "evaluateT0": 21.600000023841858,
-    "evaluateT1": 65995.70000001788,
-    "evaluateT2": 9756.499999940395
+    "buildReactFlowGraph": 142.5,
+    "routeAllOnGrid": 15.499999970197678,
+    "runRules": 70784.40000006557,
+    "scoreLayoutEvaluation": 2.099999964237213,
+    "evaluateT0": 19.39999994635582,
+    "evaluateT1": 61907.90000000596,
+    "evaluateT2": 9044.199999988079
   },
   "evalSubPhaseCounts": {
     "buildReactFlowGraph": 34,
@@ -1408,23 +1414,104 @@
     }
   ],
   "notes": [
-    "Worker search wall: 76299ms"
+    "Worker search wall: 71505ms"
   ],
   "graphStats": {
     "cableCount": 5,
     "connectionCount": 52,
     "fiberConnectionCount": 52
   },
-  "fallback": {
-    "used": true,
-    "reason": "no rule-passing finalist; using heuristic",
-    "failedRuleIds": [
-      "SDC-LAYOUT-002",
-      "SDC-ROUTE-001",
-      "SDC-ROUTE-002",
-      "SDC-ROUTE-003"
+  "recoverableSelection": {
+    "selectionKind": "fully-passing",
+    "selectedCandidateId": "T[]B[]L[UDOT 24-SMF,6 DROP: I-215 SB MP 16.10,144-SMF: TSOB - I-215]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE,288-SMF DIST I-215: STATE OFFICE - 4240 S]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:right|6 DROP: I-215 SB MP 16.10:left|UDOT 24-SMF:left}W2388.8",
+    "isHeuristic": true,
+    "reason": "heuristic baseline fully passes rules",
+    "weightedFallbackScore": 0,
+    "hardFailureCount": 0,
+    "routeZoneFailures": 0,
+    "layoutLabelFanoutFailures": 0,
+    "routingValidityFailures": 0,
+    "comparisonVsHeuristic": {
+      "heuristicCandidateId": "T[]B[]L[UDOT 24-SMF,6 DROP: I-215 SB MP 16.10,144-SMF: TSOB - I-215]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE,288-SMF DIST I-215: STATE OFFICE - 4240 S]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:right|6 DROP: I-215 SB MP 16.10:left|UDOT 24-SMF:left}W2388.8",
+      "heuristicPenalty": 0,
+      "pickedPenalty": 0,
+      "heuristicHardFails": 0,
+      "pickedHardFails": 0,
+      "heuristicWon": true
+    },
+    "rejected": [
+      {
+        "candidateId": "T[288-SMF DIST I-215: STATE OFFICE - 4240 S]B[6 DROP: I-215 SB MP 16.10,UDOT 24-SMF]L[144-SMF: TSOB - I-215]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:top|6 DROP: I-215 SB MP 16.10:bottom|UDOT 24-SMF:bottom}W1400",
+        "source": "optimizer-finalist",
+        "isHeuristic": false,
+        "whyLost": "winner fully passes rules",
+        "weightedFallbackScore": 1800,
+        "hardFailureCount": 3,
+        "routeZoneFailures": 0,
+        "layoutLabelFanoutFailures": 1
+      },
+      {
+        "candidateId": "T[288-SMF DIST I-215: STATE OFFICE - 4240 S]B[6 DROP: I-215 SB MP 16.10,UDOT 24-SMF]L[144-SMF: TSOB - I-215]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:top|6 DROP: I-215 SB MP 16.10:bottom|UDOT 24-SMF:bottom}W2389",
+        "source": "optimizer-finalist",
+        "isHeuristic": false,
+        "whyLost": "winner fully passes rules",
+        "weightedFallbackScore": 1800,
+        "hardFailureCount": 3,
+        "routeZoneFailures": 0,
+        "layoutLabelFanoutFailures": 1
+      },
+      {
+        "candidateId": "T[]B[288-SMF DIST I-215: STATE OFFICE - 4240 S]L[6 DROP: I-215 SB MP 16.10,144-SMF: TSOB - I-215,UDOT 24-SMF]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:bottom|6 DROP: I-215 SB MP 16.10:left|UDOT 24-SMF:left}W1400",
+        "source": "optimizer-finalist",
+        "isHeuristic": false,
+        "whyLost": "winner fully passes rules",
+        "weightedFallbackScore": 1800,
+        "hardFailureCount": 3,
+        "routeZoneFailures": 0,
+        "layoutLabelFanoutFailures": 1
+      },
+      {
+        "candidateId": "T[288-SMF DIST I-215: STATE OFFICE - 4240 S]B[]L[6 DROP: I-215 SB MP 16.10,144-SMF: TSOB - I-215,UDOT 24-SMF]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:top|6 DROP: I-215 SB MP 16.10:left|UDOT 24-SMF:left}W1200",
+        "source": "optimizer-finalist",
+        "isHeuristic": false,
+        "whyLost": "winner fully passes rules",
+        "weightedFallbackScore": 2600,
+        "hardFailureCount": 4,
+        "routeZoneFailures": 1,
+        "layoutLabelFanoutFailures": 1
+      },
+      {
+        "candidateId": "T[288-SMF DIST I-215: STATE OFFICE - 4240 S]B[6 DROP: I-215 SB MP 16.10,UDOT 24-SMF]L[144-SMF: TSOB - I-215]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:top|6 DROP: I-215 SB MP 16.10:bottom|UDOT 24-SMF:bottom}W1200",
+        "source": "optimizer-finalist",
+        "isHeuristic": false,
+        "whyLost": "winner fully passes rules",
+        "weightedFallbackScore": 2600,
+        "hardFailureCount": 4,
+        "routeZoneFailures": 1,
+        "layoutLabelFanoutFailures": 1
+      }
     ]
   },
-  "finishedAt": 117135.89999997616,
-  "totalMs": 116341
+  "selected": {
+    "candidateId": "T[]B[]L[UDOT 24-SMF,6 DROP: I-215 SB MP 16.10,144-SMF: TSOB - I-215]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE,288-SMF DIST I-215: STATE OFFICE - 4240 S]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:right|6 DROP: I-215 SB MP 16.10:left|UDOT 24-SMF:left}W2388.8",
+    "tier": "winner",
+    "feasible": true,
+    "score": 2798.544,
+    "softScore": {
+      "crossings": 0,
+      "bendsOverBudget": 0,
+      "sameSideLoopbacks": 0,
+      "sidesUsed": 2,
+      "centerWidth": 1578.544,
+      "heightImbalance": 112,
+      "pathLength": 0,
+      "total": 2798.544
+    },
+    "failedRules": [],
+    "reason": "heuristic baseline fully passes rules",
+    "usesTop": false,
+    "usesBottom": false
+  },
+  "finishedAt": 110392.59999999404,
+  "totalMs": 109557
 }
