@@ -37,6 +37,10 @@ import {
   candidateViolatesForbiddenPairs,
   candidateViolatesLocks,
 } from "./topology/deriveConstraints";
+import {
+  getActiveSearchDiagnostics,
+  recordEvalSubPhase,
+} from "./importDiagnostics";
 
 export type EvalTier = "T0" | "T1" | "T2";
 
@@ -212,11 +216,14 @@ export function evaluateT0(
   visualCables: VisualCable[],
   rowIndex: Map<string, number>,
 ): TieredEvalResult {
+  const t0Start = performance.now();
+  const diag = getActiveSearchDiagnostics();
+
   if (
     candidateViolatesLocks(candidate, constraints) ||
     candidateViolatesForbiddenPairs(candidate, constraints)
   ) {
-    return {
+    const result = {
       feasible: false,
       score: INFEASIBLE_LAYOUT_SCORE,
       softScore: {
@@ -230,9 +237,13 @@ export function evaluateT0(
         total: INFEASIBLE_LAYOUT_SCORE,
       },
       tieBreak: { sidesUsed: 0, candidateId: candidate.id ?? "" },
-      tier: "T0",
-      violations: [],
+      tier: "T0" as const,
+      violations: [] as RuleResult[],
     };
+    if (diag) {
+      recordEvalSubPhase(diag, "evaluateT0", performance.now() - t0Start);
+    }
+    return result;
   }
 
   const screen = scoreCandidateScreen(
@@ -247,12 +258,16 @@ export function evaluateT0(
     graph,
     visualCables,
   };
+  const ruleStart = performance.now();
   const violations = runRulesForTier(graphCtx, "candidate-screen", {
     stopOnFail: true,
   });
+  if (diag) {
+    recordEvalSubPhase(diag, "runRules", performance.now() - ruleStart);
+  }
   const hasFail = violations.some((r) => !r.ok && r.severity === "fail");
 
-  return {
+  const result = {
     feasible: !hasFail,
     score: hasFail ? INFEASIBLE_LAYOUT_SCORE : screen.total,
     softScore: screen,
@@ -260,9 +275,13 @@ export function evaluateT0(
       sidesUsed: screen.sidesUsed,
       candidateId: candidate.id ?? "",
     },
-    tier: "T0",
+    tier: "T0" as const,
     violations,
   };
+  if (diag) {
+    recordEvalSubPhase(diag, "evaluateT0", performance.now() - t0Start);
+  }
+  return result;
 }
 
 /** T1 — proxy route one strand per bundle + one per cable-pair edge. */
@@ -278,10 +297,18 @@ export function evaluateT1(
   const cached = proxyRouteMemo.get(memoKey);
   if (cached) return cached;
 
+  const t1Start = performance.now();
+  const diag = getActiveSearchDiagnostics();
+
   const result = runWithLayoutExpansion(candidate.layoutExpansion, () => {
+    const buildStart = performance.now();
     const ctx = buildProxyEvalContext(graph, candidate, constraints);
+    if (diag) {
+      recordEvalSubPhase(diag, "buildReactFlowGraph", performance.now() - buildStart);
+    }
     const layoutHeight = diagramHeightFromNodes(ctx.graphResult.nodes);
 
+    const routeStart = performance.now();
     const gridResult = routeAllOnGrid({
       nodes: ctx.graphResult.nodes,
       edges: ctx.graphResult.edges,
@@ -292,6 +319,9 @@ export function evaluateT1(
       layoutMode: ctx.layoutMode,
       overrides: ctx.overrides,
     });
+    if (diag) {
+      recordEvalSubPhase(diag, "routeAllOnGrid", performance.now() - routeStart);
+    }
 
     const gridLanes = lanesByConnectionId(gridResult.lanes);
     const ruleCtx: SdcRuleContext = {
@@ -307,7 +337,13 @@ export function evaluateT1(
       layoutWidth: ctx.width,
     };
 
+    const ruleStart = performance.now();
     const violations = runRulesForTier(ruleCtx, "proxy-route");
+    if (diag) {
+      recordEvalSubPhase(diag, "runRules", performance.now() - ruleStart);
+    }
+
+    const scoreStart = performance.now();
     const scored = scoreLayoutEvaluation(
       violations,
       candidate,
@@ -317,6 +353,13 @@ export function evaluateT1(
       ctx.width,
       ctx.appliedGraph,
     );
+    if (diag) {
+      recordEvalSubPhase(
+        diag,
+        "scoreLayoutEvaluation",
+        performance.now() - scoreStart,
+      );
+    }
 
     return {
       ...scored,
@@ -327,6 +370,10 @@ export function evaluateT1(
     };
   });
 
+  if (diag) {
+    recordEvalSubPhase(diag, "evaluateT1", performance.now() - t1Start);
+  }
+
   proxyRouteMemo.set(memoKey, result);
   return result;
 }
@@ -336,7 +383,12 @@ export function evaluateT2(
   graph: ConnectionGraph,
   candidate: LayoutCandidate,
 ): TieredEvalResult {
+  const t2Start = performance.now();
+  const diag = getActiveSearchDiagnostics();
   const full = evaluateLayoutCandidate(graph, candidate);
+  if (diag) {
+    recordEvalSubPhase(diag, "evaluateT2", performance.now() - t2Start);
+  }
   return { ...full, tier: "T2", fullResult: full };
 }
 

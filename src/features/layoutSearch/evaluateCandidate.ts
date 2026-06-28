@@ -22,6 +22,10 @@ import {
   type LayoutScoreResult,
   type SoftScoreBreakdown,
 } from "./layoutScorer";
+import {
+  getActiveSearchDiagnostics,
+  recordEvalSubPhase,
+} from "./importDiagnostics";
 
 function lanesByConnectionId(
   lanes: Map<string, SpliceRoutingLane>,
@@ -63,6 +67,8 @@ export function evaluateLayoutCandidate(
   graph: ConnectionGraph,
   candidate: LayoutCandidate,
 ): LayoutEvaluationResult {
+  const diag = getActiveSearchDiagnostics();
+
   return runWithLayoutExpansion(candidate.layoutExpansion, () => {
     const appliedGraph = cloneGraphForCandidate(graph, candidate);
     const { visualCables: seedVisualCables } =
@@ -90,6 +96,7 @@ export function evaluateLayoutCandidate(
         : {}),
     };
 
+    const buildStart = performance.now();
     const graphResult = buildReactFlowGraph(
       appliedGraph,
       overrides,
@@ -104,10 +111,14 @@ export function evaluateLayoutCandidate(
             skipFeasibility: true,
           },
     );
+    if (diag) {
+      recordEvalSubPhase(diag, "buildReactFlowGraph", performance.now() - buildStart);
+    }
 
     const visualCables = graphResult.visualCables ?? seedVisualCables;
     const layoutHeight = diagramHeightFromNodes(graphResult.nodes);
 
+    const routeStart = performance.now();
     const gridResult = routeAllOnGrid({
       nodes: graphResult.nodes,
       edges: graphResult.edges,
@@ -118,6 +129,9 @@ export function evaluateLayoutCandidate(
       layoutMode,
       overrides,
     });
+    if (diag) {
+      recordEvalSubPhase(diag, "routeAllOnGrid", performance.now() - routeStart);
+    }
 
     const gridLanes = lanesByConnectionId(gridResult.lanes);
 
@@ -134,7 +148,13 @@ export function evaluateLayoutCandidate(
       layoutWidth: width,
     };
 
+    const ruleStart = performance.now();
     const violations = runRules(ctx);
+    if (diag) {
+      recordEvalSubPhase(diag, "runRules", performance.now() - ruleStart);
+    }
+
+    const scoreStart = performance.now();
     const scored = scoreLayoutEvaluation(
       violations,
       candidate,
@@ -144,6 +164,13 @@ export function evaluateLayoutCandidate(
       width,
       appliedGraph,
     );
+    if (diag) {
+      recordEvalSubPhase(
+        diag,
+        "scoreLayoutEvaluation",
+        performance.now() - scoreStart,
+      );
+    }
 
     return {
       ...scored,

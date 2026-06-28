@@ -42,6 +42,20 @@ import {
   parseForcedLayoutSides,
 } from "./importSearchConfig";
 import {
+  beginSearchDiagnostics,
+  endSearchDiagnostics,
+  getActiveSearchDiagnostics,
+  recordCacheAccess,
+  recordCandidateEvaluated,
+  recordCandidateGenerated,
+  recordFinalist,
+  recordPhaseTiming,
+  recordWinner,
+  timePhase,
+  type ImportPhaseName,
+  type ImportSearchDiagnosticsSlice,
+} from "./importDiagnostics";
+import {
   applyConstraintLocks,
   candidateViolatesForbiddenPairs,
 } from "./topology/deriveConstraints";
@@ -103,6 +117,8 @@ export type LayoutSearchResult = {
   winnerEvaluation?: LayoutWinnerEvaluation;
   finalists?: RankedFinalist[];
   diagnostics?: LayoutSearchDiagnostics;
+  /** Dev-only import optimizer diagnostics slice (worker → main). */
+  importDiagnosticsSlice?: ImportSearchDiagnosticsSlice;
 };
 
 export type { RankedFinalist, LayoutSearchDiagnostics, FinalistSummary };
@@ -894,12 +910,13 @@ function runBeamSearch(
     seed,
     forcedSides: parseForcedLayoutSides(),
   };
-  let beamPool = generateSeedCandidates(
-    graph,
-    intent,
-    constraints,
-    seedOptions,
+  let beamPool = timePhase(getActiveSearchDiagnostics(), "candidateGeneration", () =>
+    generateSeedCandidates(graph, intent, constraints, seedOptions),
   );
+  const searchDiagGen = getActiveSearchDiagnostics();
+  if (searchDiagGen) {
+    for (const c of beamPool) recordCandidateGenerated(searchDiagGen, c);
+  }
 
   const evaluateAtTier = (
     candidate: LayoutCandidate,
@@ -909,7 +926,9 @@ function runBeamSearch(
     const id = candidate.id ?? candidateStableId(candidate);
     const cacheKey = `${id}|${tier}`;
     const cached = scoreMemo.get(cacheKey);
+    const searchDiag = getActiveSearchDiagnostics();
     if (cached) {
+      if (searchDiag) recordCacheAccess(searchDiag, true);
       return {
         score: cached.score,
         feasible: cached.feasible,
@@ -918,7 +937,9 @@ function runBeamSearch(
         cacheHit: true,
       };
     }
+    if (searchDiag) recordCacheAccess(searchDiag, false);
 
+    const tierStart = performance.now();
     const result =
       tier === "T2"
         ? evaluateT2(graph, candidate)
@@ -935,6 +956,7 @@ function runBeamSearch(
               },
               evalCache,
             );
+    const tierMs = performance.now() - tierStart;
 
     scoreMemo.set(cacheKey, result);
     recordTierDiagnostics(
@@ -943,6 +965,23 @@ function runBeamSearch(
       tier,
       result.feasible,
     );
+
+    if (searchDiag) {
+      recordCandidateEvaluated(searchDiag, candidate, tier, {
+        feasible: result.feasible,
+        score: result.score,
+        violations: result.violations,
+        softScore: result.softScore,
+        timingMs: Math.round(tierMs),
+      });
+      const phase: ImportPhaseName =
+        tier === "T0"
+          ? "t0Evaluation"
+          : tier === "T1"
+            ? "t1ProxyRouting"
+            : "t2FullRouting";
+      recordPhaseTiming(searchDiag, phase, tierStart, performance.now());
+    }
 
     return {
       score: result.score,
@@ -1060,13 +1099,23 @@ function runBeamSearch(
     const failedIds = outcome.fullResult
       ? failedRuleIds(outcome.fullResult.violations)
       : [];
-    finalists.push({
+    const finalistEntry = {
       candidate: entry.candidate,
       score: outcome.score,
       feasible: outcome.feasible,
       evaluation: outcome.fullResult,
       failedRuleIds: failedIds,
-    });
+    };
+    finalists.push(finalistEntry);
+    const searchDiagFin = getActiveSearchDiagnostics();
+    if (searchDiagFin) {
+      recordFinalist(searchDiagFin, entry.candidate, {
+        feasible: outcome.feasible,
+        score: outcome.score,
+        violations: outcome.fullResult?.violations,
+        softScore: outcome.fullResult?.softScore,
+      });
+    }
     const prevBest = best;
     best = tryImproveBest(best, entry.candidate, outcome.score);
     if (
@@ -1101,6 +1150,7 @@ function runBeamSearch(
 
   diagnostics.finalistSummaries = buildFinalistSummaries(finalists);
   const picked = pickBestPassingFinalist(finalists);
+  const searchDiagWin = getActiveSearchDiagnostics();
   if (picked) {
     best = { candidate: picked.candidate, score: picked.score };
     if (picked.evaluation) {
@@ -1111,6 +1161,15 @@ function runBeamSearch(
       };
     }
     diagnostics.selectedCandidateReason = selectedReasonFor(picked, seedBest.candidate);
+    if (searchDiagWin) {
+      recordWinner(searchDiagWin, picked.candidate, {
+        feasible: picked.feasible,
+        score: picked.score,
+        violations: picked.evaluation?.violations,
+        softScore: picked.evaluation?.softScore,
+        reason: diagnostics.selectedCandidateReason,
+      });
+    }
   } else {
     diagnostics.selectedCandidateReason = selectedReasonFor(undefined, seedBest.candidate);
   }
@@ -1432,7 +1491,12 @@ function runLayoutSearchCore(
   const rng = createRng(seed);
   const startMs = performance.now();
 
-  const topology = analyzeTopology(graph);
+  beginSearchDiagnostics();
+  const searchDiag = getActiveSearchDiagnostics();
+
+  const topology = timePhase(searchDiag, "topology", () =>
+    analyzeTopology(graph),
+  );
   const constraints = config.disableTopologyConstraints
     ? ({
         lockedCableSides: {},
@@ -1517,6 +1581,7 @@ function runLayoutSearchCore(
     if (debugEnabled(config)) {
       logTopCandidates(seen, debugTopN, evaluations);
     }
+    const importDiagnosticsSlice = endSearchDiagnostics();
     return {
       best: best.candidate,
       evaluations,
@@ -1524,6 +1589,7 @@ function runLayoutSearchCore(
       winnerEvaluation,
       finalists,
       diagnostics: searchDiagnostics,
+      importDiagnosticsSlice,
     };
   };
 
