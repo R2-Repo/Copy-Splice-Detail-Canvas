@@ -4,7 +4,9 @@
 
 ## Focus (2026-06-28)
 
-**Post-import zoom/pan fix.** Optimized import now renders at stage width in one pass (no second applyGraph + fitView). Engine cable drag RAF-batched. Resize reflow no longer resets viewport.
+**Import perf + progress UX** — build plan: [`IMPORT_PERF_PLAN.md`](./IMPORT_PERF_PLAN.md). Worker offload, topology locks, tiered eval, rich progress overlay. Addresses frozen browser + minutes-long import.
+
+**Post-import zoom/pan** — done (stage width one-pass, RAF cable drag).
 
 ## Active build track
 
