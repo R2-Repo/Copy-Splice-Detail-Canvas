@@ -16,6 +16,7 @@ Frontend-only React PWA: node/workflow canvas (React Flow). No backend unless th
 | `docs/agent/LAYOUT_RULES.md` | **Deprecated** — legacy IDs; see rule pack |
 | `docs/agent/QUAD_LAYOUT.md` | **4-side (quad) layout** — geometry reference; auto import direction in ROUTING_FIRST_LAYOUT |
 | `docs/agent/ROUTING_FIRST_LAYOUT.md` | **Routing-first auto layout** — search pipeline build plan (canonical for import placement) |
+| `docs/agent/IMPORT_OPTIMIZER_BUILD.md` | **Import optimizer one-pass build** — four-side scoring, beam search, finalists (active) |
 | `.cursor/rules/frozen-routing.mdc` | **Frozen** splice routing symbols — user approval required |
 | `docs/agent/RULE_DICTIONARY.md` | Plain-English **SDC** rule IDs for chat |
 | `docs/agent/SIMPLE_TERMS.md` | **User simple names** (canonical chat vocabulary) — one-line diagram + simple ↔ official dictionary |

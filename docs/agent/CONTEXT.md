@@ -4,6 +4,8 @@
 
 ## Focus (2026-06-28)
 
+**Next build:** [`IMPORT_OPTIMIZER_BUILD.md`](./IMPORT_OPTIMIZER_BUILD.md) — four-side scoring, beam search, finalist fallback, proxy T1 optimization (single-agent one-pass).
+
 **Import perf P0–P3 shipped** — worker + topology locks + tiered eval + memo/budgets/skip-duplicate-T2. See [`IMPORT_PERF_PLAN.md`](./IMPORT_PERF_PLAN.md), [`IMPORT_FINISH_PLAN.md`](./IMPORT_FINISH_PLAN.md).
 
 **SPI-215 (KI-003):** import completes via heuristic fallback when search times out (~4 min); full optimizer still slow on 68-pair fixture.
