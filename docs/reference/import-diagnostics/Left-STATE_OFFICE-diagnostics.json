@@ -1,0 +1,1430 @@
+{
+  "importId": "import-1",
+  "reportKey": "splice-detail-layout:STATE_OFFICE",
+  "startedAt": 795.1999999880791,
+  "phaseTimings": [
+    {
+      "phase": "parse",
+      "startMs": 795.3999999761581,
+      "endMs": 800.6999999880791,
+      "durationMs": 5
+    },
+    {
+      "phase": "buildGraph",
+      "startMs": 800.7999999821186,
+      "endMs": 811.3999999761581,
+      "durationMs": 11
+    },
+    {
+      "phase": "importRules",
+      "startMs": 820.8999999761581,
+      "endMs": 821.5999999940395,
+      "durationMs": 1
+    },
+    {
+      "phase": "heuristicCandidate",
+      "startMs": 848.5,
+      "endMs": 857.3999999761581,
+      "durationMs": 9
+    },
+    {
+      "phase": "heuristicPaint",
+      "startMs": 857.3999999761581,
+      "endMs": 904.7999999821186,
+      "durationMs": 47
+    },
+    {
+      "phase": "topology",
+      "startMs": 113.5,
+      "endMs": 125.30000001192093,
+      "durationMs": 12
+    },
+    {
+      "phase": "candidateGeneration",
+      "startMs": 40459.09999999404,
+      "endMs": 40463.20000001788,
+      "durationMs": 4
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40463.30000001192,
+      "endMs": 40463.80000001192,
+      "durationMs": 1
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40463.80000001192,
+      "endMs": 40464.80000001192,
+      "durationMs": 1
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40464.80000001192,
+      "endMs": 40465.40000000596,
+      "durationMs": 1
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40465.40000000596,
+      "endMs": 40465.90000000596,
+      "durationMs": 1
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40465.90000000596,
+      "endMs": 40466.09999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40466.09999999404,
+      "endMs": 40466.20000001788,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40467.40000000596,
+      "endMs": 40467.90000000596,
+      "durationMs": 1
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40467.90000000596,
+      "endMs": 40467.90000000596,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40468.70000001788,
+      "endMs": 40469,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40469,
+      "endMs": 40469,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40469,
+      "endMs": 40469,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40469,
+      "endMs": 40470.20000001788,
+      "durationMs": 1
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40470.20000001788,
+      "endMs": 40470.90000000596,
+      "durationMs": 1
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40470.90000000596,
+      "endMs": 40471.59999999404,
+      "durationMs": 1
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40471.59999999404,
+      "endMs": 40471.59999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40471.59999999404,
+      "endMs": 40473,
+      "durationMs": 1
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40473,
+      "endMs": 40473.09999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40473.09999999404,
+      "endMs": 40473.09999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40473.09999999404,
+      "endMs": 40473.70000001788,
+      "durationMs": 1
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40473.70000001788,
+      "endMs": 40473.70000001788,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40473.70000001788,
+      "endMs": 40474,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40474,
+      "endMs": 40474.40000000596,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40474.40000000596,
+      "endMs": 40475.5,
+      "durationMs": 1
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40475.5,
+      "endMs": 40475.5,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40475.5,
+      "endMs": 40475.5,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40475.5,
+      "endMs": 40476,
+      "durationMs": 1
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40476,
+      "endMs": 40476.20000001788,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40476.30000001192,
+      "endMs": 40476.5,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40476.59999999404,
+      "endMs": 40476.59999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40476.59999999404,
+      "endMs": 40476.80000001192,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40476.80000001192,
+      "endMs": 40477.09999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40477.09999999404,
+      "endMs": 40477.09999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40477.09999999404,
+      "endMs": 40477.30000001192,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40477.30000001192,
+      "endMs": 40477.70000001788,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40477.70000001788,
+      "endMs": 40477.80000001192,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40477.80000001192,
+      "endMs": 40478,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40478,
+      "endMs": 40478,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40478,
+      "endMs": 40478.09999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40478.20000001788,
+      "endMs": 40478.20000001788,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40478.20000001788,
+      "endMs": 40478.40000000596,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40478.40000000596,
+      "endMs": 40478.59999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40478.59999999404,
+      "endMs": 40478.59999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40478.59999999404,
+      "endMs": 40478.80000001192,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40478.80000001192,
+      "endMs": 40479.09999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40479.09999999404,
+      "endMs": 40479.20000001788,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40479.20000001788,
+      "endMs": 40479.20000001788,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40479.20000001788,
+      "endMs": 40479.40000000596,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40479.40000000596,
+      "endMs": 40479.40000000596,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40479.40000000596,
+      "endMs": 40479.59999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40479.59999999404,
+      "endMs": 40479.90000000596,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40479.90000000596,
+      "endMs": 40479.90000000596,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40479.90000000596,
+      "endMs": 40480.09999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40480.09999999404,
+      "endMs": 40480.30000001192,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40480.30000001192,
+      "endMs": 40480.30000001192,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40480.30000001192,
+      "endMs": 40480.5,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40480.5,
+      "endMs": 40480.5,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40480.5,
+      "endMs": 40480.59999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40481.59999999404,
+      "endMs": 40481.59999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40481.59999999404,
+      "endMs": 40481.59999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40481.59999999404,
+      "endMs": 40482,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40482,
+      "endMs": 40482.30000001192,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40482.30000001192,
+      "endMs": 40482.59999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40482.59999999404,
+      "endMs": 40483.09999999404,
+      "durationMs": 1
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40483.09999999404,
+      "endMs": 40483.09999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40483.09999999404,
+      "endMs": 40483.5,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40483.5,
+      "endMs": 40483.5,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40483.5,
+      "endMs": 40483.80000001192,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40483.80000001192,
+      "endMs": 40484.09999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40484.20000001788,
+      "endMs": 40484.40000000596,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40484.40000000596,
+      "endMs": 40484.40000000596,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40484.40000000596,
+      "endMs": 40484.40000000596,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40484.40000000596,
+      "endMs": 40484.40000000596,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40484.40000000596,
+      "endMs": 40484.40000000596,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40484.40000000596,
+      "endMs": 40484.80000001192,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40484.80000001192,
+      "endMs": 40485.59999999404,
+      "durationMs": 1
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40485.59999999404,
+      "endMs": 40485.59999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40485.59999999404,
+      "endMs": 40485.90000000596,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40485.90000000596,
+      "endMs": 40485.90000000596,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40485.90000000596,
+      "endMs": 40486.30000001192,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40486.30000001192,
+      "endMs": 40486.59999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40486.59999999404,
+      "endMs": 40486.59999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40486.59999999404,
+      "endMs": 40486.59999999404,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40486.59999999404,
+      "endMs": 40486.90000000596,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40486.90000000596,
+      "endMs": 40487.30000001192,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40488.30000001192,
+      "endMs": 40488.30000001192,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40488.30000001192,
+      "endMs": 40488.30000001192,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40488.30000001192,
+      "endMs": 40488.70000001788,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40488.70000001788,
+      "endMs": 40488.90000000596,
+      "durationMs": 0
+    },
+    {
+      "phase": "t0Evaluation",
+      "startMs": 40489,
+      "endMs": 40489.30000001192,
+      "durationMs": 0
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 40490.90000000596,
+      "endMs": 41465.5,
+      "durationMs": 975
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 41465.59999999404,
+      "endMs": 42411.30000001192,
+      "durationMs": 946
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 42411.30000001192,
+      "endMs": 43346.30000001192,
+      "durationMs": 935
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 43346.40000000596,
+      "endMs": 44290.90000000596,
+      "durationMs": 945
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 44290.90000000596,
+      "endMs": 45224.09999999404,
+      "durationMs": 933
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 45224.09999999404,
+      "endMs": 46159.59999999404,
+      "durationMs": 936
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 46159.70000001788,
+      "endMs": 47094.90000000596,
+      "durationMs": 935
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 47095,
+      "endMs": 48026.40000000596,
+      "durationMs": 931
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 48026.5,
+      "endMs": 48956.09999999404,
+      "durationMs": 930
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 48956.09999999404,
+      "endMs": 49885.5,
+      "durationMs": 929
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 49885.5,
+      "endMs": 50816.70000001788,
+      "durationMs": 931
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 50816.70000001788,
+      "endMs": 51749.70000001788,
+      "durationMs": 933
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 51749.70000001788,
+      "endMs": 52682.70000001788,
+      "durationMs": 933
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 52682.70000001788,
+      "endMs": 53614.30000001192,
+      "durationMs": 932
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 53614.30000001192,
+      "endMs": 54548.09999999404,
+      "durationMs": 934
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 54548.09999999404,
+      "endMs": 55477.09999999404,
+      "durationMs": 929
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 55477.20000001788,
+      "endMs": 56400.80000001192,
+      "durationMs": 924
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 56400.90000000596,
+      "endMs": 57329.09999999404,
+      "durationMs": 928
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 57329.09999999404,
+      "endMs": 58255.70000001788,
+      "durationMs": 927
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 58255.70000001788,
+      "endMs": 59709,
+      "durationMs": 1453
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 59709.09999999404,
+      "endMs": 61075.80000001192,
+      "durationMs": 1367
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 61075.80000001192,
+      "endMs": 62019.90000000596,
+      "durationMs": 944
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 62019.90000000596,
+      "endMs": 64277,
+      "durationMs": 2257
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 64277,
+      "endMs": 65215,
+      "durationMs": 938
+    },
+    {
+      "phase": "t1ProxyRouting",
+      "startMs": 65215,
+      "endMs": 66171.80000001192,
+      "durationMs": 957
+    },
+    {
+      "phase": "t2FullRouting",
+      "startMs": 66171.90000000596,
+      "endMs": 67658.70000001788,
+      "durationMs": 1487
+    },
+    {
+      "phase": "t2FullRouting",
+      "startMs": 67658.90000000596,
+      "endMs": 69059.20000001788,
+      "durationMs": 1400
+    },
+    {
+      "phase": "t2FullRouting",
+      "startMs": 69059.30000001192,
+      "endMs": 70016.40000000596,
+      "durationMs": 957
+    },
+    {
+      "phase": "t2FullRouting",
+      "startMs": 70016.40000000596,
+      "endMs": 72188.20000001788,
+      "durationMs": 2172
+    },
+    {
+      "phase": "t2FullRouting",
+      "startMs": 72188.20000001788,
+      "endMs": 73128.90000000596,
+      "durationMs": 941
+    },
+    {
+      "phase": "t2FullRouting",
+      "startMs": 73128.90000000596,
+      "endMs": 74064.30000001192,
+      "durationMs": 935
+    },
+    {
+      "phase": "t2FullRouting",
+      "startMs": 74064.30000001192,
+      "endMs": 74987.40000000596,
+      "durationMs": 923
+    },
+    {
+      "phase": "t2FullRouting",
+      "startMs": 74987.40000000596,
+      "endMs": 75929.09999999404,
+      "durationMs": 942
+    },
+    {
+      "phase": "fallback",
+      "startMs": 77213.19999998808,
+      "endMs": 77213.19999998808,
+      "durationMs": 0
+    },
+    {
+      "phase": "applyWinner",
+      "startMs": 117121.89999997616,
+      "endMs": 117135.69999998808,
+      "durationMs": 14
+    }
+  ],
+  "searchStats": {
+    "generated": 6,
+    "evaluatedT0": 89,
+    "evaluatedT1": 25,
+    "evaluatedT2": 8,
+    "finalists": 8,
+    "cacheHits": 322,
+    "cacheMisses": 122,
+    "horizontalOnlyGenerated": 3,
+    "topGenerated": 2,
+    "bottomGenerated": 2,
+    "topOrBottomGenerated": 3,
+    "topOrBottomReachedT0": 69,
+    "topOrBottomReachedT1": 25,
+    "topOrBottomReachedT2": 8,
+    "topOrBottomFinalists": 8,
+    "bestHorizontalScore": 339220,
+    "bestTopBottomScore": -13550
+  },
+  "evalSubPhaseMs": {
+    "buildReactFlowGraph": 153.89999997615814,
+    "routeAllOnGrid": 15.200000077486038,
+    "runRules": 75570.79999989271,
+    "scoreLayoutEvaluation": 2.4999999701976776,
+    "evaluateT0": 21.600000023841858,
+    "evaluateT1": 65995.70000001788,
+    "evaluateT2": 9756.499999940395
+  },
+  "evalSubPhaseCounts": {
+    "buildReactFlowGraph": 34,
+    "routeAllOnGrid": 34,
+    "runRules": 94,
+    "scoreLayoutEvaluation": 34,
+    "evaluateT0": 90,
+    "evaluateT1": 26,
+    "evaluateT2": 8
+  },
+  "ruleRejectCounts": {
+    "SDC-LAYOUT-002": 33,
+    "SDC-ROUTE-001": 19,
+    "SDC-ROUTE-002": 33,
+    "SDC-ROUTE-003": 27
+  },
+  "topCandidates": [
+    {
+      "candidateId": "T[288-SMF DIST I-215: STATE OFFICE - 4240 S]B[6 DROP: I-215 SB MP 16.10,UDOT 24-SMF]L[144-SMF: TSOB - I-215]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:top|6 DROP: I-215 SB MP 16.10:bottom|UDOT 24-SMF:bottom}W1200",
+      "tier": "T0",
+      "feasible": true,
+      "score": -13550,
+      "softScore": {
+        "crossings": 0,
+        "bendsOverBudget": 0,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 4,
+        "centerWidth": 0,
+        "heightImbalance": 160,
+        "pathLength": 0,
+        "sidePairPenalty": 650,
+        "topBottomRelief": -16000,
+        "total": -13550
+      },
+      "failedRules": [],
+      "timingMs": 1,
+      "usesTop": true,
+      "usesBottom": true
+    },
+    {
+      "candidateId": "T[288-SMF DIST I-215: STATE OFFICE - 4240 S]B[6 DROP: I-215 SB MP 16.10,UDOT 24-SMF]L[144-SMF: TSOB - I-215]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:top|6 DROP: I-215 SB MP 16.10:bottom|UDOT 24-SMF:bottom}W1400",
+      "tier": "T0",
+      "feasible": true,
+      "score": -13550,
+      "softScore": {
+        "crossings": 0,
+        "bendsOverBudget": 0,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 4,
+        "centerWidth": 0,
+        "heightImbalance": 160,
+        "pathLength": 0,
+        "sidePairPenalty": 650,
+        "topBottomRelief": -16000,
+        "total": -13550
+      },
+      "failedRules": [],
+      "timingMs": 0,
+      "usesTop": true,
+      "usesBottom": true
+    },
+    {
+      "candidateId": "T[6 DROP: I-215 SB MP 16.10,UDOT 24-SMF]B[288-SMF DIST I-215: STATE OFFICE - 4240 S]L[144-SMF: TSOB - I-215]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:bottom|6 DROP: I-215 SB MP 16.10:top|UDOT 24-SMF:top}W1200",
+      "tier": "T0",
+      "feasible": true,
+      "score": -13550,
+      "softScore": {
+        "crossings": 0,
+        "bendsOverBudget": 0,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 4,
+        "centerWidth": 0,
+        "heightImbalance": 160,
+        "pathLength": 0,
+        "sidePairPenalty": 650,
+        "topBottomRelief": -16000,
+        "total": -13550
+      },
+      "failedRules": [],
+      "timingMs": 0,
+      "usesTop": true,
+      "usesBottom": true
+    },
+    {
+      "candidateId": "T[288-SMF DIST I-215: STATE OFFICE - 4240 S]B[6 DROP: I-215 SB MP 16.10,UDOT 24-SMF]L[144-SMF: TSOB - I-215]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:top|6 DROP: I-215 SB MP 16.10:bottom|UDOT 24-SMF:bottom}W2389",
+      "tier": "T0",
+      "feasible": true,
+      "score": -13550,
+      "softScore": {
+        "crossings": 0,
+        "bendsOverBudget": 0,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 4,
+        "centerWidth": 0,
+        "heightImbalance": 160,
+        "pathLength": 0,
+        "sidePairPenalty": 650,
+        "topBottomRelief": -16000,
+        "total": -13550
+      },
+      "failedRules": [],
+      "timingMs": 0,
+      "usesTop": true,
+      "usesBottom": true
+    },
+    {
+      "candidateId": "T[6 DROP: I-215 SB MP 16.10,UDOT 24-SMF]B[288-SMF DIST I-215: STATE OFFICE - 4240 S]L[144-SMF: TSOB - I-215]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:bottom|6 DROP: I-215 SB MP 16.10:top|UDOT 24-SMF:top}W1400",
+      "tier": "T0",
+      "feasible": true,
+      "score": -13550,
+      "softScore": {
+        "crossings": 0,
+        "bendsOverBudget": 0,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 4,
+        "centerWidth": 0,
+        "heightImbalance": 160,
+        "pathLength": 0,
+        "sidePairPenalty": 650,
+        "topBottomRelief": -16000,
+        "total": -13550
+      },
+      "failedRules": [],
+      "timingMs": 0,
+      "usesTop": true,
+      "usesBottom": true
+    },
+    {
+      "candidateId": "T[288-SMF DIST I-215: STATE OFFICE - 4240 S]B[UDOT 24-SMF]L[6 DROP: I-215 SB MP 16.10,144-SMF: TSOB - I-215]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:top|6 DROP: I-215 SB MP 16.10:left|UDOT 24-SMF:bottom}W1200",
+      "tier": "T0",
+      "feasible": true,
+      "score": -11550,
+      "softScore": {
+        "crossings": 1,
+        "bendsOverBudget": 0,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 4,
+        "centerWidth": 0,
+        "heightImbalance": 160,
+        "pathLength": 0,
+        "sidePairPenalty": 650,
+        "topBottomRelief": -15000,
+        "total": -11550
+      },
+      "failedRules": [],
+      "timingMs": 0,
+      "usesTop": true,
+      "usesBottom": true
+    },
+    {
+      "candidateId": "T[UDOT 24-SMF]B[288-SMF DIST I-215: STATE OFFICE - 4240 S]L[6 DROP: I-215 SB MP 16.10,144-SMF: TSOB - I-215]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:bottom|6 DROP: I-215 SB MP 16.10:left|UDOT 24-SMF:top}W1200",
+      "tier": "T0",
+      "feasible": true,
+      "score": -11550,
+      "softScore": {
+        "crossings": 1,
+        "bendsOverBudget": 0,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 4,
+        "centerWidth": 0,
+        "heightImbalance": 160,
+        "pathLength": 0,
+        "sidePairPenalty": 650,
+        "topBottomRelief": -15000,
+        "total": -11550
+      },
+      "failedRules": [],
+      "timingMs": 0,
+      "usesTop": true,
+      "usesBottom": true
+    },
+    {
+      "candidateId": "T[UDOT 24-SMF]B[288-SMF DIST I-215: STATE OFFICE - 4240 S]L[144-SMF: TSOB - I-215,6 DROP: I-215 SB MP 16.10]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:bottom|6 DROP: I-215 SB MP 16.10:left|UDOT 24-SMF:top}W1200",
+      "tier": "T0",
+      "feasible": true,
+      "score": -9550,
+      "softScore": {
+        "crossings": 2,
+        "bendsOverBudget": 0,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 4,
+        "centerWidth": 0,
+        "heightImbalance": 160,
+        "pathLength": 0,
+        "sidePairPenalty": 650,
+        "topBottomRelief": -14000,
+        "total": -9550
+      },
+      "failedRules": [],
+      "timingMs": 1,
+      "usesTop": true,
+      "usesBottom": true
+    }
+  ],
+  "finalists": [
+    {
+      "candidateId": "T[]B[288-SMF DIST I-215: STATE OFFICE - 4240 S]L[6 DROP: I-215 SB MP 16.10,144-SMF: TSOB - I-215,UDOT 24-SMF]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:bottom|6 DROP: I-215 SB MP 16.10:left|UDOT 24-SMF:left}W1200",
+      "tier": "finalist",
+      "feasible": false,
+      "score": 9007199254740991,
+      "softScore": {
+        "crossings": 909,
+        "bendsOverBudget": 26,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 3,
+        "centerWidth": 1040,
+        "heightImbalance": 536,
+        "pathLength": 58885.872,
+        "total": 924038.5872
+      },
+      "failedRules": [
+        {
+          "id": "SDC-LAYOUT-002",
+          "severity": "fail",
+          "detail": "SDC-LAYOUT-002: shared label column misaligned",
+          "objectIds": [
+            "SDC-LAYOUT-002: shared label column misaligned"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-001",
+          "severity": "fail",
+          "detail": "Connection 288-SMF DIST I-215: COMPLEX - STATE OFFICE|5|BL|SL::6 DROP: I-215 SB MP 16.10|1|BL|BL: Point (1145.856,776.816) outside routing zone",
+          "objectIds": [
+            "288-SMF DIST I-215: COMPLEX - STATE OFFICE|5|BL|SL::6 DROP: I-215 SB MP 16.10|1|BL|BL"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-002",
+          "severity": "fail",
+          "detail": "SDC-ROUTE-002: tube bundle midX nest order wrong",
+          "objectIds": [
+            "SDC-ROUTE-002: tube bundle midX nest order wrong"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-003",
+          "severity": "fail",
+          "detail": "SDC-ROUTE-003: Parallel route segments closer than lane pitch",
+          "objectIds": [
+            "Parallel route segments closer than lane pitch"
+          ]
+        }
+      ],
+      "usesTop": false,
+      "usesBottom": true
+    },
+    {
+      "candidateId": "T[]B[288-SMF DIST I-215: STATE OFFICE - 4240 S]L[6 DROP: I-215 SB MP 16.10,144-SMF: TSOB - I-215,UDOT 24-SMF]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:bottom|6 DROP: I-215 SB MP 16.10:left|UDOT 24-SMF:left}W1400",
+      "tier": "finalist",
+      "feasible": false,
+      "score": 9007199254740991,
+      "softScore": {
+        "crossings": 909,
+        "bendsOverBudget": 26,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 3,
+        "centerWidth": 1240,
+        "heightImbalance": 536,
+        "pathLength": 58885.872,
+        "total": 924238.5872
+      },
+      "failedRules": [
+        {
+          "id": "SDC-LAYOUT-002",
+          "severity": "fail",
+          "detail": "SDC-LAYOUT-002: shared label column misaligned",
+          "objectIds": [
+            "SDC-LAYOUT-002: shared label column misaligned"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-002",
+          "severity": "fail",
+          "detail": "SDC-ROUTE-002: tube bundle midX nest order wrong",
+          "objectIds": [
+            "SDC-ROUTE-002: tube bundle midX nest order wrong"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-003",
+          "severity": "fail",
+          "detail": "SDC-ROUTE-003: Parallel route segments closer than lane pitch",
+          "objectIds": [
+            "Parallel route segments closer than lane pitch"
+          ]
+        }
+      ],
+      "usesTop": false,
+      "usesBottom": true
+    },
+    {
+      "candidateId": "T[]B[288-SMF DIST I-215: STATE OFFICE - 4240 S]L[6 DROP: I-215 SB MP 16.10,UDOT 24-SMF,144-SMF: TSOB - I-215]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:bottom|6 DROP: I-215 SB MP 16.10:left|UDOT 24-SMF:left}W1200",
+      "tier": "finalist",
+      "feasible": false,
+      "score": 9007199254740991,
+      "softScore": {
+        "crossings": 792,
+        "bendsOverBudget": 26,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 3,
+        "centerWidth": 1040,
+        "heightImbalance": 536,
+        "pathLength": 52357.872,
+        "total": 806385.7872
+      },
+      "failedRules": [
+        {
+          "id": "SDC-LAYOUT-002",
+          "severity": "fail",
+          "detail": "SDC-LAYOUT-002: shared label column misaligned",
+          "objectIds": [
+            "SDC-LAYOUT-002: shared label column misaligned"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-001",
+          "severity": "fail",
+          "detail": "Connection 288-SMF DIST I-215: COMPLEX - STATE OFFICE|5|BL|SL::6 DROP: I-215 SB MP 16.10|1|BL|BL: Point (1145.856,776.816) outside routing zone",
+          "objectIds": [
+            "288-SMF DIST I-215: COMPLEX - STATE OFFICE|5|BL|SL::6 DROP: I-215 SB MP 16.10|1|BL|BL"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-002",
+          "severity": "fail",
+          "detail": "SDC-ROUTE-002: tube bundle midX nest order wrong",
+          "objectIds": [
+            "SDC-ROUTE-002: tube bundle midX nest order wrong"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-003",
+          "severity": "fail",
+          "detail": "SDC-ROUTE-003: Parallel route segments closer than lane pitch",
+          "objectIds": [
+            "Parallel route segments closer than lane pitch"
+          ]
+        }
+      ],
+      "usesTop": false,
+      "usesBottom": true
+    },
+    {
+      "candidateId": "T[288-SMF DIST I-215: STATE OFFICE - 4240 S]B[]L[6 DROP: I-215 SB MP 16.10,144-SMF: TSOB - I-215,UDOT 24-SMF]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:top|6 DROP: I-215 SB MP 16.10:left|UDOT 24-SMF:left}W1200",
+      "tier": "finalist",
+      "feasible": false,
+      "score": 9007199254740991,
+      "softScore": {
+        "crossings": 636,
+        "bendsOverBudget": 26,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 3,
+        "centerWidth": 1040,
+        "heightImbalance": 536,
+        "pathLength": 54377.136,
+        "total": 650587.7136
+      },
+      "failedRules": [
+        {
+          "id": "SDC-LAYOUT-002",
+          "severity": "fail",
+          "detail": "SDC-LAYOUT-002: shared label column misaligned",
+          "objectIds": [
+            "SDC-LAYOUT-002: shared label column misaligned"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-001",
+          "severity": "fail",
+          "detail": "Connection 288-SMF DIST I-215: COMPLEX - STATE OFFICE|5|BL|SL::6 DROP: I-215 SB MP 16.10|1|BL|BL: Point (1145.856,776.816) outside routing zone",
+          "objectIds": [
+            "288-SMF DIST I-215: COMPLEX - STATE OFFICE|5|BL|SL::6 DROP: I-215 SB MP 16.10|1|BL|BL"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-002",
+          "severity": "fail",
+          "detail": "SDC-ROUTE-002: tube bundle midX nest order wrong",
+          "objectIds": [
+            "SDC-ROUTE-002: tube bundle midX nest order wrong"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-003",
+          "severity": "fail",
+          "detail": "SDC-ROUTE-003: Parallel route segments closer than lane pitch",
+          "objectIds": [
+            "Parallel route segments closer than lane pitch"
+          ]
+        }
+      ],
+      "usesTop": true,
+      "usesBottom": false
+    },
+    {
+      "candidateId": "T[288-SMF DIST I-215: STATE OFFICE - 4240 S]B[6 DROP: I-215 SB MP 16.10,UDOT 24-SMF]L[144-SMF: TSOB - I-215]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:top|6 DROP: I-215 SB MP 16.10:bottom|UDOT 24-SMF:bottom}W1200",
+      "tier": "finalist",
+      "feasible": false,
+      "score": 9007199254740991,
+      "softScore": {
+        "crossings": 674,
+        "bendsOverBudget": 26,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 4,
+        "centerWidth": 1040,
+        "heightImbalance": 160,
+        "pathLength": 42358,
+        "total": 683675.8
+      },
+      "failedRules": [
+        {
+          "id": "SDC-LAYOUT-002",
+          "severity": "fail",
+          "detail": "SDC-LAYOUT-002: shared label column misaligned; SDC-LAYOUT-002: fiber fan-out direction wrong",
+          "objectIds": [
+            "SDC-LAYOUT-002: shared label column misaligned",
+            "SDC-LAYOUT-002: fiber fan-out direction wrong"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-001",
+          "severity": "fail",
+          "detail": "Connection 288-SMF DIST I-215: COMPLEX - STATE OFFICE|5|BL|SL::6 DROP: I-215 SB MP 16.10|1|BL|BL: Point (1303.856,526.744) outside routing zone",
+          "objectIds": [
+            "288-SMF DIST I-215: COMPLEX - STATE OFFICE|5|BL|SL::6 DROP: I-215 SB MP 16.10|1|BL|BL"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-002",
+          "severity": "fail",
+          "detail": "SDC-ROUTE-002: tube bundle midX nest order wrong",
+          "objectIds": [
+            "SDC-ROUTE-002: tube bundle midX nest order wrong"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-003",
+          "severity": "fail",
+          "detail": "SDC-ROUTE-003: Parallel route segments closer than lane pitch",
+          "objectIds": [
+            "Parallel route segments closer than lane pitch"
+          ]
+        }
+      ],
+      "usesTop": true,
+      "usesBottom": true
+    },
+    {
+      "candidateId": "T[288-SMF DIST I-215: STATE OFFICE - 4240 S]B[6 DROP: I-215 SB MP 16.10,UDOT 24-SMF]L[144-SMF: TSOB - I-215]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:top|6 DROP: I-215 SB MP 16.10:bottom|UDOT 24-SMF:bottom}W1400",
+      "tier": "finalist",
+      "feasible": false,
+      "score": 9007199254740991,
+      "softScore": {
+        "crossings": 674,
+        "bendsOverBudget": 26,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 4,
+        "centerWidth": 1240,
+        "heightImbalance": 160,
+        "pathLength": 42358,
+        "total": 683875.8
+      },
+      "failedRules": [
+        {
+          "id": "SDC-LAYOUT-002",
+          "severity": "fail",
+          "detail": "SDC-LAYOUT-002: shared label column misaligned",
+          "objectIds": [
+            "SDC-LAYOUT-002: shared label column misaligned"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-002",
+          "severity": "fail",
+          "detail": "SDC-ROUTE-002: tube bundle midX nest order wrong",
+          "objectIds": [
+            "SDC-ROUTE-002: tube bundle midX nest order wrong"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-003",
+          "severity": "fail",
+          "detail": "SDC-ROUTE-003: Parallel route segments closer than lane pitch",
+          "objectIds": [
+            "Parallel route segments closer than lane pitch"
+          ]
+        }
+      ],
+      "usesTop": true,
+      "usesBottom": true
+    },
+    {
+      "candidateId": "T[288-SMF DIST I-215: STATE OFFICE - 4240 S]B[6 DROP: I-215 SB MP 16.10,UDOT 24-SMF]L[144-SMF: TSOB - I-215]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:top|6 DROP: I-215 SB MP 16.10:bottom|UDOT 24-SMF:bottom}W2389",
+      "tier": "finalist",
+      "feasible": false,
+      "score": 9007199254740991,
+      "softScore": {
+        "crossings": 674,
+        "bendsOverBudget": 26,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 4,
+        "centerWidth": 2229,
+        "heightImbalance": 160,
+        "pathLength": 58245.80000000001,
+        "total": 686453.58
+      },
+      "failedRules": [
+        {
+          "id": "SDC-LAYOUT-002",
+          "severity": "fail",
+          "detail": "SDC-LAYOUT-002: shared label column misaligned",
+          "objectIds": [
+            "SDC-LAYOUT-002: shared label column misaligned"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-002",
+          "severity": "fail",
+          "detail": "SDC-ROUTE-002: tube bundle midX nest order wrong",
+          "objectIds": [
+            "SDC-ROUTE-002: tube bundle midX nest order wrong"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-003",
+          "severity": "fail",
+          "detail": "SDC-ROUTE-003: Parallel route segments closer than lane pitch",
+          "objectIds": [
+            "Parallel route segments closer than lane pitch"
+          ]
+        }
+      ],
+      "usesTop": true,
+      "usesBottom": true
+    },
+    {
+      "candidateId": "T[288-SMF DIST I-215: STATE OFFICE - 4240 S]B[6 DROP: I-215 SB MP 16.10]L[144-SMF: TSOB - I-215,UDOT 24-SMF]R[288-SMF DIST I-215: COMPLEX - STATE OFFICE]S{144-SMF: TSOB - I-215:left|288-SMF DIST I-215: COMPLEX - STATE OFFICE:right|288-SMF DIST I-215: STATE OFFICE - 4240 S:top|6 DROP: I-215 SB MP 16.10:bottom|UDOT 24-SMF:left}W1200",
+      "tier": "finalist",
+      "feasible": false,
+      "score": 9007199254740991,
+      "softScore": {
+        "crossings": 778,
+        "bendsOverBudget": 26,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 4,
+        "centerWidth": 1040,
+        "heightImbalance": 640,
+        "pathLength": 56804.86399999996,
+        "total": 793920.4864
+      },
+      "failedRules": [
+        {
+          "id": "SDC-LAYOUT-002",
+          "severity": "fail",
+          "detail": "SDC-LAYOUT-002: shared label column misaligned; SDC-LAYOUT-002: fiber fan-out direction wrong",
+          "objectIds": [
+            "SDC-LAYOUT-002: shared label column misaligned",
+            "SDC-LAYOUT-002: fiber fan-out direction wrong"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-001",
+          "severity": "fail",
+          "detail": "Connection 288-SMF DIST I-215: COMPLEX - STATE OFFICE|5|BL|SL::6 DROP: I-215 SB MP 16.10|1|BL|BL: Point (1145.856,832.056) outside routing zone",
+          "objectIds": [
+            "288-SMF DIST I-215: COMPLEX - STATE OFFICE|5|BL|SL::6 DROP: I-215 SB MP 16.10|1|BL|BL"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-002",
+          "severity": "fail",
+          "detail": "SDC-ROUTE-002: tube bundle midX nest order wrong",
+          "objectIds": [
+            "SDC-ROUTE-002: tube bundle midX nest order wrong"
+          ]
+        },
+        {
+          "id": "SDC-ROUTE-003",
+          "severity": "fail",
+          "detail": "SDC-ROUTE-003: Parallel route segments closer than lane pitch",
+          "objectIds": [
+            "Parallel route segments closer than lane pitch"
+          ]
+        }
+      ],
+      "usesTop": true,
+      "usesBottom": true
+    }
+  ],
+  "notes": [
+    "Worker search wall: 76299ms"
+  ],
+  "graphStats": {
+    "cableCount": 5,
+    "connectionCount": 52,
+    "fiberConnectionCount": 52
+  },
+  "fallback": {
+    "used": true,
+    "reason": "no rule-passing finalist; using heuristic",
+    "failedRuleIds": [
+      "SDC-LAYOUT-002",
+      "SDC-ROUTE-001",
+      "SDC-ROUTE-002",
+      "SDC-ROUTE-003"
+    ]
+  },
+  "finishedAt": 117135.89999997616,
+  "totalMs": 116341
+}
