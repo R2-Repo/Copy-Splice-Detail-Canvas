@@ -179,6 +179,13 @@ import {
   recordWinner,
   timePhase,
 } from "@/features/layoutSearch/importDiagnostics";
+import {
+  applyRecoverableSelectionDiagnostics,
+  buildRecoverablePool,
+  pickBestRecoverableCandidate,
+  recoverableSelectionBanner,
+  toRecoverableCandidate,
+} from "@/features/layoutSearch/pickBestRecoverableCandidate";
 import { analyzeTopology } from "@/features/layoutSearch/topology/analyzeTopology";
 import { evaluateLayoutCandidate } from "@/features/layoutSearch/evaluateCandidate";
 import {
@@ -1273,50 +1280,49 @@ function WorkflowCanvasInner() {
               reason: searchResult.diagnostics?.selectedCandidateReason,
             });
           }
-        } else if ((searchResult.finalists?.length ?? 0) > 0) {
-          candidate = heuristicBaselineCandidate(graph, layoutWidth);
-          const topFailed = searchResult.finalists![0]!;
-          const failedIds = topFailed.failedRuleIds;
-          if (importDiag) {
-            recordFallback(
-              importDiag,
-              "no rule-passing finalist; using heuristic",
-              failedIds,
-            );
-            timePhase(importDiag, "fallback", () => {
-              setConfigErrorBanner(
-                `Layout optimizer found no rule-passing finalist; using heuristic fallback.${failedIds.length > 0 ? ` Failed: ${failedIds.join(", ")}` : ""}`,
-              );
-            });
-          } else {
-            setConfigErrorBanner(
-              `Layout optimizer found no rule-passing finalist; using heuristic fallback.${failedIds.length > 0 ? ` Failed: ${failedIds.join(", ")}` : ""}`,
-            );
-          }
-          evaluation = evaluateLayoutCandidate(graph, candidate);
         } else {
-          candidate = searchResult.best;
-          evaluation = evaluateLayoutCandidate(graph, candidate);
-          const feasible =
-            searchResult.winnerEvaluation?.feasible ?? evaluation.feasible;
-          if (!feasible) {
-            candidate = heuristicBaselineCandidate(graph, layoutWidth);
-            const failed = evaluation.violations
-              .filter((r) => !r.ok && r.severity === "fail")
-              .map((r) => r.detail ?? r.id);
-            const failedIds = evaluation.violations
-              .filter((r) => !r.ok && r.severity === "fail")
-              .map((r) => r.id);
+          const heuristicEval = timePhase(importDiag, "finalRuleValidation", () =>
+            evaluateLayoutCandidate(graph, heuristic),
+          );
+          const heuristicEntry = toRecoverableCandidate(
+            heuristic,
+            heuristicEval,
+            "heuristic",
+          );
+
+          const pool = buildRecoverablePool(
+            searchResult.finalists ?? [],
+            heuristicEntry,
+            (searchResult.finalists?.length ?? 0) === 0
+              ? toRecoverableCandidate(
+                  searchResult.best,
+                  evaluateLayoutCandidate(graph, searchResult.best),
+                  "search-best",
+                )
+              : undefined,
+          );
+
+          const selection = timePhase(importDiag, "fallback", () =>
+            pickBestRecoverableCandidate(pool),
+          );
+
+          if (!selection) {
+            candidate = heuristic;
+            evaluation = heuristicEval;
             if (importDiag) {
-              recordFallback(
-                importDiag,
-                "no feasible candidate; using heuristic",
-                failedIds,
-              );
+              recordFallback(importDiag, "recoverable pool empty; using heuristic");
             }
             setConfigErrorBanner(
-              `Layout optimizer found no feasible candidate; using heuristic fallback.${failed.length > 0 ? ` ${failed.join("; ")}` : ""}`,
+              "Layout optimizer found no candidates; using heuristic layout.",
             );
+          } else {
+            candidate = selection.picked.candidate;
+            evaluation =
+              selection.picked.evaluation ??
+              evaluateLayoutCandidate(graph, candidate);
+            applyRecoverableSelectionDiagnostics(importDiag, selection);
+            const banner = recoverableSelectionBanner(selection);
+            if (banner) setConfigErrorBanner(banner);
           }
         }
 

@@ -4,13 +4,15 @@
 
 ## Focus (2026-06-28)
 
+**Recoverable import fallback** — heuristic is a normal candidate in the final pool; `pickBestRecoverableCandidate` ranks by rule failures + weighted penalties when no finalist fully passes.
+
 **Import optimizer shipped** — beam search (default), four-side scoring, routing intent + seed generation, finalist fallback, proxy T1, tiered `runRulesForTier`. See [`IMPORT_OPTIMIZER_BUILD.md`](./IMPORT_OPTIMIZER_BUILD.md).
 
-**SPI-215 (KI-003):** import completes via heuristic fallback when search times out; beam + caps improve smaller fixtures.
+**SPI-215 (KI-003):** import completes via best-recoverable selection (not blind heuristic) when search finds failed finalists; beam + caps improve smaller fixtures.
 
 ## Active build track
 
-- **Import optimizer** — Phases 1–6 complete on `cursor/import-optimizer-impl-20e4`
+- **Import optimizer** — recoverable fallback + route-aware seed expansion
 - Import perf P0–P3 — worker, tiered eval, memo/budgets (baseline)
 - Routing-first auto layout — Phase 6 gated
 - Legacy `VITE_USE_LEGACY_IMPORT_LAYOUT=1` + `legacy-guided` search mode still available
@@ -32,9 +34,9 @@
 ## Testing policy
 
 - **Default:** `npm run smoke`
-- **Manual QA:** example-2 + `?fixture=sp`, `state`, `spi`
+- **Manual QA:** example-2 + `?fixture=sp`, `state`, `spi` — **Left-STATE_OFFICE** for recoverable fallback
 - KI-003 full feasibility — opt-in only (`test:rules`)
 
 ## Branch
 
-- `cursor/import-optimizer-impl-20e4`
+- `cursor/recoverable-import-layout-7df9`
