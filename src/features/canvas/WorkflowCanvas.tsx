@@ -438,6 +438,8 @@ function WorkflowCanvasInner() {
   const autoAdjustRef = useRef(true);
   const manualCableDragRafRef = useRef<number | null>(null);
   const pendingManualCableNodeRef = useRef<Node | null>(null);
+  const engineCableDragRafRef = useRef<number | null>(null);
+  const pendingEngineCableNodeRef = useRef<Node | null>(null);
 
   collapseRef.current = collapseFullButtSplices;
   calloutsVisibleRef.current = calloutsVisible;
@@ -539,7 +541,7 @@ function WorkflowCanvasInner() {
     [applyManualCableDrag],
   );
 
-  const syncNodesEngineDrag = useCallback(
+  const applyEngineCableDrag = useCallback(
     (draggedNode: Node) => {
       if (!autoAdjustRef.current) return;
       const graph = graphRef.current;
@@ -584,7 +586,21 @@ function WorkflowCanvasInner() {
       setNodes(nextNodes);
       setEdges(nextEdges);
     },
-    [getNodes, setEdges, setNodes],
+    [getEdges, getNodes, setEdges, setNodes],
+  );
+
+  const syncNodesEngineDrag = useCallback(
+    (draggedNode: Node) => {
+      pendingEngineCableNodeRef.current = draggedNode;
+      if (engineCableDragRafRef.current != null) return;
+      engineCableDragRafRef.current = requestAnimationFrame(() => {
+        engineCableDragRafRef.current = null;
+        const node = pendingEngineCableNodeRef.current;
+        pendingEngineCableNodeRef.current = null;
+        if (node) applyEngineCableDrag(node);
+      });
+    },
+    [applyEngineCableDrag],
   );
 
   const syncQuadCableDrag = useCallback(
@@ -689,7 +705,7 @@ function WorkflowCanvasInner() {
           FIT_WIDTH_OPTIONS,
         );
 
-    void setViewport(viewport, { duration: 200 });
+    void setViewport(viewport, { duration: 0 });
   }, [nodesInitialized, nodes, getNodesBounds, setViewport]);
 
   type ApplyGraphOptions = {
@@ -953,8 +969,6 @@ function WorkflowCanvasInner() {
         applyGraphRef.current(graph, reportKey, collapseRef.current, {
           layoutWidth: nextWidth,
           refreshColumnX: true,
-          fitView: true,
-          fitAtUnitZoom: true,
         });
       });
     });
@@ -977,6 +991,14 @@ function WorkflowCanvasInner() {
 
     const stageWidth = stageRef.current?.clientWidth ?? stageWidthRef.current;
     if (stageWidth <= 0) return;
+
+    const existing = loadLayoutOverrides(reportKey);
+    if (
+      existing?.optimizedLayoutCandidate &&
+      !legacyImportLayoutEnabled()
+    ) {
+      return;
+    }
 
     const target = stageLayoutWidthForGraph(graph, stageWidth, {
       userExpandedLayoutWidth: userExpandedLayoutRef.current
@@ -1106,16 +1128,27 @@ function WorkflowCanvasInner() {
           );
         }
 
+        const stageWidth =
+          stageRef.current?.clientWidth ?? stageWidthRef.current ?? 0;
+        const renderWidth =
+          stageWidth > 0
+            ? stageLayoutWidthForGraph(graph, stageWidth)
+            : candidate.layoutWidth;
+        const renderCandidate =
+          renderWidth !== candidate.layoutWidth
+            ? { ...candidate, layoutWidth: renderWidth }
+            : candidate;
+
         saveLayoutOverrides(
           mergeLayoutOverrides(reportKey, {
-            ...candidateOverridePatch(graph, candidate, reportKey),
+            ...candidateOverridePatch(graph, renderCandidate, reportKey),
             collapseFullButtSplices: collapsed,
             autoAdjustEnabled: saved?.autoAdjustEnabled !== false,
           }),
         );
-        layoutModeRef.current = deriveLayoutMode(candidate);
-        setLayoutModeState(deriveLayoutMode(candidate));
-        finishImport(candidate.layoutWidth, true);
+        layoutModeRef.current = deriveLayoutMode(renderCandidate);
+        setLayoutModeState(deriveLayoutMode(renderCandidate));
+        finishImport(renderWidth, true);
       };
 
       const importWhenStageReady = (attempt = 0) => {
@@ -1799,6 +1832,11 @@ function WorkflowCanvasInner() {
           manualCableDragRafRef.current = null;
         }
         pendingManualCableNodeRef.current = null;
+        if (engineCableDragRafRef.current != null) {
+          cancelAnimationFrame(engineCableDragRafRef.current);
+          engineCableDragRafRef.current = null;
+        }
+        pendingEngineCableNodeRef.current = null;
 
         const existing = loadLayoutOverrides(reportKey);
         const visualId = visualCableIdFromNodeId(node.id);
@@ -1966,6 +2004,11 @@ function WorkflowCanvasInner() {
         manualCableDragRafRef.current = null;
       }
       pendingManualCableNodeRef.current = null;
+      if (engineCableDragRafRef.current != null) {
+        cancelAnimationFrame(engineCableDragRafRef.current);
+        engineCableDragRafRef.current = null;
+      }
+      pendingEngineCableNodeRef.current = null;
 
       const centerX = layoutWidthRef.current / 2;
       const newSide = displaySideFromCanvasX(node.position.x, centerX);
