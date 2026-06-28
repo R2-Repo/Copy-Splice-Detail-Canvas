@@ -53,8 +53,40 @@ export function debugLayoutSearchEnabled(): boolean {
 
 export function debugImportCandidatesEnabled(): boolean {
   return (
+    debugImportOptimizerEnabled() ||
+    (typeof import.meta !== "undefined" &&
+      import.meta.env?.VITE_DEBUG_IMPORT_CANDIDATES === "1")
+  );
+}
+
+export function debugImportOptimizerEnabled(): boolean {
+  return (
     typeof import.meta !== "undefined" &&
-    import.meta.env?.VITE_DEBUG_IMPORT_CANDIDATES === "1"
+    import.meta.env?.VITE_DEBUG_IMPORT_OPTIMIZER === "1"
+  );
+}
+
+export function debugImportTimingEnabled(): boolean {
+  return (
+    debugImportOptimizerEnabled() ||
+    (typeof import.meta !== "undefined" &&
+      import.meta.env?.VITE_DEBUG_IMPORT_TIMING === "1")
+  );
+}
+
+export function debugImportRulesEnabled(): boolean {
+  return (
+    debugImportOptimizerEnabled() ||
+    (typeof import.meta !== "undefined" &&
+      import.meta.env?.VITE_DEBUG_IMPORT_RULES === "1")
+  );
+}
+
+export function debugImportTopBottomEnabled(): boolean {
+  return (
+    debugImportOptimizerEnabled() ||
+    (typeof import.meta !== "undefined" &&
+      import.meta.env?.VITE_DEBUG_IMPORT_TOP_BOTTOM === "1")
   );
 }
 

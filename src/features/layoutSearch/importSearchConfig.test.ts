@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { parseForcedLayoutSides, layoutSearchMode } from "./importSearchConfig";
+import {
+  debugImportOptimizerEnabled,
+  debugImportTimingEnabled,
+  parseForcedLayoutSides,
+  layoutSearchMode,
+} from "./importSearchConfig";
 
 describe("importSearchConfig", () => {
   it("parseForcedLayoutSides returns empty when unset", () => {
@@ -17,6 +22,13 @@ describe("importSearchConfig", () => {
       { cable: "CableA", side: "top" },
       { cable: "CableB", side: "right" },
     ]);
+    vi.unstubAllEnvs();
+  });
+
+  it("debugImportOptimizerEnabled reads master flag", () => {
+    vi.stubEnv("VITE_DEBUG_IMPORT_OPTIMIZER", "1");
+    expect(debugImportOptimizerEnabled()).toBe(true);
+    expect(debugImportTimingEnabled()).toBe(true);
     vi.unstubAllEnvs();
   });
 });

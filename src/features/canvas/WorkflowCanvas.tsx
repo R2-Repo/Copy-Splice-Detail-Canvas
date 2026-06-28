@@ -169,6 +169,16 @@ import {
   type LayoutSearchProgress,
 } from "@/features/layoutSearch/layoutSearch";
 import { importTimeBudgetMs } from "@/features/layoutSearch/importSearchConfig";
+import {
+  beginImportDiagnostics,
+  finishImportDiagnostics,
+  getActiveImportDiagnostics,
+  mergeSearchDiagnosticsSlice,
+  recordFallback,
+  recordGraphStats,
+  recordWinner,
+  timePhase,
+} from "@/features/layoutSearch/importDiagnostics";
 import { analyzeTopology } from "@/features/layoutSearch/topology/analyzeTopology";
 import { evaluateLayoutCandidate } from "@/features/layoutSearch/evaluateCandidate";
 import {
@@ -1142,17 +1152,23 @@ function WorkflowCanvasInner() {
           ),
         );
 
-        const heuristic = heuristicBaselineCandidate(graph, layoutWidth);
-        saveLayoutOverrides(
-          mergeLayoutOverrides(reportKey, {
-            ...candidateOverridePatch(graph, heuristic, reportKey),
-            collapseFullButtSplices: collapsed,
-            autoAdjustEnabled: saved?.autoAdjustEnabled !== false,
-          }),
+        const heuristic = timePhase(
+          getActiveImportDiagnostics(),
+          "heuristicCandidate",
+          () => heuristicBaselineCandidate(graph, layoutWidth),
         );
-        layoutModeRef.current = deriveLayoutMode(heuristic);
-        setLayoutModeState(deriveLayoutMode(heuristic));
-        finishImport(layoutWidth, true);
+        timePhase(getActiveImportDiagnostics(), "heuristicPaint", () => {
+          saveLayoutOverrides(
+            mergeLayoutOverrides(reportKey, {
+              ...candidateOverridePatch(graph, heuristic, reportKey),
+              collapseFullButtSplices: collapsed,
+              autoAdjustEnabled: saved?.autoAdjustEnabled !== false,
+            }),
+          );
+          layoutModeRef.current = deriveLayoutMode(heuristic);
+          setLayoutModeState(deriveLayoutMode(heuristic));
+          finishImport(layoutWidth, true);
+        });
 
         setLayoutSearchProgress(
           initialSearchProgress(
@@ -1165,6 +1181,7 @@ function WorkflowCanvasInner() {
         );
 
         let searchResult;
+        const workerStart = performance.now();
         try {
           searchResult = await layoutSearchViaWorker(
             graph,
@@ -1191,10 +1208,31 @@ function WorkflowCanvasInner() {
               ? "Layout search timed out; keeping heuristic layout."
               : `Layout search failed: ${message}`,
           );
+          const importDiagErr = getActiveImportDiagnostics();
+          if (importDiagErr) {
+            recordFallback(
+              importDiagErr,
+              timedOut ? "worker search timed out" : message,
+            );
+          }
+          finishImportDiagnostics();
           return;
         }
 
         if (layoutSearchRunRef.current !== runId) return;
+
+        const importDiag = getActiveImportDiagnostics();
+        if (importDiag) {
+          importDiag.notes.push(
+            `Worker search wall: ${Math.round(performance.now() - workerStart)}ms`,
+          );
+          if (searchResult.importDiagnosticsSlice) {
+            mergeSearchDiagnosticsSlice(
+              importDiag,
+              searchResult.importDiagnosticsSlice,
+            );
+          }
+        }
 
         setLayoutSearchProgress(
           initialSearchProgress(
@@ -1222,16 +1260,39 @@ function WorkflowCanvasInner() {
 
         if (pickedFinalist) {
           candidate = pickedFinalist.candidate;
-          evaluation =
+          evaluation = timePhase(importDiag, "finalRuleValidation", () =>
             pickedFinalist.evaluation ??
-            evaluateLayoutCandidate(graph, candidate);
+            evaluateLayoutCandidate(graph, candidate),
+          );
+          if (importDiag && !searchResult.importDiagnosticsSlice?.selected) {
+            recordWinner(importDiag, candidate, {
+              feasible: evaluation.feasible,
+              score: evaluation.score,
+              violations: evaluation.violations,
+              softScore: evaluation.softScore,
+              reason: searchResult.diagnostics?.selectedCandidateReason,
+            });
+          }
         } else if ((searchResult.finalists?.length ?? 0) > 0) {
           candidate = heuristicBaselineCandidate(graph, layoutWidth);
           const topFailed = searchResult.finalists![0]!;
           const failedIds = topFailed.failedRuleIds;
-          setConfigErrorBanner(
-            `Layout optimizer found no rule-passing finalist; using heuristic fallback.${failedIds.length > 0 ? ` Failed: ${failedIds.join(", ")}` : ""}`,
-          );
+          if (importDiag) {
+            recordFallback(
+              importDiag,
+              "no rule-passing finalist; using heuristic",
+              failedIds,
+            );
+            timePhase(importDiag, "fallback", () => {
+              setConfigErrorBanner(
+                `Layout optimizer found no rule-passing finalist; using heuristic fallback.${failedIds.length > 0 ? ` Failed: ${failedIds.join(", ")}` : ""}`,
+              );
+            });
+          } else {
+            setConfigErrorBanner(
+              `Layout optimizer found no rule-passing finalist; using heuristic fallback.${failedIds.length > 0 ? ` Failed: ${failedIds.join(", ")}` : ""}`,
+            );
+          }
           evaluation = evaluateLayoutCandidate(graph, candidate);
         } else {
           candidate = searchResult.best;
@@ -1243,6 +1304,16 @@ function WorkflowCanvasInner() {
             const failed = evaluation.violations
               .filter((r) => !r.ok && r.severity === "fail")
               .map((r) => r.detail ?? r.id);
+            const failedIds = evaluation.violations
+              .filter((r) => !r.ok && r.severity === "fail")
+              .map((r) => r.id);
+            if (importDiag) {
+              recordFallback(
+                importDiag,
+                "no feasible candidate; using heuristic",
+                failedIds,
+              );
+            }
             setConfigErrorBanner(
               `Layout optimizer found no feasible candidate; using heuristic fallback.${failed.length > 0 ? ` ${failed.join("; ")}` : ""}`,
             );
@@ -1260,28 +1331,31 @@ function WorkflowCanvasInner() {
             ? { ...candidate, layoutWidth: renderWidth }
             : candidate;
 
-        saveLayoutOverrides(
-          mergeLayoutOverrides(reportKey, {
-            ...candidateOverridePatch(graph, renderCandidate, reportKey),
-            collapseFullButtSplices: collapsed,
-            autoAdjustEnabled: saved?.autoAdjustEnabled !== false,
-          }),
-        );
-        layoutModeRef.current = deriveLayoutMode(renderCandidate);
-        setLayoutModeState(deriveLayoutMode(renderCandidate));
-        applyGraph(graph, reportKey, collapsed, {
-          fitView: false,
-          fitAtUnitZoom: false,
-          layoutWidth: renderWidth,
-          refreshLayout: true,
-          refreshColumnX: true,
-          refreshRowLayout: true,
+        timePhase(importDiag, "applyWinner", () => {
+          saveLayoutOverrides(
+            mergeLayoutOverrides(reportKey, {
+              ...candidateOverridePatch(graph, renderCandidate, reportKey),
+              collapseFullButtSplices: collapsed,
+              autoAdjustEnabled: saved?.autoAdjustEnabled !== false,
+            }),
+          );
+          layoutModeRef.current = deriveLayoutMode(renderCandidate);
+          setLayoutModeState(deriveLayoutMode(renderCandidate));
+          applyGraph(graph, reportKey, collapsed, {
+            fitView: false,
+            fitAtUnitZoom: false,
+            layoutWidth: renderWidth,
+            refreshLayout: true,
+            refreshColumnX: true,
+            refreshRowLayout: true,
+          });
         });
         setMeta(
           `${options.sourceLabel} — ${graph.report.pairs.length} pair(s), ${graph.connections.length} connection(s)`,
         );
         scheduleFitViewAfterLayout();
         setLayoutSearchProgress(null);
+        finishImportDiagnostics();
       };
 
       const importWhenStageReady = (attempt = 0) => {
@@ -1342,15 +1416,33 @@ function WorkflowCanvasInner() {
 
   const loadFromCsv = useCallback(
     (text: string, fileName: string) => {
-      const report = parseBentleyCsv(text);
-      const graph = buildConnectionGraph(report);
+      const importDiag = beginImportDiagnostics();
+      const report = timePhase(importDiag, "parse", () =>
+        parseBentleyCsv(text),
+      );
+      const graph = timePhase(importDiag, "buildGraph", () =>
+        buildConnectionGraph(report),
+      );
+      const reportKey = reportStorageKey(graph);
+      if (importDiag) importDiag.reportKey = reportKey;
+      const fiberConnectionCount = graph.connections.filter(
+        (c) => c.kind === "fiber",
+      ).length;
+      if (importDiag) {
+        recordGraphStats(importDiag, {
+          cableCount: cableKeysFromGraph(graph).length,
+          connectionCount: graph.connections.length,
+          fiberConnectionCount,
+        });
+      }
       const importCtx = buildSdcRuleContext(graph, { skipReactFlow: true });
-      const importResults = runImportRules(importCtx);
+      const importResults = timePhase(importDiag, "importRules", () =>
+        runImportRules(importCtx),
+      );
       if (!allRulesPass(importResults)) {
         const failed = importResults.filter((r) => !r.ok).map((r) => r.detail);
         setConfigErrorBanner(`Import validation: ${failed.join("; ")}`);
       }
-      const reportKey = reportStorageKey(graph);
       const title =
         report.header.spliceNumber ?? report.header.name ?? fileName;
       activateDiagram(graph, reportKey, {
