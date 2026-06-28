@@ -4,18 +4,21 @@
 
 ## Last updated
 
-2026-06-28 — **Restore post-import canvas interaction**
+2026-06-28 — **Fix post-import zoom + drag jank**
 
 ### Done
 
 | Area | Change |
 |------|--------|
-| Drag gate | `routingFirstSideDragActive` removed; `usePhase6SideDrag` only when optimized candidate is **quad** |
-| Horizontal optimized | `syncNodesEngineDragLayout` passes `fixedPlacement` from candidate; legacy auto/manual drag paths restored |
-| Quad live drag | `syncQuadCableDrag` (position-only); no per-frame `applyCableSideDragCommit` preview |
-| Quad side commit | `detectSideFromEdgeProximity` (~80px edge threshold) on drag-stop only |
-| Non-cable drag | Fiber anchor / manual adjust no longer blocked when optimized candidate exists |
-| Tests | `detectSideFromEdgeProximity` + example-2 drag-sync regression |
+| Optimized import width | Candidate snapshot normalized to `stageLayoutWidthForGraph` before save/render — avoids second full rebuild |
+| Width correction | Skipped when `optimizedLayoutCandidate` exists |
+| fitView | Instant (`duration: 0`) — no animated viewport reset fighting zoom |
+| Stage resize | Reflow column X only — no fitView reset on resize |
+| Engine cable drag | RAF-batched like manual drag (`syncNodesEngineDrag`) |
+
+### Root cause
+
+Layout search stores width steps (960/1200/min). Post-import `nodesInitialized` effect saw mismatch vs stage viewport width → second `applyGraph` + animated fitView → zoom appeared broken until other interactions finished.
 
 ### Test status
 
@@ -25,16 +28,14 @@
 
 ### Manual QA
 
-1. `npm run dev` → import **example-2**
-2. After layout search: scroll zoom + controls work
-3. Drag cables vertically — no jump to top/bottom; center legs stay visible
-4. Toggle manual adjust — fiber anchors / tube tips draggable
-5. Optional: quad CSV — side change only when cable dragged near canvas edge
+1. `npm run dev` → import **Left-SP-3254.5** or example-2
+2. Immediately after diagram appears: scroll zoom + controls work (no pan/drag first)
+3. Drag cables vertically — responsive
+4. Resize window — zoom/pan preserved
 
-### Next
+### Known
 
-1. Quad side-drag UX polish if edge threshold feels too tight/loose
-2. Phase 6 full sign-off after manual QA on quad CSVs
+- Layout search still blocks main thread during import (~10–80s by CSV); "Page Unresponsive" possible on heavy files — separate perf track.
 
 ### Frozen
 
