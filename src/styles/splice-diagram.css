@@ -895,7 +895,8 @@
 }
 
 .layout-search-overlay__panel {
-  min-width: 16rem;
+  min-width: 18rem;
+  max-width: 24rem;
   padding: 1rem 1.25rem;
   border-radius: 0.75rem;
   background: var(--neo-surface, #f8fafc);
@@ -903,17 +904,97 @@
   text-align: center;
 }
 
+.layout-search-overlay__panel--pulse {
+  animation: layout-search-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes layout-search-pulse {
+  0%,
+  100% {
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  }
+  50% {
+    box-shadow: 0 8px 28px rgba(59, 130, 246, 0.22);
+  }
+}
+
 .layout-search-overlay__title {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.25rem;
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--neo-text-strong, #0f172a);
 }
 
-.layout-search-overlay__detail {
-  margin: 0 0 0.75rem;
-  font-size: 0.8rem;
+.layout-search-overlay__context {
+  margin: 0 0 0.65rem;
+  font-size: 0.75rem;
   color: var(--neo-text-muted, #64748b);
+}
+
+.layout-search-overlay__bar-track {
+  position: relative;
+  height: 0.45rem;
+  margin: 0 0 0.65rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.25);
+  overflow: hidden;
+}
+
+.layout-search-overlay__bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  transition: width 0.15s ease-out;
+}
+
+.layout-search-overlay__bar-fill--indeterminate {
+  width: 35% !important;
+  animation: layout-search-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes layout-search-indeterminate {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.layout-search-overlay__bar-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.35),
+    transparent
+  );
+  animation: layout-search-shimmer 2s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes layout-search-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.layout-search-overlay__detail {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  color: var(--neo-text-muted, #64748b);
+  line-height: 1.35;
+}
+
+.layout-search-overlay__feasible {
+  margin: 0 0 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #15803d;
 }
 
 .layout-search-overlay__cancel {

@@ -20,6 +20,9 @@ import {
   type LayoutCandidate,
   type LayoutSide,
 } from "./layoutCandidate";
+import type { LayoutSearchProgress } from "./layoutSearchTypes";
+
+export type { LayoutSearchPhase, LayoutSearchProgress } from "./layoutSearchTypes";
 
 export type LayoutSearchConfig = {
   /** Candidate evaluations after round 0 (default 2000). */
@@ -47,13 +50,6 @@ export type LayoutSearchConfig = {
   shouldCancel?: () => boolean;
 };
 
-export type LayoutSearchProgress = {
-  round: number;
-  evaluations: number;
-  bestScore: number;
-  feasible: boolean;
-};
-
 export type LayoutSearchResult = {
   best: LayoutCandidate;
   evaluations: number;
@@ -61,6 +57,8 @@ export type LayoutSearchResult = {
 };
 
 const DEFAULT_MAX_ROUNDS = 2000;
+export { DEFAULT_MAX_ROUNDS };
+const HEARTBEAT_MS = 50;
 const DEFAULT_BRUTE_FORCE_MAX_CABLES = 8;
 const DEFAULT_RESTART_INTERVAL = 64;
 /** Plateau threshold — documented in ROUTING_FIRST_LAYOUT.md Phase 2 gate. */
@@ -76,11 +74,56 @@ function scoreFeasible(score: number): boolean {
   return score < INFEASIBLE_LAYOUT_SCORE;
 }
 
-function emitProgress(
+type ProgressTrackerState = {
+  startMs: number;
+  lastEmitMs: number;
+  lastEmittedEvaluations: number;
+  evaluationBudget: number;
+  strandCount: number;
+  cableCount: number;
+};
+
+function createProgressTracker(
   config: LayoutSearchConfig,
-  progress: LayoutSearchProgress,
-): void {
-  config.onProgress?.(progress);
+  state: ProgressTrackerState,
+): (progress: Pick<
+  LayoutSearchProgress,
+  "round" | "evaluations" | "bestScore" | "feasible"
+>) => void {
+  return (partial) => {
+    if (!config.onProgress) return;
+
+    const now = performance.now();
+    const elapsedMs = now - state.startMs;
+    const evalAdvanced = partial.evaluations !== state.lastEmittedEvaluations;
+    const shouldEmit =
+      partial.evaluations === 1 ||
+      (evalAdvanced && now - state.lastEmitMs >= HEARTBEAT_MS) ||
+      now - state.lastEmitMs >= HEARTBEAT_MS;
+
+    if (!shouldEmit) return;
+
+    state.lastEmitMs = now;
+    state.lastEmittedEvaluations = partial.evaluations;
+
+    const evalsPerSecond =
+      elapsedMs > 0
+        ? Math.round((partial.evaluations / elapsedMs) * 1000)
+        : undefined;
+
+    config.onProgress({
+      phase: "optimizing",
+      round: partial.round,
+      evaluations: partial.evaluations,
+      evaluationBudget: state.evaluationBudget,
+      bestScore: partial.bestScore,
+      feasible: partial.feasible,
+      elapsedMs: Math.round(elapsedMs),
+      evalsPerSecond,
+      strandCount: state.strandCount,
+      cableCount: state.cableCount,
+    });
+  };
 }
 
 /** FNV-1a 32-bit hash for deterministic seeds from report keys. */
@@ -513,6 +556,7 @@ function runBruteForce(
   startMs: number,
   timeBudgetMs: number | undefined,
   config: LayoutSearchConfig,
+  emitProgress: ReturnType<typeof createProgressTracker>,
 ): { best: RankedCandidate; evaluations: number; seen: RankedCandidate[] } {
   const candidates = enumerateCandidates(cableKeys, widths, expansionIters);
   let best = seedBest;
@@ -526,7 +570,7 @@ function runBruteForce(
     const ranked = { candidate, score };
     seen.push(ranked);
     best = tryImproveBest(best, candidate, score);
-    emitProgress(config, {
+    emitProgress({
       round: evaluations - 1,
       evaluations,
       bestScore: best.score,
@@ -550,6 +594,7 @@ function runGuidedSearch(
   startMs: number,
   timeBudgetMs: number | undefined,
   config: LayoutSearchConfig,
+  emitProgress: ReturnType<typeof createProgressTracker>,
 ): { best: RankedCandidate; evaluations: number; seen: RankedCandidate[] } {
   let best = seedBest;
   let current = seedBest.candidate;
@@ -557,7 +602,7 @@ function runGuidedSearch(
   let roundsWithoutImprovement = 0;
   const seen: RankedCandidate[] = [{ ...seedBest }];
 
-  emitProgress(config, {
+  emitProgress({
     round: 0,
     evaluations,
     bestScore: best.score,
@@ -595,7 +640,7 @@ function runGuidedSearch(
       current = best.candidate;
     }
 
-    emitProgress(config, {
+    emitProgress({
       round,
       evaluations,
       bestScore: best.score,
@@ -628,6 +673,7 @@ async function runGuidedSearchAsync(
   startMs: number,
   timeBudgetMs: number | undefined,
   config: LayoutSearchConfig,
+  emitProgress: ReturnType<typeof createProgressTracker>,
 ): Promise<{ best: RankedCandidate; evaluations: number; seen: RankedCandidate[] }> {
   let best = seedBest;
   let current = seedBest.candidate;
@@ -635,7 +681,7 @@ async function runGuidedSearchAsync(
   let roundsWithoutImprovement = 0;
   const seen: RankedCandidate[] = [{ ...seedBest }];
 
-  emitProgress(config, {
+  emitProgress({
     round: 0,
     evaluations,
     bestScore: best.score,
@@ -673,7 +719,7 @@ async function runGuidedSearchAsync(
       current = best.candidate;
     }
 
-    emitProgress(config, {
+    emitProgress({
       round,
       evaluations,
       bestScore: best.score,
@@ -716,6 +762,15 @@ function runLayoutSearchCore(
   const cableKeys = cableKeysFromGraph(graph);
   const widths = widthStepsForGraph(graph);
   const expansionIters = expansionIterations();
+  const progressState: ProgressTrackerState = {
+    startMs,
+    lastEmitMs: 0,
+    lastEmittedEvaluations: -1,
+    evaluationBudget: maxRounds,
+    strandCount: graph.connections.length,
+    cableCount: cableKeys.length,
+  };
+  const emitProgress = createProgressTracker(config, progressState);
 
   const baseline = normalizeCandidate(heuristicBaselineCandidate(graph));
   const seedEval = evaluateCandidate(graph, baseline);
@@ -726,7 +781,7 @@ function runLayoutSearchCore(
   let evaluations = 1;
   let seen: RankedCandidate[] = [{ ...best }];
 
-  emitProgress(config, {
+  emitProgress({
     round: 0,
     evaluations,
     bestScore: best.score,
@@ -761,6 +816,7 @@ function runLayoutSearchCore(
       startMs,
       config.timeBudgetMs,
       config,
+      emitProgress,
     );
     best = brute.best;
     evaluations = brute.evaluations;
@@ -781,6 +837,7 @@ function runLayoutSearchCore(
     startMs,
     config.timeBudgetMs,
     config,
+    emitProgress,
   );
 
   if (guidedPromise instanceof Promise) {

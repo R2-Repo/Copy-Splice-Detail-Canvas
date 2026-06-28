@@ -4,40 +4,18 @@
 
 ## Last updated
 
-2026-06-28 — **Import perf build plan**
+2026-06-28 — **Import perf P0 (worker + progress UX)**
 
 ### Done
 
 | Area | Change |
 |------|--------|
-| Build plan | [`docs/agent/IMPORT_PERF_PLAN.md`](./IMPORT_PERF_PLAN.md) — P0 worker+UX through P4 pool; topology locks; tiered eval; proxy bundles |
-
-### Next (P0)
-
-1. `layoutSearch.worker.ts` + client bridge
-2. Rich `LayoutSearchOverlay` (bar, phases, elapsed)
-3. Heuristic paint before search; swap on winner
-4. `npm run smoke` + manual QA example-2
-
----
-
-## Prior session
-
-2026-06-28 — **Fix post-import zoom + drag jank**
-
-### Done
-
-| Area | Change |
-|------|--------|
-| Optimized import width | Candidate snapshot normalized to `stageLayoutWidthForGraph` before save/render — avoids second full rebuild |
-| Width correction | Skipped when `optimizedLayoutCandidate` exists |
-| fitView | Instant (`duration: 0`) — no animated viewport reset fighting zoom |
-| Stage resize | Reflow column X only — no fitView reset on resize |
-| Engine cable drag | RAF-batched like manual drag (`syncNodesEngineDrag`) |
-
-### Root cause
-
-Layout search stores width steps (960/1200/min). Post-import `nodesInitialized` effect saw mismatch vs stage viewport width → second `applyGraph` + animated fitView → zoom appeared broken until other interactions finished.
+| Worker | `layoutSearch.worker.ts` — search + eval off main thread |
+| Client | `layoutSearchClient.ts` — typed postMessage protocol; falls back to `layoutSearchAsync` |
+| Progress | Extended `LayoutSearchProgress` (`layoutSearchTypes.ts`); 50ms heartbeat in `layoutSearch.ts` |
+| Overlay | Determinate bar, phases, elapsed, evals/sec, feasibility chip, shimmer |
+| Import UX | Heuristic layout painted before worker search; swap on winner; cancel → best-so-far |
+| Wiring | `WorkflowCanvas.tsx` uses `layoutSearchViaWorker` |
 
 ### Test status
 
@@ -47,15 +25,26 @@ Layout search stores width steps (960/1200/min). Post-import `nodesInitialized` 
 
 ### Manual QA
 
-1. `npm run dev` → import **Left-SP-3254.5** or example-2
-2. Immediately after diagram appears: scroll zoom + controls work (no pan/drag first)
-3. Drag cables vertically — responsive
-4. Resize window — zoom/pan preserved
+1. `npm run dev` → import **example-2** or **Left-SP-3254.5**
+2. Diagram appears immediately (heuristic); overlay shows continuous progress
+3. No browser “page unresponsive” dialog during first 30s of import
+4. After search: zoom/pan + cable Y-drag work
 
-### Known
+### Next (P1)
 
-- Layout search still blocks main thread during import (~10–80s by CSV); "Page Unresponsive" possible on heavy files — separate perf track.
+1. `src/features/layoutSearch/topology/analyzeTopology.ts`
+2. `deriveConstraints.ts` — lock opposite sides, hub/satellite roles
+3. Constrain `pickMutation` / brute-force enumeration
+4. `analyzeTopology.test.ts` on example-2
 
 ### Frozen
 
-See `.cursor/rules/frozen-routing.mdc` — not touched this session.
+Not touched — search calls frozen routing APIs only.
+
+---
+
+## Prior session
+
+2026-06-28 — **Import perf build plan**
+
+Build plan: [`docs/agent/IMPORT_PERF_PLAN.md`](./IMPORT_PERF_PLAN.md) — P0–P4 roadmap.
