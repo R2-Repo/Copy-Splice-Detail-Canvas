@@ -1,4 +1,5 @@
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Handle, Position, useUpdateNodeInternals, type NodeProps } from "@xyflow/react";
+import { useEffect } from "react";
 
 import { useCircuitHighlight } from "@/features/canvas/CircuitHighlightContext";
 import { useManualLayout } from "@/features/canvas/ManualLayoutContext";
@@ -25,13 +26,18 @@ function anchorHandlePositions(d: FiberAnchorNodeData): {
   }
 }
 
-export function FiberAnchorNode({ data }: NodeProps) {
+export function FiberAnchorNode({ id, data }: NodeProps) {
   const d = data as FiberAnchorNodeData;
   const manual = useManualLayout();
   const { isConnectionHighlighted } = useCircuitHighlight();
+  const updateNodeInternals = useUpdateNodeInternals();
   const { outPos, inPos } = anchorHandlePositions(d);
   const stroke = colorHex(d.fiberColor as import("@/types/splice").FiberColorAbbrev);
   const highlighted = isConnectionHighlighted(d.connectionId);
+
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [id, d.side, d.quadSide, updateNodeInternals]);
 
   return (
     <div

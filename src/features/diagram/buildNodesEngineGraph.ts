@@ -15,6 +15,12 @@ import type {
   FiberAnchorNodeData,
   SplicePointNodeData,
 } from "@/features/canvas/nodes/types";
+import {
+  FIBER_ANCHOR_NODE_SIZE,
+  SPLICE_POINT_NODE_SIZE,
+  fiberAnchorNodeHandles,
+  splicePointNodeHandles,
+} from "@/features/canvas/nodes/spliceEngineNodeHandles";
 
 const ANCHOR_DOT = 6;
 const SPLICE_DOT = 9;
@@ -172,6 +178,9 @@ export function augmentNodesEngineGraph(
         id: anchorId,
         type: "fiberAnchor",
         position: pos,
+        width: FIBER_ANCHOR_NODE_SIZE,
+        height: FIBER_ANCHOR_NODE_SIZE,
+        handles: fiberAnchorNodeHandles(anchorId, vc.side),
         data: {
           connectionId: fiber.connectionId,
           fiberColor: fiber.fiberColor,
@@ -216,6 +225,9 @@ export function augmentNodesEngineGraph(
         x: spliceX - SPLICE_DOT / 2,
         y: spliceY - SPLICE_DOT / 2,
       },
+      width: SPLICE_POINT_NODE_SIZE,
+      height: SPLICE_POINT_NODE_SIZE,
+      handles: splicePointNodeHandles(spliceId),
       data: {
         connectionId,
         sourceColor: edgeData.sourceColor ?? "#94a3b8",
