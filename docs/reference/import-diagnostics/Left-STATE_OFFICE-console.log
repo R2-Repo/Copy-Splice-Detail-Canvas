@@ -1,0 +1,14 @@
+[startGroupCollapsed] [import optimizer] splice-detail-layout:STATE_OFFICE 116341ms
+[table] {generated: 6, evaluatedT0: 89, evaluatedT1: 25, evaluatedT2: 8, finalists: 8, cacheHits: 322, cacheMisses: 122, horizontalOnlyGenerated: 3, topGenerated: 2, bottomGenerated: 2, topOrBottomGenerated: 3, topOrBottomReachedT0: 69, topOrBottomReachedT1: 25, topOrBottomReachedT2: 8, topOrBottomFinalists: 8, bestHorizontalScore: 339220, bestTopBottomScore: -13550}
+[log] [import optimizer] top/bottom summary
+[table] {horizontal only generated: 3, uses top generated: 2, uses bottom generated: 2, uses top or bottom generated: 3, top/bottom reached T0: 69, top/bottom reached T1: 25, top/bottom reached T2: 8, top/bottom finalists: 8, best horizontal score: 339220, best top/bottom score: -13550, winner uses top: —, winner uses bottom: —, winner reason: —}
+[table] {SDC-LAYOUT-002: 33, SDC-ROUTE-001: 19, SDC-ROUTE-002: 33, SDC-ROUTE-003: 27}
+[log] Fallback: {used: true, reason: no rule-passing finalist; using heuristic, failedRuleIds: Array(4)}
+[log] Full diagnostics: {importId: import-1, reportKey: splice-detail-layout:STATE_OFFICE, startedAt: 795.1999999880791, phaseTimings: Array(131), searchStats: Object}
+[startGroupCollapsed] [import optimizer] splice-detail-layout:STATE_OFFICE 116341ms
+[table] {generated: 6, evaluatedT0: 89, evaluatedT1: 25, evaluatedT2: 8, finalists: 8, cacheHits: 322, cacheMisses: 122, horizontalOnlyGenerated: 3, topGenerated: 2, bottomGenerated: 2, topOrBottomGenerated: 3, topOrBottomReachedT0: 69, topOrBottomReachedT1: 25, topOrBottomReachedT2: 8, topOrBottomFinalists: 8, bestHorizontalScore: 339220, bestTopBottomScore: -13550}
+[log] [import optimizer] top/bottom summary
+[table] {horizontal only generated: 3, uses top generated: 2, uses bottom generated: 2, uses top or bottom generated: 3, top/bottom reached T0: 69, top/bottom reached T1: 25, top/bottom reached T2: 8, top/bottom finalists: 8, best horizontal score: 339220, best top/bottom score: -13550, winner uses top: —, winner uses bottom: —, winner reason: —}
+[table] {SDC-LAYOUT-002: 33, SDC-ROUTE-001: 19, SDC-ROUTE-002: 33, SDC-ROUTE-003: 27}
+[log] Fallback: {used: true, reason: no rule-passing finalist; using heuristic, failedRuleIds: Array(4)}
+[log] Full diagnostics: {importId: import-1, reportKey: splice-detail-layout:STATE_OFFICE, startedAt: 795.1999999880791, phaseTimings: Array(131), searchStats: Object}
