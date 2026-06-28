@@ -23,6 +23,11 @@
 | `VITE_LAYOUT_SEARCH_MODE=legacy-guided` | Hill-climb restarts (pre-optimizer) |
 | `VITE_FORCE_LAYOUT_SIDES=Cable:top,...` | Debug seed injection |
 | `VITE_DEBUG_LAYOUT_SEARCH=1` | `console.table(finalistSummaries)` |
+| `VITE_DEBUG_IMPORT_OPTIMIZER=1` | Full import diagnostics (master flag) |
+| `VITE_DEBUG_IMPORT_TIMING=1` | Phase + eval sub-phase timings |
+| `VITE_DEBUG_IMPORT_CANDIDATES=1` | Candidate tier/score detail |
+| `VITE_DEBUG_IMPORT_RULES=1` | Rule rejection counts |
+| `VITE_DEBUG_IMPORT_TOP_BOTTOM=1` | Top/bottom promotion summary |
 
 ## Testing policy
 
