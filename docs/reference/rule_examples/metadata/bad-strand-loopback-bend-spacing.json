@@ -1,0 +1,110 @@
+{
+  "id": "bad-strand-loopback-bend-spacing",
+  "verdict": "bad",
+  "source_image": "bad-strand-loopback-bend-spacing.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/Images/bad/bad-strand-loopback-bend-spacing.png",
+  "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/bad-strand-loopback-bend-spacing.json",
+  "title": "Strand loopback bend and broken grouped strand spacing",
+  "summary": "Four visible fiber strands overshoot their intended bend point and loop back instead of making a simple orthogonal 90-degree bend. The Yellow/Violet routed pair also fails to maintain grouped strand spacing on the vertical run, while the Slate/White pair preserves spacing apart from the shared bend defect.",
+  "classification": {
+    "example_type": "bad",
+    "confidence": "high",
+    "based_on_user_reported_issue": true
+  },
+  "visually_observable_issues": [
+    "Slate/White and Yellow/Violet strand routes pass beyond the intended bend location, then return back on themselves to complete the turn.",
+    "The bends do not read as clean simple 90-degree orthogonal route transitions.",
+    "The Slate/White pair maintains a consistent spacing gap across the route, but still has the loopback bend defect.",
+    "The Yellow/Violet pair spreads too far apart on the vertical run and does not preserve the grouped strand spacing requirement.",
+    "The grouped Yellow/Violet route no longer stays visually nested in proper adjacent fiber color order through the vertical segment."
+  ],
+  "likely_broken_rules": [
+    {
+      "rule_id": "SDC-ROUTE-004",
+      "rule_name": "Splice Bend Budget",
+      "related_file": "splice_detail_canvas_rule_pack/00_Rule_Index.md",
+      "broken_requirements": [
+        "Splice paths must stay within the max two-corner bend budget.",
+        "Bends should be simple orthogonal route transitions, not overshoot-and-return loopback shapes."
+      ],
+      "why_this_image_fails": "All four visible strands route past the intended bend point and loop back, creating an avoidable extra bend/loopback shape instead of a clean 90-degree turn."
+    },
+    {
+      "rule_id": "SDC-ROUTE-002",
+      "rule_name": "Fiber Strand Nesting",
+      "related_file": "splice_detail_canvas_rule_pack/00_Rule_Index.md",
+      "broken_requirements": [
+        "Grouped strands should preserve hierarchy-aware routing and lane bands where possible.",
+        "Strands from the same routing group should stay adjacent or nearby through route transitions."
+      ],
+      "why_this_image_fails": "The Yellow/Violet pair does not remain nested as a coherent grouped route on the vertical run."
+    },
+    {
+      "rule_id": "SDC-ROUTE-003",
+      "rule_name": "Fiber Strand Overlap, Crossing, and Collision",
+      "related_file": "splice_detail_canvas_rule_pack/00_Rule_Index.md",
+      "broken_requirements": [
+        "Center vertical splice lanes must meet minimum spacing without unrelated lane drift.",
+        "Routes must remain visually traceable and must not use poor lane geometry when a cleaner path is available."
+      ],
+      "why_this_image_fails": "The Yellow/Violet vertical spacing is inconsistent with the expected paired lane spacing, and the loopback bend makes all four routes harder to trace."
+    },
+    {
+      "rule_id": "SDC-LAYOUT-001",
+      "rule_name": "Spacing",
+      "related_file": "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md",
+      "broken_requirements": [
+        "Individual fiber strand routes must maintain the 24px grid pitch in all directions.",
+        "Spacing applies around bends, lane transitions, fan-out exits, fusion splice dots, and between strand groups.",
+        "Bends that are too close together or visually confusing fail readability."
+      ],
+      "why_this_image_fails": "The Yellow/Violet vertical run does not preserve the required grouped strand spacing, and the bend shape creates confusing route geometry."
+    },
+    {
+      "rule_id": "SDC-GRID-001",
+      "rule_name": "Canvas Grid System",
+      "related_file": "splice_detail_canvas_rule_pack/06_SDC-GRID-001_Canvas_Grid_System.md",
+      "broken_requirements": [
+        "The canvas grid must use a 24px base pitch on both axes.",
+        "Grid lines, lane reservation, and strand spacing must not stretch or compress the pitch to fill space.",
+        "Strands inside the same buffer tube should use adjacent or nearby lanes."
+      ],
+      "why_this_image_fails": "The Yellow/Violet spacing appears stretched on the vertical run instead of preserving the expected adjacent grid pitch."
+    },
+    {
+      "rule_id": "SDC-ORDER-002",
+      "rule_name": "Fiber Strand Color Order",
+      "related_file": "splice_detail_canvas_rule_pack/00_Rule_Index.md",
+      "broken_requirements": [
+        "Fiber strands inside a group must preserve the standard visual color order.",
+        "Grouped strands should remain ordered while routing and bending."
+      ],
+      "why_this_image_fails": "The Yellow/Violet pair visually separates during the vertical route, undermining the expected adjacent ordered group behavior."
+    }
+  ],
+  "partially_followed_rules": [
+    {
+      "rule_id": "SDC-LAYOUT-001",
+      "rule_name": "Spacing",
+      "why_it_partially_passes": "The Slate/White pair maintains a consistent spacing gap across the route, although it still fails because of the loopback bend shape."
+    }
+  ],
+  "notes": [
+    "This should be treated as a hard bad example because the defects are structural routing failures, not only aesthetic issues.",
+    "Expected correction: each strand should make a clean orthogonal 90-degree bend at the intended grid point without overshooting and returning.",
+    "Expected correction: strands routed as a color-ordered group should stay adjacent through horizontal runs, vertical runs, and bends while preserving the 24px routing/grid pitch.",
+    "Slate/White is useful as a contrast case inside the same image: its spacing behavior is acceptable, but its bend geometry is still bad."
+  ],
+  "grounding": {
+    "primary_rule_files": [
+      "splice_detail_canvas_rule_pack/00_Rule_Index.md",
+      "splice_detail_canvas_rule_pack/06_SDC-GRID-001_Canvas_Grid_System.md",
+      "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md"
+    ],
+    "supporting_rule_files": [
+      "src/features/rules/sdcCheckIds.ts",
+      "docs/agent/CANVAS_GLOSSARY.md"
+    ],
+    "reference_library_location": "docs/reference/rule_examples"
+  }
+}
