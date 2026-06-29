@@ -1,0 +1,100 @@
+{
+  "id": "bad-center-routing-congestion-overlap",
+  "verdict": "bad",
+  "source_image": "bad-center-routing-congestion-overlap.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/Images/bad/bad-center-routing-congestion-overlap.png",
+  "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/bad-center-routing-congestion-overlap.json",
+  "title": "Fiber strands collapse into the center instead of using available routing space",
+  "summary": "The image shows many fiber strands routed through the same crowded center area even though open routing space is available to the left and right. The routes overlap, cross unnecessarily, and fail to remain visually separated into organized fiber strand groups.",
+  "classification": {
+    "example_type": "bad",
+    "confidence": "high",
+    "based_on_user_reported_issue": true
+  },
+  "visually_observable_issues": [
+    "Many fiber strand routes are concentrated in a narrow central area of the diagram.",
+    "Large open areas to the left and right of the center routing congestion are not used to spread the strands apart.",
+    "Several strands run on top of each other or appear to share the same horizontal and vertical lane segments.",
+    "Multiple crossings occur in the same small center area, making individual strand paths difficult to trace.",
+    "Related strand groups do not read as organized lane bands; the routes visually collapse into one congested cluster.",
+    "The center congestion creates the perception that unrelated strands were routed together instead of separated into readable fiber strand groups."
+  ],
+  "likely_broken_rules": [
+    {
+      "rule_id": "SDC-ROUTE-001",
+      "rule_name": "Fiber Strand Routing Zone",
+      "related_file": "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "broken_requirements": [
+        "The routing engine should use the full available routing zone.",
+        "The routing engine should use available horizontal and vertical space.",
+        "The routing engine should spread strand groups apart and reserve lanes for different groups.",
+        "A route fails when it ignores available spacing and creates avoidable congestion.",
+        "Routes must remain traceable from fan-out exit to splice dot."
+      ],
+      "why_this_image_fails": "The image concentrates many strand routes in the center while visible open routing space remains available to the left and right. This creates avoidable congestion instead of spreading strand groups across the routing zone."
+    },
+    {
+      "rule_id": "SDC-ROUTE-003",
+      "rule_name": "Fiber Strand Overlap, Crossing, and Collision",
+      "related_file": "splice_detail_canvas_rule_pack/11_SDC-ROUTE-003_Fiber_Strand_Overlap_Crossing_Collision.md",
+      "broken_requirements": [
+        "Fiber routing must avoid overlap.",
+        "Fiber routing must avoid shared lanes unless an explicit bundling rule allows it.",
+        "Fiber routing must avoid unnecessary crossing.",
+        "Fiber routing must use separate lanes when separate lanes are available.",
+        "A route fails when it ignores an available cleaner path."
+      ],
+      "why_this_image_fails": "Multiple strands visually stack, share route lanes, and cross in the same small area even though cleaner separated paths appear available."
+    },
+    {
+      "rule_id": "SDC-ROUTE-002",
+      "rule_name": "Fiber Strand Nesting",
+      "related_file": "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "broken_requirements": [
+        "Related fiber strands should stay visually grouped as they move through the splice detail diagram.",
+        "Related strands should use adjacent routing lanes as an organized group.",
+        "Buffer tube groups should be assigned readable lane bands.",
+        "The routing engine should spread groups apart across the center routing zone.",
+        "The diagram must preserve the cable -> buffer tube -> strand relationship."
+      ],
+      "why_this_image_fails": "The visible routes do not preserve clear group lane bands. Instead of separating related fiber strand groups across the available routing zone, the layout collapses them into a crowded central routing cluster."
+    },
+    {
+      "rule_id": "SDC-LAYOUT-001",
+      "rule_name": "Spacing",
+      "related_file": "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md",
+      "broken_requirements": [
+        "Individual fiber strand routes must maintain readable spacing and grid pitch.",
+        "Every individual strand route must have a minimum spacing buffer in all directions.",
+        "Unrelated strands must not share the same horizontal or vertical lane.",
+        "Strands must not visually merge into one line.",
+        "Spacing should leave groups and individual strands visually separated and traceable without avoidable congestion."
+      ],
+      "why_this_image_fails": "The center routes are too tightly packed, with overlapping and near-overlapping strand segments that do not maintain readable separation."
+    }
+  ],
+  "expected_correction": [
+    "Use the full available routing zone instead of compressing all strands into the diagram center.",
+    "Assign readable lane bands to related fiber strand groups, keeping related strands near each other while separating unrelated groups.",
+    "Reserve separate horizontal and vertical route lanes so strands do not run on top of each other.",
+    "Move crossings to controlled, necessary transition points only, and eliminate crossings where an open lane can avoid them.",
+    "Make each strand traceable from fan-out exit to fusion splice dot without visual merging or ambiguity."
+  ],
+  "notes": [
+    "This should be treated as a hard bad example because the primary defect is structural routing-zone misuse, not only visual polish.",
+    "The important teaching point is that available center-zone space must be used to produce organized, visually separated strand groups.",
+    "The image is also useful as a combined bad example for overlap, unnecessary crossings, same-lane routing, and broken nesting.",
+    "CSV import correctness still depends on the imported cable, buffer tube, strand, color, and splice pairing data; this example focuses on the canvas routing generated after those relationships exist."
+  ],
+  "grounding": {
+    "primary_rule_files": [
+      "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "splice_detail_canvas_rule_pack/11_SDC-ROUTE-003_Fiber_Strand_Overlap_Crossing_Collision.md",
+      "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md"
+    ],
+    "supporting_rule_files": [
+      "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md"
+    ],
+    "reference_library_location": "docs/reference/rule_examples"
+  }
+}
