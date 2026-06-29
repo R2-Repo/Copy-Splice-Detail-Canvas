@@ -82,8 +82,8 @@ describe("SP flipped-right vertical stack alignment", () => {
     });
     const ctx = ctxFromBuild(graph, built);
     expect(findSpliceOverlapPair(ctx)).toBeNull();
-    expect(checkLayoutRule("EDGE-011", ctx).ok).toBe(true);
-    expect(checkLayoutRule("EDGE-012", ctx).ok).toBe(true);
+    expect(checkLayoutRule("SDC-ROUTE-003-B", ctx).ok).toBe(true);
+    expect(checkLayoutRule("SDC-ROUTE-003-C", ctx).ok).toBe(true);
   });
 
   it("misaligned right stack should still pass routing rules", () => {
@@ -102,7 +102,7 @@ describe("SP flipped-right vertical stack alignment", () => {
     });
     const ctx = ctxFromBuild(graph, built);
     expect(findSpliceOverlapPair(ctx)).toBeNull();
-    expect(checkLayoutRule("EDGE-011", ctx).ok).toBe(true);
-    expect(checkLayoutRule("EDGE-012", ctx).ok).toBe(true);
+    expect(checkLayoutRule("SDC-ROUTE-003-B", ctx).ok).toBe(true);
+    expect(checkLayoutRule("SDC-ROUTE-003-C", ctx).ok).toBe(true);
   });
 });

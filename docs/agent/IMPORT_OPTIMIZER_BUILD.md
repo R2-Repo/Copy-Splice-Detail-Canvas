@@ -29,7 +29,7 @@ Deliver a **fast, four-side-aware, rule-driven** CSV import optimizer that:
 | Tiered T0 / T1 / T2 | `tieredEvaluate.ts` |
 | Score memo + time budget | `layoutSearch.ts`, `importSearchConfig.ts` |
 | Skip duplicate final T2 | `LayoutSearchResult.winnerEvaluation` |
-| Legacy fallback | `USE_LEGACY_IMPORT_LAYOUT=1`, `VITE_DISABLE_OPTIMIZED_IMPORT=1` |
+| Heuristic fallback | `VITE_USE_HEURISTIC_IMPORT=1`, `VITE_DISABLE_OPTIMIZED_IMPORT=1` |
 
 ---
 

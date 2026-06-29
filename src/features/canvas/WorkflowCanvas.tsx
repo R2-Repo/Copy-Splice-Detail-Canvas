@@ -2418,7 +2418,7 @@ function WorkflowCanvasInner() {
         };
         const manualMode = !autoAdjustRef.current;
 
-        // EDGE-013 horizontal leg alignment — on manual release, snap the cable
+        // SDC-UX-001-A horizontal leg alignment — on manual release, snap the cable
         // to flatten near-straight legs against the partner cables' live Ys.
         if (manualMode) {
           const { visualCables } = buildVisualCablesForLayout(graph);

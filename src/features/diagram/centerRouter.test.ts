@@ -246,7 +246,7 @@ describe("centerRouter oracle", () => {
     expectNoHorizontalStacking(paths);
   });
 
-  it("Left-STATE_OFFICE.csv: EDGE-011 rendered horizontals do not stack", () => {
+  it("Left-STATE_OFFICE.csv: SDC-ROUTE-003-B rendered horizontals do not stack", () => {
     const csv = readFileSync(
       join(examplesDir, "Left-STATE_OFFICE.csv"),
       "utf8",
@@ -256,7 +256,7 @@ describe("centerRouter oracle", () => {
     expectNoHorizontalStacking(horizSegmentsFromPrecomputedEdges(edges));
   });
 
-  it("Left-SPI-215_I-80.csv: EDGE-011 contract (no stacked tracks)", () => {
+  it("Left-SPI-215_I-80.csv: SDC-ROUTE-003-B contract (no stacked tracks)", () => {
     const csv = readFileSync(
       join(examplesDir, "Left-SPI-215_I-80.csv"),
       "utf8",

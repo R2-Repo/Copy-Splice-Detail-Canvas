@@ -28,7 +28,13 @@ import {
   fusionDotOnHorizontalSegment,
   fusionDotVerticalLaneClearanceOk,
 } from "@/features/manualAdjust/constraints";
-// fusionDotOnHorizontalSegment used in DOT-001/003 checks
+// fusionDotOnHorizontalSegment used in SDC-UX-001-B/D checks
+import {
+  SDC_CHECK_IDS,
+  SDC_CHECKS,
+  type SdcCheckId,
+  type SdcCheckMeta,
+} from "@/features/rules/sdcCheckIds";
 import { importLayoutWidthForGraph } from "@/features/diagram/layoutSpliceDiagram";
 import {
   DEFAULT_LAYOUT_EXPANSION,
@@ -98,64 +104,7 @@ function spliceEdgeForConnection(
   );
 }
 
-/** Internal layout check IDs — public contract uses SDC IDs in rule pack. */
-export const LAYOUT_RULE_IDS = [
-  "FBR-001",
-  "FBR-002",
-  "FBR-003",
-  "FBR-004",
-  "TUB-001",
-  "TUB-002",
-  "TUB-003",
-  "TUB-004",
-  "TUB-005",
-  "TUB-006",
-  "TUB-007",
-  "TUB-008",
-  "CBL-001",
-  "CBL-002",
-  "CBL-003",
-  "ROW-001",
-  "ROW-002",
-  "EDGE-004",
-  "EDGE-006",
-  "EDGE-008",
-  "EDGE-011",
-  "EDGE-012",
-  "EDGE-013",
-  "DOT-001",
-  "DOT-002",
-  "DOT-003",
-  "DOT-004",
-  "STR-001",
-] as const;
-
-export type LayoutRuleId = (typeof LAYOUT_RULE_IDS)[number];
-
-export type LayoutRuleMeta = {
-  id: LayoutRuleId;
-  title: string;
-  category: "fiber" | "tube" | "cable" | "row" | "dominant" | "edge" | "dot" | "strand";
-};
-
-export const LAYOUT_RULES: LayoutRuleMeta[] = [
-  { id: "FBR-001", title: "TIA fiber order within each buffer tube", category: "fiber" },
-  { id: "FBR-002", title: "24px pitch within each buffer tube", category: "fiber" },
-  { id: "FBR-003", title: "rowYOffset increases top-to-bottom per cable", category: "fiber" },
-  { id: "FBR-004", title: "Distinct rowYOffset per fiber on multi-tube cables", category: "fiber" },
-  { id: "TUB-001", title: "Tubes attach at cable sheath center", category: "tube" },
-  { id: "TUB-002", title: "Tube tip centered on fiber group", category: "tube" },
-  { id: "TUB-003", title: "Sheath preserves aspect ratio", category: "tube" },
-  { id: "TUB-004", title: "Multi-tube cables have longer tube reach", category: "tube" },
-  { id: "TUB-005", title: "Right-side breakout mirrors left", category: "tube" },
-  { id: "TUB-006", title: "Buffer tubes in TIA solid then striped order", category: "tube" },
-  { id: "CBL-001", title: "Same-side cables do not overlap", category: "cable" },
-  { id: "CBL-002", title: "Same-side cables stack with at least cableGap", category: "cable" },
-  { id: "CBL-003", title: "Multi-tube cables offset X from center", category: "cable" },
-  { id: "ROW-001", title: "Equal pitch within buffer tube in global rows", category: "row" },
-  { id: "ROW-002", title: "Extra gap at buffer-tube boundaries", category: "row" },
-  { id: "STR-001", title: "Fiber strands fan toward canvas center", category: "strand" },
-];
+export { SDC_CHECK_IDS, SDC_CHECKS, type SdcCheckId, type SdcCheckMeta };
 
 export type LayoutRuleContext = {
   graph: ConnectionGraph;
@@ -167,8 +116,8 @@ export type LayoutRuleContext = {
   layoutExpansion: LayoutExpansion;
 };
 
-export type LayoutRuleResult = {
-  id: LayoutRuleId;
+export type SdcCheckResult = {
+  id: SdcCheckId;
   ok: boolean;
   detail?: string;
 };
@@ -1279,9 +1228,9 @@ export function buildLayoutRuleContext(
     lastWidth = width;
     lastExpansion = expansion;
     if (
-      checkLayoutRule("EDGE-004", ctx).ok &&
-      checkLayoutRule("EDGE-011", ctx).ok &&
-      checkLayoutRule("EDGE-012", ctx).ok
+      checkLayoutRule("SDC-ROUTE-004-A", ctx).ok &&
+      checkLayoutRule("SDC-ROUTE-003-B", ctx).ok &&
+      checkLayoutRule("SDC-ROUTE-003-C", ctx).ok
     ) {
       return ctx;
     }
@@ -1330,7 +1279,7 @@ function buildLayoutRuleContextWithExpansion(
   };
 }
 
-/** Resolved import width + expansion after feasibility loop (EDGE-004/011/012). */
+/** Resolved import width + expansion after feasibility loop (SDC-ROUTE-004-A/011/012). */
 export function resolveFeasibleImportLayout(
   graph: ConnectionGraph,
   options?: {
@@ -1351,65 +1300,65 @@ export function resolveFeasibleImportLayout(
 }
 
 export function checkLayoutRule(
-  id: LayoutRuleId,
+  id: SdcCheckId,
   ctx: LayoutRuleContext,
-): LayoutRuleResult {
+): SdcCheckResult {
   switch (id) {
-    case "FBR-001":
+    case "SDC-ORDER-002-A":
       return {
         id,
         ok: fibersInTiaOrder(ctx.visualCables),
         detail: "Fibers not in TIA order within a buffer tube",
       };
-    case "FBR-002":
+    case "SDC-ORDER-002-B":
       return {
         id,
         ok: compactTubeFiberLayoutOk(ctx.visualCables),
         detail: "Buffer tube fiber pitch is not 24px",
       };
-    case "FBR-003":
+    case "SDC-ORDER-002-C":
       return {
         id,
         ok: cableFiberTopToBottomOk(ctx.visualCables),
         detail: "rowYOffset does not increase top-to-bottom",
       };
-    case "FBR-004":
+    case "SDC-LAYOUT-001-A":
       return {
         id,
         ok: multiTubeDistinctOffsets(ctx.visualCables),
         detail: "Multi-tube cable has duplicate rowYOffset values",
       };
-    case "TUB-001":
-    case "TUB-002":
-    case "TUB-003": {
+    case "SDC-LAYOUT-002-A":
+    case "SDC-LAYOUT-002-B":
+    case "SDC-LAYOUT-002-C": {
       const geo = tubeGeometryOk(ctx.visualCables, ctx.placement);
       return { id, ok: geo.ok, detail: geo.detail };
     }
-    case "TUB-004":
+    case "SDC-LAYOUT-002-D":
       return {
         id,
         ok: tubeReachIncreases(ctx.visualCables),
         detail: "Multi-tube cable does not extend tube reach",
       };
-    case "TUB-005":
+    case "SDC-LAYOUT-002-E":
       return {
         id,
         ok: rightSideMirrors(ctx.visualCables),
         detail: "Right-side breakout is not mirrored",
       };
-    case "TUB-006":
+    case "SDC-ORDER-001-A":
       return {
         id,
         ok: tubesInTiaOrderOk(ctx.visualCables),
         detail: "Buffer tubes are not in TIA color order",
       };
-    case "TUB-007":
+    case "SDC-LAYOUT-002-F":
       return {
         id,
         ok: sameSideFiberStemColumnsAligned(ctx),
         detail: "Same-side cable stem columns are not vertically aligned",
       };
-    case "TUB-008":
+    case "SDC-LAYOUT-002-G":
       return {
         id,
         ok: crossSideTubePairsAligned(
@@ -1420,19 +1369,19 @@ export function checkLayoutRule(
         ),
         detail: "Cross-side buffer tube handles are not horizontally aligned",
       };
-    case "CBL-001":
+    case "SDC-LAYOUT-001-B":
       return {
         id,
         ok: sameSideNoOverlap(ctx),
         detail: "Same-side cable nodes overlap vertically",
       };
-    case "CBL-002":
+    case "SDC-LAYOUT-001-C":
       return {
         id,
         ok: sameSideStackGap(ctx),
         detail: "Stacked cables have less than cableGap spacing",
       };
-    case "CBL-003": {
+    case "SDC-LAYOUT-001-D": {
       const multi = ctx.visualCables.find((v) => v.tubes.length > 1);
       if (!multi) return { id, ok: true };
       const side = sideOf(multi, ctx.placement);
@@ -1451,7 +1400,7 @@ export function checkLayoutRule(
     }
 
 
-    case "ROW-001": {
+    case "SDC-LAYOUT-001-E": {
       const steps = globalRowStepsOk(ctx);
       return {
         id,
@@ -1459,7 +1408,7 @@ export function checkLayoutRule(
         detail: "Global row layout missing FIBER_ROW_PITCH steps",
       };
     }
-    case "ROW-002": {
+    case "SDC-LAYOUT-001-F": {
       const multiTube = ctx.visualCables.some((v) => v.tubes.length > 1);
       if (!multiTube) return { id, ok: true };
       const steps = globalRowStepsOk(ctx);
@@ -1475,21 +1424,21 @@ export function checkLayoutRule(
 
 
 
-    case "EDGE-004":
+    case "SDC-ROUTE-004-A":
       return {
         id,
         ok: splicePathsWithinBendLimit(ctx),
         detail: "Splice path exceeds two orthogonal bends handle-to-handle",
       };
 
-    case "EDGE-006":
+    case "SDC-ROUTE-002-A":
       return {
         id,
         ok: spliceRoutesMinimizeBends(ctx),
         detail: "Splice route template is not the minimum-bend choice",
       };
 
-    case "EDGE-008":
+    case "SDC-ROUTE-003-A":
       return {
         id,
         ok: centerLanesKeepMinSpacing(ctx),
@@ -1497,7 +1446,7 @@ export function checkLayoutRule(
       };
 
 
-    case "EDGE-011":
+    case "SDC-ROUTE-003-B":
       return {
         id,
         ok: splicePathsDoNotOverlap(ctx),
@@ -1505,13 +1454,13 @@ export function checkLayoutRule(
           findSpliceOverlapPair(ctx) ??
           "Splice strand segments stack on the same horizontal or vertical track",
       };
-    case "EDGE-012":
+    case "SDC-ROUTE-003-C":
       return {
         id,
         ok: verticalCenterLegsSpaced(ctx),
         detail: "Overlapping vertical center legs share the same midX lane",
       };
-    case "EDGE-013":
+    case "SDC-UX-001-A":
       return {
         id,
         ok:
@@ -1524,13 +1473,13 @@ export function checkLayoutRule(
         detail:
           "A near-straight leg could still be snapped flat (alignment not at fixpoint)",
       };
-    case "DOT-001":
+    case "SDC-UX-001-B":
       return {
         id,
         ok: fusionDotsOnHorizontalSegments(ctx),
         detail: "Fusion splice dot is not on a horizontal path segment",
       };
-    case "DOT-002":
+    case "SDC-UX-001-C":
       return {
         id,
         ok: bufferTubeDotsStackVertically(ctx),
@@ -1538,20 +1487,20 @@ export function checkLayoutRule(
           findBufferTubeDotViolation(ctx) ??
           "Source buffer tube fusion dots do not share one column X or 24px vertical pitch",
       };
-    case "DOT-003":
+    case "SDC-UX-001-D":
       return {
         id,
         ok: fusionDotsCornerClearanceOk(ctx),
         detail: "Fusion splice dot is too close to a leg corner or not on a horizontal segment",
       };
-    case "DOT-004":
+    case "SDC-UX-001-E":
       return {
         id,
         ok: fusionDotsVerticalLaneClearanceOk(ctx),
         detail:
           "A vertical leg lane runs through or within 48px of a fusion splice dot row",
       };
-    case "STR-001":
+    case "SDC-LAYOUT-002-H":
       return {
         id,
         ok: strandFansTowardCenter(ctx),
@@ -1562,8 +1511,8 @@ export function checkLayoutRule(
   }
 }
 
-export function checkAllLayoutRules(ctx: LayoutRuleContext): LayoutRuleResult[] {
-  return LAYOUT_RULE_IDS.map((id) => checkLayoutRule(id, ctx));
+export function checkAllLayoutRules(ctx: LayoutRuleContext): SdcCheckResult[] {
+  return SDC_CHECK_IDS.map((id) => checkLayoutRule(id, ctx));
 }
 
 export function layoutRulesOk(ctx: LayoutRuleContext): boolean {
@@ -1573,32 +1522,32 @@ export function layoutRulesOk(ctx: LayoutRuleContext): boolean {
 /** SDC-LAYOUT-001 spacing checks (direct evaluators — not via checkLayoutRule). */
 export function evaluateSdcLayoutSpacingRules(
   ctx: LayoutRuleContext,
-): LayoutRuleResult[] {
+): SdcCheckResult[] {
   const rowSteps = globalRowStepsOk(ctx);
   const multiTube = ctx.visualCables.some((v) => v.tubes.length > 1);
   return [
     {
-      id: "CBL-001",
+      id: "SDC-LAYOUT-001-B",
       ok: sameSideNoOverlap(ctx),
       detail: "Same-side cable nodes overlap vertically",
     },
     {
-      id: "CBL-002",
+      id: "SDC-LAYOUT-001-C",
       ok: sameSideStackGap(ctx),
       detail: "Stacked cables have less than cableGap spacing",
     },
     {
-      id: "FBR-002",
+      id: "SDC-ORDER-002-B",
       ok: compactTubeFiberLayoutOk(ctx.visualCables),
       detail: "Buffer tube fiber pitch is not 24px",
     },
     {
-      id: "ROW-001",
+      id: "SDC-LAYOUT-001-E",
       ok: rowSteps.withinTube,
       detail: "Global row layout missing FIBER_ROW_PITCH steps",
     },
     {
-      id: "ROW-002",
+      id: "SDC-LAYOUT-001-F",
       ok: !multiTube || rowSteps.tubeBoundary,
       detail: "Global row layout missing TUBE_GROUP_GAP at tube boundaries",
     },
@@ -1608,23 +1557,23 @@ export function evaluateSdcLayoutSpacingRules(
 /** SDC-LAYOUT-002 fan-out geometry checks (direct evaluators). */
 export function evaluateSdcLayoutFanoutRules(
   ctx: LayoutRuleContext,
-): LayoutRuleResult[] {
+): SdcCheckResult[] {
   const geo = tubeGeometryOk(ctx.visualCables, ctx.placement);
   return [
-    { id: "TUB-001", ok: geo.ok, detail: geo.detail },
-    { id: "TUB-002", ok: geo.ok, detail: geo.detail },
+    { id: "SDC-LAYOUT-002-A", ok: geo.ok, detail: geo.detail },
+    { id: "SDC-LAYOUT-002-B", ok: geo.ok, detail: geo.detail },
     {
-      id: "TUB-005",
+      id: "SDC-LAYOUT-002-E",
       ok: rightSideMirrors(ctx.visualCables),
       detail: "Right-side breakout is not mirrored",
     },
     {
-      id: "TUB-007",
+      id: "SDC-LAYOUT-002-F",
       ok: sameSideFiberStemColumnsAligned(ctx),
       detail: "Same-side cable stem columns are not vertically aligned",
     },
     {
-      id: "STR-001",
+      id: "SDC-LAYOUT-002-H",
       ok: strandFansTowardCenter(ctx),
       detail: "Fiber strand fans away from canvas center",
     },
@@ -1634,31 +1583,31 @@ export function evaluateSdcLayoutFanoutRules(
 /** SDC-ROUTE-002 nesting checks (direct evaluators). */
 export function evaluateSdcRouteNestingRules(
   _ctx: LayoutRuleContext,
-): LayoutRuleResult[] {
+): SdcCheckResult[] {
   return [];
 }
 
 /** SDC-ROUTE-002 when grid lanes are attached — uses snapped midX from grid router. */
 export function evaluateSdcRouteNestingRulesForGrid(
   _ctx: LayoutRuleContext,
-): LayoutRuleResult[] {
+): SdcCheckResult[] {
   return [];
 }
 
 /** SDC-ROUTE-003 collision checks when grid routes are unavailable. */
 export function evaluateSdcRouteCollisionRules(
   ctx: LayoutRuleContext,
-): LayoutRuleResult[] {
+): SdcCheckResult[] {
   return [
     {
-      id: "EDGE-011",
+      id: "SDC-ROUTE-003-B",
       ok: splicePathsDoNotOverlap(ctx),
       detail:
         findSpliceOverlapPair(ctx) ??
         "Splice strand segments stack on the same horizontal or vertical track",
     },
     {
-      id: "EDGE-012",
+      id: "SDC-ROUTE-003-C",
       ok: verticalCenterLegsSpaced(ctx),
       detail: "Overlapping vertical center legs share the same midX lane",
     },

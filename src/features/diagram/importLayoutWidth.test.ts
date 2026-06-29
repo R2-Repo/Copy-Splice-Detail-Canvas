@@ -246,7 +246,7 @@ describe("importLayoutWidthForGraph", () => {
         stageWidth: 1920,
       }),
     );
-    for (const id of ["EDGE-004", "EDGE-011", "EDGE-012"] as const) {
+    for (const id of ["SDC-ROUTE-004-A", "SDC-ROUTE-003-B", "SDC-ROUTE-003-C"] as const) {
       const result = checkLayoutRule(id, ctx);
       expect(result.ok, result.detail).toBe(true);
     }

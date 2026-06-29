@@ -4,6 +4,7 @@ export * from "./registry";
 export * from "./runRules";
 export * from "./buildSdcContext";
 export * from "./ruleFailureMessages";
+export * from "./sdcCheckIds";
 export { sdcCore001 } from "./core001";
 export { sdcData001 } from "./data001";
 export { sdcData002 } from "./data002";

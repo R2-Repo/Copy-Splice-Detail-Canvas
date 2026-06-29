@@ -4,7 +4,7 @@ import { buildConnectionGraph } from "./buildConnectionGraph";
 import {
   buildLayoutRuleContext,
   checkLayoutRule,
-  type LayoutRuleId,
+  type SdcCheckId,
 } from "./layoutRules";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
 import { LEFT_REFERENCE_CSVS, readLeftCsv } from "@/testHelpers/leftCsvPaths";
@@ -17,17 +17,17 @@ const STAGE_WIDTH = 1920;
 
 /** Rules governing fiber-strand routing on import (grid engine default). */
 const ROUTING_RULE_IDS = [
-  "EDGE-004",
-  "EDGE-006",
-  "EDGE-008",
-  "EDGE-011",
-  "EDGE-012",
-  "EDGE-013",
-  "DOT-001",
-  "DOT-002",
-  "DOT-003",
-  "DOT-004",
-] as const satisfies readonly LayoutRuleId[];
+  "SDC-ROUTE-004-A",
+  "SDC-ROUTE-002-A",
+  "SDC-ROUTE-003-A",
+  "SDC-ROUTE-003-B",
+  "SDC-ROUTE-003-C",
+  "SDC-UX-001-A",
+  "SDC-UX-001-B",
+  "SDC-UX-001-C",
+  "SDC-UX-001-D",
+  "SDC-UX-001-E",
+] as const satisfies readonly SdcCheckId[];
 
 type RoutingFixture = {
   label: string;

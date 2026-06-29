@@ -41,4 +41,4 @@ See **Conflict Priority** in [`00_Rule_Index.md`](../splice_detail_canvas_rule_p
 
 ## Implementation note
 
-Validators still run from `src/features/diagram/layoutRules.ts` internally. User-facing failures and docs use **SDC IDs only**. See [`DROPPED_RULE_ENFORCEMENT.md`](./DROPPED_RULE_ENFORCEMENT.md) for contract vs code gaps.
+Atomic checks use **SDC subcodes** (e.g. `SDC-ORDER-002-B`) in `src/features/rules/sdcCheckIds.ts`. Validators run from `src/features/diagram/layoutRules.ts` and `src/features/rules/`.

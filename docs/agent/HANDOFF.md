@@ -4,29 +4,22 @@
 
 ## Last updated
 
-2026-06-28 — **SDC cleanup: docs + dropped-rule enforcement (Q3/Q4/Q7/Q8)**
+2026-06-28 — **SDC-only rule vocabulary (merge-ready)**
 
 ### Done (PR #28)
 
 | Area | Change |
 |------|--------|
-| Rule pack | **SDC-ROUTE-004**; 24px in **SDC-GRID-001**; deleted legacy agent docs |
-| Enforcement pass | Removed DOM/CBL-004/005/ROW-003, EDGE-001/005/007/009/010; deleted `dominantCablePair.ts` |
-| Pipeline | Single visual cable (no ring-cut split); tube-grouped row order; no dominant pinning |
-| Quad placement | Heaviest-cable anchor (not dominant-pair rule) |
-| Tests | Updated for dropped behaviors; layout search oracle relaxed for 3-side winners |
+| Rule pack + docs | SDC-ROUTE-004, 24px in SDC-GRID-001; deleted legacy agent docs |
+| Enforcement | Q3/Q4/Q7/Q8 dropped; dominant pair, ring-cut split, nest validators removed |
+| Subcodes | All atomic checks renamed to `SDC-*-NNN-A` … in `sdcCheckIds.ts` |
+| Purge | No FBR/TUB/CBL/ROW/EDGE/DOT/STR/DOM IDs in src or active agent docs |
 | Gates | `npm run smoke` pass |
 
-### Not done (before merge)
+### Manual QA before merge
 
-- Rename remaining internal check IDs (FBR-*, EDGE-*, etc.) → SDC subcodes
-- Purge legacy ID strings from comments/tests/docs
-- Optional: simplify jogX assignment in frozen routing (geometry only today)
-
-### Manual QA
-
-Import **example-2** after merge candidate review.
+Import **example-2** + any touched Left-* CSVs.
 
 ### Frozen
 
-`spliceEdgeRouting.ts` symbols untouched — jogX still assigned, not validated.
+`spliceEdgeRouting.ts` symbols untouched.

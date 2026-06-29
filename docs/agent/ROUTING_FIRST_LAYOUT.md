@@ -108,7 +108,7 @@ Run full rule set (or import + route + layout subset) via `buildSdcRuleContext` 
 - `SDC-LAYOUT-001`, `SDC-LAYOUT-002`
 - `SDC-GRID-001`
 - `SDC-ROUTE-001`, `SDC-ROUTE-002`, `SDC-ROUTE-003`
-- Legacy EDGE-004 (≤2 bends per strand)
+- Legacy SDC-ROUTE-004-A (≤2 bends per strand)
 
 Any `severity: "fail"` → discard.
 
@@ -217,7 +217,7 @@ Optional later: Web Worker for UI responsiveness (`layoutSearch.worker.ts`).
 | `layoutMode` user toggle | Removed (import always optimized) |
 | Separate `buildQuadReactFlowGraph` import entry | Merged into unified builder |
 
-Keep fallbacks behind `USE_LEGACY_IMPORT_LAYOUT=1` env until reference CSVs pass.
+Keep fallbacks behind `VITE_USE_HEURISTIC_IMPORT=1` until reference CSVs pass.
 
 ## Relationship to existing docs
 

@@ -203,7 +203,7 @@ export type LayoutOverrides = {
   collapseFullButtSplices?: boolean;
   /** Import-time canvas width used for column placement and strand center. */
   layoutWidth?: number;
-  /** Feasibility expansion applied when resolving import layout (EDGE-004/011/012). */
+  /** Feasibility expansion applied when resolving import layout (SDC-ROUTE-004-A/011/012). */
   layoutExpansion?: LayoutExpansion;
   /** Cable callout labels keyed by callout node id. */
   callouts?: Record<string, LayoutCalloutRecord>;

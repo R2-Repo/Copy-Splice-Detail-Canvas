@@ -13,11 +13,11 @@ import { pathToLegSegments } from "@/features/manualAdjust/legSegments";
 const MIN_LANE_SEPARATION = SPLICE_LANE_SEP;
 
 export type ManualLayoutWarningCode =
-  | "EDGE-004"
-  | "EDGE-012"
-  | "DOT-001"
-  | "DOT-003"
-  | "DOT-004";
+  | "SDC-ROUTE-004-A"
+  | "SDC-ROUTE-003-C"
+  | "SDC-UX-001-B"
+  | "SDC-UX-001-D"
+  | "SDC-UX-001-E";
 
 export type ManualLayoutWarning = {
   connectionId: string;
@@ -107,7 +107,7 @@ export function manualLayoutWarningsForConnections(
       const bends = countOrthogonalBends(leftPath, rightPath);
       warnings.push({
         connectionId,
-        code: "EDGE-004",
+        code: "SDC-ROUTE-004-A",
         message: `${connectionId}: ${bends} bends (max 2)`,
       });
     }
@@ -115,7 +115,7 @@ export function manualLayoutWarningsForConnections(
     if (!fusionDotOnHorizontalSegment(spliceX, spliceY, leftPath, rightPath)) {
       warnings.push({
         connectionId,
-        code: "DOT-001",
+        code: "SDC-UX-001-B",
         message: `${connectionId}: fusion dot not on horizontal segment`,
       });
     }
@@ -125,7 +125,7 @@ export function manualLayoutWarningsForConnections(
     ) {
       warnings.push({
         connectionId,
-        code: "DOT-003",
+        code: "SDC-UX-001-D",
         message: `${connectionId}: fusion dot within 48px of leg corner`,
       });
     }
@@ -135,7 +135,7 @@ export function manualLayoutWarningsForConnections(
     ) {
       warnings.push({
         connectionId,
-        code: "DOT-004",
+        code: "SDC-UX-001-E",
         message: `${connectionId}: vertical leg within 48px of fusion dot`,
       });
     }
@@ -155,7 +155,7 @@ export function manualLayoutWarningsForConnections(
           if (Math.abs(xA - xB) < MIN_LANE_SEPARATION) {
             warnings.push({
               connectionId: a.connectionId,
-              code: "EDGE-012",
+              code: "SDC-ROUTE-003-C",
               message: `Lanes ${a.connectionId} and ${b.connectionId} within ${MIN_LANE_SEPARATION}px`,
             });
           }
@@ -184,11 +184,11 @@ export function formatManualLayoutWarningBanner(
   warnings: ManualLayoutWarning[],
 ): string | null {
   if (warnings.length === 0) return null;
-  const edge004 = warnings.filter((w) => w.code === "EDGE-004").length;
-  const edge012 = warnings.filter((w) => w.code === "EDGE-012").length;
-  const dot001 = warnings.filter((w) => w.code === "DOT-001").length;
-  const dot003 = warnings.filter((w) => w.code === "DOT-003").length;
-  const dot004 = warnings.filter((w) => w.code === "DOT-004").length;
+  const edge004 = warnings.filter((w) => w.code === "SDC-ROUTE-004-A").length;
+  const edge012 = warnings.filter((w) => w.code === "SDC-ROUTE-003-C").length;
+  const dot001 = warnings.filter((w) => w.code === "SDC-UX-001-B").length;
+  const dot003 = warnings.filter((w) => w.code === "SDC-UX-001-D").length;
+  const dot004 = warnings.filter((w) => w.code === "SDC-UX-001-E").length;
   const parts: string[] = [];
   if (edge004 > 0) {
     parts.push(

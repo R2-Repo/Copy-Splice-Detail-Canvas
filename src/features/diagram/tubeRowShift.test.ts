@@ -173,7 +173,7 @@ describe("applyTubeRowAlignmentShifts", () => {
   });
 
   for (const n of [1, 2] as const) {
-    it(`Example #${n} alignable tube pairs pass TUB-008`, () => {
+    it(`Example #${n} alignable tube pairs pass SDC-LAYOUT-002-G`, () => {
       const graph = buildConnectionGraph(
         parseBentleyCsv(
           readReferenceCsv(`CSV Splice Detail Example #${n}.csv`),

@@ -128,7 +128,7 @@ flowchart LR
 
 **Say:** “**Cable node** on the left” — not “fiber cable box” (**cable sheath** is the round part only).
 
-**Related rules:** CBL-001–005
+**Related rules:** SDC-LAYOUT-001-B–005
 
 ---
 
@@ -141,14 +141,14 @@ flowchart LR
 | What you see | Official name | Notes |
 |--------------|---------------|-------|
 | Where the thick tube line attaches to the sheath | **Tube origin** | Code: `tube.origin`; exits from **sheath face** (`tubeFaceX`) |
-| Rule for angle at exit | **Tube exit from sheath** | **TUB-001** — horizontal when group fits on sheath face; fans from **cable center** when multi-tube |
+| Rule for angle at exit | **Tube exit from sheath** | **SDC-LAYOUT-002-A** — horizontal when group fits on sheath face; fans from **cable center** when multi-tube |
 | Dashed thick line | **Striped tube** | Tube codes ending in `-BK` (145–288 fiber) |
 
 ### Center end (where tube meets the fan-out)
 
 | What you see | Official name | Notes |
 |--------------|---------------|-------|
-| End of thick line nearest labels | **Tube tip** | Aligned to fiber-group center (**TUB-002**) |
+| End of thick line nearest labels | **Tube tip** | Aligned to fiber-group center (**SDC-LAYOUT-002-B**) |
 | Where tube + curved fibers meet | **Fan junction** / **fan-out origin** | Code: `fanFrom` |
 | Space between tip and label stack | **Fan zone** | Curved **fan legs** fill this (`tubeFanInset`) |
 | Bold tube color at junction, e.g. **BR** | **Tube label** | In the **fan crest**; CSS `.cable-node__tube-label` |
@@ -156,7 +156,7 @@ flowchart LR
 
 **Say:** “**Tube origin** on the sheath” vs “**tube tip** at the fan” — two ends of the same **buffer tube**.
 
-**Related rules:** TUB-001–008
+**Related rules:** SDC-LAYOUT-002-A–008
 
 ---
 
@@ -164,23 +164,23 @@ flowchart LR
 
 **What it is:** Thin **colored lines** for one spliced fiber per row (only pairs in CSV are drawn).
 
-Each spliced fiber gets one **fiber row** at **24px pitch** (**FBR-002**).
+Each spliced fiber gets one **fiber row** at **24px pitch** (**SDC-ORDER-002-B**).
 
 | What you see | Official name | Notes |
 |--------------|---------------|-------|
 | Curved thin colored lines tube → row | **Fan legs** | **Fan tail** (under tube) + **fan top** (stub + curve above) |
 | Short horizontal before curve | **Fan stub** / **fan elbow** | Center row may stay straight |
 | Colored dot on the row | **Fiber handle** | React Flow `Handle`; CSS `.cable-node__handle` |
-| Vertical alignment of all handles | **Stem column** / **shared stem column** | Code: `stemX`; shared across cables on same side (**TUB-007**) |
+| Vertical alignment of all handles | **Stem column** / **shared stem column** | Code: `stemX`; shared across cables on same side (**SDC-LAYOUT-002-F**) |
 | Small colored square | **Fiber swatch** | CSS `.cable-node__fiber-swatch` |
 | **SL**, **WH**, **RD**… | **Fiber code** | Fiber **color abbreviation** (`FiberColorAbbrev`); CSS `.cable-node__fiber-code` |
 | `(CH 2004)` etc. | **Circuit tag** | From CSV **circuit name** / Bentley **OS column**; CSS `.cable-node__circuit` |
 | Swatch + code + circuit together | **Fiber label column** | Same X for all cables on that side |
 | Thin horizontal at fixed row Y inside cable | **Strand line** (fan portion) | Breakout SVG; distinct from center **splice path** |
 
-**Direction rule:** **STR-001** — left cables fan **right** toward center; right cables fan **left**.
+**Direction rule:** **SDC-LAYOUT-002-H** — left cables fan **right** toward center; right cables fan **left**.
 
-**Related rules:** FBR-001–004, STR-001, TUB-007
+**Related rules:** SDC-ORDER-002-A–004, SDC-LAYOUT-002-H, SDC-LAYOUT-002-F
 
 ---
 
@@ -203,7 +203,7 @@ On a left cable, the **fiber handle** is the **source**; on the right cable it i
 
 ### Path anatomy and bends
 
-Typical cross-side shape is **orthogonal H–V–H** (**EDGE-002**):
+Typical cross-side shape is **orthogonal H–V–H** (**SDC-ROUTE-002**):
 
 ```mermaid
 flowchart LR
@@ -220,13 +220,13 @@ flowchart LR
 | What you see | Official name | Notes |
 |--------------|---------------|-------|
 | Whole routed line | **Splice path** | `buildSplicePath` / `SpliceEdge.tsx` |
-| Horizontal run leaving handle, past labels | **Gap horizontals** | Must clear **OS / circuit column** + 60px inset (**EDGE-009**) |
-| Small black dot on a horizontal | **Fusion splice dot** | **DOT-001** — not on the vertical center leg |
+| Horizontal run leaving handle, past labels | **Gap horizontals** | Must clear **OS / circuit column** + 60px inset (**SDC-ROUTE-001**) |
+| Small black dot on a horizontal | **Fusion splice dot** | **SDC-UX-001-B** — not on the vertical center leg |
 | Where left and right legs meet | **Fusion splice point** / **splice point** | Code: `spliceX`, `spliceY` |
-| Vertical segment in the middle | **Center lane** / **center vertical** | Assigned **midX** — distinct per strand on import (**EDGE-001**) |
-| Shared horizontal for same-tube → same-target fibers | **Bundle trunk** | Code: **jogX** (**EDGE-010**) |
-| Shared X for dots from one source tube | **Dot column** | **DOT-002** |
-| 90° turn in the path | **Bend** | Max **2 bends** total per splice (**EDGE-004**) |
+| Vertical segment in the middle | **Center lane** / **center vertical** | Assigned **midX** — distinct per strand on import (**SDC-ROUTE-003**) |
+| Shared horizontal for same-tube → same-target fibers | **Bundle trunk** | Code: **jogX** (**SDC-ROUTE-002**) |
+| Shared X for dots from one source tube | **Dot column** | **SDC-UX-001-C** |
+| 90° turn in the path | **Bend** | Max **2 bends** total per splice (**SDC-ROUTE-004-A**) |
 | Horizontal on source row before vertical | **Source horizontal** | `sourceHorizY` / `sourceY` |
 | Horizontal on target row after vertical | **Target horizontal** | `targetHorizY` / `targetY` |
 | Open area between label columns | **Splice routing zone** / **gap** | Where lanes and trunks live |
@@ -236,13 +236,13 @@ flowchart LR
 
 **Same-side splices:** still orthogonal, route inward and back (**same_side** template).
 
-**Related rules:** EDGE-001–012, DOT-001–002
+**Related rules:** SDC-ROUTE-003–012, SDC-UX-001-B–002
 
 ---
 
 ## Zone 5 — Far side (mirror of Zones 1–3)
 
-Same parts, mirrored (**TUB-005**):
+Same parts, mirrored (**SDC-LAYOUT-002-E**):
 
 ![Target-side fiber labels and path endpoints](../reference/images/glossary/03-right-labels-and-handles.png)
 
@@ -253,7 +253,7 @@ Same parts, mirrored (**TUB-005**):
 | **Target buffer tube** | **Tube origin** at sheath, **tube tip** at fan |
 | **Target fiber handle** | Where center splice line meets the right **stem column** |
 | **Target fiber label column** | Swatch, **fiber code**, **circuit tag** |
-| **OS / circuit column** | Widest circuit tags on that side — splices run past before turning vertical (**EDGE-009**) |
+| **OS / circuit column** | Widest circuit tags on that side — splices run past before turning vertical (**SDC-ROUTE-001**) |
 
 **Say:** “**Target handle** on the WH row” — not “right dot” (handles exist on both sides).
 
@@ -271,7 +271,7 @@ Same parts, mirrored (**TUB-005**):
 
 **Toggle:** “Collapse full butt splices” (auto on import when detected).
 
-**Related rules:** EDGE-004 (collapsed), TUB-008
+**Related rules:** SDC-ROUTE-004-A (collapsed), SDC-LAYOUT-002-G
 
 ---
 

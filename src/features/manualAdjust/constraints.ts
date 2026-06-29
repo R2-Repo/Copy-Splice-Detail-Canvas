@@ -78,7 +78,7 @@ export function fusionDotCornerClearanceOk(
   );
 }
 
-/** DOT-004: no vertical leg lane may run through or within 48px of the fusion dot row. */
+/** SDC-UX-001-E: no vertical leg lane may run through or within 48px of the fusion dot row. */
 export function fusionDotVerticalLaneClearanceOk(
   spliceX: number,
   spliceY: number,
@@ -99,10 +99,10 @@ export function pathsWithinBendBudget(leftPath: string, rightPath: string): bool
 }
 
 export type LegPathValidationCode =
-  | "EDGE-004"
-  | "DOT-001"
-  | "DOT-003"
-  | "DOT-004";
+  | "SDC-ROUTE-004-A"
+  | "SDC-UX-001-B"
+  | "SDC-UX-001-D"
+  | "SDC-UX-001-E";
 
 export function validateLegPaths(
   leftPath: string,
@@ -111,30 +111,30 @@ export function validateLegPaths(
   spliceY: number,
 ): LegPathValidationCode | null {
   if (!pathsWithinBendBudget(leftPath, rightPath)) {
-    return "EDGE-004";
+    return "SDC-ROUTE-004-A";
   }
   if (!fusionDotOnHorizontalSegment(spliceX, spliceY, leftPath, rightPath)) {
-    return "DOT-001";
+    return "SDC-UX-001-B";
   }
   if (!fusionDotVerticalLaneClearanceOk(spliceX, spliceY, leftPath, rightPath)) {
-    return "DOT-004";
+    return "SDC-UX-001-E";
   }
   if (!fusionDotCornerClearanceOk(spliceX, spliceY, leftPath, rightPath)) {
-    return "DOT-003";
+    return "SDC-UX-001-D";
   }
   return null;
 }
 
 export function legCommitBlockedMessage(code: LegPathValidationCode): string {
   switch (code) {
-    case "EDGE-004":
-      return "Move blocked — 2-corner bend limit (EDGE-004)";
-    case "DOT-001":
-      return "Move blocked — fusion dot must stay on horizontal leg (DOT-001)";
-    case "DOT-003":
-      return "Move blocked — fusion dot needs 48px corner clearance (DOT-003)";
-    case "DOT-004":
-      return "Move blocked — vertical leg within 48px of fusion dot (DOT-004)";
+    case "SDC-ROUTE-004-A":
+      return "Move blocked — 2-corner bend limit (SDC-ROUTE-004-A)";
+    case "SDC-UX-001-B":
+      return "Move blocked — fusion dot must stay on horizontal leg (SDC-UX-001-B)";
+    case "SDC-UX-001-D":
+      return "Move blocked — fusion dot needs 48px corner clearance (SDC-UX-001-D)";
+    case "SDC-UX-001-E":
+      return "Move blocked — vertical leg within 48px of fusion dot (SDC-UX-001-E)";
   }
 }
 
@@ -154,7 +154,7 @@ export function clampHorizontalLaneDeltaNearFusionDot(
   return limitX - segment.x;
 }
 
-/** DOT-003 live clamp: vertical lane corners on the dot row stay ≥48px from the fusion dot. */
+/** SDC-UX-001-D live clamp: vertical lane corners on the dot row stay ≥48px from the fusion dot. */
 export function clampVerticalLaneDeltaForCornerClearance(
   segment: Extract<LegSegment, { kind: "v" }>,
   delta: number,

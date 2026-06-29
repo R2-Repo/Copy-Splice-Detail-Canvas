@@ -319,7 +319,7 @@ export function enforceMinHorizontalInset(
     }
   }
 
-  // EDGE-009 hard floor ? never place the vertical leg over the OS/fan column.
+  // SDC-ROUTE-001 hard floor ? never place the vertical leg over the OS/fan column.
   let x = midX;
   for (const [handleX, tagWidth, atLabelEdge] of [
     [sourceX, sourceTagWidth, sourceAtLabelOuterEdge] as const,
@@ -460,7 +460,7 @@ function isOrthogonalPathCorner(
   return (horiz1 && vert2) || (vert1 && horiz2);
 }
 
-/** DOT-003: Manhattan distance along a leg path from the fusion dot to the nearest corner. */
+/** SDC-UX-001-D: Manhattan distance along a leg path from the fusion dot to the nearest corner. */
 export function pathDistanceToNearestCorner(
   path: string,
   direction: "backward" | "forward",
@@ -515,7 +515,7 @@ export function fusionDotCornerClearanceFromPaths(
   );
 }
 
-/** DOT-004: min horizontal distance from fusion dot to vertical leg on the dot row. */
+/** SDC-UX-001-E: min horizontal distance from fusion dot to vertical leg on the dot row. */
 export function pathVerticalLaneClearanceFromFusionDot(
   spliceX: number,
   spliceY: number,
@@ -674,13 +674,13 @@ export function routingLaneFromData(
 
 export const MAX_SPLICE_BENDS = 2;
 
-/** DOT-003: minimum path distance from fusion dot to the nearest leg corner. */
+/** SDC-UX-001-D: minimum path distance from fusion dot to the nearest leg corner. */
 export const FUSION_DOT_MIN_CORNER_CLEARANCE = 48;
 
-/** DOT-004: minimum horizontal distance from fusion dot to a vertical leg that spans the dot row. */
+/** SDC-UX-001-E: minimum horizontal distance from fusion dot to a vertical leg that spans the dot row. */
 export const FUSION_DOT_MIN_VERTICAL_LANE_CLEARANCE = 48;
 
-/** Strict EDGE-004 default; +1 bend for Y-track, +2 when jogX trunk also uses Y-track. */
+/** Strict SDC-ROUTE-004-A default; +1 bend for Y-track, +2 when jogX trunk also uses Y-track. */
 export function maxSpliceBendsForLane(
   sourceY: number,
   targetY: number,
@@ -808,7 +808,7 @@ export function buildOrthogonalSplicePath(
 }
 
 /**
- * First X on the handle row where a vertical bend is allowed (EDGE-009).
+ * First X on the handle row where a vertical bend is allowed (SDC-ROUTE-001).
  * Clears the side-wide OS label column plus inward jog before turning vertical.
  */
 export function inwardClearXBeforeVertical(
@@ -1231,7 +1231,7 @@ function ensureFusionDotCornerClearance(
   return adjusted;
 }
 
-/** DOT-001: fusion dot on the source-side horizontal row before center vertical fan-out. */
+/** SDC-UX-001-B: fusion dot on the source-side horizontal row before center vertical fan-out. */
 export function resolveFusionDotPosition(
   sourceX: number,
   sourceY: number,
@@ -1312,7 +1312,7 @@ type TubeDotReconcileMember = {
   sourceTagWidth?: number;
 };
 
-/** DOT-002: one shared dot column X per source buffer tube group. */
+/** SDC-UX-001-C: one shared dot column X per source buffer tube group. */
 export function reconcileBufferTubeDotColumns(
   entries: TubeDotReconcileMember[],
   lanes: Map<string, SpliceRoutingLane>,
@@ -1503,7 +1503,7 @@ function appendVerticalPoint(
 /**
  * Left leg stops at the fusion dot; right leg starts there (different strand colors).
  *
- * EDGE-004: at most two 90? bends handle-to-handle ? route on handle rows only;
+ * SDC-ROUTE-004-A: at most two 90? bends handle-to-handle ? route on handle rows only;
  * optional bundle jog uses same-Y horizontals before one center vertical.
  */
 export function buildDemarcatedSplicePaths(
@@ -1971,7 +1971,7 @@ function hvDemarcatedSegments(
   return segments;
 }
 
-/** Horizontal gap segments that match buildDemarcatedSplicePaths (EDGE-011 ledger). */
+/** Horizontal gap segments that match buildDemarcatedSplicePaths (SDC-ROUTE-003-B ledger). */
 export function spliceRouteHorizontalSegments(
   sourceX: number,
   sourceY: number,
@@ -2049,7 +2049,7 @@ export function spliceRouteSegments(
   );
 }
 
-/** True when rendered splice paths never turn vertical at handle X (EDGE-009). */
+/** True when rendered splice paths never turn vertical at handle X (SDC-ROUTE-001). */
 export function splicePathsAvoidHandleColumnVertical(
   sourceX: number,
   sourceY: number,
@@ -2116,7 +2116,7 @@ export function parallelSpliceSegmentsOverlap(
   return false;
 }
 
-/** Nested handle-row horizontals at the same splice row Y (EDGE-004 two-bend lead-in). */
+/** Nested handle-row horizontals at the same splice row Y (SDC-ROUTE-004-A two-bend lead-in). */
 export function isSharedSpliceRowLeadInOverlap(
   sourceYA: number,
   sourceYB: number,

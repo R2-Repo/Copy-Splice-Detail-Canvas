@@ -521,7 +521,7 @@ export function useManualAdjustEngine({
           if (
             !buttLegPathsWithinBendBudget(paths.leftPath, paths.rightPath)
           ) {
-            blockedCode = "EDGE-004";
+            blockedCode = "SDC-ROUTE-004-A";
             break;
           }
           continue;

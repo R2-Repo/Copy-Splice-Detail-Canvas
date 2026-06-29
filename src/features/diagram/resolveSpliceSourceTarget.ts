@@ -12,7 +12,7 @@ export type SpliceEndpointRef = {
 
 /**
  * Pick diagram-left → diagram-right endpoints for routing so midX nest order
- * (EDGE-005) and invert logic stay correct after cable side overrides / flips.
+ * (SDC-ROUTE-002) and invert logic stay correct after cable side overrides / flips.
  */
 export function resolveSpliceSourceTarget(
   csvLeft: SpliceEndpointRef,

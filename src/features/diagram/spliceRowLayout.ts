@@ -310,7 +310,7 @@ function alignConnsByCable(
 
 /**
  * Vertical slack a cable may shift without breaking same-side stack gaps
- * (CBL-001 / CBL-002). Returns the inclusive [min, max] shift relative to the
+ * (SDC-LAYOUT-001-B / SDC-LAYOUT-001-C). Returns the inclusive [min, max] shift relative to the
  * cable's current Y.
  */
 function sameSideShiftSlack(
@@ -381,7 +381,7 @@ function appliableNearStraightShift(
 }
 
 /**
- * Horizontal leg alignment (EDGE-013) — snap near-straight legs flat.
+ * Horizontal leg alignment (SDC-UX-001-A) — snap near-straight legs flat.
  *
  * After cable-pair alignment, nudge each remaining (unlocked) cable's Y by a
  * small amount (≤ tolerance) so legs that are only a few px off become a single
@@ -423,7 +423,7 @@ function snapNearStraightCables(
 
 /**
  * Max residual near-straight shift across unlocked cables — 0 at the alignment
- * fixpoint. Used by EDGE-013 to verify the layout snapped all flattenable legs.
+ * fixpoint. Used by SDC-UX-001-A to verify the layout snapped all flattenable legs.
  */
 export function maxNearStraightResidual(
   visualCables: VisualCable[],
@@ -568,7 +568,7 @@ export function computeAlignedLayout(
     );
   }
 
-  // EDGE-013 horizontal leg alignment — snap near-straight legs to a flat line.
+  // SDC-UX-001-A horizontal leg alignment — snap near-straight legs to a flat line.
   snapNearStraightCables(visualCables, placement, cablePositions, locked);
   reflowStackPreservingY(leftCables, cablePositions);
   reflowStackPreservingY(rightCables, cablePositions);

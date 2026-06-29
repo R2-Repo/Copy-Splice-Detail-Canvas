@@ -34,7 +34,7 @@ function gridContext(
   );
 }
 
-describe("grid reconcile EDGE-011 (example-3 + SPI)", () => {
+describe("grid reconcile SDC-ROUTE-003-B (example-3 + SPI)", () => {
   const skipExample3 = shouldSkipEdge011ForFixture("example-3");
   const example3Test = skipExample3 ? it.skip : it;
   example3Test(

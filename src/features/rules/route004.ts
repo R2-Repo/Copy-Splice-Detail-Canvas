@@ -60,7 +60,7 @@ export const sdcRoute004: SdcRule = {
 
     const failures: string[] = [];
     for (const r of evaluateSdcRouteCollisionRules(layoutCtx)) {
-      if (!r.ok && r.id === "EDGE-004") {
+      if (!r.ok && r.id === "SDC-ROUTE-004-A") {
         failures.push(
           formatSdcFailureMessage("SDC-ROUTE-004", `${r.id}: ${r.detail}`),
         );

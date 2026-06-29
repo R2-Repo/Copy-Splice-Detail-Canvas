@@ -209,7 +209,7 @@ export function buildReactFlowGraph(
     rerouteConnectionIds?: string[];
     dragCacheEdges?: Edge[];
     priorGridRoutes?: Map<string, import("@/features/grid/gridTypes").GridRoute>;
-    /** Reuse layout-rule visualCables so grid reconcile matches EDGE-011 geometry. */
+    /** Reuse layout-rule visualCables so grid reconcile matches SDC-ROUTE-003-B geometry. */
     sharedVisualCables?: import("@/features/diagram/visualCables").VisualCable[];
     /** Search harness — skip barycenter placement; use candidate stack order. */
     fixedPlacement?: Map<string, import("@/features/diagram/canvasPlacement").CablePlacement>;
