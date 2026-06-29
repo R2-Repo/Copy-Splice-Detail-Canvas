@@ -224,6 +224,7 @@ export function buildReactFlowGraph(
   autoLayoutY: Record<string, number>;
   visualCables?: import("@/features/diagram/visualCables").VisualCable[];
   placement?: Map<string, import("@/features/diagram/canvasPlacement").CablePlacement>;
+  edgePlacement?: Map<string, import("@/features/diagram/edgePlacement").EdgePlacement>;
 } {
   // Additive 4-side engine — fully isolated; horizontal pipeline below is untouched.
   if (overrides?.layoutMode === "quad") {

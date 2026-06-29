@@ -11,6 +11,7 @@ import {
   createImportDiagnostics,
   endSearchDiagnostics,
   finishImportDiagnostics,
+  flushImportDiagnostics,
   getActiveSearchDiagnostics,
   importDiagnosticsEnabled,
   recordCandidateEvaluated,
@@ -100,5 +101,35 @@ describe("importDiagnostics", () => {
     const slice = endSearchDiagnostics();
     expect(slice?.searchStats.evaluatedT0).toBe(12);
     expect(slice?.searchStats.evaluatedT1).toBe(4);
+  });
+
+  it("recordCandidateEvaluated records generation on first T0 eval", () => {
+    const graph = buildConnectionGraph(
+      parseBentleyCsv(readReferenceCsv("CSV Splice Detail Example #2.csv")),
+    );
+    const diag = createImportDiagnostics();
+    const baseline = heuristicBaselineCandidate(graph);
+    const quad = {
+      ...baseline,
+      stackOrder: {
+        ...baseline.stackOrder,
+        top: ["cable-a"],
+      },
+    };
+    recordCandidateEvaluated(diag, quad, "T0", { feasible: true, score: 100 });
+    recordCandidateEvaluated(diag, quad, "T0", { feasible: true, score: 100 });
+    expect(diag.searchStats.generated).toBe(1);
+    expect(diag.searchStats.topOrBottomGenerated).toBe(1);
+    expect(diag.searchStats.evaluatedT0).toBe(2);
+  });
+
+  it("appendTopBottomNotes does not warn when T0 tried top/bottom but generated count lagged", () => {
+    const diag = createImportDiagnostics();
+    diag.searchStats.topOrBottomReachedT0 = 8;
+    diag.searchStats.topOrBottomGenerated = 0;
+    flushImportDiagnostics(diag);
+    expect(
+      diag.notes.some((n) => n.includes("no top/bottom candidates")),
+    ).toBe(false);
   });
 });

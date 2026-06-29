@@ -4,6 +4,12 @@ import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
 import { type LayoutRuleContext } from "@/features/diagram/layoutRules";
 import type { CablePlacement } from "@/features/diagram/canvasPlacement";
+import {
+  edgePlacementFromCandidate,
+  type EdgePlacement,
+} from "@/features/diagram/edgePlacement";
+import type { CableNodeData } from "@/features/canvas/nodes/types";
+import type { QuadSide } from "@/types/splice";
 import { computeCanvasPlacement } from "@/features/diagram/canvasPlacement";
 import { applyCableSideOverrides } from "@/features/diagram/cableDisplaySide";
 import { connectionRowIndexMap } from "@/features/diagram/connectionRowOrder";
@@ -11,7 +17,6 @@ import { type AlignedDiagramLayout } from "@/features/diagram/spliceRowLayout";
 import { DEFAULT_LAYOUT_EXPANSION } from "@/features/diagram/layoutExpansion";
 import { routeAllOnGrid } from "@/features/grid/gridRouter";
 import type { SpliceRoutingLane } from "@/features/diagram/centerRouter";
-import type { CableNodeData } from "@/features/canvas/nodes/types";
 import { candidateToPlacementMap } from "@/features/layoutSearch/layoutCandidate";
 import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
 
@@ -53,7 +58,31 @@ function placementFromCableNodes(nodes: Node[]): Map<string, CablePlacement> {
   for (const node of cableNodes) {
     const vcId = node.id.replace(/^cable-/, "");
     const data = node.data as CableNodeData;
-    const side = data.side ?? "left";
+    const side = data.quadSide
+      ? data.side ?? "left"
+      : data.side ?? "left";
+    if (side !== "left" && side !== "right") continue;
+    const order = orderBySide[side];
+    orderBySide[side] = order + 1;
+    placement.set(vcId, { side, order });
+  }
+
+  return placement;
+}
+
+function edgePlacementFromCableNodes(nodes: Node[]): Map<string, EdgePlacement> {
+  const placement = new Map<string, EdgePlacement>();
+  const orderBySide: Record<QuadSide, number> = {
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  };
+
+  for (const node of nodes.filter((n) => n.type === "cable")) {
+    const vcId = node.id.replace(/^cable-/, "");
+    const data = node.data as CableNodeData;
+    const side: QuadSide = data.quadSide ?? data.side ?? "left";
     const order = orderBySide[side];
     orderBySide[side] = order + 1;
     placement.set(vcId, { side, order });
@@ -109,6 +138,31 @@ function resolveEvaluatedPlacement(ctx: SdcRuleContext): Map<string, CablePlacem
   return placement;
 }
 
+function resolveEvaluatedEdgePlacement(
+  ctx: SdcRuleContext,
+): Map<string, EdgePlacement> | undefined {
+  if (ctx.edgePlacement) return ctx.edgePlacement;
+
+  const visualCables = ctx.visualCables ?? [];
+  const candidate = ctx.overrides?.optimizedLayoutCandidate;
+  if (candidate && visualCables.length > 0) {
+    const fromCandidate = edgePlacementFromCandidate(
+      candidate.cableSides,
+      candidate.stackOrder,
+      visualCables,
+    );
+    if ([...fromCandidate.values()].some((p) => p.side === "top" || p.side === "bottom")) {
+      return fromCandidate;
+    }
+  }
+
+  if (ctx.reactFlow?.nodes.some((n) => (n.data as CableNodeData).quadSide)) {
+    return edgePlacementFromCableNodes(ctx.reactFlow.nodes);
+  }
+
+  return undefined;
+}
+
 /** Build layout-rule context from the evaluated import/search graph — no rebuild. */
 function buildLayoutRuleContextFromEvaluated(
   ctx: SdcRuleContext,
@@ -127,6 +181,7 @@ function buildLayoutRuleContextFromEvaluated(
     graph: ctx.graph,
     visualCables,
     placement,
+    edgePlacement: resolveEvaluatedEdgePlacement(ctx),
     layout: minimalAlignedLayout(ctx.reactFlow!.nodes, layoutWidth),
     reactFlow: ctx.reactFlow!,
     layoutWidth,
@@ -224,6 +279,9 @@ export function buildSdcRuleContext(
     ctx.reactFlow = { nodes: graphResult.nodes, edges: graphResult.edges };
     if (graphResult.placement) {
       ctx.placement = graphResult.placement;
+    }
+    if (graphResult.edgePlacement) {
+      ctx.edgePlacement = graphResult.edgePlacement;
     }
 
     if (options?.withGrid !== false) {

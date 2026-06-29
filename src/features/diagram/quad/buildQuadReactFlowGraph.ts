@@ -12,6 +12,7 @@ import {
   reportStorageKey,
   type DiagramLayout,
 } from "@/features/diagram/layoutSpliceDiagram";
+import { edgePlacementFromQuad } from "@/features/diagram/edgePlacement";
 import {
   buildVisualCablesForLayout,
   findVisualCableForConnection,
@@ -72,6 +73,8 @@ export function buildQuadReactFlowGraph(
   layout: DiagramLayout;
   xBounds: CableXBounds;
   autoLayoutY: Record<string, number>;
+  visualCables: VisualCable[];
+  edgePlacement: ReturnType<typeof edgePlacementFromQuad>;
 } {
   const { visualCables } = buildVisualCablesForLayout(graph);
   const connections = orderedFiberConnections(graph);
@@ -315,5 +318,11 @@ export function buildQuadReactFlowGraph(
     layout,
     xBounds: { leftX: 0, rightX: width },
     autoLayoutY,
+    visualCables,
+    edgePlacement: edgePlacementFromQuad(
+      placement,
+      visualCables,
+      _buildOptions?.fixedQuadStackOrder,
+    ),
   };
 }

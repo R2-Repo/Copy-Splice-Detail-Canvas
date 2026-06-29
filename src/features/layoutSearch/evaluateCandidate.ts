@@ -142,6 +142,7 @@ export function evaluateLayoutCandidate(
       overrides,
       reactFlow: { nodes: graphResult.nodes, edges: gridResult.edges },
       placement: graphResult.placement,
+      edgePlacement: graphResult.edgePlacement,
       grid: gridResult.grid,
       gridRoutes: gridResult.routes,
       gridLanes,
