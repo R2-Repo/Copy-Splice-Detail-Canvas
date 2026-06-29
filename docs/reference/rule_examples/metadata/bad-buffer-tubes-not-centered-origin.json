@@ -1,0 +1,100 @@
+{
+  "id": "bad-buffer-tubes-not-centered-origin",
+  "verdict": "bad",
+  "source_image": "bad-buffer-tubes-not-centered-origin.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/Images/bad/bad-buffer-tubes-not-centered-origin.png",
+  "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/bad-buffer-tubes-not-centered-origin.json",
+  "title": "Buffer tubes do not share a centered cable origin",
+  "summary": "The image shows buffer tubes breaking out from staggered positions instead of sharing one centered origin on the fiber cable. Blue, Orange, and White appear to leave from different cable points, so the cable-to-buffer-tube transition does not read as one organized, centered breakout.",
+  "classification": {
+    "example_type": "bad",
+    "confidence": "high",
+    "based_on_user_reported_issue": true
+  },
+  "visually_observable_issues": [
+    "The visible buffer tubes are not centered from the same origin on the fiber cable.",
+    "Blue, Orange, and White buffer tube breakouts appear staggered rather than sharing a common cable breakout point.",
+    "The fan-out/buffer-tube transition is visually inconsistent, making the cable-to-buffer-tube hierarchy harder to read.",
+    "The breakout geometry creates uneven diagonals and spacing before the tubes reach their routed positions near the center."
+  ],
+  "likely_broken_rules": [
+    {
+      "rule_id": "SDC-LAYOUT-002",
+      "rule_name": "Fiber Strand Fan Out",
+      "related_file": "splice_detail_canvas_rule_pack/08_SDC-LAYOUT-002_Fiber_Strand_Fan_Out.md",
+      "broken_requirements": [
+        "The fan out is the organized transition area between a buffer tube and the routed individual strands.",
+        "Fan out geometry must provide clean start points for routing.",
+        "Fan out and breakout geometry must not overlap or create confusing visual grouping.",
+        "The routing engine must be able to identify clean deterministic start points."
+      ],
+      "why_this_image_fails": "The buffer tube breakouts do not share one centered origin on the fiber cable, so the transition into the fan-out/routing area is staggered and visually inconsistent rather than clean and deterministic."
+    },
+    {
+      "rule_id": "SDC-LAYOUT-001",
+      "rule_name": "Spacing",
+      "related_file": "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md",
+      "broken_requirements": [
+        "Buffer tube spacing should be dictated by fan out spacing, strand count, labels, cable group spacing, and routing zone requirements.",
+        "Buffer tube spacing fails when placement causes confusing visual grouping.",
+        "Fan out spacing must support clean fan out exit points and clean entry into the routing zone."
+      ],
+      "why_this_image_fails": "The staggered origins create confusing visual grouping because the tubes appear to emerge from different cable positions instead of from one centered cable breakout."
+    },
+    {
+      "rule_id": "SDC-GRID-001",
+      "rule_name": "Canvas Grid System",
+      "related_file": "splice_detail_canvas_rule_pack/06_SDC-GRID-001_Canvas_Grid_System.md",
+      "broken_requirements": [
+        "The grid must reserve fanout, label, cable, buffer tube, and spacing areas.",
+        "Grid lane assignment must preserve the cable -> buffer tube -> fiber strand -> splice hierarchy where possible.",
+        "Fan-out and nesting rhythm should align to the 24px grid pitch."
+      ],
+      "why_this_image_fails": "The buffer tube origins are not aligned as one centered cable breakout, which weakens the grid-based hierarchy from cable to buffer tube and creates uneven pre-route geometry."
+    },
+    {
+      "rule_id": "SDC-ROUTE-002",
+      "rule_name": "Fiber Strand Nesting",
+      "related_file": "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "broken_requirements": [
+        "Routing must preserve the Fiber Cable -> Buffer Tube -> Fiber Strand hierarchy.",
+        "Same-cable fibers should remain visually grouped.",
+        "The diagram must not lose the cable -> buffer tube -> strand relationship."
+      ],
+      "why_this_image_fails": "Because the same cable's buffer tubes do not originate from the same centered breakout point, the physical cable group reads as split across multiple origins instead of one coherent nested group."
+    },
+    {
+      "rule_id": "SDC-ORDER-001",
+      "rule_name": "Buffer Tube Color Order",
+      "related_file": "splice_detail_canvas_rule_pack/04_SDC-ORDER-001_Buffer_Tube_Color_Order.md",
+      "broken_requirements": [
+        "The visual buffer tube order controls the starting order for fanouts.",
+        "Nested routing groups should preserve buffer tube order as much as possible when assigning lane bands.",
+        "Buffer tubes from unrelated cables must not be visually interleaved without a valid layout reason."
+      ],
+      "why_this_image_fails": "The visible issue is primarily origin alignment, not color order, but the staggered breakout makes the buffer tube sequence less readable as one ordered cable group."
+    }
+  ],
+  "expected_correction": [
+    "All buffer tubes for the same fiber cable should be centered from the same origin on that cable.",
+    "The cable breakout should read as one shared, centered origin before buffer tubes separate into their ordered positions.",
+    "Keep buffer tube colors and labels ordered while preserving clean spacing, grid alignment, and fan-out entry points."
+  ],
+  "notes": [
+    "This is a hard bad example because the defect affects the structural cable-to-buffer-tube transition, not only visual polish.",
+    "The user-reported issue is explicit: all buffer tubes need to be centered from the same origin on the fiber cables.",
+    "The screenshot is cropped, so the full cable group is not visible, but the visible buffer tube origins are enough to classify the example as bad with high confidence."
+  ],
+  "grounding": {
+    "primary_rule_files": [
+      "splice_detail_canvas_rule_pack/08_SDC-LAYOUT-002_Fiber_Strand_Fan_Out.md",
+      "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md"
+    ],
+    "supporting_rule_files": [
+      "splice_detail_canvas_rule_pack/06_SDC-GRID-001_Canvas_Grid_System.md",
+      "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "splice_detail_canvas_rule_pack/04_SDC-ORDER-001_Buffer_Tube_Color_Order.md"
+    ],
+    "reference_library_location": "docs/reference/rule_examples"
+  }
+}
