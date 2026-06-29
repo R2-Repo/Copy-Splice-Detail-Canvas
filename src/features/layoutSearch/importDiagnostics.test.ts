@@ -7,8 +7,11 @@ import { readReferenceCsv } from "@/testHelpers/layoutContractCsvPaths";
 
 import {
   beginImportDiagnostics,
+  beginSearchDiagnostics,
   createImportDiagnostics,
+  endSearchDiagnostics,
   finishImportDiagnostics,
+  getActiveSearchDiagnostics,
   importDiagnosticsEnabled,
   recordCandidateEvaluated,
   recordCandidateGenerated,
@@ -87,5 +90,15 @@ describe("importDiagnostics", () => {
       score: 1000,
     });
     expect(diag.searchStats.evaluatedT0).toBe(1);
+  });
+
+  it("endSearchDiagnostics reconciles tier counts from eval sub-phases", () => {
+    beginSearchDiagnostics();
+    const diag = getActiveSearchDiagnostics()!;
+    diag.evalSubPhaseCounts.evaluateT0 = 12;
+    diag.evalSubPhaseCounts.evaluateT1 = 4;
+    const slice = endSearchDiagnostics();
+    expect(slice?.searchStats.evaluatedT0).toBe(12);
+    expect(slice?.searchStats.evaluatedT1).toBe(4);
   });
 });

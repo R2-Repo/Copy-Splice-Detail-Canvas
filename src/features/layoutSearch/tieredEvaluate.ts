@@ -39,6 +39,7 @@ import {
 } from "./topology/deriveConstraints";
 import {
   getActiveSearchDiagnostics,
+  recordCandidateEvaluated,
   recordEvalSubPhase,
   recordRuleReject,
 } from "./importDiagnostics";
@@ -270,7 +271,14 @@ export function evaluateT0(
   ) {
     const result = infeasibleT0(candidate);
     if (diag) {
-      recordEvalSubPhase(diag, "evaluateT0", performance.now() - t0Start);
+      const durationMs = performance.now() - t0Start;
+      recordEvalSubPhase(diag, "evaluateT0", durationMs);
+      recordCandidateEvaluated(diag, candidate, "T0", {
+        feasible: false,
+        score: result.score,
+        violations: result.violations,
+        timingMs: Math.round(durationMs),
+      });
     }
     return result;
   }
@@ -344,7 +352,15 @@ export function evaluateT0(
     violations,
   };
   if (diag) {
-    recordEvalSubPhase(diag, "evaluateT0", performance.now() - t0Start);
+    const durationMs = performance.now() - t0Start;
+    recordEvalSubPhase(diag, "evaluateT0", durationMs);
+    recordCandidateEvaluated(diag, candidate, "T0", {
+      feasible: result.feasible,
+      score: result.score,
+      violations: result.violations,
+      softScore: result.softScore,
+      timingMs: Math.round(durationMs),
+    });
   }
   return result;
 }
@@ -377,7 +393,14 @@ export function evaluateT1(
   if (t1Reject.reject) {
     if (diag) {
       recordPrunePredictedRules(diag.ruleRejectCounts, t1Reject.predictedRules);
-      recordEvalSubPhase(diag, "evaluateT1", performance.now() - t1Start);
+      const durationMs = performance.now() - t1Start;
+      recordEvalSubPhase(diag, "evaluateT1", durationMs);
+      recordCandidateEvaluated(diag, candidate, "T1", {
+        feasible: false,
+        score: INFEASIBLE_LAYOUT_SCORE,
+        timingMs: Math.round(durationMs),
+        reason: t1Reject.reason,
+      });
     }
     return { ...infeasibleT0(candidate), tier: "T1" as const };
   }
@@ -454,7 +477,15 @@ export function evaluateT1(
   });
 
   if (diag) {
-    recordEvalSubPhase(diag, "evaluateT1", performance.now() - t1Start);
+    const durationMs = performance.now() - t1Start;
+    recordEvalSubPhase(diag, "evaluateT1", durationMs);
+    recordCandidateEvaluated(diag, candidate, "T1", {
+      feasible: result.feasible,
+      score: result.score,
+      violations: result.violations,
+      softScore: result.softScore,
+      timingMs: Math.round(durationMs),
+    });
   }
 
   proxyRouteMemo.set(memoKey, result);
@@ -470,7 +501,15 @@ export function evaluateT2(
   const diag = getActiveSearchDiagnostics();
   const full = evaluateLayoutCandidate(graph, candidate);
   if (diag) {
-    recordEvalSubPhase(diag, "evaluateT2", performance.now() - t2Start);
+    const durationMs = performance.now() - t2Start;
+    recordEvalSubPhase(diag, "evaluateT2", durationMs);
+    recordCandidateEvaluated(diag, candidate, "T2", {
+      feasible: full.feasible,
+      score: full.score,
+      violations: full.violations,
+      softScore: full.softScore,
+      timingMs: Math.round(durationMs),
+    });
   }
   return { ...full, tier: "T2", fullResult: full };
 }

@@ -220,9 +220,46 @@ declare global {
 }
 
 const HISTORY_MAX = 10;
+/** Shared across duplicate worker bundle copies of this module. */
+const GLOBAL_ACTIVE_SEARCH_DIAG_KEY = "__SDC_ACTIVE_SEARCH_DIAG__";
+
 let nextImportId = 1;
 let activeSession: ImportDiagnostics | null = null;
 let activeSearchDiag: ImportDiagnostics | null = null;
+
+function setActiveSearchDiag(diag: ImportDiagnostics | null): void {
+  activeSearchDiag = diag;
+  if (typeof globalThis === "undefined") return;
+  const globalRef = globalThis as Record<string, unknown>;
+  if (diag) globalRef[GLOBAL_ACTIVE_SEARCH_DIAG_KEY] = diag;
+  else delete globalRef[GLOBAL_ACTIVE_SEARCH_DIAG_KEY];
+}
+
+function readActiveSearchDiag(): ImportDiagnostics | null {
+  if (typeof globalThis !== "undefined") {
+    const globalRef = globalThis as Record<string, unknown>;
+    const shared = globalRef[GLOBAL_ACTIVE_SEARCH_DIAG_KEY];
+    if (shared && typeof shared === "object") {
+      return shared as ImportDiagnostics;
+    }
+  }
+  return activeSearchDiag;
+}
+
+/** When tier counters lag sub-phase timers, align before exporting the slice. */
+function reconcileSearchStatsFromEvalCounts(diag: ImportDiagnostics): void {
+  const counts = diag.evalSubPhaseCounts;
+  const stats = diag.searchStats;
+  if (stats.evaluatedT0 === 0 && counts.evaluateT0 > 0) {
+    stats.evaluatedT0 = counts.evaluateT0;
+  }
+  if (stats.evaluatedT1 === 0 && counts.evaluateT1 > 0) {
+    stats.evaluatedT1 = counts.evaluateT1;
+  }
+  if (stats.evaluatedT2 === 0 && counts.evaluateT2 > 0) {
+    stats.evaluatedT2 = counts.evaluateT2;
+  }
+}
 
 export function importDiagnosticsEnabled(): boolean {
   return (
@@ -288,19 +325,22 @@ function emptyEvalSubPhaseCounts(): ImportDiagnostics["evalSubPhaseCounts"] {
 
 export function beginSearchDiagnostics(): ImportDiagnostics | null {
   if (!importDiagnosticsEnabled()) return null;
-  activeSearchDiag = createImportDiagnostics("layout-search");
-  return activeSearchDiag;
+  const diag = createImportDiagnostics("layout-search");
+  setActiveSearchDiag(diag);
+  return diag;
 }
 
 export function getActiveSearchDiagnostics(): ImportDiagnostics | null {
-  return activeSearchDiag;
+  return readActiveSearchDiag();
 }
 
 export function endSearchDiagnostics(): ImportSearchDiagnosticsSlice | undefined {
-  if (!activeSearchDiag) return undefined;
-  appendTopBottomNotes(activeSearchDiag);
-  const slice = createSearchDiagnosticsSlice(activeSearchDiag);
-  activeSearchDiag = null;
+  const diag = readActiveSearchDiag();
+  if (!diag) return undefined;
+  reconcileSearchStatsFromEvalCounts(diag);
+  appendTopBottomNotes(diag);
+  const slice = createSearchDiagnosticsSlice(diag);
+  setActiveSearchDiag(null);
   return slice;
 }
 
