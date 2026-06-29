@@ -1,0 +1,93 @@
+{
+  "id": "bad-fiber-strand-diagonal-routing",
+  "verdict": "bad",
+  "source_image": "bad-fiber-strand-diagonal-routing.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/Images/bad/bad-fiber-strand-diagonal-routing.png",
+  "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/bad-fiber-strand-diagonal-routing.json",
+  "title": "Fiber strands route diagonally instead of staying on horizontal and vertical grid lanes",
+  "summary": "The routed fiber strands leave the grid-aligned lane model and travel on angled diagonal segments. Fiber strand routes should be represented by ordered grid points and valid horizontal or vertical lane segments, not arbitrary angled lines through the canvas.",
+  "classification": {
+    "example_type": "bad",
+    "confidence": "high",
+    "based_on_user_reported_issue": true
+  },
+  "image_observations": {
+    "dimensions_px": {
+      "width": 780,
+      "height": 372
+    },
+    "uploaded_filename": "01-Screenshot-2026-06-13-152439.png",
+    "sha256": "f9f673aa03ec95cb5745488cb7faa24548729472d78f25ca9e9ce0488fa418bf"
+  },
+  "visually_observable_issues": [
+    "The blue, orange, green, and brown strand routes include long diagonal segments between the left-side fan-out and the right-side destination area.",
+    "The diagonal strand segments are not horizontal or vertical grid-lane segments.",
+    "The strands appear to cut across open canvas space instead of routing through approved grid lane segments and bend points.",
+    "The route shape makes the connection path look like a freeform angled line rather than a grid-routed fiber path."
+  ],
+  "likely_broken_rules": [
+    {
+      "rule_id": "SDC-GRID-001",
+      "rule_name": "Canvas Grid System",
+      "related_file": "splice_detail_canvas_rule_pack/06_SDC-GRID-001_Canvas_Grid_System.md",
+      "broken_requirements": [
+        "Fiber strands should route on grid lines, not randomly through open canvas space.",
+        "Fiber strand paths should be stored as ordered grid points connected by lane segments.",
+        "Grid intersections are the approved bend points or transition points.",
+        "Fail when a route is not attached to approved grid points or segments."
+      ],
+      "why_this_image_fails": "The visible strand paths include diagonal line segments, so they cannot be represented as valid horizontal or vertical grid lane segments between approved grid points."
+    },
+    {
+      "rule_id": "SDC-LAYOUT-001",
+      "rule_name": "Spacing",
+      "related_file": "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md",
+      "broken_requirements": [
+        "Individual fiber strand routes must maintain the 24px grid pitch in all directions.",
+        "Spacing applies horizontally, vertically, around bends, around lane transitions, around fan-out exit points, and around fusion splice dots.",
+        "Tiny unnecessary jogs must not remain when a straight run is feasible without violating higher-priority hard rules."
+      ],
+      "why_this_image_fails": "The angled route abandons the horizontal/vertical grid pitch model, so the route cannot preserve lane pitch, readable bends, or lane-transition spacing."
+    },
+    {
+      "rule_id": "SDC-ROUTE-001",
+      "rule_name": "Fiber Strand Routing Zone",
+      "related_file": "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "broken_requirements": [
+        "All route segments must remain inside the routing zone.",
+        "All bends must remain inside the routing zone.",
+        "The routing engine should use available horizontal and vertical space.",
+        "A route fails when it ignores available spacing and creates avoidable congestion."
+      ],
+      "why_this_image_fails": "Although the diagonal strands appear to travel through the open center area, their geometry is not a valid grid-routed path using horizontal and vertical routing lanes."
+    },
+    {
+      "rule_id": "SDC-ROUTE-003",
+      "rule_name": "Fiber Strand Overlap, Crossing, and Collision",
+      "related_file": "splice_detail_canvas_rule_pack/11_SDC-ROUTE-003_Fiber_Strand_Overlap_Crossing_Collision.md",
+      "broken_requirements": [
+        "Routes must remain visually traceable from fan-out exit to fusion splice dot.",
+        "Routes must maintain minimum spacing.",
+        "A path fails when it makes the splice relationship unclear or ignores an available cleaner path."
+      ],
+      "why_this_image_fails": "The angled route group reduces traceability because it bypasses the normal grid-lane and bend-point structure that keeps fiber paths readable and separable."
+    }
+  ],
+  "notes": [
+    "This should be treated as a hard bad example because diagonal fiber routing violates the grid model itself.",
+    "Expected correction: each strand should route only with horizontal and vertical segments on approved grid lanes, using grid intersections as bend or transition points.",
+    "Expected correction: where a strand needs to move from one lane to another, it should use an orthogonal bend sequence rather than a diagonal segment.",
+    "The visible issue is route geometry; this metadata does not assert that the imported CSV hierarchy or splice pairing is wrong."
+  ],
+  "grounding": {
+    "primary_rule_files": [
+      "splice_detail_canvas_rule_pack/06_SDC-GRID-001_Canvas_Grid_System.md",
+      "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md"
+    ],
+    "supporting_rule_files": [
+      "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "splice_detail_canvas_rule_pack/11_SDC-ROUTE-003_Fiber_Strand_Overlap_Crossing_Collision.md"
+    ],
+    "reference_library_location": "docs/reference/rule_examples"
+  }
+}
