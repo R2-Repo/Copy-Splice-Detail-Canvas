@@ -1,0 +1,46 @@
+[debug] [vite] connecting...
+[debug] [vite] connected.
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[info] [layoutSearch] evaluations=60 top-5: [Object, Object, Object, Object, Object]
+[startGroupCollapsed] [import optimizer] splice-detail-layout:300N&MAIN 2115ms
+[log] Phase timings:
+[table] {parse: 15, buildGraph: 16, importRules: 1, heuristicCandidate: 27, heuristicPaint: 54, finalRuleValidation: 259, topology: 13, fallback: 0, applyWinner: 27}
+[log] Search stats:
+[table] {generated: 0, evaluatedT0: 0, evaluatedT1: 0, evaluatedT2: 0, finalists: 0, cacheHits: 0, cacheMisses: 0, horizontalOnlyGenerated: 0, topGenerated: 0, bottomGenerated: 0, topOrBottomGenerated: 0, topOrBottomReachedT0: 0, topOrBottomReachedT1: 0, topOrBottomReachedT2: 0, topOrBottomFinalists: 0}
+[log] Evaluation cost:
+[table] {evaluateT0: 71ms total, avg 1.2ms (n=60), evaluateT1: 709ms total, avg 26.3ms (n=27), buildReactFlowGraph: 583ms total, avg 64.8ms (n=9), routeAllOnGrid: 75ms total, avg 8.3ms (n=9), runRules: 22ms total, avg 0.8ms (n=29), scoreLayoutEvaluation: 1ms total, avg 0.1ms (n=9)}
+[log] [import optimizer] top/bottom summary
+[table] {horizontal only generated: 0, uses top generated: 0, uses bottom generated: 0, uses top or bottom generated: 0, top/bottom reached T0: 0, top/bottom reached T1: 0, top/bottom reached T2: 0, top/bottom finalists: 0, best horizontal score: —, best top/bottom score: —, winner uses top: false, winner uses bottom: false, winner reason: search candidate fully passes rules}
+[log] Rule reject counts:
+[table] {SDC-LAYOUT-002: 12, SDC-ROUTE-002: 6, SDC-ROUTE-003: 6}
+[log] [import optimizer] recoverable selection:
+[table] {kind: fully-passing, candidate: T[]B[]L[288-SMF WB US-89 DIST]R[144-SMF SR-28 DIST…ROP: GUNNISON POOL WIFI HOTSPOT (DTS):right}W1200, heuristic: false, reason: search candidate fully passes rules, penalty: 0, hardFails: 0}
+[log] vs heuristic: {heuristicCandidateId: T[]B[]L[288-SMF WB US-89 DIST]R[144-SMF SR-28 DIST…ROP: GUNNISON POOL WIFI HOTSPOT (DTS):right}W8864, heuristicPenalty: 0, pickedPenalty: 0, heuristicHardFails: 0, pickedHardFails: 0}
+[log] Rejected candidates:
+[table] [Object]
+[log] Worker search wall: 1233ms
+[log] WARNING: no top/bottom candidates generated.
+[log] WARNING: no top/bottom candidates generated.
+[log] Full diagnostics: {importId: import-1, reportKey: splice-detail-layout:300N&MAIN, startedAt: 807.5, phaseTimings: Array(9), searchStats: Object}
+[endGroup]
+[startGroupCollapsed] [import optimizer] splice-detail-layout:300N&MAIN 2115ms
+[log] Phase timings:
+[table] {parse: 15, buildGraph: 16, importRules: 1, heuristicCandidate: 27, heuristicPaint: 54, finalRuleValidation: 259, topology: 13, fallback: 0, applyWinner: 27}
+[log] Search stats:
+[table] {generated: 0, evaluatedT0: 0, evaluatedT1: 0, evaluatedT2: 0, finalists: 0, cacheHits: 0, cacheMisses: 0, horizontalOnlyGenerated: 0, topGenerated: 0, bottomGenerated: 0, topOrBottomGenerated: 0, topOrBottomReachedT0: 0, topOrBottomReachedT1: 0, topOrBottomReachedT2: 0, topOrBottomFinalists: 0}
+[log] Evaluation cost:
+[table] {evaluateT0: 71ms total, avg 1.2ms (n=60), evaluateT1: 709ms total, avg 26.3ms (n=27), buildReactFlowGraph: 583ms total, avg 64.8ms (n=9), routeAllOnGrid: 75ms total, avg 8.3ms (n=9), runRules: 22ms total, avg 0.8ms (n=29), scoreLayoutEvaluation: 1ms total, avg 0.1ms (n=9)}
+[log] [import optimizer] top/bottom summary
+[table] {horizontal only generated: 0, uses top generated: 0, uses bottom generated: 0, uses top or bottom generated: 0, top/bottom reached T0: 0, top/bottom reached T1: 0, top/bottom reached T2: 0, top/bottom finalists: 0, best horizontal score: —, best top/bottom score: —, winner uses top: false, winner uses bottom: false, winner reason: search candidate fully passes rules}
+[log] Rule reject counts:
+[table] {SDC-LAYOUT-002: 12, SDC-ROUTE-002: 6, SDC-ROUTE-003: 6}
+[log] [import optimizer] recoverable selection:
+[table] {kind: fully-passing, candidate: T[]B[]L[288-SMF WB US-89 DIST]R[144-SMF SR-28 DIST…ROP: GUNNISON POOL WIFI HOTSPOT (DTS):right}W1200, heuristic: false, reason: search candidate fully passes rules, penalty: 0, hardFails: 0}
+[log] vs heuristic: {heuristicCandidateId: T[]B[]L[288-SMF WB US-89 DIST]R[144-SMF SR-28 DIST…ROP: GUNNISON POOL WIFI HOTSPOT (DTS):right}W8864, heuristicPenalty: 0, pickedPenalty: 0, heuristicHardFails: 0, pickedHardFails: 0}
+[log] Rejected candidates:
+[table] [Object]
+[log] Worker search wall: 1233ms
+[log] WARNING: no top/bottom candidates generated.
+[log] WARNING: no top/bottom candidates generated.
+[log] Full diagnostics: {importId: import-1, reportKey: splice-detail-layout:300N&MAIN, startedAt: 807.5, phaseTimings: Array(9), searchStats: Object}
+[endGroup]

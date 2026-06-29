@@ -4,17 +4,19 @@
 
 ## Last updated
 
-2026-06-29 — **Merge main into LAYOUT-001 fix branch**
+2026-06-29 — **300N&MAIN import diagnostics QA** merged with main **LAYOUT-001 fix** (#31)
 
-### Conflict resolution
+### This branch (PR #33)
 
-| File | Classification | Resolution |
-|------|----------------|------------|
-| `buildSdcContext.ts` | **Complicated (same intent)** | Kept main's `buildLayoutRuleContextFromEvaluated`; added branch's `ctx.placement` + `candidateToPlacementMap` fallback via `resolveEvaluatedPlacement` |
-| `CONTEXT.md` / `HANDOFF.md` | **Simple** | Combined LAYOUT-001 + LAYOUT-002/003 focus notes |
-| `layoutRules.ts`, `tieredEvaluate.ts` | **Simple (auto-merged)** | No manual edits needed |
+Headless QA on **300N_MAIN.csv** (splice **300N&MAIN**, 278 pairs) with all debug flags:
 
-### Combined fix (post-merge)
+- `VITE_DEBUG_IMPORT_OPTIMIZER=1` (+ timing, candidates, rules, top/bottom, layout search)
+- Script: `scripts/import-diagnostics-qa.mjs`
+- Artifacts: `docs/reference/import-diagnostics/300N_MAIN-*`
+
+**Result:** search candidate fully passes rules; heuristic rejected on soft score. Worker search ~1.2s; no config banner.
+
+### Merged from main (#31 LAYOUT-001)
 
 | Area | Change |
 |------|--------|
@@ -22,7 +24,7 @@
 | `evaluateCandidate` / T1 | Pass `graphResult.placement` into `SdcRuleContext` |
 | `evaluateSdcLayoutSpacingRules` | Dropped duplicate `SDC-ORDER-002-B` |
 | Main (#30) | Quad-aware LAYOUT-002 checks, `quadGeometry` helpers |
-| Main | **SDC-LAYOUT-003** — stack/side + rendered vs candidate |
+| Main (#32) | **SDC-LAYOUT-003** — stack/side + rendered vs candidate |
 
 ### Gates
 
@@ -30,7 +32,7 @@
 
 ### Manual QA
 
-Import Left-SP-3254.5, example-2, Left-STATE_OFFICE with `VITE_DEBUG_IMPORT_OPTIMIZER=1`.
+Import `300N_MAIN.csv`, Left-SP-3254.5, example-2, Left-STATE_OFFICE with `VITE_DEBUG_IMPORT_OPTIMIZER=1`.
 
 ### Frozen
 

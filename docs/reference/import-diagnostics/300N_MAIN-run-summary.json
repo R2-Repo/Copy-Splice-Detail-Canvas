@@ -1,0 +1,121 @@
+{
+  "capturedAt": "2026-06-29T11:16:55.858Z",
+  "csv": "300N_MAIN.csv",
+  "csvPath": "/workspace/docs/reference/examples/old csv examples/300N_MAIN.csv",
+  "heuristic": "1.5 s",
+  "total": "6.1 s",
+  "nodes": 11,
+  "edges": 27,
+  "banner": null,
+  "screenshot": "/workspace/docs/reference/import-diagnostics/300N_MAIN-screenshot.png",
+  "diagnosticsTotalMs": 2115,
+  "phaseTimings": [
+    {
+      "phase": "parse",
+      "startMs": 807.6000000238419,
+      "endMs": 822.4000000059605,
+      "durationMs": 15
+    },
+    {
+      "phase": "buildGraph",
+      "startMs": 822.4000000059605,
+      "endMs": 838,
+      "durationMs": 16
+    },
+    {
+      "phase": "importRules",
+      "startMs": 841,
+      "endMs": 842.1000000238419,
+      "durationMs": 1
+    },
+    {
+      "phase": "heuristicCandidate",
+      "startMs": 867.1000000238419,
+      "endMs": 894.2000000178814,
+      "durationMs": 27
+    },
+    {
+      "phase": "heuristicPaint",
+      "startMs": 894.2000000178814,
+      "endMs": 948.5,
+      "durationMs": 54
+    },
+    {
+      "phase": "finalRuleValidation",
+      "startMs": 948.5,
+      "endMs": 1207.800000011921,
+      "durationMs": 259
+    },
+    {
+      "phase": "topology",
+      "startMs": 80.19999998807907,
+      "endMs": 92.7999999821186,
+      "durationMs": 13
+    },
+    {
+      "phase": "fallback",
+      "startMs": 2893.300000011921,
+      "endMs": 2893.600000023842,
+      "durationMs": 0
+    },
+    {
+      "phase": "applyWinner",
+      "startMs": 2895.300000011921,
+      "endMs": 2922.4000000059605,
+      "durationMs": 27
+    }
+  ],
+  "searchStats": {
+    "generated": 0,
+    "evaluatedT0": 0,
+    "evaluatedT1": 0,
+    "evaluatedT2": 0,
+    "finalists": 0,
+    "cacheHits": 0,
+    "cacheMisses": 0,
+    "horizontalOnlyGenerated": 0,
+    "topGenerated": 0,
+    "bottomGenerated": 0,
+    "topOrBottomGenerated": 0,
+    "topOrBottomReachedT0": 0,
+    "topOrBottomReachedT1": 0,
+    "topOrBottomReachedT2": 0,
+    "topOrBottomFinalists": 0
+  },
+  "recoverableSelection": {
+    "selectionKind": "fully-passing",
+    "selectedCandidateId": "T[]B[]L[288-SMF WB US-89 DIST]R[144-SMF SR-28 DIST,144-SMF NB US-89 DIST,6 DROP: GUNNISON POOL WIFI HOTSPOT (DTS)]S{144-SMF NB US-89 DIST:right|144-SMF SR-28 DIST:right|288-SMF WB US-89 DIST:left|6 DROP: GUNNISON POOL WIFI HOTSPOT (DTS):right}W1200",
+    "isHeuristic": false,
+    "reason": "search candidate fully passes rules",
+    "weightedFallbackScore": 0,
+    "hardFailureCount": 0,
+    "routeZoneFailures": 0,
+    "layoutLabelFanoutFailures": 0,
+    "routingValidityFailures": 0,
+    "comparisonVsHeuristic": {
+      "heuristicCandidateId": "T[]B[]L[288-SMF WB US-89 DIST]R[144-SMF SR-28 DIST,144-SMF NB US-89 DIST,6 DROP: GUNNISON POOL WIFI HOTSPOT (DTS)]S{144-SMF NB US-89 DIST:right|144-SMF SR-28 DIST:right|288-SMF WB US-89 DIST:left|6 DROP: GUNNISON POOL WIFI HOTSPOT (DTS):right}W8864",
+      "heuristicPenalty": 0,
+      "pickedPenalty": 0,
+      "heuristicHardFails": 0,
+      "pickedHardFails": 0,
+      "heuristicWon": false
+    },
+    "rejected": [
+      {
+        "candidateId": "T[]B[]L[288-SMF WB US-89 DIST]R[144-SMF SR-28 DIST,144-SMF NB US-89 DIST,6 DROP: GUNNISON POOL WIFI HOTSPOT (DTS)]S{144-SMF NB US-89 DIST:right|144-SMF SR-28 DIST:right|288-SMF WB US-89 DIST:left|6 DROP: GUNNISON POOL WIFI HOTSPOT (DTS):right}W8864",
+        "source": "heuristic",
+        "isHeuristic": true,
+        "whyLost": "worse soft score (18164.16 vs 11500.16)",
+        "weightedFallbackScore": 0,
+        "hardFailureCount": 0,
+        "routeZoneFailures": 0,
+        "layoutLabelFanoutFailures": 0
+      }
+    ]
+  },
+  "ruleRejectCounts": {
+    "SDC-LAYOUT-002": 12,
+    "SDC-ROUTE-002": 6,
+    "SDC-ROUTE-003": 6
+  }
+}

@@ -1,6 +1,40 @@
 # Import optimizer diagnostics samples
 
-Captured VM QA run with all `VITE_DEBUG_IMPORT_*` flags enabled (`main` @ recoverable import fallback #25).
+Captured VM QA runs with all `VITE_DEBUG_IMPORT_*` and `VITE_DEBUG_LAYOUT_SEARCH` flags enabled.
+
+**Debug flags** (`.env.local`):
+
+```
+VITE_DEBUG_IMPORT_OPTIMIZER=1
+VITE_DEBUG_IMPORT_TIMING=1
+VITE_DEBUG_IMPORT_CANDIDATES=1
+VITE_DEBUG_IMPORT_RULES=1
+VITE_DEBUG_IMPORT_TOP_BOTTOM=1
+VITE_DEBUG_LAYOUT_SEARCH=1
+```
+
+## 300N&MAIN (North Temple / 300N_MAIN)
+
+| File | Source |
+|------|--------|
+| [`300N_MAIN-console.log`](./300N_MAIN-console.log) | Browser console — full `[import optimizer]` group + recoverable selection |
+| [`300N_MAIN-diagnostics.json`](./300N_MAIN-diagnostics.json) | `window.__SDC_LAST_IMPORT_DIAGNOSTICS__` after import |
+| [`300N_MAIN-run-summary.json`](./300N_MAIN-run-summary.json) | Headless QA script summary |
+| [`300N_MAIN-screenshot.png`](./300N_MAIN-screenshot.png) | Viewport screenshot after import (1280×720) |
+
+**Fixture:** `docs/reference/examples/old csv examples/300N_MAIN.csv` (splice **300N&MAIN**, 278 pairs, 4 cables)  
+**Captured:** 2026-06-29 (`main` @ LAYOUT-003 #32)  
+**Result:** search candidate **fully passes rules** (`recoverableSelection.selectionKind: fully-passing`). Heuristic rejected on soft score (18164 vs 11500). Worker search wall **~1.2s**; total import **~2.1s** diagnostics / **~6.1s** wall. No config error banner.
+
+Reproduce:
+
+```bash
+npm run dev
+node scripts/import-diagnostics-qa.mjs "docs/reference/examples/old csv examples/300N_MAIN.csv" \
+  --out-dir docs/reference/import-diagnostics --basename 300N_MAIN
+```
+
+## Left-STATE_OFFICE
 
 | File | Source |
 |------|--------|
@@ -13,17 +47,6 @@ Captured VM QA run with all `VITE_DEBUG_IMPORT_*` flags enabled (`main` @ recove
 **Fixture:** `docs/reference/examples/Left-STATE_OFFICE.csv`  
 **Captured:** 2026-06-28  
 **Result:** heuristic baseline **fully passes rules** (`recoverableSelection.selectionKind: fully-passing`). Eight optimizer finalists all fail rules (`SDC-LAYOUT-002`, `SDC-ROUTE-001`, `SDC-ROUTE-002`, `SDC-ROUTE-003`). Optimizer wall **~110s**; heuristic paint **~1.3s**.
-
-**Debug flags** (`.env.local`):
-
-```
-VITE_DEBUG_IMPORT_OPTIMIZER=1
-VITE_DEBUG_IMPORT_TIMING=1
-VITE_DEBUG_IMPORT_CANDIDATES=1
-VITE_DEBUG_IMPORT_RULES=1
-VITE_DEBUG_IMPORT_TOP_BOTTOM=1
-VITE_DEBUG_LAYOUT_SEARCH=1
-```
 
 Reproduce:
 
