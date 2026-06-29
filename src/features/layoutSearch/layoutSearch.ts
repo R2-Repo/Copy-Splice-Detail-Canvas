@@ -48,7 +48,6 @@ import {
   endSearchDiagnostics,
   getActiveSearchDiagnostics,
   recordCacheAccess,
-  recordCandidateEvaluated,
   recordCandidateGenerated,
   recordFinalist,
   recordPhaseTiming,
@@ -965,7 +964,6 @@ function runBeamSearch(
               },
               evalCache,
             );
-    const tierMs = performance.now() - tierStart;
 
     scoreMemo.set(cacheKey, result);
     if (tier === "T0") scoreMemo.set(geometryTierKey, result);
@@ -977,13 +975,6 @@ function runBeamSearch(
     );
 
     if (searchDiag) {
-      recordCandidateEvaluated(searchDiag, candidate, tier, {
-        feasible: result.feasible,
-        score: result.score,
-        violations: result.violations,
-        softScore: result.softScore,
-        timingMs: Math.round(tierMs),
-      });
       const phase: ImportPhaseName =
         tier === "T0"
           ? "t0Evaluation"

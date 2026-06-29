@@ -4,6 +4,8 @@
 
 ## Focus (2026-06-29)
 
+**Import searchStats diagnostics** — worker slice now records tier counters alongside eval sub-phases; `globalThis` singleton avoids duplicate module state in worker bundle.
+
 **SDC-LAYOUT-001 import validation** — spacing checks use painted candidate geometry (merged with main's `buildLayoutRuleContextFromEvaluated` + explicit `placement` from search eval).
 
 **SDC-LAYOUT-003** — side assignment rule (stack/side consistency + paint vs candidate).
