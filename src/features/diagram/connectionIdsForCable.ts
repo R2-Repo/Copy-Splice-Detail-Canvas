@@ -27,7 +27,7 @@ function visualCableIdsForConnection(
 /**
  * Incremental grid reroute scope for a cable drag.
  * Includes every connection on the dragged cable plus all connections on
- * partner cables that share a splice — so midX nest order (EDGE-005/011)
+ * partner cables that share a splice — so midX nest order (SDC-ROUTE-002/011)
  * repacks when e.g. one right-side target moves but the left source is shared.
  */
 export function rerouteConnectionIdsForVisualCableDrag(

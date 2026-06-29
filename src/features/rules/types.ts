@@ -19,6 +19,7 @@ export const SDC_RULE_IDS = [
   "SDC-ROUTE-001",
   "SDC-ROUTE-002",
   "SDC-ROUTE-003",
+  "SDC-ROUTE-004",
   "SDC-SCORE-001",
   "SDC-UX-001",
 ] as const;
@@ -41,7 +42,7 @@ export type SdcRuleContext = {
   gridRoutes?: Map<string, GridRoute>;
   /** Snapped center lanes from grid router — keyed by connection id. */
   gridLanes?: Map<string, SpliceRoutingLane>;
-  /** Pre-snap packed lanes for SDC-ROUTE-002 topology (EDGE-005/010). */
+  /** Pre-snap packed lanes for SDC-ROUTE-002 topology. */
   gridPackedLanes?: Map<string, SpliceRoutingLane>;
   locks?: DiagramLocks;
   overrides?: LayoutOverrides;

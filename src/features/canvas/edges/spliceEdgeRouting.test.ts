@@ -234,7 +234,7 @@ describe("spliceEdgeRouting", () => {
     ).toBeGreaterThanOrEqual(FUSION_DOT_MIN_CORNER_CLEARANCE);
   });
 
-  it("resolveFusionDotPosition places dot on source horizontal row (DOT-001)", () => {
+  it("resolveFusionDotPosition places dot on source horizontal row (SDC-UX-001-B)", () => {
     const sideSpans = defaultSideCircuitLabelSpan();
     const pos = resolveFusionDotPosition(100, 50, 500, 200, 300, undefined, undefined, sideSpans, 300);
     expect(pos.spliceY).toBe(50);
@@ -243,7 +243,7 @@ describe("spliceEdgeRouting", () => {
     expect(fusionDotLiesOnHorizontal(pos.spliceX, pos.spliceY, segments)).toBe(true);
   });
 
-  it("buildSplicePath keeps fusion dot at least 48px from leg corners (DOT-003)", () => {
+  it("buildSplicePath keeps fusion dot at least 48px from leg corners (SDC-UX-001-D)", () => {
     const sideSpans = defaultSideCircuitLabelSpan();
     const built = buildSplicePath(100, 50, 500, 200, 300, 280, undefined, sideSpans, 300);
     expect(
@@ -251,7 +251,7 @@ describe("spliceEdgeRouting", () => {
     ).toBeGreaterThanOrEqual(FUSION_DOT_MIN_CORNER_CLEARANCE);
   });
 
-  it("reconcileBufferTubeDotColumns shares one clearance-aware column per tube (DOT-002)", () => {
+  it("reconcileBufferTubeDotColumns shares one clearance-aware column per tube (SDC-UX-001-C)", () => {
     const sourceX = 100;
     const targetX = 1100;
     const bundleKey = "vc-left|BL|vc-right";
@@ -954,7 +954,7 @@ describe("spliceEdgeRouting", () => {
       outerLane.midX,
       outerLane.jogX,
     );
-    // DOT-003 fusion placement may stop the left path before the shared trunk X;
+    // SDC-UX-001-D fusion placement may stop the left path before the shared trunk X;
     // verify the per-strand fan-out still reaches the assigned midX lane.
     expect(outerRight).toContain(`${outerLane.midX},${outerMeta.sourceY}`);
   });
@@ -1336,7 +1336,7 @@ describe("spliceEdgeRouting", () => {
     );
   });
 
-  it("assigns distinct midX across zones on same row Y (EDGE-004 two-bend)", () => {
+  it("assigns distinct midX across zones on same row Y (SDC-ROUTE-004-A two-bend)", () => {
     const candidates = [
       {
         id: "zoneA",

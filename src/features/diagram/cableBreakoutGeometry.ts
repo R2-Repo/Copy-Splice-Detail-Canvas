@@ -25,7 +25,7 @@ export const BREAKOUT = {
   tubeLengthPerMultiTube: 28,
   tubeThickness: 8,
   fiberStemGap: 18,
-  /** Pull tube tip back so curved fiber legs fill the fan zone (TUB-002). */
+  /** Pull tube tip back so curved fiber legs fill the fan zone (SDC-LAYOUT-002-B). */
   tubeFanInset: 16,
   /** Horizontal fiber run at each row before curving to the tube tip. */
   fiberFanStub: 8,
@@ -340,7 +340,7 @@ export function computeCableBreakout(
       tubeY >= sheathTop - Y_TOLERANCE && tubeY <= sheathBottom + Y_TOLERANCE;
     // Horizontal when the fiber group center meets the sheath face; otherwise
     // fan from cable center (multi-tube cables span taller than the sheath box).
-    // Expanded geometry ignores visualShiftY (TUB-002); collapsed handles add it separately.
+    // Expanded geometry ignores visualShiftY (SDC-LAYOUT-002-B); collapsed handles add it separately.
     const originY = tubeCenterOnSheathFace ? tubeY : cableCenterY;
     const origin = { x: tubeFaceX, y: originY };
     const perTubeLength = Math.max(

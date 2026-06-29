@@ -27,13 +27,13 @@ Fix and stabilize the existing app. Do NOT change product direction, routing phi
 4. docs/agent/RULE_PRIORITY.md
 5. docs/agent/CONTEXT.md
 6. docs/agent/HANDOFF.md
-7. docs/agent/LAYOUT_RULES.md
+7. docs/agent/SDC_CHECKS.md
 8. docs/agent/SIMPLE_TERMS.md (when discussing diagram parts)
 9. .cursor/rules/frozen-routing.mdc (do not edit frozen symbols without explicit user approval)
 
 ## Hard constraints
 - Keep: CSV → ConnectionGraph → layout → nodes engine (ROUTING_ENGINE = "nodes") → React Flow shell
-- Keep: EDGE-004 strict ≤2 bends; Y-tracks stay OFF (RULE_PRIORITY.md)
+- Keep: SDC-ROUTE-004-A strict ≤2 bends; Y-tracks stay OFF (RULE_PRIORITY.md)
 - Out of scope: new UI, new features, Y-track re-enable, readability-first routing flip, parallel SVG prototype
 - Session discipline: one primary bug → one example CSV → one rule ID → max 2 source files for routing/layout fixes
 - Do not weaken layout rules or frozen regression tests without user approval
@@ -50,9 +50,9 @@ Phase 1 — Manual coordinate bug (start here if Phase 0 confirms baseline):
   - Add test; no frozen routing touched
 
 Phase 3 — Layout contract (after Phase 1, or parallel if separate session):
-  - Fix Example #2 EDGE-010 failure in layoutRules.test.ts
+  - Fix Example #2 SDC-ROUTE-002 failure in layoutRules.test.ts
   - Fix packMidXLanes / assignSpliceRoutingLanes failures in spliceEdgeRouting.test.ts
-  - Do not weaken EDGE-010; frozen routing needs user approval + npm run verify
+  - Do not weaken SDC-ROUTE-002; frozen routing needs user approval + npm run verify
 
 Phase 2 — Drag consistency:
   - Stale bundle rowOffset during live drag
@@ -71,7 +71,7 @@ Phase 6 — Centralize handle coords helper; layout-slot golden tests; document 
 Phase 7 — npm run verify + manual QA on ?fixture=example-1/2/3
 
 ## Known issues (from CONTEXT.md)
-- Example #2 EDGE-010 fails test:layout (blocker)
+- Example #2 SDC-ROUTE-002 fails test:layout (blocker)
 - test:ci CSV paths may point to wrong folder (old csv examples/)
 - Manual marquee may miss handles (Phase 1)
 - legOverrides fragile on rebuild (Phase 4–5)
@@ -93,7 +93,7 @@ Start with Phase 0, then Phase 1. Report what you find before touching frozen ro
 |-------|--------|-----------------|
 | 0 | Baseline triage | No |
 | 1 | Manual coord bug | No |
-| 3 | EDGE-010 + unit tests | Maybe — ask first |
+| 3 | SDC-ROUTE-002 + unit tests | Maybe — ask first |
 | 2 | Drag consistency | Maybe — ask first |
 | 4 | Determinism tests | No |
 | 5 | Parameter overrides | Minimal |
@@ -107,7 +107,7 @@ Owner reviewed external ChatGPT notes on routing/manual issues and simplificatio
 ## Owner decisions already made (do not reopen without asking)
 
 - Static SVG-only export failed; human polish required (SCOPE.md)
-- EDGE-004 > overlap; Y-tracks disabled
+- SDC-ROUTE-004-A > overlap; Y-tracks disabled
 - Manual mode fine-tunes layout; does not repair bad auto routes
 - Include parameter-based override migration (Phase 5) after bugs are fixed
 - No UI changes in this build

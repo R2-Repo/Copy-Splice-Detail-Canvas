@@ -173,7 +173,7 @@ describe("applyTubeRowAlignmentShifts", () => {
   });
 
   for (const n of [1, 2] as const) {
-    it(`Example #${n} alignable tube pairs pass TUB-008`, () => {
+    it(`Example #${n} alignable tube pairs pass SDC-LAYOUT-002-G`, () => {
       const graph = buildConnectionGraph(
         parseBentleyCsv(
           readReferenceCsv(`CSV Splice Detail Example #${n}.csv`),
@@ -237,20 +237,13 @@ describe("applyRowLayoutWithDragPreservation", () => {
 
   it("applyRowLayoutWithDragPreservation merges delta directly", () => {
     const graph = syntheticFullButtSpliceGraph();
-    const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-    const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
+    const { visualCables } = buildVisualCablesForLayout(graph);
+    const rowIndex = connectionRowIndexMap(graph, visualCables);
     const placement = computeCanvasPlacement(
-      graph,
-      visualCables,
-      dominant,
-      rowIndex,
+      graph, visualCables, rowIndex,
     );
     const layout = computeAlignedLayout(
-      graph,
-      visualCables,
-      placement,
-      dominant,
-    );
+      graph, visualCables, placement,  );
     const auto = autoPositionsFromLayout(layout);
     const nodeId = Object.keys(auto)[0]!;
     const overrides = {

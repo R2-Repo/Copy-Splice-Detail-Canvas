@@ -1,9 +1,4 @@
 import { pairEndpointsForSide } from "@/features/diagram/buildConnectionGraph";
-import type { DominantCablePair } from "@/features/diagram/dominantCablePair";
-import {
-  minRowIndexForVisualCable,
-  parentVisualGroupKey,
-} from "@/features/diagram/dominantCablePair";
 import type { VisualCable } from "@/features/diagram/visualCables";
 import { cableNameKey } from "@/features/import/cableLegIdentity";
 import type { ConnectionGraph } from "@/types/splice";
@@ -34,7 +29,6 @@ function connectionCountForCable(graph: ConnectionGraph, cable: string): number 
   return count;
 }
 
-/** Data-driven tie-break after dominant/row ordering. */
 function cableSortTieBreak(
   a: VisualCable,
   b: VisualCable,
@@ -59,6 +53,15 @@ function medianRowIndex(
   return values[Math.floor(values.length / 2)]!;
 }
 
+function minRowIndexForVisualCable(
+  vc: VisualCable,
+  rowIndex: Map<string, number>,
+): number {
+  const indices = vc.tubes
+    .flatMap((t) => t.fibers)
+    .map((f) => rowIndex.get(f.connectionId) ?? Number.MAX_SAFE_INTEGER);
+  return indices.length ? Math.min(...indices) : Number.MAX_SAFE_INTEGER;
+}
 
 function ownRowBarycenter(vc: VisualCable, rowIndex: Map<string, number>): number {
   return medianRowIndex(
@@ -110,8 +113,6 @@ function sortSideByBarycenter(
   graph: ConnectionGraph,
   rowIndex: Map<string, number>,
   visualCables: VisualCable[],
-  side: "left" | "right",
-  dominant?: DominantCablePair | null,
 ): VisualCable[] {
   const ownRanks = new Map<string, number>();
   const partnerRanks = new Map<string, number>();
@@ -122,8 +123,6 @@ function sortSideByBarycenter(
 
   return [...cables].sort(
     (a, b) =>
-      dominantGroupRank(a, side, dominant) -
-        dominantGroupRank(b, side, dominant) ||
       (ownRanks.get(a.id) ?? 0) - (ownRanks.get(b.id) ?? 0) ||
       (partnerRanks.get(a.id) ?? 0) - (partnerRanks.get(b.id) ?? 0) ||
       cableSortTieBreak(a, b, graph) ||
@@ -141,26 +140,10 @@ function convergeSideOrder(
   graph: ConnectionGraph,
   rowIndex: Map<string, number>,
   visualCables: VisualCable[],
-  side: "left" | "right",
-  dominant?: DominantCablePair | null,
 ): VisualCable[] {
-  let order = sortSideByBarycenter(
-    cables,
-    graph,
-    rowIndex,
-    visualCables,
-    side,
-    dominant,
-  );
+  let order = sortSideByBarycenter(cables, graph, rowIndex, visualCables);
   for (let pass = 0; pass < MAX_BARYCENTER_PASSES; pass++) {
-    const next = sortSideByBarycenter(
-      order,
-      graph,
-      rowIndex,
-      visualCables,
-      side,
-      dominant,
-    );
+    const next = sortSideByBarycenter(order, graph, rowIndex, visualCables);
     if (ordersEqual(order, next)) break;
     order = next;
   }
@@ -233,55 +216,27 @@ function permutations<T>(items: T[]): T[][] {
   return result;
 }
 
-function splitDominantFirst(
-  cables: VisualCable[],
-  side: "left" | "right",
-  dominant?: DominantCablePair | null,
-): { primary: VisualCable[]; secondary: VisualCable[] } {
-  const primary: VisualCable[] = [];
-  const secondary: VisualCable[] = [];
-  for (const vc of cables) {
-    if (dominantGroupRank(vc, side, dominant) === 0) {
-      primary.push(vc);
-    } else {
-      secondary.push(vc);
-    }
-  }
-  return { primary, secondary };
-}
-
 function optimizeJointStackOrder(
   leftCables: VisualCable[],
   rightCables: VisualCable[],
   graph: ConnectionGraph,
   rowIndex: Map<string, number>,
   visualCables: VisualCable[],
-  dominant?: DominantCablePair | null,
 ): { left: VisualCable[]; right: VisualCable[] } {
-  const leftSplit = splitDominantFirst(leftCables, "left", dominant);
-  const rightSplit = splitDominantFirst(rightCables, "right", dominant);
-
-  const leftSecondary = leftSplit.secondary;
-  const rightSecondary = rightSplit.secondary;
-  const canPermuteLeft = leftSecondary.length <= MAX_PERMUTE_CABLES;
-  const canPermuteRight = rightSecondary.length <= MAX_PERMUTE_CABLES;
+  const canPermuteLeft = leftCables.length <= MAX_PERMUTE_CABLES;
+  const canPermuteRight = rightCables.length <= MAX_PERMUTE_CABLES;
 
   if (!canPermuteLeft && !canPermuteRight) {
-    return {
-      left: [...leftSplit.primary, ...leftSecondary],
-      right: [...rightSplit.primary, ...rightSecondary],
-    };
+    return { left: leftCables, right: rightCables };
   }
 
-  const leftCandidates = canPermuteLeft
-    ? permutations(leftSecondary)
-    : [leftSecondary];
+  const leftCandidates = canPermuteLeft ? permutations(leftCables) : [leftCables];
   const rightCandidates = canPermuteRight
-    ? permutations(rightSecondary)
-    : [rightSecondary];
+    ? permutations(rightCables)
+    : [rightCables];
 
-  let bestLeft = [...leftSplit.primary, ...leftSecondary];
-  let bestRight = [...rightSplit.primary, ...rightSecondary];
+  let bestLeft = leftCables;
+  let bestRight = rightCables;
   let bestScore = stackCrossingsForOrders(
     bestLeft,
     bestRight,
@@ -292,19 +247,17 @@ function optimizeJointStackOrder(
 
   for (const leftPerm of leftCandidates) {
     for (const rightPerm of rightCandidates) {
-      const candidateLeft = [...leftSplit.primary, ...leftPerm];
-      const candidateRight = [...rightSplit.primary, ...rightPerm];
       const score = stackCrossingsForOrders(
-        candidateLeft,
-        candidateRight,
+        leftPerm,
+        rightPerm,
         graph,
         rowIndex,
         visualCables,
       );
       if (score < bestScore) {
         bestScore = score;
-        bestLeft = candidateLeft;
-        bestRight = candidateRight;
+        bestLeft = leftPerm;
+        bestRight = rightPerm;
       }
     }
   }
@@ -315,7 +268,6 @@ function optimizeJointStackOrder(
 export function computeCanvasPlacement(
   graph: ConnectionGraph,
   visualCables: VisualCable[],
-  dominant?: DominantCablePair | null,
   rowIndex?: Map<string, number>,
 ): Map<string, CablePlacement> {
   const placement = new Map<string, CablePlacement>();
@@ -334,8 +286,6 @@ export function computeCanvasPlacement(
       bySide[side]
         .sort(
           (a, b) =>
-            dominantGroupRank(a, side, dominant) -
-              dominantGroupRank(b, side, dominant) ||
             cableSortTieBreak(a, b, graph) ||
             a.cable.localeCompare(b.cable) ||
             a.order - b.order,
@@ -350,40 +300,12 @@ export function computeCanvasPlacement(
   let leftOrder = visualCables.filter((vc) => vc.side === "left");
   let rightOrder = visualCables.filter((vc) => vc.side === "right");
 
-  leftOrder = convergeSideOrder(
-    leftOrder,
-    graph,
-    rowIndex,
-    visualCables,
-    "left",
-    dominant,
-  );
-  rightOrder = convergeSideOrder(
-    rightOrder,
-    graph,
-    rowIndex,
-    visualCables,
-    "right",
-    dominant,
-  );
+  leftOrder = convergeSideOrder(leftOrder, graph, rowIndex, visualCables);
+  rightOrder = convergeSideOrder(rightOrder, graph, rowIndex, visualCables);
 
   for (let pass = 0; pass < 2; pass++) {
-    leftOrder = convergeSideOrder(
-      leftOrder,
-      graph,
-      rowIndex,
-      visualCables,
-      "left",
-      dominant,
-    );
-    rightOrder = convergeSideOrder(
-      rightOrder,
-      graph,
-      rowIndex,
-      visualCables,
-      "right",
-      dominant,
-    );
+    leftOrder = convergeSideOrder(leftOrder, graph, rowIndex, visualCables);
+    rightOrder = convergeSideOrder(rightOrder, graph, rowIndex, visualCables);
   }
 
   const optimized = optimizeJointStackOrder(
@@ -392,7 +314,6 @@ export function computeCanvasPlacement(
     graph,
     rowIndex,
     visualCables,
-    dominant,
   );
   leftOrder = optimized.left;
   rightOrder = optimized.right;
@@ -405,20 +326,6 @@ export function computeCanvasPlacement(
   });
 
   return placement;
-}
-
-function dominantGroupRank(
-  vc: VisualCable,
-  side: "left" | "right",
-  dominant?: DominantCablePair | null,
-): number {
-  if (!dominant) return 0;
-  const group = parentVisualGroupKey(vc.id);
-  const isPrimary =
-    side === "left"
-      ? group === dominant.leftGroupKey
-      : group === dominant.rightGroupKey;
-  return isPrimary ? 0 : 1;
 }
 
 /** Exported for tests — count strand crossings implied by stack order. */

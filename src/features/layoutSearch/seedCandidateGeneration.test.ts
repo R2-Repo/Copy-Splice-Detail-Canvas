@@ -92,8 +92,8 @@ describe("seedCandidateGeneration", () => {
       proxyBundleGroups: [],
       lockedCableCount: 0,
     };
-    const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-    const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
+    const { visualCables } = buildVisualCablesForLayout(graph);
+    const rowIndex = connectionRowIndexMap(graph, visualCables);
 
     const seeds = generateSeedCandidates(graph, intent, constraints, {
       cableKeys,

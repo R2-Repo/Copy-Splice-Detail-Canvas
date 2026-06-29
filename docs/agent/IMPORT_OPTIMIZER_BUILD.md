@@ -29,7 +29,7 @@ Deliver a **fast, four-side-aware, rule-driven** CSV import optimizer that:
 | Tiered T0 / T1 / T2 | `tieredEvaluate.ts` |
 | Score memo + time budget | `layoutSearch.ts`, `importSearchConfig.ts` |
 | Skip duplicate final T2 | `LayoutSearchResult.winnerEvaluation` |
-| Legacy fallback | `USE_LEGACY_IMPORT_LAYOUT=1`, `VITE_DISABLE_OPTIMIZED_IMPORT=1` |
+| Heuristic fallback | `VITE_USE_HEURISTIC_IMPORT=1`, `VITE_DISABLE_OPTIMIZED_IMPORT=1` |
 
 ---
 
@@ -278,7 +278,7 @@ Checklist per fixture:
 | `VITE_DEBUG_LAYOUT_SEARCH=1` | Console diagnostics |
 | `VITE_DEBUG_IMPORT_CANDIDATES=1` | Candidate detail logs |
 | `VITE_DISABLE_OPTIMIZED_IMPORT=1` | Skip search |
-| `VITE_USE_LEGACY_IMPORT_LAYOUT=1` | Legacy layout path |
+| `VITE_USE_HEURISTIC_IMPORT=1` | Heuristic layout path (skip optimizer) |
 
 ---
 
@@ -311,6 +311,6 @@ Checklist per fixture:
 - [`ROUTING_FIRST_LAYOUT.md`](./ROUTING_FIRST_LAYOUT.md) — product intent, scoring weights
 - [`IMPORT_PERF_PLAN.md`](./IMPORT_PERF_PLAN.md) — P0–P3 shipped architecture
 - [`IMPORT_FINISH_PLAN.md`](./IMPORT_FINISH_PLAN.md) — prior one-pass checklist
-- [`RULE_PRIORITY.md`](./RULE_PRIORITY.md) — rule conflict resolution
+- [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md) — conflict priority
 - [`SIMPLE_TERMS.md`](./SIMPLE_TERMS.md) — user vocabulary
 - [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../../splice_detail_canvas_rule_pack/00_Rule_Index.md) — canonical SDC rules

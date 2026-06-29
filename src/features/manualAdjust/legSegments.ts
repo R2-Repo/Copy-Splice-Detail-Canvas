@@ -722,7 +722,7 @@ export function reconnectEditedLegPaths(
       source: { x: number; y: number };
       target: { x: number; y: number };
     };
-    /** DOT-001/DOT-004: keep fusion dot fixed while vertical lanes shift. */
+    /** SDC-UX-001-B/SDC-UX-001-E: keep fusion dot fixed while vertical lanes shift. */
     preserveSplice?: { x: number; y: number };
   },
 ): {

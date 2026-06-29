@@ -49,13 +49,12 @@ function ctxFromSp(): LayoutRuleContext {
     { reportKey: "sp-overlap", positions: {}, routingEngine: "grid" } as never,
     1920,
   );
-  const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-  const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
-  const placement = computeCanvasPlacement(graph, visualCables, dominant, rowIndex);
+  const { visualCables } = buildVisualCablesForLayout(graph);
+  const rowIndex = connectionRowIndexMap(graph, visualCables);
+  const placement = computeCanvasPlacement(graph, visualCables, rowIndex);
   return {
     graph,
     visualCables,
-    dominant,
     placement,
     layout: built.layout as LayoutRuleContext["layout"],
     reactFlow: { nodes: built.nodes, edges: built.edges },

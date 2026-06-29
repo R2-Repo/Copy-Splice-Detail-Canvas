@@ -154,7 +154,7 @@ Priority order suggested from user feedback and architecture:
 
 - [ ] Namespace positions: `positionsHorizontal` / `positionsQuad` (or nested by mode) — requires migration in `LayoutOverrides`.
 - [ ] Upright labels on rotated top/bottom cables.
-- [ ] Quad-specific layout rule IDs in `LAYOUT_RULES.md` + tests if quad becomes production-default.
+- [ ] Quad-specific layout rule IDs in `SDC_CHECKS.md` + tests if quad becomes production-default.
 
 ## Do not touch (without explicit user approval)
 

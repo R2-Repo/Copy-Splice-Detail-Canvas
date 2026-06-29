@@ -185,7 +185,7 @@ function homogeneousTubeBundles(
 /** One-pass graph stats after `buildConnectionGraph`. */
 export function analyzeTopology(graph: ConnectionGraph): TopologyAnalysis {
   const cableKeys = cableKeysFromGraph(graph);
-  const { visualCables, dominant } = buildVisualCablesForLayout(graph);
+  const { visualCables } = buildVisualCablesForLayout(graph);
   const { affinities, perCableTotal } = buildAffinityMatrix(graph);
   const throughCableConfidence = throughConfidence(graph, cableKeys);
   const { hubCables, satelliteCables } = hubRanking(
@@ -198,7 +198,6 @@ export function analyzeTopology(graph: ConnectionGraph): TopologyAnalysis {
     graph,
     cableKeys,
     affinities,
-    dominant,
     visualCables,
     throughCableConfidence,
     hubCables,
@@ -210,7 +209,6 @@ export function analyzeTopology(graph: ConnectionGraph): TopologyAnalysis {
     cableKeys,
     affinities,
     constraints,
-    dominantPair: dominant,
     throughCableConfidence,
   };
 }

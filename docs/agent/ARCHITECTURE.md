@@ -14,7 +14,7 @@ src/
   lib/               # Pure utilities
   types/             # Shared TS types (SplicePair, endpoints, etc.)
   styles/
-docs/agent/          # SCOPE, CONTEXT, HANDOFF, LAYOUT_RULES, RULE_PRIORITY
+docs/agent/          # SCOPE, CONTEXT, HANDOFF, RULE_DICTIONARY, rule pack index
 docs/reference/      # User examples, images (not shipped)
 docs/archive/        # Superseded planning docs
 ```
@@ -78,7 +78,7 @@ Vite dev server — typically http://localhost:5173
 
 ## Drag vs import layout
 
-- **Import / drag-stop:** `buildReactFlowGraph` runs full placement — same-side cable stack collision, cross-side tube auto-align (`TUB-008`), and grid lane assignment (default) or `routeCenterSplices` (nodes escape hatch).
+- **Import / drag-stop:** `buildReactFlowGraph` runs full placement — same-side cable stack collision, cross-side tube auto-align (`SDC-LAYOUT-002-G`), and grid lane assignment (default) or `routeCenterSplices` (nodes escape hatch).
 - **Live cable drag:** `syncNodesEngineDragLayout` calls `buildReactFlowGraph` with `dragSync: true`, which skips collision re-stack and tube auto-align until drag stop. Routing lanes and fiber anchors still refresh from live handle positions.
 - **Grid drag-stop (auto):** When the routing engine is grid and the cable stayed on the same side, drag stop reuses the pre-drag `priorGridRoutes` snapshot plus live `dragCacheEdges`, and reroutes only splices on the dragged cable (`rerouteConnectionIds`). Collision stack runs on release; unaffected splices keep drag-sync midX lanes.
 - **Quad (4-side) mode:** `buildReactFlowGraph` delegates to `buildQuadReactFlowGraph`; `WorkflowCanvas` early-returns quad cable drag to `syncQuadCableDrag` before horizontal manual/auto paths. See [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md).
@@ -86,7 +86,7 @@ Vite dev server — typically http://localhost:5173
 
 ### What differs on drag vs import
 
-| Pass | Collision stack | Tube auto-align (`TUB-008`) | Routing |
+| Pass | Collision stack | Tube auto-align (`SDC-LAYOUT-002-G`) | Routing |
 |------|-----------------|-----------------------------|---------|
 | Import | yes | yes | full grid / center route |
 | Live drag (`dragSync`) | no | no | incremental grid reroute on dragged cable |

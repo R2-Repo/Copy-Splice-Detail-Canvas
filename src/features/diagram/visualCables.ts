@@ -11,11 +11,7 @@ import { compareTubeColorsTia } from "@/features/diagram/colorCode";
 import {
   connectionRowIndexMap,
   connectionRowOffsets,
-  type RowLayoutVisualCableRef,
 } from "@/features/diagram/connectionRowOrder";
-import type { DominantCablePair } from "@/features/diagram/dominantCablePair";
-import { findDominantCablePair } from "@/features/diagram/dominantCablePair";
-import { isThroughCable } from "@/features/diagram/throughCable";
 import type {
   CableLegId,
   ConnectionGraph,
@@ -117,63 +113,6 @@ function uniqueCableNames(graph: ConnectionGraph): string[] {
   return [...names].sort((a, b) => a.localeCompare(b));
 }
 
-function opposingLegIdsForFibers(
-  graph: ConnectionGraph,
-  fibers: LegFiberRef[],
-): Set<CableLegId> {
-  const set = new Set<CableLegId>();
-  for (const f of fibers) {
-    const conn = orderedFiberConnections(graph).find((c) => c.id === f.connectionId);
-    if (!conn) continue;
-    for (const ep of [conn.pair.endpointA, conn.pair.endpointB]) {
-      const id = cableLegIdForEndpoint(ep);
-      if (id !== f.legId) set.add(id);
-    }
-  }
-  return set;
-}
-
-/** Ring-cut: split when all fibers share one opposing leg and row order has two contiguous blocks. */
-function contiguousSplitCount(fibers: LegFiberRef[]): number {
-  if (fibers.length <= 2) return 1;
-  const sorted = [...fibers].sort((a, b) => a.rowIndex - b.rowIndex);
-  let maxGap = 0;
-  let splitAt = -1;
-  for (let i = 1; i < sorted.length; i++) {
-    const gap = sorted[i]!.rowIndex - sorted[i - 1]!.rowIndex;
-    if (gap > maxGap) {
-      maxGap = gap;
-      splitAt = i;
-    }
-  }
-  if (splitAt <= 0 || splitAt >= sorted.length || maxGap <= 1) return 1;
-  return 2;
-}
-
-/** Ring-cut 144: two cylinders on one side — split into two visual cables. */
-function instanceCountForGroup(
-  cable: string,
-  fibers: LegFiberRef[],
-  graph: ConnectionGraph,
-): number {
-  if (!isThroughCable(cable, graph)) return 1;
-  if (fibers.length <= 2) return 1;
-  const opposing = opposingLegIdsForFibers(graph, fibers);
-  if (opposing.size !== 1) return 1;
-  if (fibers.length === 4) return 2;
-  return contiguousSplitCount(fibers);
-}
-
-function chunk<T>(items: T[], parts: number): T[][] {
-  if (parts <= 1) return [items];
-  const size = Math.ceil(items.length / parts);
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    out.push(items.slice(i, i + size));
-  }
-  return out;
-}
-
 /** Even strand spacing inside one buffer tube; one row per TIA fiber # at 24px pitch. */
 function compactTubeOffsets(fibers: LegFiberRef[]): Map<string, number> {
   const sorted = [...fibers].sort(
@@ -247,7 +186,7 @@ function buildTubes(fibers: LegFiberRef[]): VisualTube[] {
           fiberColor: f.endpoint.fiberColor,
           tubeColor: f.endpoint.tubeColor,
           circuitName: f.circuitName,
-          handleId: `fiber-${f.connectionId}`,
+          handleId: `${f.legId}::${f.endpoint.tubeColor}::${f.endpoint.fiberNumber}`,
           rowIndex: f.rowIndex,
           rowYOffset: tubeBaseOffset + (compact.get(f.connectionId) ?? 0),
         };
@@ -266,13 +205,9 @@ function groupKey(cable: string): string {
   return cable;
 }
 
-export function buildVisualCables(
-  graph: ConnectionGraph,
-  splitLayoutHint?: RowLayoutVisualCableRef[],
-  dominant?: DominantCablePair | null,
-): VisualCable[] {
-  const rowIndex = connectionRowIndexMap(graph, splitLayoutHint, dominant);
-  const rowOffsets = connectionRowOffsets(graph, splitLayoutHint, dominant);
+export function buildVisualCables(graph: ConnectionGraph): VisualCable[] {
+  const rowIndex = connectionRowIndexMap(graph);
+  const rowOffsets = connectionRowOffsets(graph);
   const groups = new Map<
     string,
     {
@@ -303,36 +238,49 @@ export function buildVisualCables(
     const sortedFibers = [...group.fibers].sort(
       (a, b) => a.rowIndex - b.rowIndex,
     );
-    const instances = instanceCountForGroup(group.cable, sortedFibers, graph);
-    const chunks = chunk(sortedFibers, instances);
     const baseOrder = group.side === "left" ? orderLeft++ : orderRight++;
 
-    chunks.forEach((fiberChunk, instIdx) => {
-      const id = instIdx === 0 ? key : `${key}~${instIdx}`;
-      visual.push({
-        id,
-        legId: group.legId,
-        device: "",
-        cable: group.cable,
-        side: group.side,
-        order: baseOrder + instIdx * 0.01,
-        tubes: buildTubes(fiberChunk),
-      });
+    visual.push({
+      id: key,
+      legId: group.legId,
+      device: "",
+      cable: group.cable,
+      side: group.side,
+      order: baseOrder,
+      tubes: buildTubes(sortedFibers),
     });
   }
 
   return visual;
 }
 
-/** Two-pass build: detect ring-cut splits, then apply split-aware row spacing. */
 export function buildVisualCablesForLayout(graph: ConnectionGraph): {
   visualCables: VisualCable[];
-  dominant: DominantCablePair | null;
 } {
-  const pass1 = buildVisualCables(graph);
-  const dominant = findDominantCablePair(graph, pass1);
-  const visualCables = buildVisualCables(graph, pass1, dominant);
-  return { visualCables, dominant };
+  return { visualCables: buildVisualCables(graph) };
+}
+
+export function parentVisualGroupKey(visualId: string): string {
+  return visualId.replace(/~\d+$/, "");
+}
+
+export function visualGroupForConnection(
+  visualCables: VisualCable[],
+  connectionId: string,
+  side: "left" | "right",
+): string | undefined {
+  const vc = visualCables.find(
+    (v) =>
+      v.side === side &&
+      v.tubes.some((t) =>
+        t.fibers.some(
+          (f) =>
+            f.connectionId === connectionId ||
+            f.spliceConnectionIds?.includes(connectionId),
+        ),
+      ),
+  );
+  return vc ? parentVisualGroupKey(vc.id) : undefined;
 }
 
 function fiberMatchesConnection(

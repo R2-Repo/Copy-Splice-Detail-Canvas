@@ -32,8 +32,8 @@ describe("candidatePruners", () => {
     const graph = syntheticTopBottomReliefGraph();
     const cableKeys = cableKeysFromGraph(graph);
     const constraints = emptyConstraints(cableKeys);
-    const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-    const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
+    const { visualCables } = buildVisualCablesForLayout(graph);
+    const rowIndex = connectionRowIndexMap(graph, visualCables);
 
     const baseline = heuristicBaselineCandidate(graph);
     const baselineReject = predictEarlyRejectAtT0(
@@ -76,8 +76,8 @@ describe("candidatePruners", () => {
     const graph = syntheticTopBottomReliefGraph();
     const cableKeys = cableKeysFromGraph(graph);
     const constraints = emptyConstraints(cableKeys);
-    const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-    const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
+    const { visualCables } = buildVisualCablesForLayout(graph);
+    const rowIndex = connectionRowIndexMap(graph, visualCables);
 
     const relief = enumerateCandidates(cableKeys, [1200]).find(
       (c) =>

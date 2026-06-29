@@ -30,8 +30,8 @@ export function deriveRoutingIntent(
   graph: ConnectionGraph,
   topology: TopologyAnalysis,
 ): RoutingIntent {
-  const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-  const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
+  const { visualCables } = buildVisualCablesForLayout(graph);
+  const rowIndex = connectionRowIndexMap(graph, visualCables);
 
   const medianRowByCablePair: Record<string, number> = {};
   const pairRows = new Map<string, number[]>();

@@ -4,42 +4,22 @@
 
 ## Last updated
 
-2026-06-28 — **Import perf fast-path + T1 pruning**
+2026-06-28 — **SDC-only rule vocabulary (merge-ready)**
 
-### Done
+### Done (PR #28)
 
 | Area | Change |
 |------|--------|
-| `WorkflowCanvas.tsx` | Heuristic T2 check → immediate paint when feasible; background worker with `searchProfile: background` |
-| `candidatePruners.ts` | T1 gate: `top-bottom-no-relief`, quad span, adjacent-pair predictors |
-| `candidateGeometry.ts` | Width-invariant geometry key + rule validation cache |
-| `layoutSearch.ts` | Geometry memo at T0; `searchCapsForProfile` |
-| `importSearchConfig.ts` | `BACKGROUND_SEARCH_CAPS`, 10s/15s perf budget helpers |
-| `importDiagnostics.ts` | `fastPath`, `performanceBudget` blocks |
-| `import-diagnostics-qa.mjs` | `fastPath` / `performanceBudget` in summary; optional `SDC_ENFORCE_PERF_BUDGET=1` |
-| Tests | `candidateGeometry`, `candidatePruners`, `seedCandidateGeneration`, `importSearchConfig` |
+| Rule pack + docs | SDC-ROUTE-004, 24px in SDC-GRID-001; deleted legacy agent docs |
+| Enforcement | Q3/Q4/Q7/Q8 dropped; dominant pair, ring-cut split, nest validators removed |
+| Subcodes | All atomic checks renamed to `SDC-*-NNN-A` … in `sdcCheckIds.ts` |
+| Purge | No FBR/TUB/CBL/ROW/EDGE/DOT/STR/DOM IDs in src or active agent docs |
+| Gates | `npm run smoke` pass |
 
-### Fast-path (production)
+### Manual QA before merge
 
-1. Paint heuristic
-2. Full T2 eval on heuristic
-3. If feasible + not debug → dismiss overlay, finish diagnostics session after background search
-4. Background search may upgrade layout if strictly better score
-
-### T1 pruning
-
-- **Do not** prune no-relief top/bottom at T0 (breaks beam ranking on relief fixture)
-- **Do** prune at T1 before `buildReactFlowGraph` / proxy route
-
-### Gates
-
-- `npm run smoke` — pass (358 fast tests + build)
-
-### Manual QA
-
-- Import Left-STATE_OFFICE **without** debug flags → canvas live in ~1–2s
-- With `VITE_DEBUG_IMPORT_OPTIMIZER=1` → full diagnostics baseline unchanged
+Import **example-2** + any touched Left-* CSVs.
 
 ### Frozen
 
-`spliceEdgeRouting.ts` — not touched.
+`spliceEdgeRouting.ts` symbols untouched.

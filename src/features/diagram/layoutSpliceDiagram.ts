@@ -5,7 +5,6 @@ import {
   minCenterGapForRowSpan,
 } from "@/features/diagram/cableLayoutMetrics";
 import { connectionRowOffsets, maxConnectionRowOffset } from "@/features/diagram/connectionRowOrder";
-import type { DominantCablePair } from "@/features/diagram/dominantCablePair";
 import {
   collapsedPairIdsFromButtSplices,
   detectFullButtSpliceTubes,
@@ -65,8 +64,8 @@ export function activeSpliceLaneCount(
 /** Minimum diagram width from cable columns + center routing (ignores viewport). */
 export function minLayoutWidthForGraph(graph: ConnectionGraph): number {
   const laneCount = activeSpliceLaneCount(graph, false);
-  const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-  const rowOffsets = connectionRowOffsets(graph, visualCables, dominant);
+  const { visualCables } = buildVisualCablesForLayout(graph);
+  const rowOffsets = connectionRowOffsets(graph, visualCables);
   const maxRowOffset = maxConnectionRowOffset(rowOffsets);
   const maxTubes = Math.max(1, ...visualCables.map((vc) => vc.tubes.length));
   const nodeWidth = estimatedCableNodeWidth(
@@ -165,7 +164,6 @@ export function computeDiagramLayout(
   graph: ConnectionGraph,
   visualCables: VisualCable[],
   placement: Map<string, CablePlacement>,
-  dominant?: DominantCablePair | null,
   layoutWidth?: number,
   excludeConnectionIds?: ReadonlySet<string>,
 ): DiagramLayout {
@@ -173,7 +171,6 @@ export function computeDiagramLayout(
     graph,
     visualCables,
     placement,
-    dominant,
     layoutWidth,
     excludeConnectionIds,
   );

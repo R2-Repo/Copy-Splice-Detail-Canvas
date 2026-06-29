@@ -1,9 +1,5 @@
 import { orderedFiberConnections } from "@/features/diagram/buildConnectionGraph";
 import {
-  findDominantCablePair,
-  parentVisualGroupKey,
-} from "@/features/diagram/dominantCablePair";
-import {
   findVisualCableForConnection,
   type VisualCable,
 } from "@/features/diagram/visualCables";
@@ -119,11 +115,8 @@ function pickLeastLoaded(
 }
 
 /**
- * Auto side assignment: anchor the dominant cable pair on left/right, then place
- * each remaining stub on a side *perpendicular* to its heaviest neighbor. This
- * keeps splice legs short L's and — critically — never drops a stub on the same
- * side as the cable it mostly talks to, so a cable whose fibers all go to a top
- * cable is no longer parked on top (which produced a pointless same-side loop).
+ * Auto side assignment: anchor the two heaviest cables on left/right (CSV side),
+ * then place each remaining stub perpendicular to its heaviest neighbor.
  * User pins (overrides) always win.
  */
 function assignSides(
@@ -132,14 +125,11 @@ function assignSides(
   pinned: Record<string, QuadSide> | undefined,
 ): Map<string, QuadSide> {
   const sides = new Map<string, QuadSide>();
-  const dominant = findDominantCablePair(graph, visualCables);
   const adj = cableAdjacency(graph, visualCables);
 
-  const leftKey = dominant?.leftGroupKey;
-  const rightKey = dominant?.rightGroupKey;
-
   const load: Record<QuadSide, number> = { left: 0, right: 0, top: 0, bottom: 0 };
-  const remaining: VisualCable[] = [];
+  const unpinned: VisualCable[] = [];
+
   for (const vc of visualCables) {
     const pin = pinned?.[vc.id];
     if (pin) {
@@ -147,26 +137,28 @@ function assignSides(
       load[pin] += 1;
       continue;
     }
-    const group = parentVisualGroupKey(vc.id);
-    if (leftKey && group === leftKey) {
-      sides.set(vc.id, "left");
-      load.left += 1;
-    } else if (rightKey && group === rightKey) {
-      sides.set(vc.id, "right");
-      load.right += 1;
-    } else remaining.push(vc);
+    unpinned.push(vc);
   }
 
-  // No dominant pair (tiny graph): fall back to the cable's CSV side.
-  if (!leftKey || !rightKey) {
+  const sorted = [...unpinned].sort(
+    (a, b) => totalWeight(adj.get(b.id)) - totalWeight(adj.get(a.id)),
+  );
+  const anchored = sorted.slice(0, 2);
+  const remaining = sorted.slice(2);
+
+  for (const vc of anchored) {
+    const side = vc.side === "left" || vc.side === "right" ? vc.side : "left";
+    sides.set(vc.id, side);
+    load[side] += 1;
+  }
+
+  if (anchored.length < 2) {
     for (const vc of remaining) {
       if (!sides.has(vc.id)) sides.set(vc.id, vc.side);
     }
     return sides;
   }
 
-  // Heaviest stubs first: they connect closest to the dominant pair, so they
-  // resolve a concrete neighbor side and anchor the lighter stubs after them.
   remaining.sort(
     (a, b) => totalWeight(adj.get(b.id)) - totalWeight(adj.get(a.id)),
   );
@@ -183,8 +175,6 @@ function assignSides(
     load[side] += 1;
   }
 
-  // Stubs that only talk to other stubs: resolve against the now-richer map,
-  // else balance across top/bottom.
   for (const vc of deferred) {
     const dom = dominantNeighborSide(vc.id, adj, sides);
     const candidates = dom ? PERPENDICULAR_SIDES[dom] : (["top", "bottom"] as QuadSide[]);

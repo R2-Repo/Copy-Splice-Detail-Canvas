@@ -11,23 +11,23 @@ alwaysApply: true
 
 **Manual QA** after layout/routing changes: import **example-2** (+ any touched CSV).
 
-**Canonical contract:** [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../../splice_detail_canvas_rule_pack/00_Rule_Index.md) — **12 SDC rules** (`SDC-*`).  
+**Canonical contract:** [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../../splice_detail_canvas_rule_pack/00_Rule_Index.md) — **SDC rules** (`SDC-*`).  
 **Suspended test gate:** `src/features/rules/sdcLayoutContract.test.ts` — run via `npm run test:rules` when user requests.  
-**Legacy engine:** `src/features/diagram/layoutRules.ts` (private validators — do not cite legacy IDs in chat).
+**Private validators:** `src/features/diagram/layoutRules.ts` — do not cite legacy check IDs in chat.
 
 Before changing diagram layout, cable nodes, buffer tubes, fiber strands, splice routing, or CSV import that feeds layout:
 
-1. Read the **rule pack index** and [`docs/agent/RULE_ID_MAP.md`](../../docs/agent/RULE_ID_MAP.md).
-2. Implement SDC checks in `src/features/rules/`; legacy checks stay in `layoutRules.ts`.
+1. Read the **rule pack index** and [`docs/agent/RULE_DICTIONARY.md`](../../docs/agent/RULE_DICTIONARY.md).
+2. Implement SDC checks in `src/features/rules/`; private checks stay in `layoutRules.ts` until migrated.
 3. Note manual QA steps in HANDOFF.
 4. Run **`npm run smoke`** before finishing — not `test:rules`.
 
 ## Non-negotiables (SDC vocabulary)
 
-- **24px pitch** within each buffer tube — **SDC-ORDER-002** / **SDC-LAYOUT-001**
+- **24px pitch** — **SDC-GRID-001**, **SDC-ORDER-002**, **SDC-LAYOUT-001**
 - **TIA fiber + tube order** — **SDC-ORDER-001**, **SDC-ORDER-002**
 - Same-side cables **stack without overlap** — **SDC-LAYOUT-001**
-- Distinct splice routing lanes on import — **SDC-ROUTE-003**, **SDC-GRID-001**
-- **Bend budget:** 2 corners per splice — **SDC-ROUTE-003**
+- **Bend budget:** 2 corners per splice — **SDC-ROUTE-004**
+- Organized fusion-dot lines per tube group — **SDC-UX-001**
 
 Do not weaken or delete rules without explicit user approval.

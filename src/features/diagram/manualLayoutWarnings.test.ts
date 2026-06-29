@@ -42,7 +42,7 @@ describe("manualLayoutWarningsForConnections", () => {
     expect(warnings).toHaveLength(0);
   });
 
-  it("flags EDGE-004 when bend budget exceeded", () => {
+  it("flags SDC-ROUTE-004-A when bend budget exceeded", () => {
     const leftPath = "M 100,50 L 200,50 L 200,120 L 300,120 L 300,80";
     const rightPath = "M 300,80 L 500,80";
     const edges = [leftEdge("c2", leftPath, rightPath, 300, 80)];
@@ -50,10 +50,10 @@ describe("manualLayoutWarningsForConnections", () => {
       edges,
       new Set(["c2"]),
     );
-    expect(warnings.some((w) => w.code === "EDGE-004")).toBe(true);
+    expect(warnings.some((w) => w.code === "SDC-ROUTE-004-A")).toBe(true);
   });
 
-  it("flags EDGE-012 when vertical lanes are within 24px", () => {
+  it("flags SDC-ROUTE-003-C when vertical lanes are within 24px", () => {
     const edges = [
       leftEdge(
         "a",
@@ -74,14 +74,14 @@ describe("manualLayoutWarningsForConnections", () => {
       edges,
       new Set(["a", "b"]),
     );
-    expect(warnings.some((w) => w.code === "EDGE-012")).toBe(true);
+    expect(warnings.some((w) => w.code === "SDC-ROUTE-003-C")).toBe(true);
   });
 
   it("formats banner with DOT codes", () => {
     const banner = formatManualLayoutWarningBanner([
       {
         connectionId: "x",
-        code: "DOT-003",
+        code: "SDC-UX-001-D",
         message: "test",
       },
     ]);

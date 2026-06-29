@@ -7,13 +7,11 @@ Frontend-only React PWA: node/workflow canvas (React Flow). No backend unless th
 | File | Purpose |
 |------|---------|
 | `docs/agent/SCOPE.md` | Product vision, MVP, features, non-goals |
-| `docs/agent/RULE_PRIORITY.md` | Rule conflict resolution when EDGE rules clash |
 | `docs/agent/CONTEXT.md` | Current focus, decisions, blockers (current-only) |
 | `docs/agent/HANDOFF.md` | Last session summary for the next agent |
 | `docs/agent/ARCHITECTURE.md` | Folders, patterns, extension points |
-| `splice_detail_canvas_rule_pack/00_Rule_Index.md` | **Canonical 12 SDC rules** — public contract |
-| `docs/agent/RULE_ID_MAP.md` | SDC ↔ legacy map (legacy = private engine) |
-| `docs/agent/LAYOUT_RULES.md` | **Deprecated** — legacy IDs; see rule pack |
+| `splice_detail_canvas_rule_pack/00_Rule_Index.md` | **Canonical SDC rules** — public contract |
+| `src/features/rules/sdcCheckIds.ts` | **SDC subcodes** for atomic layout/routing checks |
 | `docs/agent/QUAD_LAYOUT.md` | **4-side (quad) layout** — geometry reference; auto import direction in ROUTING_FIRST_LAYOUT |
 | `docs/agent/ROUTING_FIRST_LAYOUT.md` | **Routing-first auto layout** — search pipeline build plan (canonical for import placement) |
 | `docs/agent/IMPORT_OPTIMIZER_BUILD.md` | **Import optimizer one-pass build** — four-side scoring, beam search, finalists (active) |
@@ -30,7 +28,7 @@ Frontend-only React PWA: node/workflow canvas (React Flow). No backend unless th
 
 ## Workflow
 
-1. Read SCOPE → RULE_PRIORITY → rule pack index → CONTEXT + HANDOFF + **TESTING** before coding.
+1. Read SCOPE → rule pack index → CONTEXT + HANDOFF + **TESTING** before coding.
 2. When the user describes the diagram in simple terms, read **SIMPLE_TERMS.md** first and map to official/code names.
 3. Plan in bullets; ask if requirements are unclear.
 3. Implement in `src/` using existing patterns.

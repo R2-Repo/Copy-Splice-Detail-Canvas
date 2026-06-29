@@ -11,7 +11,7 @@
 **Keep (non-negotiable unless you explicitly reopen):**
 - Model-first pipeline: CSV → `ConnectionGraph` → layout → canvas (`SCOPE.md`)
 - Nodes routing engine (`ROUTING_ENGINE = "nodes"` in `src/features/diagram/routingEngine.ts`)
-- EDGE-004 strict ≤2 bends; Y-tracks stay off (`RULE_PRIORITY.md`)
+- SDC-ROUTE-004-A strict ≤2 bends; Y-tracks stay off (`RULE_PRIORITY.md`)
 - React Flow as viewport + interaction shell (not a greenfield SVG-only rewrite)
 - Frozen routing symbols per `.cursor/rules/frozen-routing.mdc` — ask before touching
 
@@ -27,7 +27,7 @@
 ## Agent preamble (every session)
 
 1. Read `AGENTS.md` → `SCOPE.md` → `RULE_PRIORITY.md` → `CONTEXT.md` → `HANDOFF.md`
-2. For diagram work: `LAYOUT_RULES.md`, `SIMPLE_TERMS.md`
+2. For diagram work: `SDC_CHECKS.md`, `SIMPLE_TERMS.md`
 3. Run baseline: `npm run test:layout` (note current pass/fail count)
 4. **Session discipline:** one primary bug → one example CSV → one rule ID → max 2 source files for routing/layout fixes
 5. End session: update `CONTEXT.md` + `HANDOFF.md`; run full `npm run verify` when substantive
@@ -40,11 +40,11 @@ Establish what is broken vs policy vs UX expectation.
 
 | Symptom | Likely class | Action |
 |---------|--------------|--------|
-| Horizontal lead overlap in dense diagrams | **Policy** (EDGE-004 > overlap) | Document; do not “fix” with Y-tracks without approval |
+| Horizontal lead overlap in dense diagrams | **Policy** (SDC-ROUTE-004-A > overlap) | Document; do not “fix” with Y-tracks without approval |
 | Diagram jumps on cable drag release | **Design** (`dragSync` skips collision until stop) | Investigate reducing jump without full collision every frame |
 | Manual marquee/selection misses handles | **Bug** (coord mismatch) | Phase 1 |
 | Bundle order wrong during live drag | **Bug** (stale `rowOffset`) | Phase 2 |
-| Example #2 `EDGE-010` test fail | **Bug** (layout contract) | Phase 3 |
+| Example #2 `SDC-ROUTE-002` test fail | **Bug** (layout contract) | Phase 3 |
 | `legOverrides` lost or misapplied after rebuild | **Bug / fragility** | Phase 4 |
 | Failing `packMidXLanes` unit tests | **Regression** | Phase 3 |
 
@@ -86,11 +86,11 @@ Establish what is broken vs policy vs UX expectation.
 
 ## Phase 3 — Layout contract and routing regressions
 
-**Blocker:** Example #2 `EDGE-010` fails `npm run test:layout` (tube bundle lane spacing).
+**Blocker:** Example #2 `SDC-ROUTE-002` fails `npm run test:layout` (tube bundle lane spacing).
 
 **Tasks:**
-1. Run failing test; trace through `layoutRules.ts` EDGE-010 and `spliceCenterLanes.ts` bundle packing
-2. Fix with minimal scoped change; **do not weaken EDGE-010**
+1. Run failing test; trace through `layoutRules.ts` SDC-ROUTE-002 and `spliceCenterLanes.ts` bundle packing
+2. Fix with minimal scoped change; **do not weaken SDC-ROUTE-002**
 3. Fix `packMidXLanes` / `assignSpliceRoutingLanes` failures in `spliceEdgeRouting.test.ts`
 4. Run `npm run test:layout` until Examples #1–#3 + SPI-215 strict EDGE checks pass
 
@@ -173,7 +173,7 @@ npm run verify
 
 | Proposal | Why deferred |
 |----------|----------------|
-| Y-track / EDGE-011 re-enable | Violates EDGE-004; CONTEXT out-of-scope |
+| Y-track / SDC-ROUTE-003-B re-enable | Violates SDC-ROUTE-004-A; CONTEXT out-of-scope |
 | Readability-first routing | Policy reversal |
 | Remove React Flow splice edges | High interaction risk |
 | Greenfield SVG prototype | SCOPE rejection; stabilization gate |
@@ -183,7 +183,7 @@ npm run verify
 
 ## Success criteria
 
-- `npm run test:layout` fully green (including Example #2 EDGE-010)
+- `npm run test:layout` fully green (including Example #2 SDC-ROUTE-002)
 - Manual selection/marquee aligned with rendered handles
 - Predictable auto drag-stop behavior (documented; jump reduced where possible)
 - Overrides survive toggle, reload, rebuild

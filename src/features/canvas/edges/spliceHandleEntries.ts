@@ -174,7 +174,7 @@ export function connectionIdFromHandleEntryId(edgeId: string): string {
     .replace(/^butt-/, "");
 }
 
-/** Match layoutRules spliceHandleEndpoints — EDGE-011 overlap geometry. */
+/** Match layoutRules spliceHandleEndpoints — SDC-ROUTE-003-B overlap geometry. */
 export function layoutRuleHandleEndpointsForConnection(
   graph: ConnectionGraph,
   visualCables: VisualCable[],

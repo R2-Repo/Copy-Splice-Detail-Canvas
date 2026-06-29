@@ -95,6 +95,14 @@ A group may represent:
 
 Unrelated groups SHOULD be separated so the user can visually understand where each group starts and ends.
 
+## Minimum strand pitch
+
+Individual fiber strand routes MUST maintain the **24px** grid pitch [SDC-GRID-001], [SDC-ORDER-002] in all directions. This applies around bends, lane transitions, fan-out exits, and fusion splice dots.
+
+## Near-straight alignment (import)
+
+During automatic layout, cable and fan-out positions SHOULD be nudged so near-horizontal or near-vertical strand runs become straight. Tiny unnecessary jogs (a few pixels) MUST NOT remain when a straight run is feasible without violating higher-priority hard rules.
+
 ## Individual Fiber Strand Spacing
 
 Every individual fiber strand route MUST have a minimum spacing buffer in all directions. The exact value should be configurable.

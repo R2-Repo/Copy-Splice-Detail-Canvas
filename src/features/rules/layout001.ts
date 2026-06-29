@@ -2,7 +2,7 @@ import { evaluateSdcLayoutSpacingRules } from "@/features/diagram/layoutRules";
 
 import type { SdcRule } from "./types";
 import { buildSdcContextFromLayout } from "./buildSdcContext";
-import { formatSdcFailureMessage } from "./legacyBridge";
+import { formatSdcFailureMessage } from "./ruleFailureMessages";
 import { fail, pass, warn } from "./helpers";
 
 /** SDC-LAYOUT-001 — Spacing between cables, tubes, fanouts, and strands. */

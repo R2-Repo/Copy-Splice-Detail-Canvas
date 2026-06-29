@@ -205,7 +205,7 @@ export function buildProxyEvalContext(
     layoutWidth: width,
     layoutExpansion: candidate.layoutExpansion,
     optimizedLayoutCandidate: candidate,
-    routingEngine: "legacy",
+    routingEngine: "composite",
     layoutMode,
     ...(useQuad
       ? {
@@ -350,7 +350,7 @@ export function evaluateT1(
   const diag = getActiveSearchDiagnostics();
 
   const built = buildVisualCablesForLayout(graph);
-  const rowIndex = connectionRowIndexMap(graph, built.visualCables, built.dominant);
+  const rowIndex = connectionRowIndexMap(graph, built.visualCables);
   const t1Reject = predictEarlyRejectAtT1(
     candidate,
     graph,
@@ -476,7 +476,6 @@ export function evaluateCandidateTiered(
   cache?: {
     visualCables: VisualCable[];
     rowIndex: Map<string, number>;
-    dominant: ReturnType<typeof buildVisualCablesForLayout>["dominant"];
   },
 ): TieredEvalResult {
   if (options.tieredEvalEnabled === false || options.forceT2) {
@@ -484,15 +483,12 @@ export function evaluateCandidateTiered(
   }
 
   const built = cache?.visualCables
-    ? {
-        visualCables: cache.visualCables,
-        dominant: cache.dominant,
-      }
+    ? { visualCables: cache.visualCables }
     : buildVisualCablesForLayout(graph);
   const visualCables = built.visualCables;
   const rowIndex =
     cache?.rowIndex ??
-    connectionRowIndexMap(graph, visualCables, built.dominant);
+    connectionRowIndexMap(graph, visualCables);
 
   const t0 = evaluateT0(graph, candidate, options.constraints, visualCables, rowIndex);
   if (!t0.feasible || options.maxTier === "T0") return t0;

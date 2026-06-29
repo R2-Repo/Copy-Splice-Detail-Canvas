@@ -187,13 +187,10 @@ export function heuristicBaselineCandidate(
   graph: ConnectionGraph,
   layoutWidth: number = defaultLayoutWidth(),
 ): LayoutCandidate {
-  const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-  const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
+  const { visualCables } = buildVisualCablesForLayout(graph);
+  const rowIndex = connectionRowIndexMap(graph, visualCables);
   const placement = computeCanvasPlacement(
-    graph,
-    visualCables,
-    dominant,
-    rowIndex,
+    graph, visualCables, rowIndex,
   );
   return placementMapToCandidate(placement, visualCables, layoutWidth);
 }

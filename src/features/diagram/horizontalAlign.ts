@@ -5,7 +5,7 @@ import {
 import type { VisualCable } from "@/features/diagram/visualCables";
 
 /**
- * Horizontal leg alignment (EDGE-013).
+ * Horizontal leg alignment (SDC-UX-001-A).
  *
  * Max vertical gap (px) between a leg's two handle rows that still counts as
  * "near straight" and gets snapped to a single flat horizontal line. Half the
@@ -37,7 +37,7 @@ export type AlignConnection = {
 /**
  * Compute a small uniform vertical shift for one cable so the most near-straight
  * legs become perfectly flat. Moving a whole cable preserves the 24px in-tube
- * pitch (FBR-002) and tube/fiber order — only the cable's Y changes.
+ * pitch (SDC-ORDER-002-B) and tube/fiber order — only the cable's Y changes.
  *
  * Returns 0 when no shift within `tolerance` produces a net gain in flat legs
  * (so coincidentally-aligned legs are never broken).

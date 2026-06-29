@@ -7,7 +7,6 @@ import {
 import { buildConnectionGraph } from "./buildConnectionGraph";
 import { computeCanvasPlacement, type CablePlacement } from "./canvasPlacement";
 import { connectionRowIndexMap } from "./connectionRowOrder";
-import { connectionInDominantPair } from "./dominantCablePair";
 import {
   computeAlignedLayout,
   computeCableXBounds,
@@ -18,21 +17,14 @@ import { readReferenceCsv } from "@/testHelpers/layoutContractCsvPaths";
 import type { ConnectionGraph } from "@/types/splice";
 
 function layoutFromGraph(graph: ConnectionGraph) {
-  const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-  const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
+  const { visualCables } = buildVisualCablesForLayout(graph);
+  const rowIndex = connectionRowIndexMap(graph, visualCables);
   const placement = computeCanvasPlacement(
-    graph,
-    visualCables,
-    dominant,
-    rowIndex,
+    graph, visualCables, rowIndex,
   );
   const layout = computeAlignedLayout(
-    graph,
-    visualCables,
-    placement,
-    dominant,
-  );
-  return { visualCables, dominant, placement, layout, rowIndex };
+    graph, visualCables, placement,  );
+  return { visualCables, placement, layout, rowIndex };
 }
 
 function cableBoxesOverlap(
@@ -98,47 +90,6 @@ describe("computeAlignedLayout", () => {
     expect(dkFibers.map((f) => f.fiberColor)).toEqual(["BL", "OR", "GR", "BR"]);
   });
 
-  it("Example #2: dominant pair cross-side handles share row Y", () => {
-    const graph = buildConnectionGraph(
-      parseBentleyCsv(
-        readReferenceCsv("CSV Splice Detail Example #2.csv"),
-      ),
-    );
-    const { visualCables: visual, dominant, placement, layout } =
-      layoutFromGraph(graph);
-    expect(dominant).not.toBeNull();
-
-    for (const conn of graph.connections.filter(
-      (c) =>
-        c.kind === "fiber" &&
-        connectionInDominantPair(c, graph, visual, dominant!),
-    )) {
-      const leftVc = visual.find(
-        (v) =>
-          (placement.get(v.id)?.side ?? v.side) === "left" &&
-          v.tubes.some((t) =>
-            t.fibers.some((f) => f.connectionId === conn.id),
-          ),
-      );
-      const rightVc = visual.find(
-        (v) =>
-          (placement.get(v.id)?.side ?? v.side) === "right" &&
-          v.tubes.some((t) =>
-            t.fibers.some((f) => f.connectionId === conn.id),
-          ),
-      );
-      if (!leftVc || !rightVc) continue;
-
-      const leftY =
-        layout.cablePositions.get(leftVc.id)!.y +
-        fiberRowOffsetInCable(leftVc, conn.id);
-      const rightY =
-        layout.cablePositions.get(rightVc.id)!.y +
-        fiberRowOffsetInCable(rightVc, conn.id);
-      expect(Math.abs(leftY - rightY)).toBeLessThan(2);
-    }
-  });
-
   it("Example #2: same-side cables stack without vertical overlap", () => {
     const graph = buildConnectionGraph(
       parseBentleyCsv(
@@ -181,8 +132,8 @@ describe("computeAlignedLayout", () => {
         readReferenceCsv("CSV Splice Detail Example #3.csv"),
       ),
     );
-    const { visualCables: visual, placement, dominant } = layoutFromGraph(graph);
-    computeAlignedLayout(graph, visual, placement, dominant);
+    const { visualCables: visual, placement } = layoutFromGraph(graph);
+    computeAlignedLayout(graph, visual, placement);
 
     const multiTube = visual.filter((vc) => vc.tubes.length > 1);
     expect(multiTube.length).toBeGreaterThan(0);

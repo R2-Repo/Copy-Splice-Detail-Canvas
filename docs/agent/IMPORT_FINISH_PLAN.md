@@ -19,7 +19,7 @@ Ship P3 (memo + budgets + skip duplicate final eval), validate all 3 Left refere
 
 - P4 worker pool
 - `npm run test:rules` / full hardening
-- KI-003 full feasibility fix (Left-SPI-215 EDGE-011 slow path)
+- KI-003 full feasibility fix (Left-SPI-215 SDC-ROUTE-003-B slow path)
 - Frozen routing symbols (`.cursor/rules/frozen-routing.mdc`)
 
 ## P3 tasks
