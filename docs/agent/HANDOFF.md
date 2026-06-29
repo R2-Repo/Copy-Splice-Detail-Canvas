@@ -4,40 +4,29 @@
 
 ## Last updated
 
-2026-06-28 — **Recoverable import fallback**
+2026-06-28 — **SDC-LAYOUT-002 import false failures**
 
-### Done
+### Root cause
+
+Import rule checks rebuilt a default 2-side layout (`buildLayoutRuleContext`) but validated the optimizer's **quad** React Flow nodes. Stem-column alignment grouped cables by stale left/right placement, so quad finalists falsely failed `SDC-LAYOUT-002` ("shared label column misaligned").
+
+### Fix
 
 | Area | Change |
 |------|--------|
-| `pickBestRecoverableCandidate.ts` | Weighted rule-penalty ranking; heuristic in same pool as finalists |
-| `WorkflowCanvas.tsx` | Fast heuristic paint unchanged; final layout from recoverable pick |
-| `seedCandidateGeneration.ts` | More route-aware seeds (dominant T/B, bundle groups, width variants, stack reversals) |
-| `importDiagnostics.ts` | `recoverableSelection` block + console tables (vs heuristic, rejected) |
-| Tests | `pickBestRecoverableCandidate.test.ts` (4 tests) |
-
-### Selection order (no passing finalist)
-
-1. Fewest hard failures
-2. Lowest weighted penalty (SDC-LAYOUT-002 high, SDC-ROUTE-001 high, SDC-ROUTE-002/003 medium)
-3. Fewer route-zone / layout failures
-4. Better soft score → deterministic id tie-break
-
-### Enable diagnostics
-
-```
-VITE_DEBUG_IMPORT_OPTIMIZER=1
-```
-
-Import Left-STATE_OFFICE.csv → console shows `recoverable selection` with beat-heuristic reason.
+| `buildSdcContext.ts` | `buildSdcContextFromLayout` derives placement from evaluated cable nodes — no rebuild |
+| `quadGeometry.ts` | `quadStemAlignCanvasValue`, `quadFansTowardCenter`, `quadSameSideStemColumnsAligned` |
+| `layoutRules.ts` | Quad-aware stem alignment + fan direction; skip horizontal-only tube geometry for quad slim |
+| Tests | `quadGeometry.validation.test.ts`, `layout002Import.test.ts` (STATE_OFFICE heuristic + quad seeds) |
 
 ### Gates
 
-- `npm run smoke` — pass (350 fast tests + build)
+- `npm run smoke` — pass (354 fast tests + build)
+- `layout002Import.test.ts` — STATE_OFFICE quad seeds pass SDC-LAYOUT-002
 
-### Manual QA (dev)
+### Manual QA
 
-Import Left-STATE_OFFICE with optimizer on; confirm final layout is a top/bottom finalist (not blind heuristic) when finalists score better. Check `window.__SDC_LAST_IMPORT_DIAGNOSTICS__.recoverableSelection`.
+Import Left-STATE_OFFICE with optimizer on; confirm optimizer finalists no longer all fail SDC-LAYOUT-002 in `VITE_DEBUG_IMPORT_RULES=1` console table.
 
 ### Frozen
 
@@ -47,4 +36,4 @@ Import Left-STATE_OFFICE with optimizer on; confirm final layout is a top/bottom
 
 ## Prior session
 
-2026-06-28 — Import optimizer diagnostics. See git history.
+2026-06-28 — Recoverable import fallback. See git history.

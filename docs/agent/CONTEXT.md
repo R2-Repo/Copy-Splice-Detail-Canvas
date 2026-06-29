@@ -4,6 +4,8 @@
 
 ## Focus (2026-06-28)
 
+**SDC-LAYOUT-002 import fix** — quad optimizer candidates no longer false-fail fan-out stem alignment; validator uses evaluated graph state + quad-side grouping.
+
 **Recoverable import fallback** — heuristic is a normal candidate in the final pool; `pickBestRecoverableCandidate` ranks by rule failures + weighted penalties when no finalist fully passes.
 
 **Import optimizer shipped** — beam search (default), four-side scoring, routing intent + seed generation, finalist fallback, proxy T1, tiered `runRulesForTier`. See [`IMPORT_OPTIMIZER_BUILD.md`](./IMPORT_OPTIMIZER_BUILD.md).

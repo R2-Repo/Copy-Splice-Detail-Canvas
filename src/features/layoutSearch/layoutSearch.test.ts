@@ -243,6 +243,8 @@ describe("layoutSearch Phase 3", () => {
     expect(result.grid!.routingZone.topY).toBeDefined();
     expect(result.grid!.routingZone.bottomY).toBeDefined();
     expect(result.grid!.layoutMode).toBe("quad");
+    const layout002 = result.violations.filter((v) => v.id === "SDC-LAYOUT-002");
+    expect(layout002.every((v) => v.ok)).toBe(true);
   });
 
   it("enumerateCandidates covers all four sides", () => {
