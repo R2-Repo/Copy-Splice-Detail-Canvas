@@ -288,10 +288,26 @@ export function evaluateT0(
     rowIndex,
   );
 
+  const layoutMode = deriveLayoutMode(candidate);
   const graphCtx: SdcRuleContext = {
     report: graph.report,
     graph,
     visualCables,
+    overrides: {
+      reportKey: candidate.id ?? "layout-search-t0",
+      positions: {},
+      optimizedLayoutCandidate: candidate,
+      layoutMode,
+      cableSides: candidateToCableSidesRecord(candidate, visualCables),
+      ...(layoutMode === "quad"
+        ? {
+            quadCableSides: candidateToQuadCableSidesRecord(
+              candidate,
+              visualCables,
+            ),
+          }
+        : {}),
+    },
   };
   let violations: RuleResult[];
   if (cachedRules) {

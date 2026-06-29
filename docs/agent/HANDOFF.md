@@ -4,30 +4,33 @@
 
 ## Last updated
 
-2026-06-29 — **SDC-LAYOUT-001 import false failures**
+2026-06-29 — **Merge main into LAYOUT-001 fix branch**
 
-### Root cause
+### Conflict resolution
 
-During import search, `buildSdcContextFromLayout` rebuilt **default** heuristic placement via `buildLayoutRuleContext` while SDC-LAYOUT-001-B/C checked cable overlap/gap against those phantom positions — not the candidate’s painted React Flow nodes. That produced spurious `SDC-LAYOUT-001` rejections in optimizer logs.
+| File | Classification | Resolution |
+|------|----------------|------------|
+| `buildSdcContext.ts` | **Complicated (same intent)** | Kept main's `buildLayoutRuleContextFromEvaluated`; added branch's `ctx.placement` + `candidateToPlacementMap` fallback via `resolveEvaluatedPlacement` |
+| `CONTEXT.md` / `HANDOFF.md` | **Simple** | Combined LAYOUT-001 + LAYOUT-002/003 focus notes |
+| `layoutRules.ts`, `tieredEvaluate.ts` | **Simple (auto-merged)** | No manual edits needed |
 
-### Fix
+### Combined fix (post-merge)
 
 | Area | Change |
 |------|--------|
-| `buildLayoutRuleContextFromRendered` | New helper — cable positions from rendered nodes |
-| `buildSdcContextFromLayout` | Uses painted geometry + `placement` from search eval |
-| `evaluateCandidate` / `tieredEvaluate` T1 | Pass `graphResult.placement` into `SdcRuleContext` |
-| `buildSdcRuleContext` | Attach `placement` from `buildReactFlowGraph` |
-| `evaluateSdcLayoutSpacingRules` | Dropped duplicate `SDC-ORDER-002-B` (ORDER-002 owns pitch) |
-| `buildSdcContext.test.ts` | Regression on Left-SP-3254.5 candidate |
+| `buildSdcContext.ts` | No layout rebuild; prefer `graphResult.placement`, then candidate map, then node-derived order |
+| `evaluateCandidate` / T1 | Pass `graphResult.placement` into `SdcRuleContext` |
+| `evaluateSdcLayoutSpacingRules` | Dropped duplicate `SDC-ORDER-002-B` |
+| Main (#30) | Quad-aware LAYOUT-002 checks, `quadGeometry` helpers |
+| Main | **SDC-LAYOUT-003** — stack/side + rendered vs candidate |
 
 ### Gates
 
-- `npm run smoke` — pass (358 fast tests + build)
+- `npm run smoke` — run after merge commit
 
 ### Manual QA
 
-Import **Left-SP-3254.5** and **example-2** with `VITE_DEBUG_IMPORT_OPTIMIZER=1`; confirm `ruleRejectCounts` for `SDC-LAYOUT-001` drops vs pre-fix on multi-side candidates.
+Import Left-SP-3254.5, example-2, Left-STATE_OFFICE with `VITE_DEBUG_IMPORT_OPTIMIZER=1`.
 
 ### Frozen
 

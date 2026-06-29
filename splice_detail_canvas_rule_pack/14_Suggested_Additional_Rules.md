@@ -90,22 +90,9 @@ Should include:
 Why it matters:
 The grid rule implies orthogonal paths, but route geometry should be explicit for implementation.
 
-## 6. Side Assignment and Cable Placement (partially covered)
-Suggested Rule ID: SDC-LAYOUT-003
+## 6. Side Assignment and Cable Placement — **promoted to SDC-LAYOUT-003**
 
-Purpose:
-Define how the app chooses left/right/top/bottom cable placement during auto layout and retry layout.
-
-**Current state:** Side assignment is driven by the routing-first import optimizer [SDC-SCORE-001], [SDC-CORE-001]. There is no user two-sided vs four-sided toggle. A dedicated SDC-LAYOUT-003 rule may still formalize retry-layout side moves and user drag side changes [SDC-UX-001].
-
-Should include:
-- Optimizer side scoring and seed strategies.
-- Cable ordering on each populated edge.
-- Side move behavior references [SDC-UX-001].
-- Cleanest-side selection.
-
-Why it matters:
-The grid and glossary rules define multi-edge geometry, but side-assignment scoring and retry behavior deserve explicit documentation.
+See [`17_SDC-LAYOUT-003_Side_Assignment_and_Cable_Placement.md`](./17_SDC-LAYOUT-003_Side_Assignment_and_Cable_Placement.md).
 
 ## 7. Validation Messages and Severity Levels
 Suggested Rule ID: SDC-VALIDATE-001

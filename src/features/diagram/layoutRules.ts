@@ -1,5 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 
+import type { CableNodeData } from "@/features/canvas/nodes/types";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
 import {
   computeCableBreakout,
@@ -45,6 +46,11 @@ import {
   type LayoutExpansion,
 } from "@/features/diagram/layoutExpansion";
 import {
+  quadFansTowardCenter,
+  quadSameSideStemColumnsAligned,
+  quadStemAlignCanvasValue,
+} from "@/features/diagram/quad/quadGeometry";
+import {
   cableFiberTopToBottomOk,
   compactTubeFiberLayoutOk,
   tubesInTiaOrderOk,
@@ -86,7 +92,6 @@ import {
 } from "@/features/canvas/edges/spliceEdgeRouting";
 import { orderedFiberConnections } from "@/features/diagram/buildConnectionGraph";
 import { visualCableIdFromNodeId } from "@/features/diagram/cableDisplaySide";
-import type { CableNodeData } from "@/features/canvas/nodes/types";
 import {
   cablePositionsFromNodePositions,
   crossSideTubePairsAligned,
@@ -1064,13 +1069,31 @@ function spliceRoutesMinimizeBends(ctx: LayoutRuleContext): boolean {
 }
 
 function sameSideFiberStemColumnsAligned(ctx: LayoutRuleContext): boolean {
+  const cableNodes = ctx.reactFlow.nodes.filter((node) => node.type === "cable");
+  const quadCableNodes = cableNodes.filter(
+    (node) => (node.data as { quadSide?: string }).quadSide,
+  );
+  if (quadCableNodes.length > 0) {
+    return quadSameSideStemColumnsAligned(
+      quadCableNodes.map((node) => ({
+        position: node.position,
+        data: node.data as {
+          quadSide?: import("@/types/splice").QuadSide;
+          tubes: VisualCable["tubes"];
+          diagramScale?: number;
+          alignedStemX?: number;
+        },
+      })),
+    );
+  }
+
   for (const side of ["left", "right"] as const) {
     const stemCanvasX: number[] = [];
 
-    for (const node of ctx.reactFlow.nodes) {
-      if (node.type !== "cable") continue;
+    for (const node of cableNodes) {
       const data = node.data as {
         side: "left" | "right";
+        tubes?: VisualCable["tubes"];
         alignedStemX?: number;
         diagramScale?: number;
       };
@@ -1079,8 +1102,9 @@ function sameSideFiberStemColumnsAligned(ctx: LayoutRuleContext): boolean {
       if (sideOf(vc, ctx.placement) !== side) continue;
 
       const scale = data.diagramScale ?? 1;
+      const tubes = data.tubes ?? vc.tubes;
       const geo = computeCableBreakout(
-        vc.tubes,
+        tubes,
         side,
         CABLE_LAYOUT.fiberRowH,
         CABLE_LAYOUT.headerH,
@@ -1111,12 +1135,38 @@ function strandFansTowardCenter(ctx: LayoutRuleContext): boolean {
     if (node.type !== "cable") continue;
     const data = node.data as {
       side: "left" | "right";
+      quadSide?: import("@/types/splice").QuadSide;
       tubes: VisualCable["tubes"];
       diagramScale?: number;
       fiberPitch?: number;
       alignedStemX?: number;
     };
     const scale = data.diagramScale ?? 1;
+
+    if (data.quadSide) {
+      if (
+        !quadFansTowardCenter(
+          node.position,
+          data.tubes,
+          data.quadSide,
+          scale,
+          data.alignedStemX,
+        )
+      ) {
+        return false;
+      }
+      const stemValue = quadStemAlignCanvasValue(
+        node.position,
+        data.tubes,
+        data.quadSide,
+        scale,
+        data.alignedStemX,
+      );
+      if (data.quadSide === "left" && stemValue >= centerX) return false;
+      if (data.quadSide === "right" && stemValue <= centerX) return false;
+      continue;
+    }
+
     const pitch = data.fiberPitch ?? CABLE_LAYOUT.fiberRowH;
     const geo = computeCableBreakout(
       data.tubes,
@@ -1148,35 +1198,6 @@ function strandFansTowardCenter(ctx: LayoutRuleContext): boolean {
   }
 
   return true;
-}
-
-/** Build rule context from an already-painted React Flow graph (import search / live canvas). */
-export function buildLayoutRuleContextFromRendered(params: {
-  graph: ConnectionGraph;
-  visualCables: VisualCable[];
-  reactFlow: { nodes: Node[]; edges: Edge[] };
-  layoutWidth: number;
-  placement: Map<string, CablePlacement>;
-  layoutExpansion?: LayoutExpansion;
-  alignmentLocked?: ReadonlySet<string>;
-  reportKey?: string;
-}): LayoutRuleContext {
-  const expansion = params.layoutExpansion ?? DEFAULT_LAYOUT_EXPANSION;
-  return runWithLayoutExpansion(expansion, () => ({
-    graph: params.graph,
-    visualCables: params.visualCables,
-    placement: params.placement,
-    layout: {
-      reportKey: params.reportKey ?? "rendered-layout",
-      rowYs: new Map(),
-      cablePositions: cablePositionsFromReactFlowNodes(params.reactFlow.nodes),
-      layoutWidth: params.layoutWidth,
-      alignmentLocked: params.alignmentLocked ?? new Set(),
-    },
-    reactFlow: params.reactFlow,
-    layoutWidth: params.layoutWidth,
-    layoutExpansion: expansion,
-  }));
 }
 
 function cablePositionsFromReactFlowNodes(
@@ -1582,15 +1603,29 @@ export function evaluateSdcLayoutSpacingRules(
 export function evaluateSdcLayoutFanoutRules(
   ctx: LayoutRuleContext,
 ): SdcCheckResult[] {
+  const quadSlim = ctx.reactFlow.nodes.some(
+    (node) =>
+      node.type === "cable" &&
+      (node.data as { slim?: boolean; quadSide?: string }).slim &&
+      (node.data as { quadSide?: string }).quadSide,
+  );
+
   const geo = tubeGeometryOk(ctx.visualCables, ctx.placement);
-  return [
-    { id: "SDC-LAYOUT-002-A", ok: geo.ok, detail: geo.detail },
-    { id: "SDC-LAYOUT-002-B", ok: geo.ok, detail: geo.detail },
-    {
-      id: "SDC-LAYOUT-002-E",
-      ok: rightSideMirrors(ctx.visualCables),
-      detail: "Right-side breakout is not mirrored",
-    },
+  const results: SdcCheckResult[] = [];
+
+  if (!quadSlim) {
+    results.push(
+      { id: "SDC-LAYOUT-002-A", ok: geo.ok, detail: geo.detail },
+      { id: "SDC-LAYOUT-002-B", ok: geo.ok, detail: geo.detail },
+      {
+        id: "SDC-LAYOUT-002-E",
+        ok: rightSideMirrors(ctx.visualCables),
+        detail: "Right-side breakout is not mirrored",
+      },
+    );
+  }
+
+  results.push(
     {
       id: "SDC-LAYOUT-002-F",
       ok: sameSideFiberStemColumnsAligned(ctx),
@@ -1601,7 +1636,9 @@ export function evaluateSdcLayoutFanoutRules(
       ok: strandFansTowardCenter(ctx),
       detail: "Fiber strand fans away from canvas center",
     },
-  ];
+  );
+
+  return results;
 }
 
 /** SDC-ROUTE-002 nesting checks (direct evaluators). */

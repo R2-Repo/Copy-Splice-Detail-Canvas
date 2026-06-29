@@ -1,16 +1,17 @@
+import type { Node } from "@xyflow/react";
+
+import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
+import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
+import { type LayoutRuleContext } from "@/features/diagram/layoutRules";
 import type { CablePlacement } from "@/features/diagram/canvasPlacement";
 import { computeCanvasPlacement } from "@/features/diagram/canvasPlacement";
 import { applyCableSideOverrides } from "@/features/diagram/cableDisplaySide";
 import { connectionRowIndexMap } from "@/features/diagram/connectionRowOrder";
-import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
-import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
-import {
-  buildLayoutRuleContextFromRendered,
-  type LayoutRuleContext,
-} from "@/features/diagram/layoutRules";
-import { importLayoutWidthForGraph } from "@/features/diagram/layoutSpliceDiagram";
+import { type AlignedDiagramLayout } from "@/features/diagram/spliceRowLayout";
+import { DEFAULT_LAYOUT_EXPANSION } from "@/features/diagram/layoutExpansion";
 import { routeAllOnGrid } from "@/features/grid/gridRouter";
 import type { SpliceRoutingLane } from "@/features/diagram/centerRouter";
+import type { CableNodeData } from "@/features/canvas/nodes/types";
 import { candidateToPlacementMap } from "@/features/layoutSearch/layoutCandidate";
 import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
 
@@ -40,19 +41,97 @@ export type BuildSdcRuleContextOptions = {
   withGrid?: boolean;
 };
 
-function resolveRenderedPlacement(ctx: SdcRuleContext): Map<string, CablePlacement> {
+/** Derive left/right placement from evaluated cable nodes (not a fresh layout rebuild). */
+function placementFromCableNodes(nodes: Node[]): Map<string, CablePlacement> {
+  const placement = new Map<string, CablePlacement>();
+  const orderBySide: Record<"left" | "right", number> = { left: 0, right: 0 };
+
+  const cableNodes = nodes
+    .filter((node) => node.type === "cable")
+    .sort((a, b) => a.position.y - b.position.y);
+
+  for (const node of cableNodes) {
+    const vcId = node.id.replace(/^cable-/, "");
+    const data = node.data as CableNodeData;
+    const side = data.side ?? "left";
+    const order = orderBySide[side];
+    orderBySide[side] = order + 1;
+    placement.set(vcId, { side, order });
+  }
+
+  return placement;
+}
+
+function minimalAlignedLayout(
+  nodes: Node[],
+  layoutWidth: number,
+): AlignedDiagramLayout {
+  const cablePositions = new Map<
+    string,
+    { x: number; y: number; height: number }
+  >();
+  for (const node of nodes) {
+    if (node.type !== "cable") continue;
+    const vcId = node.id.replace(/^cable-/, "");
+    cablePositions.set(vcId, {
+      x: node.position.x,
+      y: node.position.y,
+      height: node.height ?? 0,
+    });
+  }
+  return {
+    reportKey: "evaluated-layout",
+    rowYs: new Map(),
+    cablePositions,
+    layoutWidth,
+    alignmentLocked: new Set<string>(),
+  };
+}
+
+/** Prefer painted / candidate placement; fall back to node-derived order. */
+function resolveEvaluatedPlacement(ctx: SdcRuleContext): Map<string, CablePlacement> {
   if (ctx.placement) return ctx.placement;
 
   const visualCables = ctx.visualCables ?? [];
   const candidate = ctx.overrides?.optimizedLayoutCandidate;
   if (candidate && visualCables.length > 0) {
-    return candidateToPlacementMap(candidate, visualCables);
+    const fromCandidate = candidateToPlacementMap(candidate, visualCables);
+    if (fromCandidate.size > 0) return fromCandidate;
+  }
+
+  if (ctx.reactFlow) {
+    return placementFromCableNodes(ctx.reactFlow.nodes);
   }
 
   const rowIndex = connectionRowIndexMap(ctx.graph, visualCables);
   const placement = computeCanvasPlacement(ctx.graph, visualCables, rowIndex);
   applyCableSideOverrides(placement, visualCables, ctx.overrides?.cableSides);
   return placement;
+}
+
+/** Build layout-rule context from the evaluated import/search graph — no rebuild. */
+function buildLayoutRuleContextFromEvaluated(
+  ctx: SdcRuleContext,
+): LayoutRuleContext {
+  const visualCables =
+    ctx.visualCables ?? buildVisualCablesForLayout(ctx.graph).visualCables;
+  const layoutWidth = ctx.layoutWidth ?? 1920;
+  const placement = resolveEvaluatedPlacement(ctx);
+
+  for (const vc of visualCables) {
+    const p = placement.get(vc.id);
+    if (p) vc.side = p.side;
+  }
+
+  return {
+    graph: ctx.graph,
+    visualCables,
+    placement,
+    layout: minimalAlignedLayout(ctx.reactFlow!.nodes, layoutWidth),
+    reactFlow: ctx.reactFlow!,
+    layoutWidth,
+    layoutExpansion: ctx.overrides?.layoutExpansion ?? DEFAULT_LAYOUT_EXPANSION,
+  };
 }
 
 /** Build grid routing input from a connection graph (cable-level edges, pre-split). */
@@ -159,19 +238,9 @@ export function buildSdcRuleContext(
 export function buildSdcContextFromLayout(
   ctx: SdcRuleContext,
 ): LayoutRuleContext | undefined {
-  if (!ctx.reactFlow || !ctx.visualCables?.length) return undefined;
+  if (!ctx.reactFlow || !ctx.graph || !ctx.visualCables?.length) return undefined;
   try {
-    const layoutWidth =
-      ctx.layoutWidth ?? importLayoutWidthForGraph(ctx.graph);
-    return buildLayoutRuleContextFromRendered({
-      graph: ctx.graph,
-      visualCables: ctx.visualCables,
-      reactFlow: ctx.reactFlow,
-      layoutWidth,
-      placement: resolveRenderedPlacement(ctx),
-      layoutExpansion: ctx.overrides?.layoutExpansion,
-      reportKey: ctx.overrides?.reportKey,
-    });
+    return buildLayoutRuleContextFromEvaluated(ctx);
   } catch {
     return undefined;
   }

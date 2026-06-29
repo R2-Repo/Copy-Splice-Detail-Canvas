@@ -19,6 +19,7 @@ const GRID_D4_RULE_IDS = [
   "SDC-ROUTE-003",
   "SDC-LAYOUT-001",
   "SDC-LAYOUT-002",
+  "SDC-LAYOUT-003",
   "SDC-UX-001",
 ] as const satisfies readonly SdcRuleId[];
 
