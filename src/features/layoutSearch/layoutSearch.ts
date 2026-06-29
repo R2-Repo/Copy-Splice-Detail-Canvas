@@ -48,7 +48,6 @@ import {
   endSearchDiagnostics,
   getActiveSearchDiagnostics,
   recordCacheAccess,
-  recordCandidateGenerated,
   recordFinalist,
   recordPhaseTiming,
   recordWinner,
@@ -918,10 +917,6 @@ function runBeamSearch(
   let beamPool = timePhase(getActiveSearchDiagnostics(), "candidateGeneration", () =>
     generateSeedCandidates(graph, intent, constraints, seedOptions),
   );
-  const searchDiagGen = getActiveSearchDiagnostics();
-  if (searchDiagGen) {
-    for (const c of beamPool) recordCandidateGenerated(searchDiagGen, c);
-  }
 
   const evaluateAtTier = (
     candidate: LayoutCandidate,

@@ -4,43 +4,29 @@
 
 ## Last updated
 
-2026-06-29 — **searchStats diagnostics fix** (`cursor/fix-searchstats-diagnostics-9fc7`)
+2026-06-29 — **top/bottom diagnostics fix** (`cursor/fix-topbottom-diagnostics-7c68`)
 
 ### This session
 
-- **Bug:** `[layoutSearch] evaluations=60` but merged `searchStats` showed `generated` / `evaluatedT0` / `finalists` all 0 while `evalSubPhaseCounts` matched real work.
-- **Cause:** Tier counters were recorded only from `layoutSearch.ts` (`recordCandidateEvaluated` in `evaluateAtTier`); eval sub-phases recorded in `tieredEvaluate.ts`. Worker bundle could hold two copies of `importDiagnostics` module state — sub-phase timers updated one copy, search stats another (empty slice).
-- **Fix:** Record `recordCandidateEvaluated` inside `evaluateT0` / `evaluateT1` / `evaluateT2` (same module as sub-phase timers); store active search diag on `globalThis`; reconcile tier counts from `evalSubPhaseCounts` in `endSearchDiagnostics` as fallback.
-- **Test:** `searchStatsDiagnostics.test.ts` — worker slice `searchStats.evaluatedT0` matches `evalSubPhaseCounts.evaluateT0`.
-- **Gate:** `npm run smoke` pass.
+**User question:** Why no cables on top/bottom in real imports? Logs say "no top/bottom candidates generated" while `topOrBottomReachedT0` / `topCandidates` show T/B work.
 
-### Prior (300N&MAIN import diagnostics QA)
+**Findings (not a generation block):**
+- `topCandidates` = **best-scoring** candidates (misleading name), not top-edge-only.
+- Search **does** try T/B on real CSVs (e.g. Left-SP: 42 T0, 36 T1). Synthetic `syntheticTopBottomReliefGraph` can win T/B.
+- Real imports keep L/R because: (1) heuristic fully passes rules; (2) T/B fail **SDC-LAYOUT-001** at T1 proxy (36× on Left-SP); (3) `evaluatedT2: 0` — no finalists; (4) recoverable selection keeps heuristic (`heuristicWon: true`).
+- False WARNING: `appendTopBottomNotes` checked `topOrBottomGenerated === 0` while generation counts only ran in `layoutSearch.ts` seed loop (stale vs tier counters); note also duplicated on worker merge + flush.
 
-Headless QA on **300N_MAIN.csv** (splice **300N&MAIN**, 278 pairs) with all debug flags:
+**Fix:**
+- Record `recordCandidateGenerated` on first T0 eval in `recordCandidateEvaluated` (WeakMap dedupe).
+- Reconcile `generated` / `topOrBottomGenerated` from tier stats when lagging.
+- Warning when **no T0 T/B tries**; drop worker-side `appendTopBottomNotes` (flush only).
+- Console label: "Best-scoring candidates (not top-edge only)".
 
-- `VITE_DEBUG_IMPORT_OPTIMIZER=1` (+ timing, candidates, rules, top/bottom, layout search)
-- Script: `scripts/import-diagnostics-qa.mjs`
-- Artifacts: `docs/reference/import-diagnostics/300N_MAIN-*`
-
-**Result:** search candidate fully passes rules; heuristic rejected on soft score. Worker search ~1.2s; no config banner.
-
-### Merged from main (#31 LAYOUT-001)
-
-| Area | Change |
-|------|--------|
-| `buildSdcContext.ts` | No layout rebuild; prefer `graphResult.placement`, then candidate map, then node-derived order |
-| `evaluateCandidate` / T1 | Pass `graphResult.placement` into `SdcRuleContext` |
-| `evaluateSdcLayoutSpacingRules` | Dropped duplicate `SDC-ORDER-002-B` |
-| Main (#30) | Quad-aware LAYOUT-002 checks, `quadGeometry` helpers |
-| Main (#32) | **SDC-LAYOUT-003** — stack/side + rendered vs candidate |
-
-### Gates
-
-- `npm run smoke` — run after merge commit
+**Gate:** `npm run smoke` pass.
 
 ### Manual QA
 
-Import `300N_MAIN.csv`, Left-SP-3254.5, example-2, Left-STATE_OFFICE with `VITE_DEBUG_IMPORT_OPTIMIZER=1`.
+Import Left-SP-3254.5 with `VITE_DEBUG_IMPORT_OPTIMIZER=1` — no false "no top/bottom" WARNING; top/bottom summary shows reached T0/T1 > 0.
 
 ### Frozen
 

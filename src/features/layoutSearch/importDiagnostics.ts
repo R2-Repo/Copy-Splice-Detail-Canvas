@@ -227,6 +227,9 @@ let nextImportId = 1;
 let activeSession: ImportDiagnostics | null = null;
 let activeSearchDiag: ImportDiagnostics | null = null;
 
+/** First T0 eval per candidate id — drives generated / top-bottom generation counts. */
+const t0SeenCandidateIds = new WeakMap<ImportDiagnostics, Set<string>>();
+
 function setActiveSearchDiag(diag: ImportDiagnostics | null): void {
   activeSearchDiag = diag;
   if (typeof globalThis === "undefined") return;
@@ -259,6 +262,28 @@ function reconcileSearchStatsFromEvalCounts(diag: ImportDiagnostics): void {
   if (stats.evaluatedT2 === 0 && counts.evaluateT2 > 0) {
     stats.evaluatedT2 = counts.evaluateT2;
   }
+  // Generation counts are recorded on first T0 eval; fall back when worker slice split module state.
+  if (stats.generated === 0 && stats.evaluatedT0 > 0) {
+    stats.generated = stats.evaluatedT0;
+  }
+  if (stats.topOrBottomGenerated === 0 && stats.topOrBottomReachedT0 > 0) {
+    stats.topOrBottomGenerated = stats.topOrBottomReachedT0;
+  }
+}
+
+function noteFirstT0Generation(
+  diag: ImportDiagnostics,
+  candidate: LayoutCandidate,
+): void {
+  let seen = t0SeenCandidateIds.get(diag);
+  if (!seen) {
+    seen = new Set();
+    t0SeenCandidateIds.set(diag, seen);
+  }
+  const id = candidate.id ?? candidateStableId(candidate);
+  if (seen.has(id)) return;
+  seen.add(id);
+  recordCandidateGenerated(diag, candidate);
 }
 
 export function importDiagnosticsEnabled(): boolean {
@@ -338,7 +363,6 @@ export function endSearchDiagnostics(): ImportSearchDiagnosticsSlice | undefined
   const diag = readActiveSearchDiag();
   if (!diag) return undefined;
   reconcileSearchStatsFromEvalCounts(diag);
-  appendTopBottomNotes(diag);
   const slice = createSearchDiagnosticsSlice(diag);
   setActiveSearchDiag(null);
   return slice;
@@ -570,6 +594,7 @@ export function recordCandidateEvaluated(
   const usesTb = candidateUsesTopOrBottom(candidate);
 
   if (tier === "T0") {
+    noteFirstT0Generation(diag, candidate);
     diag.searchStats.evaluatedT0 += 1;
     if (usesTb) diag.searchStats.topOrBottomReachedT0 += 1;
   } else if (tier === "T1") {
@@ -784,8 +809,10 @@ function appendTopBottomNotes(diag: ImportDiagnostics): void {
   if (!debugImportTopBottomEnabled() && !debugImportOptimizerEnabled()) return;
 
   const s = diag.searchStats;
-  if (s.topOrBottomGenerated === 0) {
-    diag.notes.push("WARNING: no top/bottom candidates generated.");
+  const triedTopBottom =
+    s.topOrBottomReachedT0 > 0 || s.topOrBottomGenerated > 0;
+  if (!triedTopBottom) {
+    diag.notes.push("WARNING: no top/bottom candidates tried at T0.");
     return;
   }
   if (s.topOrBottomReachedT1 === 0 && s.topOrBottomReachedT0 > 0) {
@@ -898,7 +925,7 @@ export function printImportDiagnostics(diag: ImportDiagnostics): void {
   }
 
   if (diag.topCandidates.length > 0 && debugImportCandidatesEnabled()) {
-    console.log("Top candidates:");
+    console.log("Best-scoring candidates (not top-edge only):");
     console.table(
       diag.topCandidates.map((c) => ({
         id: c.candidateId,

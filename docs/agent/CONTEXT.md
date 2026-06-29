@@ -4,7 +4,9 @@
 
 ## Focus (2026-06-29)
 
-**Import searchStats diagnostics** — worker slice now records tier counters alongside eval sub-phases; `globalThis` singleton avoids duplicate module state in worker bundle.
+**Top/bottom diagnostics** — `topOrBottomGenerated` now recorded on first T0 eval (same path as tier counters); warning uses `topOrBottomReachedT0`; duplicate worker note removed.
+
+**Import searchStats diagnostics** — worker slice records tier counters alongside eval sub-phases; `globalThis` singleton avoids duplicate module state in worker bundle.
 
 **SDC-LAYOUT-001 import validation** — spacing checks use painted candidate geometry (merged with main's `buildLayoutRuleContextFromEvaluated` + explicit `placement` from search eval).
 
