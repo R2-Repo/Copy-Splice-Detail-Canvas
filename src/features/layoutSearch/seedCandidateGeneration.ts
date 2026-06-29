@@ -160,7 +160,7 @@ export function generateSeedCandidates(
   if (forced) pushUnique(seeds, seen, forced, constraints);
 
   const dominant = intent.dominantPairs[0];
-  const lock = constraints.dominantPairLock;
+  const lock = constraints.primaryPairLock;
   const { sideA, sideB } = preferredOppositeSides(intent, lock);
 
   if (dominant) {

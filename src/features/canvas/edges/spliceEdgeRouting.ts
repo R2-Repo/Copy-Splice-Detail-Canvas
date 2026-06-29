@@ -106,7 +106,7 @@ export {
   type SpliceHandleEntry,
 } from "@/features/canvas/edges/spliceHandleEntries";
 
-/** @internal EDGE-011 — exported for unit tests. */
+/** @internal SDC-ROUTE-003-B — exported for unit tests. */
 export const spliceLaneYTrackHelpers = {
   assignSideHorizLaneYs,
   assignGapBendLaneXs,

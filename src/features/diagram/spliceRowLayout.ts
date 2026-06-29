@@ -17,8 +17,7 @@ import type { CablePlacement } from "@/features/diagram/canvasPlacement";
 import {
   parentVisualGroupKey,
   visualGroupForConnection,
-  type DominantCablePair,
-} from "@/features/diagram/dominantCablePair";
+} from "@/features/diagram/visualCables";
 import { orderedFiberConnections } from "@/features/diagram/buildConnectionGraph";
 import {
   computeNearStraightShift,
@@ -172,7 +171,6 @@ type CablePairGroup = {
 function findCablePairGroups(
   graph: ConnectionGraph,
   visualCables: VisualCable[],
-  dominant?: DominantCablePair | null,
   minCount = HIGH_COUNT_PAIR_THRESHOLD,
 ): CablePairGroup[] {
   const counts = new Map<string, CablePairGroup>();
@@ -190,14 +188,7 @@ function findCablePairGroups(
     counts.set(key, entry);
   }
   return [...counts.values()]
-    .filter(
-      (g) =>
-        g.connectionCount >= minCount ||
-        (dominant !== undefined &&
-          dominant !== null &&
-          g.leftGroupKey === dominant.leftGroupKey &&
-          g.rightGroupKey === dominant.rightGroupKey),
-    )
+    .filter((g) => g.connectionCount >= minCount)
     .sort((a, b) => b.connectionCount - a.connectionCount);
 }
 
@@ -319,7 +310,7 @@ function alignConnsByCable(
 
 /**
  * Vertical slack a cable may shift without breaking same-side stack gaps
- * (CBL-001 / CBL-002). Returns the inclusive [min, max] shift relative to the
+ * (SDC-LAYOUT-001-B / SDC-LAYOUT-001-C). Returns the inclusive [min, max] shift relative to the
  * cable's current Y.
  */
 function sameSideShiftSlack(
@@ -390,7 +381,7 @@ function appliableNearStraightShift(
 }
 
 /**
- * Horizontal leg alignment (EDGE-013) — snap near-straight legs flat.
+ * Horizontal leg alignment (SDC-UX-001-A) — snap near-straight legs flat.
  *
  * After cable-pair alignment, nudge each remaining (unlocked) cable's Y by a
  * small amount (≤ tolerance) so legs that are only a few px off become a single
@@ -432,7 +423,7 @@ function snapNearStraightCables(
 
 /**
  * Max residual near-straight shift across unlocked cables — 0 at the alignment
- * fixpoint. Used by EDGE-013 to verify the layout snapped all flattenable legs.
+ * fixpoint. Used by SDC-UX-001-A to verify the layout snapped all flattenable legs.
  */
 export function maxNearStraightResidual(
   visualCables: VisualCable[],
@@ -475,7 +466,6 @@ export function computeAlignedLayout(
   graph: ConnectionGraph,
   visualCables: VisualCable[],
   placement: Map<string, CablePlacement>,
-  dominant?: DominantCablePair | null,
   layoutWidth?: number,
   excludeConnectionIds?: ReadonlySet<string>,
 ): AlignedDiagramLayout {
@@ -488,13 +478,11 @@ export function computeAlignedLayout(
   const sorted = connectionsInRowLayoutOrder(
     graph,
     visualCables,
-    dominant,
     excludeConnectionIds,
   );
   const rowOffsets = connectionRowOffsets(
     graph,
     visualCables,
-    dominant,
     excludeConnectionIds,
   );
 
@@ -560,7 +548,7 @@ export function computeAlignedLayout(
     cablePositions,
   );
 
-  const cablePairGroups = findCablePairGroups(graph, visualCables, dominant);
+  const cablePairGroups = findCablePairGroups(graph, visualCables);
   let locked: ReadonlySet<string> = new Set<string>();
   if (cablePairGroups.length > 0) {
     locked = applyCablePairAlignment(
@@ -580,7 +568,7 @@ export function computeAlignedLayout(
     );
   }
 
-  // EDGE-013 horizontal leg alignment — snap near-straight legs to a flat line.
+  // SDC-UX-001-A horizontal leg alignment — snap near-straight legs to a flat line.
   snapNearStraightCables(visualCables, placement, cablePositions, locked);
   reflowStackPreservingY(leftCables, cablePositions);
   reflowStackPreservingY(rightCables, cablePositions);

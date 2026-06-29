@@ -177,7 +177,7 @@ describe("gridRouter", () => {
       for (const [edgeId, nodesLane] of nodesLanes) {
         const gridLane = gridLanes.get(edgeId);
         expect(gridLane, edgeId).toBeDefined();
-        // Grid may offset midX by multiple lane steps to de-stack vertical legs (EDGE-011).
+        // Grid may offset midX by multiple lane steps to de-stack vertical legs (SDC-ROUTE-003-B).
         expect(Math.abs(gridLane!.midX - nodesLane.midX)).toBeLessThanOrEqual(
           SPLICE_LANE_SEP * 65,
         );

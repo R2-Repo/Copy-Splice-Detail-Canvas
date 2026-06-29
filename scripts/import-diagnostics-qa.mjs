@@ -160,11 +160,43 @@ const runSummary = {
   searchStats: diagnostics?.searchStats,
   fallback: diagnostics?.fallback,
   recoverableSelection: diagnostics?.recoverableSelection,
+  fastPath: diagnostics?.fastPath,
+  performanceBudget: diagnostics?.performanceBudget,
   ruleRejectCounts: diagnostics?.ruleRejectCounts,
   topBottomSummary: diagnostics?.topBottomSummary,
   finalistSummaries: diagnostics?.finalistSummaries,
   winner: diagnostics?.winner,
 };
+
+const PERF_BUDGET_WARN_MS = 10_000;
+const PERF_BUDGET_FAIL_MS = 15_000;
+const enforceBudget = process.env.SDC_ENFORCE_PERF_BUDGET === "1";
+const debugMode = diagnostics?.performanceBudget?.enabled === false;
+
+if (diagnostics?.performanceBudget?.exceeded) {
+  console.warn(
+    `[import-qa] optimizer exceeded ${PERF_BUDGET_FAIL_MS}ms budget: ${diagnostics.performanceBudget.optimizerWallMs}ms`,
+  );
+}
+
+if (
+  enforceBudget &&
+  !debugMode &&
+  diagnostics?.performanceBudget?.exceeded
+) {
+  console.error(
+    `[import-qa] FAIL: optimizer wall ${diagnostics.performanceBudget.optimizerWallMs}ms exceeds ${PERF_BUDGET_FAIL_MS}ms`,
+  );
+  process.exitCode = 1;
+} else if (
+  !debugMode &&
+  timing.totalMs > PERF_BUDGET_FAIL_MS &&
+  !diagnostics?.fastPath?.used
+) {
+  console.warn(
+    `[import-qa] total import ${formatMs(timing.totalMs)} exceeds ${PERF_BUDGET_FAIL_MS}ms (no fast-path)`,
+  );
+}
 
 if (outDir) {
   const consolePath = join(outDir, `${baseName}-console.log`);

@@ -38,7 +38,7 @@ import type { VisualCable } from "@/features/diagram/visualCables";
 
 export type { SpliceHandleEntry, SpliceRoutingLane };
 
-/** Layout-rule handle positions for EDGE-011 overlap geometry during grid reconcile. */
+/** Layout-rule handle positions for SDC-ROUTE-003-B overlap geometry during grid reconcile. */
 export type LayoutEndpointSync = {
   graph: ConnectionGraph;
   visualCables: VisualCable[];
@@ -49,7 +49,7 @@ export type LayoutEndpointSync = {
   }>;
 };
 
-/** Max source/target horiz lane steps before forced offset (EDGE-011). */
+/** Max source/target horiz lane steps before forced offset (SDC-ROUTE-003-B). */
 const MAX_SIDE_HORIZ_LANE_ATTEMPTS = 256;
 /** Max 24px Y bumps per deconflict pair. */
 const MAX_GAP_HORIZ_DECONFLICT_STEPS = 32;
@@ -179,7 +179,7 @@ export function spliceTubeBundleKey(
   return `${normalizeVisualCableIdForRouting(sourceVisualCableId)}|${sourceTubeColor}|${normalizeVisualCableIdForRouting(targetVisualCableId)}`;
 }
 
-/** Dot stack group = all splices from fibers in one source buffer tube (DOT-002). */
+/** Dot stack group = all splices from fibers in one source buffer tube (SDC-UX-001-C). */
 export function sourceTubeDotGroupKey(
   sourceVisualCableId: string,
   sourceTubeColor: string,
@@ -468,7 +468,7 @@ function sameSideLoopBundleSkipsJogX(members: MidXLaneCandidate[]): boolean {
   return bundleMidOrderInverts(sorted);
 }
 
-/** Same-side loop bundles use dedicated slot order (EDGE-010) — skip EDGE-005 enforce. */
+/** Same-side loop bundles use dedicated slot order (SDC-ROUTE-002) — skip SDC-ROUTE-002 enforce. */
 export function sameSideLoopBundleUsesSpecialMidXOrder(
   members: MidXLaneCandidate[],
 ): boolean {
@@ -829,7 +829,7 @@ export function packMidXLanes(
   return result;
 }
 
-/** EDGE-005 monotonicity for one tube bundle (skips same-side loop bundles). */
+/** SDC-ROUTE-002 monotonicity for one tube bundle (skips same-side loop bundles). */
 function enforceEdge005MidXMonotonicityInBundle(
   lanes: Map<string, SpliceRoutingLane>,
   bundle: MidXLaneCandidate[],
@@ -1115,7 +1115,7 @@ function verticalSpanOverlaps(
 }
 
 /**
- * EDGE-012: offset midX when vertical legs would stack on the same X track.
+ * SDC-ROUTE-003-C: offset midX when vertical legs would stack on the same X track.
  *
  * Global pass — vertical legs from different routing zones can land at the
  * same X with overlapping Y spans on busy multi-cable diagrams. A single
@@ -1248,7 +1248,7 @@ function assignVertLanesForTubeBundle(
 }
 
 /**
- * EDGE-011: assign distinct gap bend X per strand so OS-column vertical legs
+ * SDC-ROUTE-003-B: assign distinct gap bend X per strand so OS-column vertical legs
  * never stack when Y-offset tracks turn toward center midX.
  */
 export function assignGapBendLaneXs(
@@ -3028,7 +3028,7 @@ function sealJogXGapHorizOverlaps(
   }
 }
 
-/** Gap-bend X; Y offsets applied only when gap horizontals would stack (EDGE-011). */
+/** Gap-bend X; Y offsets applied only when gap horizontals would stack (SDC-ROUTE-003-B). */
 function assignSideHorizLanesWithGapBends(
   candidates: MidXLaneCandidate[],
   lanes: Map<string, SpliceRoutingLane>,
@@ -3536,7 +3536,7 @@ function assignHorizLanesForTubeBundle(
 }
 
 /**
- * EDGE-011: stack horizontal tracks at SPLICE_LANE_SEP increments so source-
+ * SDC-ROUTE-003-B: stack horizontal tracks at SPLICE_LANE_SEP increments so source-
  * side and target-side H segments never share the same Y at overlapping X.
  *
  * Global pass — horizontals from different routing zones can collide on the

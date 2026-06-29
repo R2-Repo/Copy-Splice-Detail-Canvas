@@ -11,6 +11,16 @@ Use an invisible grid as the main structure for automatic layout, fiber routing,
 
 The grid is the spatial source of truth for routing. Auto layout is the process that uses the grid [SDC-UX-001].
 
+## Grid pitch constant
+
+The canvas grid MUST use a **24px** base pitch on both axes [SDC-GRID-001]. This is the same constant as:
+
+- Fiber row pitch within a buffer tube [SDC-ORDER-002].
+- Minimum strand lane separation in the routing zone [SDC-LAYOUT-001], [SDC-ROUTE-003].
+- Fan-out and nesting rhythm [SDC-LAYOUT-002], [SDC-ROUTE-002].
+
+Grid lines, lane reservation, and strand spacing MUST NOT stretch or compress this pitch to fill space.
+
 ## Grid Model
 
 The grid is not a visible box system for the user. It is an internal routing map.
@@ -48,7 +58,7 @@ x=120,y=240 -> x=400,y=240 -> x=400,y=320 -> x=760,y=320
 
 The routing engine MUST reserve the exact lane segments used by each accepted route. Unrelated strands MUST NOT use the same occupied segment unless a specific bundling rule allows it [SDC-ROUTE-003].
 
-## Four-Sided Layout Support
+## Multi-Edge Layout Support
 
 The grid MUST support these zones:
 
@@ -60,7 +70,7 @@ Bottom cable zone
 Center routing grid
 ```
 
-Cables MAY be placed on left, right, top, or bottom sides when four-sided diagram mode is enabled [SDC-CORE-001].
+Cables MAY be placed on left, right, top, or bottom edges. Side assignment is determined by the import routing optimizer — not by a user layout-mode toggle [SDC-CORE-001], [SDC-SCORE-001]. Any subset of edges may be populated; unused edges remain empty.
 
 ## Routing Quadrants
 

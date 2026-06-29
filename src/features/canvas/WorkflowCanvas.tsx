@@ -152,10 +152,11 @@ import {
 import {
   deriveLayoutMode,
   heuristicBaselineCandidate,
+  compareCandidates,
   type LayoutCandidate,
 } from "@/features/layoutSearch/layoutCandidate";
 import { LayoutSearchOverlay } from "@/features/layoutSearch/LayoutSearchOverlay";
-import { legacyImportLayoutEnabled, showLayoutModeToggle } from "@/features/layoutSearch/legacyImportLayout";
+import { heuristicImportLayoutEnabled, showLayoutModeToggle } from "@/features/layoutSearch/heuristicImportLayout";
 import {
   initialSearchProgress,
   layoutSearchViaWorker,
@@ -167,15 +168,22 @@ import {
   seedFromReportKey,
   pickBestPassingFinalist,
   type LayoutSearchProgress,
+  type LayoutSearchResult,
 } from "@/features/layoutSearch/layoutSearch";
-import { importTimeBudgetMs } from "@/features/layoutSearch/importSearchConfig";
+import {
+  checkImportPerformanceBudget,
+  importPerformanceBudgetEnabled,
+  importTimeBudgetMs,
+} from "@/features/layoutSearch/importSearchConfig";
 import {
   beginImportDiagnostics,
   finishImportDiagnostics,
   getActiveImportDiagnostics,
   mergeSearchDiagnosticsSlice,
   recordFallback,
+  recordFastPath,
   recordGraphStats,
+  recordPerformanceBudget,
   recordWinner,
   timePhase,
 } from "@/features/layoutSearch/importDiagnostics";
@@ -188,6 +196,7 @@ import {
 } from "@/features/layoutSearch/pickBestRecoverableCandidate";
 import { analyzeTopology } from "@/features/layoutSearch/topology/analyzeTopology";
 import { evaluateLayoutCandidate } from "@/features/layoutSearch/evaluateCandidate";
+import type { LayoutEvaluationResult } from "@/features/layoutSearch/evaluateCandidate";
 import {
   toLayoutCandidate,
   verifyLayoutCandidate,
@@ -309,7 +318,7 @@ function attachDiagramOverlayNodes(
 }
 
 function hasOptimizedCandidate(reportKey: string | null): boolean {
-  if (!reportKey || legacyImportLayoutEnabled()) return false;
+  if (!reportKey || heuristicImportLayoutEnabled()) return false;
   return loadLayoutOverrides(reportKey)?.optimizedLayoutCandidate !== undefined;
 }
 
@@ -823,10 +832,10 @@ function WorkflowCanvasInner() {
 
       let layoutExpansion: LayoutExpansion =
         existing?.layoutExpansion ?? DEFAULT_LAYOUT_EXPANSION;
-      const useLegacyLayout = legacyImportLayoutEnabled();
+      const useHeuristicLayout = heuristicImportLayoutEnabled();
       const storedCandidate = existing?.optimizedLayoutCandidate;
       const useOptimizedCandidate =
-        !useLegacyLayout && storedCandidate !== undefined;
+        !useHeuristicLayout && storedCandidate !== undefined;
       const shouldResolveFeasibleLayout =
         !useOptimizedCandidate &&
         options?.layoutWidth === undefined &&
@@ -1033,7 +1042,7 @@ function WorkflowCanvasInner() {
     const existing = loadLayoutOverrides(reportKey);
     if (
       existing?.optimizedLayoutCandidate &&
-      !legacyImportLayoutEnabled()
+      !heuristicImportLayoutEnabled()
     ) {
       return;
     }
@@ -1149,144 +1158,78 @@ function WorkflowCanvasInner() {
           evaluationBudget: maxRounds,
         };
 
-        setLayoutSearchProgress(
-          initialSearchProgress(
-            {
-              phase: "heuristic_paint",
-              ...searchMeta,
-            },
-            { message: `Routing ${strandCount.toLocaleString()} fibers…` },
-          ),
-        );
-
-        const heuristic = timePhase(
-          getActiveImportDiagnostics(),
-          "heuristicCandidate",
-          () => heuristicBaselineCandidate(graph, layoutWidth),
-        );
-        timePhase(getActiveImportDiagnostics(), "heuristicPaint", () => {
-          saveLayoutOverrides(
-            mergeLayoutOverrides(reportKey, {
-              ...candidateOverridePatch(graph, heuristic, reportKey),
-              collapseFullButtSplices: collapsed,
-              autoAdjustEnabled: saved?.autoAdjustEnabled !== false,
-            }),
-          );
-          layoutModeRef.current = deriveLayoutMode(heuristic);
-          setLayoutModeState(deriveLayoutMode(heuristic));
-          finishImport(layoutWidth, true);
-        });
-
-        setLayoutSearchProgress(
-          initialSearchProgress(
-            {
-              phase: "optimizing",
-              ...searchMeta,
-            },
-            { message: `Routing ${strandCount.toLocaleString()} fibers…` },
-          ),
-        );
-
-        let searchResult;
-        const workerStart = performance.now();
-        try {
-          searchResult = await layoutSearchViaWorker(
-            graph,
-            {
-              seed: seedFromReportKey(reportKey),
-              maxRounds,
-              timeBudgetMs,
-              onProgress: (progress) => {
-                if (layoutSearchRunRef.current !== runId) return;
-                setLayoutSearchProgress(progress);
-              },
-              shouldCancel: () => layoutSearchCancelRef.current,
-            },
-            searchMeta,
-          );
-        } catch (err) {
-          if (layoutSearchRunRef.current !== runId) return;
-          setLayoutSearchProgress(null);
-          const message =
-            err instanceof Error ? err.message : String(err);
-          const timedOut = message.includes("timed out");
-          setConfigErrorBanner(
-            timedOut
-              ? "Layout search timed out; keeping heuristic layout."
-              : `Layout search failed: ${message}`,
-          );
-          const importDiagErr = getActiveImportDiagnostics();
-          if (importDiagErr) {
-            recordFallback(
-              importDiagErr,
-              timedOut ? "worker search timed out" : message,
-            );
-          }
-          finishImportDiagnostics();
-          return;
-        }
-
-        if (layoutSearchRunRef.current !== runId) return;
-
         const importDiag = getActiveImportDiagnostics();
-        if (importDiag) {
-          importDiag.notes.push(
-            `Worker search wall: ${Math.round(performance.now() - workerStart)}ms`,
-          );
-          if (searchResult.importDiagnosticsSlice) {
-            mergeSearchDiagnosticsSlice(
-              importDiag,
-              searchResult.importDiagnosticsSlice,
+
+        const applyCandidateLayout = (candidate: LayoutCandidate) => {
+          const stageWidth =
+            stageRef.current?.clientWidth ?? stageWidthRef.current ?? 0;
+          const renderWidth =
+            stageWidth > 0
+              ? stageLayoutWidthForGraph(graph, stageWidth)
+              : candidate.layoutWidth;
+          const renderCandidate =
+            renderWidth !== candidate.layoutWidth
+              ? { ...candidate, layoutWidth: renderWidth }
+              : candidate;
+
+          timePhase(importDiag, "applyWinner", () => {
+            saveLayoutOverrides(
+              mergeLayoutOverrides(reportKey, {
+                ...candidateOverridePatch(graph, renderCandidate, reportKey),
+                collapseFullButtSplices: collapsed,
+                autoAdjustEnabled: saved?.autoAdjustEnabled !== false,
+              }),
             );
-          }
-        }
-
-        setLayoutSearchProgress(
-          initialSearchProgress(
-            {
-              phase: "finalizing",
-              ...searchMeta,
-            },
-            {
-              round: searchResult.evaluations,
-              evaluations: searchResult.evaluations,
-              bestScore: searchResult.bestScore,
-              feasible: searchResult.bestScore < Number.MAX_SAFE_INTEGER,
-              elapsedMs: 0,
-              message: "Applying best layout…",
-            },
-          ),
-        );
-
-        const pickedFinalist = pickBestPassingFinalist(
-          searchResult.finalists ?? [],
-        );
-
-        let candidate: LayoutCandidate;
-        let evaluation: ReturnType<typeof evaluateLayoutCandidate>;
-
-        if (pickedFinalist) {
-          candidate = pickedFinalist.candidate;
-          evaluation = timePhase(importDiag, "finalRuleValidation", () =>
-            pickedFinalist.evaluation ??
-            evaluateLayoutCandidate(graph, candidate),
-          );
-          if (importDiag && !searchResult.importDiagnosticsSlice?.selected) {
-            recordWinner(importDiag, candidate, {
-              feasible: evaluation.feasible,
-              score: evaluation.score,
-              violations: evaluation.violations,
-              softScore: evaluation.softScore,
-              reason: searchResult.diagnostics?.selectedCandidateReason,
+            layoutModeRef.current = deriveLayoutMode(renderCandidate);
+            setLayoutModeState(deriveLayoutMode(renderCandidate));
+            applyGraph(graph, reportKey, collapsed, {
+              fitView: false,
+              fitAtUnitZoom: false,
+              layoutWidth: renderWidth,
+              refreshLayout: true,
+              refreshColumnX: true,
+              refreshRowLayout: true,
             });
-          }
-        } else {
-          const heuristicEval = timePhase(importDiag, "finalRuleValidation", () =>
-            evaluateLayoutCandidate(graph, heuristic),
+          });
+          setMeta(
+            `${options.sourceLabel} — ${graph.report.pairs.length} pair(s), ${graph.connections.length} connection(s)`,
           );
+          scheduleFitViewAfterLayout();
+        };
+
+        const resolveCandidateFromSearch = (
+          searchResult: LayoutSearchResult,
+          heuristicCandidate: LayoutCandidate,
+          heuristicEvaluation: LayoutEvaluationResult,
+        ): {
+          candidate: LayoutCandidate;
+          evaluation: LayoutEvaluationResult;
+        } => {
+          const pickedFinalist = pickBestPassingFinalist(
+            searchResult.finalists ?? [],
+          );
+
+          if (pickedFinalist) {
+            const candidate = pickedFinalist.candidate;
+            const evaluation = timePhase(importDiag, "finalRuleValidation", () =>
+              pickedFinalist.evaluation ??
+              evaluateLayoutCandidate(graph, candidate),
+            );
+            if (importDiag && !searchResult.importDiagnosticsSlice?.selected) {
+              recordWinner(importDiag, candidate, {
+                feasible: evaluation.feasible,
+                score: evaluation.score,
+                violations: evaluation.violations,
+                softScore: evaluation.softScore,
+                reason: searchResult.diagnostics?.selectedCandidateReason,
+              });
+            }
+            return { candidate, evaluation };
+          }
+
           const heuristicEntry = toRecoverableCandidate(
-            heuristic,
-            heuristicEval,
+            heuristicCandidate,
+            heuristicEvaluation,
             "heuristic",
           );
 
@@ -1307,59 +1250,243 @@ function WorkflowCanvasInner() {
           );
 
           if (!selection) {
-            candidate = heuristic;
-            evaluation = heuristicEval;
             if (importDiag) {
               recordFallback(importDiag, "recoverable pool empty; using heuristic");
             }
             setConfigErrorBanner(
               "Layout optimizer found no candidates; using heuristic layout.",
             );
-          } else {
-            candidate = selection.picked.candidate;
-            evaluation =
-              selection.picked.evaluation ??
-              evaluateLayoutCandidate(graph, candidate);
-            applyRecoverableSelectionDiagnostics(importDiag, selection);
-            const banner = recoverableSelectionBanner(selection);
-            if (banner) setConfigErrorBanner(banner);
+            return {
+              candidate: heuristicCandidate,
+              evaluation: heuristicEvaluation,
+            };
           }
-        }
 
-        const stageWidth =
-          stageRef.current?.clientWidth ?? stageWidthRef.current ?? 0;
-        const renderWidth =
-          stageWidth > 0
-            ? stageLayoutWidthForGraph(graph, stageWidth)
-            : candidate.layoutWidth;
-        const renderCandidate =
-          renderWidth !== candidate.layoutWidth
-            ? { ...candidate, layoutWidth: renderWidth }
-            : candidate;
+          const candidate = selection.picked.candidate;
+          const evaluation =
+            selection.picked.evaluation ??
+            evaluateLayoutCandidate(graph, candidate);
+          applyRecoverableSelectionDiagnostics(importDiag, selection);
+          const banner = recoverableSelectionBanner(selection);
+          if (banner) setConfigErrorBanner(banner);
+          return { candidate, evaluation };
+        };
 
-        timePhase(importDiag, "applyWinner", () => {
+        const recordOptimizerBudget = (optimizerWallMs: number) => {
+          if (!importDiag || !importPerformanceBudgetEnabled()) return;
+          const budget = checkImportPerformanceBudget(optimizerWallMs);
+          recordPerformanceBudget(importDiag, {
+            enabled: true,
+            warnThresholdMs: budget.warnThresholdMs,
+            failThresholdMs: budget.failThresholdMs,
+            optimizerWallMs,
+            warn: budget.warn,
+            exceeded: budget.exceeded,
+          });
+          if (budget.exceeded) {
+            setConfigErrorBanner(
+              `Layout optimizer exceeded ${Math.round(budget.failThresholdMs / 1000)}s budget (${Math.round(optimizerWallMs / 1000)}s).`,
+            );
+          }
+        };
+
+        const runWorkerSearch = async (
+          profile: "full" | "background",
+          showProgress: boolean,
+        ): Promise<LayoutSearchResult> => {
+          const workerStart = performance.now();
+          const result = await layoutSearchViaWorker(
+            graph,
+            {
+              seed: seedFromReportKey(reportKey),
+              maxRounds,
+              timeBudgetMs,
+              searchProfile: profile,
+              onProgress: (progress) => {
+                if (!showProgress || layoutSearchRunRef.current !== runId) return;
+                setLayoutSearchProgress(progress);
+              },
+              shouldCancel: () => layoutSearchCancelRef.current,
+            },
+            searchMeta,
+          );
+          const optimizerWallMs = Math.round(performance.now() - workerStart);
+          if (importDiag) {
+            importDiag.notes.push(`Worker search wall: ${optimizerWallMs}ms`);
+            if (result.importDiagnosticsSlice) {
+              mergeSearchDiagnosticsSlice(
+                importDiag,
+                result.importDiagnosticsSlice,
+              );
+            }
+          }
+          if (profile === "full") {
+            recordOptimizerBudget(optimizerWallMs);
+          }
+          return result;
+        };
+
+        setLayoutSearchProgress(
+          initialSearchProgress(
+            {
+              phase: "heuristic_paint",
+              ...searchMeta,
+            },
+            { message: `Routing ${strandCount.toLocaleString()} fibers…` },
+          ),
+        );
+
+        const heuristic = timePhase(
+          importDiag,
+          "heuristicCandidate",
+          () => heuristicBaselineCandidate(graph, layoutWidth),
+        );
+        timePhase(importDiag, "heuristicPaint", () => {
           saveLayoutOverrides(
             mergeLayoutOverrides(reportKey, {
-              ...candidateOverridePatch(graph, renderCandidate, reportKey),
+              ...candidateOverridePatch(graph, heuristic, reportKey),
               collapseFullButtSplices: collapsed,
               autoAdjustEnabled: saved?.autoAdjustEnabled !== false,
             }),
           );
-          layoutModeRef.current = deriveLayoutMode(renderCandidate);
-          setLayoutModeState(deriveLayoutMode(renderCandidate));
-          applyGraph(graph, reportKey, collapsed, {
-            fitView: false,
-            fitAtUnitZoom: false,
-            layoutWidth: renderWidth,
-            refreshLayout: true,
-            refreshColumnX: true,
-            refreshRowLayout: true,
-          });
+          layoutModeRef.current = deriveLayoutMode(heuristic);
+          setLayoutModeState(deriveLayoutMode(heuristic));
+          finishImport(layoutWidth, true);
         });
-        setMeta(
-          `${options.sourceLabel} — ${graph.report.pairs.length} pair(s), ${graph.connections.length} connection(s)`,
+
+        const heuristicEval = timePhase(importDiag, "finalRuleValidation", () =>
+          evaluateLayoutCandidate(graph, heuristic),
         );
-        scheduleFitViewAfterLayout();
+
+        const useFastPath =
+          heuristicEval.feasible && importPerformanceBudgetEnabled();
+
+        if (useFastPath) {
+          if (importDiag) {
+            recordFastPath(importDiag, {
+              used: true,
+              heuristicPassed: true,
+              backgroundSearch: true,
+            });
+            recordWinner(importDiag, heuristic, {
+              feasible: true,
+              score: heuristicEval.score,
+              violations: heuristicEval.violations,
+              softScore: heuristicEval.softScore,
+              reason: "heuristic fast-path — all hard rules pass",
+            });
+          }
+          setLayoutSearchProgress(null);
+          scheduleFitViewAfterLayout();
+
+          void (async () => {
+            const bgStart = performance.now();
+            try {
+              const bgResult = await runWorkerSearch("background", false);
+              if (layoutSearchRunRef.current !== runId) return;
+
+              const bgDiag = getActiveImportDiagnostics();
+              const { candidate, evaluation } = resolveCandidateFromSearch(
+                bgResult,
+                heuristic,
+                heuristicEval,
+              );
+
+              const upgraded =
+                evaluation.feasible &&
+                compareCandidates(
+                  { score: evaluation.score, candidate },
+                  { score: heuristicEval.score, candidate: heuristic },
+                ) < 0;
+
+              if (bgDiag) {
+                recordFastPath(bgDiag, {
+                  backgroundSearchMs: Math.round(performance.now() - bgStart),
+                  upgradedLayout: upgraded,
+                });
+              }
+
+              if (upgraded) {
+                applyCandidateLayout(candidate);
+              }
+            } catch (err) {
+              const bgDiag = getActiveImportDiagnostics();
+              if (bgDiag) {
+                recordFastPath(bgDiag, {
+                  backgroundSearchMs: Math.round(performance.now() - bgStart),
+                });
+                recordFallback(
+                  bgDiag,
+                  err instanceof Error ? err.message : String(err),
+                );
+              }
+            } finally {
+              finishImportDiagnostics();
+            }
+          })();
+          return;
+        }
+
+        setLayoutSearchProgress(
+          initialSearchProgress(
+            {
+              phase: "optimizing",
+              ...searchMeta,
+            },
+            { message: `Routing ${strandCount.toLocaleString()} fibers…` },
+          ),
+        );
+
+        let searchResult: LayoutSearchResult;
+        try {
+          searchResult = await runWorkerSearch("full", true);
+        } catch (err) {
+          if (layoutSearchRunRef.current !== runId) return;
+          setLayoutSearchProgress(null);
+          const message =
+            err instanceof Error ? err.message : String(err);
+          const timedOut = message.includes("timed out");
+          setConfigErrorBanner(
+            timedOut
+              ? "Layout search timed out; keeping heuristic layout."
+              : `Layout search failed: ${message}`,
+          );
+          if (importDiag) {
+            recordFallback(
+              importDiag,
+              timedOut ? "worker search timed out" : message,
+            );
+          }
+          finishImportDiagnostics();
+          return;
+        }
+
+        if (layoutSearchRunRef.current !== runId) return;
+
+        setLayoutSearchProgress(
+          initialSearchProgress(
+            {
+              phase: "finalizing",
+              ...searchMeta,
+            },
+            {
+              round: searchResult.evaluations,
+              evaluations: searchResult.evaluations,
+              bestScore: searchResult.bestScore,
+              feasible: searchResult.bestScore < Number.MAX_SAFE_INTEGER,
+              elapsedMs: 0,
+              message: "Applying best layout…",
+            },
+          ),
+        );
+
+        const { candidate } = resolveCandidateFromSearch(
+          searchResult,
+          heuristic,
+          heuristicEval,
+        );
+
+        applyCandidateLayout(candidate);
         setLayoutSearchProgress(null);
         finishImportDiagnostics();
       };
@@ -1386,7 +1513,7 @@ function WorkflowCanvasInner() {
 
         const shouldOptimize =
           options.optimizeLayout === true &&
-          !legacyImportLayoutEnabled() &&
+          !heuristicImportLayoutEnabled() &&
           !(savedCandidate && options.refreshLayout === false);
 
         if (shouldOptimize) {
@@ -1396,7 +1523,7 @@ function WorkflowCanvasInner() {
 
         if (
           savedCandidate &&
-          !legacyImportLayoutEnabled() &&
+          !heuristicImportLayoutEnabled() &&
           options.refreshLayout !== true
         ) {
           const verify = verifyLayoutCandidate(
@@ -2291,7 +2418,7 @@ function WorkflowCanvasInner() {
         };
         const manualMode = !autoAdjustRef.current;
 
-        // EDGE-013 horizontal leg alignment — on manual release, snap the cable
+        // SDC-UX-001-A horizontal leg alignment — on manual release, snap the cable
         // to flatten near-straight legs against the partner cables' live Ys.
         if (manualMode) {
           const { visualCables } = buildVisualCablesForLayout(graph);

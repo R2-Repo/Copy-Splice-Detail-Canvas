@@ -1,8 +1,8 @@
 # Routing-first auto layout — build plan
 
-> **Status (2026-06-27):** Approved direction. Auto import picks the best layout; no 2-side / 4-side user toggle.
+> **Status (2026-06-29):** **Active.** Auto import picks the best layout via routing-first search; **no 2-side / 4-side user toggle.** Cable edge assignment is a search output [SDC-CORE-001], [SDC-SCORE-001].
 >
-> **Supersedes for auto placement:** side heuristics in `computeCableCanvasSides`, `computeCanvasPlacement` barycenter flow, and the horizontal vs quad **mode fork** on import. Quad remains a reference for 4-edge geometry until unified engine lands.
+> **Supersedes for auto placement:** side heuristics in `computeCableCanvasSides`, `computeCanvasPlacement` barycenter flow, and the horizontal vs quad **mode fork** on import. Top/bottom render adapters live in `diagram/quad/` — see [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md).
 >
 > **Frozen:** `.cursor/rules/frozen-routing.mdc` — search **calls** routing; does not edit frozen symbols without user approval.
 
@@ -97,7 +97,7 @@ Target: **one builder** driven by candidate side assignment:
 
 ## Scoring model
 
-Align with [`RULE_PRIORITY.md`](./RULE_PRIORITY.md) and [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md).
+Align with [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md) conflict priority section.
 
 ### Tier 1 — Reject candidate (`feasible: false`)
 
@@ -108,7 +108,7 @@ Run full rule set (or import + route + layout subset) via `buildSdcRuleContext` 
 - `SDC-LAYOUT-001`, `SDC-LAYOUT-002`
 - `SDC-GRID-001`
 - `SDC-ROUTE-001`, `SDC-ROUTE-002`, `SDC-ROUTE-003`
-- Legacy EDGE-004 (≤2 bends per strand)
+- Legacy SDC-ROUTE-004-A (≤2 bends per strand)
 
 Any `severity: "fail"` → discard.
 
@@ -190,7 +190,7 @@ Optional later: Web Worker for UI responsiveness (`layoutSearch.worker.ts`).
 
 - `loadFromCsv` / `activateDiagram` call `layoutSearch` instead of `computeCanvasPlacement` + `resolveFeasibleImportLayout`.
 - Single `buildCanvasFromCandidate` replaces mode fork on fresh import.
-- Remove layout mode toggle from toolbar (or hide behind dev flag until stable).
+- **Done:** Layout mode toggle removed — import always uses routing-first search [SDC-CORE-001].
 - Saved `.sdc.json`: store candidate snapshot; restore runs evaluate once to verify.
 
 **Gate:** `npm run smoke`; manual QA on example-2 + touched Left CSVs.
@@ -217,14 +217,14 @@ Optional later: Web Worker for UI responsiveness (`layoutSearch.worker.ts`).
 | `layoutMode` user toggle | Removed (import always optimized) |
 | Separate `buildQuadReactFlowGraph` import entry | Merged into unified builder |
 
-Keep fallbacks behind `USE_LEGACY_IMPORT_LAYOUT=1` env until reference CSVs pass.
+Keep fallbacks behind `VITE_USE_HEURISTIC_IMPORT=1` until reference CSVs pass.
 
 ## Relationship to existing docs
 
 | Doc | Relationship |
 |-----|----------------|
 | [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md) | Geometry/routing reference for top/bottom; auto mode fork section superseded by this plan |
-| [`RULE_PRIORITY.md`](./RULE_PRIORITY.md) | Scoring tier order |
+| [`00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md) | Scoring tier order |
 | [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md) | Re-evaluate after Phase 5 |
 | [`TESTING.md`](./TESTING.md) | Add search fixtures to manual QA checklist after Phase 4 |
 

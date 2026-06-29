@@ -10,7 +10,7 @@ Status: Active
 
 Define how the routing-first auto layout engine scores feasible candidates and picks a winner among layouts that pass all hard SDC rules.
 
-**SDC-SCORE-001 is Tier 2 only.** Hard gates remain existing SDC-DATA, SDC-ORDER, SDC-LAYOUT, SDC-GRID, SDC-ROUTE rules plus legacy EDGE-004 (≤2 bends per strand). Any `severity: "fail"` from those rules rejects a candidate before scoring.
+**SDC-SCORE-001 is Tier 2 only.** Hard gates remain SDC-DATA, SDC-ORDER, SDC-LAYOUT, SDC-GRID, and SDC-ROUTE rules including [SDC-ROUTE-004] (≤2 corners per splice). Any `severity: "fail"` from those rules rejects a candidate before scoring.
 
 ## When this rule runs
 
@@ -44,7 +44,7 @@ total = crossings×1000 + bendsOverBudget×100 + sameSideLoopbacks×500
 
 When two candidates have equal soft score:
 
-1. **Fewer sides used** (prefer two-sided layouts when scores tie).
+1. **Fewer sides used** (soft preference — prefer left/right-only outcomes when scores tie; not a layout-mode constraint).
 2. **Lexicographic stable candidate id** (`candidateStableId`).
 
 Search uses `compareCandidates()` with this order.
@@ -59,5 +59,5 @@ Any hard-rule `severity: "fail"` sets `feasible: false` and score `Number.MAX_SA
 
 ## Related docs
 
-- [`docs/agent/RULE_PRIORITY.md`](../docs/agent/RULE_PRIORITY.md) — Tier 1 vs Tier 2
+- [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md) — conflict priority
 - [`docs/agent/ROUTING_FIRST_LAYOUT.md`](../docs/agent/ROUTING_FIRST_LAYOUT.md) — search pipeline

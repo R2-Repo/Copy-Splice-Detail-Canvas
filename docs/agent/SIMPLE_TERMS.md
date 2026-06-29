@@ -50,14 +50,14 @@ Read each **cable** outside → in: cable → buffer tube → fan-out → labels
 
 | You say | What it is (plain) | Agent / code names | Rules (when relevant) |
 |---------|-------------------|--------------------|------------------------|
-| **Cable** | Round body + cable name on the outside edge | **Cable node**; **cable sheath**; **SMFO label**; **cable name**; optional **cable stub** | CBL-* |
-| **Buffer tube** | Thick colored line from cable toward the fan | **Buffer tube** / **tube stem**; **tube origin** (sheath end); **tube tip** (fan end); **tube label** at junction (e.g. BR) | TUB-* |
-| **Fan-out** | Curved thin lines from tube to each fiber row | **Fan legs** (**fan tail** + **fan top**); **fan junction** / **fan-out origin**; **fan zone** | STR-001, TUB-002 |
-| **Labels** | Square + letters + circuit text on each row | **Fiber label column**; **fiber swatch**; **fiber code** (SL, WH…); **circuit tag** `(CH 2004)` | TUB-007, FBR-* |
-| **Handle** | Colored dot where the splice path attaches; all handles on one side line up in one **handle column** | **Fiber handle**; **stem column** (`stemX`); fixed **handle column** at max label width | TUB-007 |
-| **Left leg** | Colored path from left **handle** to the dot | **Left leg**; `leftPath`; source-side color; **source handle** on left cable | EDGE-002, DOT-001 |
-| **Fusion splice dot** | Black dot where the two legs meet | **Fusion splice dot** / **fusion splice point**; `spliceX`, `spliceY` | DOT-001, DOT-002 |
-| **Right leg** | Colored path from the dot to right **handle** | **Right leg**; `rightPath`; target-side color; **target handle** on right cable | EDGE-002 |
+| **Cable** | Round body + cable name on the outside edge | **Cable node**; **cable sheath**; **SMFO label**; **cable name**; optional **cable stub** | **SDC-LAYOUT-001** |
+| **Buffer tube** | Thick colored line from cable toward the fan | **Buffer tube** / **tube stem**; **tube origin** (sheath end); **tube tip** (fan end); **tube label** at junction (e.g. BR) | **SDC-LAYOUT-002**, **SDC-ORDER-001** |
+| **Fan-out** | Curved thin lines from tube to each fiber row | **Fan legs** (**fan tail** + **fan top**); **fan junction** / **fan-out origin**; **fan zone** | **SDC-LAYOUT-002** |
+| **Labels** | Square + letters + circuit text on each row | **Fiber label column**; **fiber swatch**; **fiber code** (SL, WH…); **circuit tag** `(CH 2004)` | **SDC-LAYOUT-002**, **SDC-ORDER-002** |
+| **Handle** | Colored dot where the splice path attaches; all handles on one side line up in one **handle column** | **Fiber handle**; **stem column** (`stemX`); fixed **handle column** at max label width | **SDC-LAYOUT-002** |
+| **Left leg** | Colored path from left **handle** to the dot | **Left leg**; `leftPath`; source-side color; **source handle** on left cable | **SDC-ROUTE-004**, **SDC-UX-001** |
+| **Fusion splice dot** | Black dot where the two legs meet | **Fusion splice dot** / **fusion splice point**; `spliceX`, `spliceY` | **SDC-UX-001** |
+| **Right leg** | Colored path from the dot to right **handle** | **Right leg**; `rightPath`; target-side color; **target handle** on right cable | **SDC-ROUTE-004** |
 
 ### Left vs right cable (same words, mirrored)
 
@@ -77,7 +77,7 @@ A **corner** is a 90° turn on the **left leg** or **right leg** (horizontal ↔
 | **Corner on the left leg** | One 90° bend on the path from handle → dot |
 | **Corner on the right leg** | One 90° bend on the path from dot → handle |
 | **Straight leg** | That leg has **no corners** (one straight run) |
-| **Bend budget** | **2 corners total** for that splice — **left + right combined** | **SDC-ROUTE-003** |
+| **Bend budget** | **2 corners total** for that splice — **left + right combined** | **SDC-ROUTE-004** |
 
 **Important:** The limit is **not** 2 per leg. Count both legs together.
 
@@ -89,7 +89,7 @@ A **corner** is a 90° turn on the **left leg** or **right leg** (horizontal ↔
 | 1 + 1 | One corner each leg | ✓ |
 | 2 + 0 | Both corners on the **left leg** | ✓ |
 | 0 + 2 | Both corners on the **right leg** | ✓ |
-| 2 + 1 (or any sum **> 2**) | Over budget | ✗ **EDGE-004** |
+| 2 + 1 (or any sum **> 2**) | Over budget | ✗ **SDC-ROUTE-004** |
 
 **Example phrases:**
 
@@ -101,7 +101,7 @@ A **corner** is a 90° turn on the **left leg** or **right leg** (horizontal ↔
 | You say | Agent / code |
 |---------|--------------|
 | Corner / bend | **Bend**; `countOrthogonalBends(leftPath, rightPath)` |
-| Bend budget | **SDC-ROUTE-003**; `MAX_SPLICE_BENDS = 2` |
+| Bend budget | **SDC-ROUTE-004**; `MAX_SPLICE_BENDS = 2` |
 | Straight splice | 0 bends; rows aligned within ~12px |
 
 Fan-out curves on the **cable** side are **not** splice corners — only turns on **left leg** / **right leg** count toward the budget.
@@ -133,10 +133,10 @@ Vertical order on the cable and in the diagram — **not** the same as left/righ
 
 | You say | What it is | Agent / code | Rule |
 |---------|------------|--------------|------|
-| **Fiber order** | Top→bottom order of fibers **inside one buffer tube** (TIA colors) | **TIA fiber order**; fiber #1 at top | **FBR-001** |
-| **Tube order** | Top→bottom order of **buffer tubes** on the cable (BL…AQ, then striped) | **TIA tube order** | **TUB-006** |
-| **Row order** | Top→bottom order of **splice rows** on the full diagram | Global row layout; dominant pair first | **ROW-***, **DOM-*** |
-| **24px spacing** | Distance between neighboring fiber rows in a tube | **Row pitch** | **FBR-002** |
+| **Fiber order** | Top→bottom order of fibers **inside one buffer tube** (TIA colors) | **TIA fiber order**; fiber #1 at top | **SDC-ORDER-002-A** |
+| **Tube order** | Top→bottom order of **buffer tubes** on the cable (BL…AQ, then striped) | **TIA tube order** | **SDC-ORDER-001-A** |
+| **Row order** | Top→bottom order of **splice rows** on the full diagram | Global row layout; CSV + tube grouping | **SDC-LAYOUT-001-E**, **SDC-LAYOUT-001-F** |
+| **24px spacing** | Distance between neighboring fiber rows in a tube | **Row pitch** | **SDC-ORDER-002-B** |
 
 **Example phrases:**
 
@@ -144,7 +144,7 @@ Vertical order on the cable and in the diagram — **not** the same as left/righ
 - “**Tube order** on the left cable — OR tube should be below BL.”
 - “Preserve **row order** when nesting the **center bundle**.”
 
-**Center nest** follows **row order** / **fiber order**: which line corners first depends on which row is higher on the diagram (**EDGE-005**).
+**Center nest** follows **row order** / **fiber order**: which line corners first depends on which row is higher on the diagram (**SDC-ROUTE-002**).
 
 ---
 
@@ -154,17 +154,17 @@ You usually don’t need these in chat — agents reach for them when fixing rou
 
 | You might say… | Agent translates to… |
 |----------------|---------------------|
-| “Two corners on the right, none on the left” | 2 + 0 bend split; **EDGE-004** budget |
-| “Over the bend budget” | `bendCount > 2`; **EDGE-004** |
+| “Two corners on the right, none on the left” | 2 + 0 bend split; **SDC-ROUTE-004-A** budget |
+| “Over the bend budget” | `bendCount > 2`; **SDC-ROUTE-004-A** |
 | “The line bends too much in the middle” | Too many **corners** on legs; widen **midX** lanes instead |
-| “Vertical lines in the center overlap” | **Center lane** / **midX**; **EDGE-001**, **EDGE-008** |
-| “Same-tube fibers should share a horizontal” | **Tube bundle** / **shared run** / **jogX**; **EDGE-010** |
-| “Bundle nest is wrong” | **Center nest**; **EDGE-005**, **EDGE-007** |
-| “Fiber order wrong in the tube” | **Fiber order**; **FBR-001** |
-| “Tube order wrong on the cable” | **Tube order**; **TUB-006** |
-| “Line doesn’t clear the circuit text” | **Gap horizontals**; **OS / circuit column**; **EDGE-009** |
-| “Dots from one tube should line up” | **Dot column**; **DOT-002** |
-| “Dot too close to a corner” | **48px corner clearance**; **DOT-003** |
+| “Vertical lines in the center overlap” | **Center lane** / **midX**; **SDC-ROUTE-003**, **SDC-ROUTE-003-A** |
+| “Same-tube fibers should share a horizontal” | **Tube bundle** / **shared run** / **jogX**; **SDC-ROUTE-002** |
+| “Bundle nest is wrong” | **Center nest**; **SDC-ROUTE-002**, **SDC-ROUTE-003** |
+| “Fiber order wrong in the tube” | **Fiber order**; **SDC-ORDER-002-A** |
+| “Tube order wrong on the cable” | **Tube order**; **SDC-ORDER-001-A** |
+| “Line doesn’t clear the circuit text” | **Gap horizontals**; **OS / circuit column**; **SDC-ROUTE-001** |
+| “Dots from one tube should line up” | **Dot column**; **SDC-UX-001-C** |
+| “Dot too close to a corner” | **48px corner clearance**; **SDC-UX-001-D** |
 
 ---
 
@@ -179,7 +179,7 @@ Turn **Manual adjust** on when you want to nudge fan-out/labels and leg segments
 | **Fan-out drag** | Drag a buffer tube’s fan-out + labels **up/down** only | `fanoutOverrides`; buffer tube stretches (`visualShiftY`) |
 | **Leg segment** | One straight run between two **corners** on a leg | `legSegments.ts`; segment overlay handles |
 | **Multi-select** | Shift+click splices or box-select several rows | `selection.ts`; fiber anchor nodes |
-| **Corner clearance** | Fusion dot must stay **48px** from any leg corner | **DOT-003**; `FUSION_DOT_MIN_CORNER_CLEARANCE` |
+| **Corner clearance** | Fusion dot must stay **48px** from any leg corner | **SDC-UX-001-D**; `FUSION_DOT_MIN_CORNER_CLEARANCE` |
 
 **Example phrases:**
 
@@ -196,16 +196,16 @@ Turn **Manual adjust** on when you want to nudge fan-out/labels and leg segments
 |---------|-------------------|
 | “Move the **buffer tube** on the left” | Tube stem / tip geometry, `CableNode`, `cableBreakoutGeometry` |
 | “**Fan-out** looks wrong on BR tube” | Fan legs, `fanFrom` / `fanTo`, tube label BR |
-| “**Labels** overlap” | Fiber label column, `stemX`, TUB-007 |
+| “**Labels** overlap” | Fiber label column, `stemX`, SDC-LAYOUT-002-F |
 | “**Handle** doesn’t line up with the **right leg**” | Fiber handle Y, splice edge target end, `rightPath` |
-| “**Left leg** crosses the **fusion splice dot**” | Demarcated paths, `buildDemarcatedSplicePaths`, DOT-001 |
+| “**Left leg** crosses the **fusion splice dot**” | Demarcated paths, `buildDemarcatedSplicePaths`, SDC-UX-001-B |
 | “**2 corners on the right leg**, straight **left leg**” | 0 + 2 bend split; `rightPath` geometry |
-| “**Tube bundle** nest — top row outside” | **Center nest**, EDGE-005/007 |
-| “**Fiber order** off in BR tube” | FBR-001, `tubeFiberLayout` |
+| “**Tube bundle** nest — top row outside” | **Center nest**, SDC-ROUTE-002/007 |
+| “**Fiber order** off in BR tube” | SDC-ORDER-002-A, `tubeFiberLayout` |
 
 ---
 
 ## See also
 
 - [`CANVAS_GLOSSARY.md`](./CANVAS_GLOSSARY.md) — expanded part names + screenshots
-- [`RULE_DICTIONARY.md`](./RULE_DICTIONARY.md) — layout rule IDs (TUB-001, EDGE-004, …)
+- [`RULE_DICTIONARY.md`](./RULE_DICTIONARY.md) — layout rule IDs (SDC-LAYOUT-002-A, SDC-ROUTE-004-A, …)

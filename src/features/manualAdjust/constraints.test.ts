@@ -17,7 +17,7 @@ import {
   validateLegPaths,
 } from "./constraints";
 
-describe("DOT-003 fusion dot constraints", () => {
+describe("SDC-UX-001-D fusion dot constraints", () => {
   it("requires 48px corner clearance constant", () => {
     expect(FUSION_DOT_MIN_CORNER_CLEARANCE).toBe(48);
   });
@@ -42,8 +42,8 @@ describe("DOT-003 fusion dot constraints", () => {
   it("validateLegPaths rejects excess bends", () => {
     const leftPath = "M 100,50 L 200,50 L 200,120 L 300,120 L 300,80";
     const rightPath = "M 300,80 L 500,80";
-    expect(validateLegPaths(leftPath, rightPath, 300, 80)).toBe("EDGE-004");
-    expect(legCommitBlockedMessage("EDGE-004")).toContain("2-corner");
+    expect(validateLegPaths(leftPath, rightPath, 300, 80)).toBe("SDC-ROUTE-004-A");
+    expect(legCommitBlockedMessage("SDC-ROUTE-004-A")).toContain("2-corner");
   });
 
   it("rejects dot within 48px of right-leg corner even on short horizontal span", () => {
@@ -53,7 +53,7 @@ describe("DOT-003 fusion dot constraints", () => {
     expect(
       fusionDotCornerClearanceOk(252, 80, leftPath, rightPath),
     ).toBe(false);
-    expect(validateLegPaths(leftPath, rightPath, 252, 80)).toBe("DOT-004");
+    expect(validateLegPaths(leftPath, rightPath, 252, 80)).toBe("SDC-UX-001-E");
   });
 
   it("accepts hv_demarcated splice with 48px path clearance to both corners", () => {
@@ -77,7 +77,7 @@ describe("DOT-003 fusion dot constraints", () => {
   });
 });
 
-describe("DOT-004 vertical lane clearance", () => {
+describe("SDC-UX-001-E vertical lane clearance", () => {
   it("requires 48px vertical lane clearance constant", () => {
     expect(FUSION_DOT_MIN_VERTICAL_LANE_CLEARANCE).toBe(48);
   });
@@ -88,8 +88,8 @@ describe("DOT-004 vertical lane clearance", () => {
     expect(
       fusionDotVerticalLaneClearanceOk(300, 80, leftPath, rightPath),
     ).toBe(false);
-    expect(validateLegPaths(leftPath, rightPath, 300, 80)).toBe("DOT-004");
-    expect(legCommitBlockedMessage("DOT-004")).toContain("48px");
+    expect(validateLegPaths(leftPath, rightPath, 300, 80)).toBe("SDC-UX-001-E");
+    expect(legCommitBlockedMessage("SDC-UX-001-E")).toContain("48px");
   });
 
   it("rejects vertical leg within 48px of dot on same row", () => {
@@ -98,7 +98,7 @@ describe("DOT-004 vertical lane clearance", () => {
     expect(distanceVerticalSegmentsToFusionDot(300, 80, [
       { kind: "v", index: 2, x: 340, y0: 80, y1: 200 },
     ])).toBe(40);
-    expect(validateLegPaths(leftPath, rightPath, 300, 80)).toBe("DOT-004");
+    expect(validateLegPaths(leftPath, rightPath, 300, 80)).toBe("SDC-UX-001-E");
   });
 
   it("accepts vertical leg at least 48px from dot", () => {

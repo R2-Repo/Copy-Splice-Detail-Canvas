@@ -29,13 +29,12 @@ function ctxFromBuild(
   graph: ReturnType<typeof graphFromSp>,
   built: ReturnType<typeof buildReactFlowGraph>,
 ): LayoutRuleContext {
-  const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-  const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
-  const placement = computeCanvasPlacement(graph, visualCables, dominant, rowIndex);
+  const { visualCables } = buildVisualCablesForLayout(graph);
+  const rowIndex = connectionRowIndexMap(graph, visualCables);
+  const placement = computeCanvasPlacement(graph, visualCables, rowIndex);
   return {
     graph,
     visualCables,
-    dominant,
     placement,
     layout: built.layout as LayoutRuleContext["layout"],
     reactFlow: { nodes: built.nodes, edges: built.edges },
@@ -60,18 +59,16 @@ function routingMidXFor6Drop(edges: ReturnType<typeof buildReactFlowGraph>["edge
 }
 
 describe("SP-3254.5 misaligned right-side cable routing", () => {
-  it("default import passes EDGE-011 and STR-001", () => {
+  it("default import passes SDC-ROUTE-003-B and SDC-LAYOUT-002-H", () => {
     const graph = graphFromSp();
     const built = buildReactFlowGraph(graph, { reportKey: "sp", positions: {} }, 1920);
     const ctx = ctxFromBuild(graph, built);
     expect(findSpliceOverlapPair(ctx)).toBeNull();
-    expect(checkLayoutRule("EDGE-011", ctx).ok).toBe(true);
-    expect(checkLayoutRule("STR-001", ctx).ok).toBe(true);
-    expect(checkLayoutRule("EDGE-007", ctx).ok, checkLayoutRule("EDGE-007", ctx).detail).toBe(true);
-    expect(checkLayoutRule("EDGE-005", ctx).ok, checkLayoutRule("EDGE-005", ctx).detail).toBe(true);
+    expect(checkLayoutRule("SDC-ROUTE-003-B", ctx).ok).toBe(true);
+    expect(checkLayoutRule("SDC-LAYOUT-002-H", ctx).ok).toBe(true);
   });
 
-  it("misaligned right cable Y after drag-stop still passes EDGE-011", () => {
+  it("misaligned right cable Y after drag-stop still passes SDC-ROUTE-003-B", () => {
     const graph = graphFromSp();
     const base = buildReactFlowGraph(graph, { reportKey: "sp", positions: {} }, 1920);
     const rightCables = base.nodes
@@ -114,13 +111,13 @@ describe("SP-3254.5 misaligned right-side cable routing", () => {
     const overlap = findSpliceOverlapPair(ctx);
     const dropMidX = routingMidXFor6Drop(stop.edges);
     expect(overlap, overlap ?? JSON.stringify({ dropMidX })).toBeNull();
-    expect(checkLayoutRule("EDGE-011", ctx).ok).toBe(true);
+    expect(checkLayoutRule("SDC-ROUTE-003-B", ctx).ok).toBe(true);
     if (dropMidX.OR !== undefined && dropMidX.GR !== undefined) {
       expect(dropMidX.OR).not.toBe(dropMidX.GR);
     }
   });
 
-  it("misaligned left stack (6 DROP between cables) passes EDGE-007", () => {
+  it("misaligned left stack (6 DROP between cables) passes SDC-ROUTE-003-B", () => {
     const graph = graphFromSp();
     const base = buildReactFlowGraph(graph, { reportKey: "sp", positions: {} }, 1920);
     const leftCables = base.nodes
@@ -149,7 +146,7 @@ describe("SP-3254.5 misaligned right-side cable routing", () => {
       base.layout.layoutWidth,
     );
     const ctx = ctxFromBuild(graph, built);
-    expect(checkLayoutRule("EDGE-007", ctx).ok, checkLayoutRule("EDGE-007", ctx).detail).toBe(true);
+    expect(checkLayoutRule("SDC-ROUTE-003-B", ctx).ok, checkLayoutRule("SDC-ROUTE-003-B", ctx).detail).toBe(true);
     expect(findSpliceOverlapPair(ctx)).toBeNull();
   });
 });

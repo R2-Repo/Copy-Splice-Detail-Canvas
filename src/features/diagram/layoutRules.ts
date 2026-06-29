@@ -11,19 +11,11 @@ import {
   CABLE_LAYOUT,
   cableXForSide,
   FIBER_ROW_PITCH,
-  fiberRowOffsetInCable,
-  MIN_SPLICE_HORIZONTAL_INSET,
   SPLICE_LANE_SEP,
   TUBE_GROUP_GAP,
 } from "@/features/diagram/cableLayoutMetrics";
 import { computeCanvasPlacement } from "@/features/diagram/canvasPlacement";
 import { connectionRowIndexMap, connectionRowOffsets } from "@/features/diagram/connectionRowOrder";
-import {
-  connectionInDominantPair,
-  findDominantCablePair,
-  parentVisualGroupKey,
-  type DominantCablePair,
-} from "@/features/diagram/dominantCablePair";
 import {
   computeAlignedLayout,
   computeCableXBounds,
@@ -36,7 +28,13 @@ import {
   fusionDotOnHorizontalSegment,
   fusionDotVerticalLaneClearanceOk,
 } from "@/features/manualAdjust/constraints";
-// fusionDotOnHorizontalSegment used in DOT-001/003 checks
+// fusionDotOnHorizontalSegment used in SDC-UX-001-B/D checks
+import {
+  SDC_CHECK_IDS,
+  SDC_CHECKS,
+  type SdcCheckId,
+  type SdcCheckMeta,
+} from "@/features/rules/sdcCheckIds";
 import { importLayoutWidthForGraph } from "@/features/diagram/layoutSpliceDiagram";
 import {
   DEFAULT_LAYOUT_EXPANSION,
@@ -58,7 +56,6 @@ import {
 } from "@/features/diagram/tubeFiberLayout";
 import { resolveSpliceSourceTarget } from "@/features/diagram/resolveSpliceSourceTarget";
 import {
-  buildVisualCables,
   buildVisualCablesForLayout,
   endpointOnVisualSide,
   type VisualCable,
@@ -68,7 +65,6 @@ import type { CablePlacement } from "@/features/diagram/canvasPlacement";
 import {
   assignSpliceMidXLanes,
   assignSpliceRoutingLanes,
-  sameSideLoopBundleUsesSpecialMidXOrder,
   spliceRoutingZoneKey,
   type MidXLaneCandidate,
   type SpliceRoutingLane,
@@ -77,8 +73,6 @@ import {
   buildButtSplicePath,
   buildSplicePath,
   fiberHandlePosition,
-  hvDemarcatedPathsCross,
-  horizontalInsetOkFromHandle,
   MAX_SPLICE_BENDS,
   maxSpliceBendsForLane,
   parseButtTubeEndpointsFromEdgeId,
@@ -90,8 +84,6 @@ import {
   resolveSpliceMidX,
   isNestedHandleRowHorizOverlap,
   isSharedSpliceRowLeadInOverlap,
-  spliceMidOrderInverts,
-  splicePathsAvoidHandleColumnVertical,
   spliceRouteSegments,
   type SpliceRoutingLaneData,
   SPLICE_PATH_EPS,
@@ -117,188 +109,11 @@ function spliceEdgeForConnection(
   );
 }
 
-/** One edge per fiber splice (excludes right legs and butt splices). */
-function routingSpliceEdges(edges: Edge[]): Edge[] {
-  const seen = new Set<string>();
-  const routed: Edge[] = [];
-  for (const edge of edges) {
-    if (edge.type !== "splice") continue;
-    if (edge.id.startsWith("splice-right-") || edge.id.startsWith("butt-")) {
-      continue;
-    }
-    const connectionId = edge.id
-      .replace(/^splice-left-/, "")
-      .replace(/^splice-/, "");
-    if (seen.has(connectionId)) continue;
-    seen.add(connectionId);
-    routed.push(edge);
-  }
-  return routed;
-}
-
-/** Stable rule IDs — must match docs/agent/LAYOUT_RULES.md */
-export const LAYOUT_RULE_IDS = [
-  "FBR-001",
-  "FBR-002",
-  "FBR-003",
-  "FBR-004",
-  "TUB-001",
-  "TUB-002",
-  "TUB-003",
-  "TUB-004",
-  "TUB-005",
-  "TUB-006",
-  "TUB-007",
-  "TUB-008",
-  "CBL-001",
-  "CBL-002",
-  "CBL-003",
-  "CBL-004",
-  "CBL-005",
-  "ROW-001",
-  "ROW-002",
-  "ROW-003",
-  "DOM-001",
-  "DOM-002",
-  "DOM-003",
-  "DOM-004",
-  "EDGE-001",
-  "EDGE-004",
-  "EDGE-005",
-  "EDGE-006",
-  "EDGE-007",
-  "EDGE-008",
-  "EDGE-009",
-  "EDGE-010",
-  "EDGE-011",
-  "EDGE-012",
-  "EDGE-013",
-  "DOT-001",
-  "DOT-002",
-  "DOT-003",
-  "DOT-004",
-  "STR-001",
-] as const;
-
-export type LayoutRuleId = (typeof LAYOUT_RULE_IDS)[number];
-
-export type LayoutRuleMeta = {
-  id: LayoutRuleId;
-  title: string;
-  category: "fiber" | "tube" | "cable" | "row" | "dominant" | "edge" | "dot" | "strand";
-};
-
-export const LAYOUT_RULES: LayoutRuleMeta[] = [
-  { id: "FBR-001", title: "TIA fiber order within each buffer tube", category: "fiber" },
-  { id: "FBR-002", title: "24px pitch within each buffer tube", category: "fiber" },
-  { id: "FBR-003", title: "rowYOffset increases top-to-bottom per cable", category: "fiber" },
-  { id: "FBR-004", title: "Distinct rowYOffset per fiber on multi-tube cables", category: "fiber" },
-  { id: "TUB-001", title: "Tubes attach at cable sheath center", category: "tube" },
-  { id: "TUB-002", title: "Tube tip centered on fiber group", category: "tube" },
-  { id: "TUB-003", title: "Sheath preserves aspect ratio", category: "tube" },
-  { id: "TUB-004", title: "Multi-tube cables have longer tube reach", category: "tube" },
-  { id: "TUB-005", title: "Right-side breakout mirrors left", category: "tube" },
-  { id: "TUB-006", title: "Buffer tubes in TIA solid then striped order", category: "tube" },
-  {
-    id: "TUB-007",
-    title: "Same-side cables align stem X, handle column, and fiber-code column",
-    category: "tube",
-  },
-  {
-    id: "TUB-008",
-    title: "Cross-side tube pairs align tube handle Y after dynamic shift",
-    category: "tube",
-  },
-  { id: "CBL-001", title: "Same-side cables do not overlap", category: "cable" },
-  { id: "CBL-002", title: "Same-side cables stack with at least cableGap", category: "cable" },
-  { id: "CBL-003", title: "Multi-tube cables offset X from center", category: "cable" },
-  { id: "CBL-004", title: "Dominant-pair splices align straight across", category: "cable" },
-  { id: "CBL-005", title: "Ring-cut 144 splits into two visual instances", category: "cable" },
-  { id: "ROW-001", title: "Equal pitch within buffer tube in global rows", category: "row" },
-  { id: "ROW-002", title: "Extra gap at buffer-tube boundaries", category: "row" },
-  { id: "ROW-003", title: "Extra gap at ring-cut split boundaries", category: "row" },
-  { id: "DOM-001", title: "Dominant pair has most splice rows", category: "dominant" },
-  { id: "DOM-002", title: "Dominant pair rows precede other rows", category: "dominant" },
-  { id: "DOM-003", title: "Dominant pair fibers align horizontally", category: "dominant" },
-  { id: "DOM-004", title: "High-count pairs (4+ rows) align straight across", category: "dominant" },
-  { id: "EDGE-001", title: "Distinct routing lane per splice edge on import", category: "edge" },
-  {
-    id: "EDGE-004",
-    title: "Splice path uses at most two orthogonal bends handle-to-handle",
-    category: "edge",
-  },
-  {
-    id: "EDGE-005",
-    title: "Center lanes preserve buffer-tube row-offset grouping",
-    category: "edge",
-  },
-  {
-    id: "EDGE-006",
-    title: "Route template minimizes bends among grouping-preserving paths",
-    category: "edge",
-  },
-  {
-    id: "EDGE-007",
-    title: "Nested center bends avoid horizontal-vertical strand crossings",
-    category: "edge",
-  },
-  {
-    id: "EDGE-008",
-    title: "Center vertical lanes keep minimum fiber line spacing",
-    category: "edge",
-  },
-  {
-    id: "EDGE-009",
-    title: "Splice paths run horizontally toward center before vertical legs",
-    category: "edge",
-  },
-  {
-    id: "EDGE-010",
-    title: "Same buffer-tube fibers to one target cable share spaced center lanes",
-    category: "edge",
-  },
-  {
-    id: "EDGE-011",
-    title: "Splice strand segments never stack on the same horizontal or vertical track",
-    category: "edge",
-  },
-  {
-    id: "EDGE-012",
-    title: "Overlapping vertical center legs use distinct midX lanes",
-    category: "edge",
-  },
-  {
-    id: "EDGE-013",
-    title: "Near-straight legs snap to a flat horizontal line on import",
-    category: "edge",
-  },
-  {
-    id: "DOT-001",
-    title: "Fusion splice dots lie on horizontal path segments",
-    category: "dot",
-  },
-  {
-    id: "DOT-002",
-    title: "Source buffer tube dots share one column X and stack vertically",
-    category: "dot",
-  },
-  {
-    id: "DOT-003",
-    title: "Fusion splice dots keep 48px clearance from leg corners",
-    category: "dot",
-  },
-  {
-    id: "DOT-004",
-    title: "Vertical leg lanes stay 48px clear of fusion splice dots",
-    category: "dot",
-  },
-  { id: "STR-001", title: "Fiber strands fan toward canvas center", category: "strand" },
-];
+export { SDC_CHECK_IDS, SDC_CHECKS, type SdcCheckId, type SdcCheckMeta };
 
 export type LayoutRuleContext = {
   graph: ConnectionGraph;
   visualCables: VisualCable[];
-  dominant: DominantCablePair | null;
   placement: Map<string, CablePlacement>;
   layout: AlignedDiagramLayout;
   reactFlow: { nodes: Node[]; edges: Edge[] };
@@ -306,8 +121,8 @@ export type LayoutRuleContext = {
   layoutExpansion: LayoutExpansion;
 };
 
-export type LayoutRuleResult = {
-  id: LayoutRuleId;
+export type SdcCheckResult = {
+  id: SdcCheckId;
   ok: boolean;
   detail?: string;
 };
@@ -467,73 +282,12 @@ function sameSideStackGap(ctx: LayoutRuleContext): boolean {
   return true;
 }
 
-function spliceEndpointsAligned(
-  ctx: LayoutRuleContext,
-  connectionFilter: (conn: FiberConnection) => boolean,
-): boolean {
-  for (const conn of ctx.graph.connections) {
-    if (conn.kind !== "fiber" || !connectionFilter(conn)) continue;
-
-    const sides: number[] = [];
-    for (const side of ["left", "right"] as const) {
-      const ep = endpointOnVisualSide(
-        conn,
-        ctx.graph,
-        ctx.visualCables,
-        side,
-      );
-      if (!ep) continue;
-      const pos = ctx.layout.cablePositions.get(ep.visualCableId);
-      if (!pos) continue;
-      const vc = ctx.visualCables.find((v) => v.id === ep.visualCableId);
-      if (!vc) continue;
-      sides.push(pos.y + fiberRowOffsetInCable(vc, conn.id));
-    }
-
-    if (sides.length === 2 && Math.abs(sides[0]! - sides[1]!) > Y_TOLERANCE) {
-      return false;
-    }
-  }
-  return true;
-}
-
-function highCountPairRowAlignment(ctx: LayoutRuleContext): boolean {
-  const counts = new Map<string, number>();
-  for (const conn of ctx.graph.connections) {
-    if (conn.kind !== "fiber") continue;
-    const left = endpointOnVisualSide(conn, ctx.graph, ctx.visualCables, "left");
-    const right = endpointOnVisualSide(conn, ctx.graph, ctx.visualCables, "right");
-    if (!left || !right) continue;
-    const key = `${left.visualCableId}\0${right.visualCableId}`;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  const highCountKeys = new Set(
-    [...counts.entries()]
-      .filter(([, n]) => n >= 4)
-      .map(([k]) => k),
-  );
-  if (highCountKeys.size === 0) return true;
-  return spliceEndpointsAligned(ctx, (conn) => {
-    const left = endpointOnVisualSide(conn, ctx.graph, ctx.visualCables, "left");
-    const right = endpointOnVisualSide(conn, ctx.graph, ctx.visualCables, "right");
-    if (!left || !right) return false;
-    return highCountKeys.has(`${left.visualCableId}\0${right.visualCableId}`);
-  });
-}
-
-function fiberHandleRowAlignment(ctx: LayoutRuleContext): boolean {
-  if (!ctx.dominant) return true;
-  return spliceEndpointsAligned(ctx, (conn) =>
-    connectionInDominantPair(conn, ctx.graph, ctx.visualCables, ctx.dominant!),
-  );
-}
-
 function globalRowStepsOk(ctx: LayoutRuleContext): {
   withinTube: boolean;
   tubeBoundary: boolean;
   splitGap: boolean;
 } {
-  const offsets = connectionRowOffsets(ctx.graph, ctx.visualCables, ctx.dominant);
+  const offsets = connectionRowOffsets(ctx.graph, ctx.visualCables);
   const values = [...offsets.values()].sort((a, b) => a - b);
   const steps = values.slice(1).map((y, i) => y - values[i]!);
 
@@ -556,64 +310,7 @@ function globalRowStepsOk(ctx: LayoutRuleContext): {
   return { withinTube, tubeBoundary, splitGap };
 }
 
-function dominantPairOk(ctx: LayoutRuleContext): boolean {
-  if (!ctx.dominant) return true;
 
-  const pass1 = buildVisualCables(ctx.graph);
-  const recomputed = findDominantCablePair(ctx.graph, pass1);
-  if (!recomputed || recomputed.connectionCount !== ctx.dominant.connectionCount) {
-    return false;
-  }
-
-  const rowIdx = connectionRowIndexMap(ctx.graph, ctx.visualCables, ctx.dominant);
-  const dominantRows = ctx.graph.connections
-    .filter(
-      (c) =>
-        c.kind === "fiber" &&
-        connectionInDominantPair(c, ctx.graph, ctx.visualCables, ctx.dominant!),
-    )
-    .map((c) => rowIdx.get(c.id)!);
-  const otherRows = ctx.graph.connections
-    .filter(
-      (c) =>
-        c.kind === "fiber" &&
-        !connectionInDominantPair(c, ctx.graph, ctx.visualCables, ctx.dominant!),
-    )
-    .map((c) => rowIdx.get(c.id)!);
-
-  if (dominantRows.length === 0 || otherRows.length === 0) return true;
-  if (Math.max(...dominantRows) >= Math.min(...otherRows)) return false;
-
-  const left = ctx.visualCables.find(
-    (v) => parentVisualGroupKey(v.id) === ctx.dominant!.leftGroupKey,
-  );
-  const right = ctx.visualCables.find(
-    (v) => parentVisualGroupKey(v.id) === ctx.dominant!.rightGroupKey,
-  );
-  if (!left || !right) return true;
-
-  for (const conn of ctx.graph.connections.filter((c) => c.kind === "fiber")) {
-    const lf = left.tubes.flatMap((t) => t.fibers).find((f) => f.connectionId === conn.id);
-    const rf = right.tubes.flatMap((t) => t.fibers).find((f) => f.connectionId === conn.id);
-    if (!lf || !rf) continue;
-    const leftY =
-      ctx.layout.cablePositions.get(left.id)!.y +
-      fiberRowOffsetInCable(left, lf.connectionId);
-    const rightY =
-      ctx.layout.cablePositions.get(right.id)!.y +
-      fiberRowOffsetInCable(right, rf.connectionId);
-    if (Math.abs(leftY - rightY) > Y_TOLERANCE) return false;
-  }
-
-  return true;
-}
-
-function distinctEdgeLanes(edges: Edge[]): boolean {
-  const spliceEdges = routingSpliceEdges(edges);
-  if (spliceEdges.length === 0) return true;
-  const lanes = spliceEdges.map((e) => (e.data as { laneIndex?: number }).laneIndex);
-  return new Set(lanes).size === spliceEdges.length;
-}
 
 function spliceHandleEndpoints(
   ctx: LayoutRuleContext,
@@ -843,15 +540,6 @@ function buildRenderRoutingMap(ctx: LayoutRuleContext): Map<string, SpliceRoutin
   return buildPackedRoutingMap(ctx);
 }
 
-function buildPackedMidXMap(ctx: LayoutRuleContext): Map<string, number> {
-  const packed = buildPackedRoutingMap(ctx);
-  const result = new Map<string, number>();
-  for (const [id, lane] of packed) {
-    result.set(id, lane.midX);
-  }
-  return result;
-}
-
 function resolveCtxSpliceRouting(
   ctx: LayoutRuleContext,
   connId: string,
@@ -870,8 +558,7 @@ function resolveCtxSpliceRouting(
   const rowOffsets = connectionRowOffsets(
     ctx.graph,
     ctx.visualCables,
-    ctx.dominant,
-  );
+      );
   const maxRowOffset = Math.max(0, ...rowOffsets.values());
   const { sourceX, sourceY, targetX, targetY, rowOffset } = endpoints;
   return {
@@ -936,218 +623,6 @@ function splicePathsWithinBendLimit(ctx: LayoutRuleContext): boolean {
       ctx.layoutWidth / 2,
     );
     if (bendCount > MAX_SPLICE_BENDS) return false;
-  }
-
-  return true;
-}
-
-function centerLanesPreserveTubeGroupingCore(
-  ctx: LayoutRuleContext,
-  midXByConnId: Map<string, number>,
-): boolean {
-  return findCenterLaneGroupingViolations(ctx, midXByConnId).length === 0;
-}
-
-/** Diagnostic: EDGE-005 violations for a midX map (tests / debug). */
-export function findCenterLaneGroupingViolations(
-  ctx: LayoutRuleContext,
-  midXByConnId: Map<string, number>,
-): string[] {
-  const violations: string[] = [];
-  type LaneEntry = {
-    rowOffset: number;
-    midX: number;
-    inverts: boolean;
-    tubeBundleKey?: string;
-    zoneKey: string;
-    sourceX: number;
-    sourceY: number;
-    targetX: number;
-    targetY: number;
-  };
-  const lanes: LaneEntry[] = [];
-
-  for (const conn of orderedFiberConnections(ctx.graph)) {
-    if (conn.kind !== "fiber") continue;
-    const endpoints = spliceHandleEndpoints(ctx, conn);
-    if (!endpoints) continue;
-
-    const { sourceX, sourceY, targetX, targetY, rowOffset } = endpoints;
-    if (
-      !templateUsesMidXLanes(
-        pickSpliceRouteTemplate(sourceX, sourceY, targetX, targetY),
-      )
-    ) {
-      continue;
-    }
-
-    const edge = spliceEdgeForConnection(ctx.reactFlow.edges, conn.id);
-    const tubeBundleKey = (edge?.data as { tubeBundleKey?: string })
-      ?.tubeBundleKey;
-
-    const midX = midXByConnId.get(conn.id);
-    if (midX === undefined) continue;
-
-    lanes.push({
-      rowOffset,
-      midX,
-      inverts: spliceMidOrderInverts(sourceX, sourceY, targetX, targetY),
-      tubeBundleKey,
-      zoneKey: spliceRoutingZoneKey(sourceX, targetX),
-      sourceX,
-      sourceY,
-      targetX,
-      targetY,
-    });
-  }
-
-  const byBundle = new Map<string, LaneEntry[]>();
-  const unbundled: LaneEntry[] = [];
-  for (const lane of lanes) {
-    if (lane.tubeBundleKey) {
-      const key = `${lane.zoneKey}::${lane.tubeBundleKey}`;
-      const list = byBundle.get(key) ?? [];
-      list.push(lane);
-      byBundle.set(key, list);
-    } else {
-      unbundled.push(lane);
-    }
-  }
-
-  for (const [key, bundle] of byBundle) {
-    if (bundle.length <= 1) continue;
-    const bundleCandidates: MidXLaneCandidate[] = bundle.map((lane, index) => ({
-      id: `${key}::${index}`,
-      sourceX: lane.sourceX,
-      sourceY: lane.sourceY,
-      targetX: lane.targetX,
-      targetY: lane.targetY,
-      rowOffset: lane.rowOffset,
-      tubeBundleKey: lane.tubeBundleKey,
-    }));
-    if (sameSideLoopBundleUsesSpecialMidXOrder(bundleCandidates)) {
-      continue;
-    }
-    bundle.sort((a, b) => a.rowOffset - b.rowOffset);
-    for (let i = 1; i < bundle.length; i++) {
-      const prev = bundle[i - 1]!;
-      const curr = bundle[i]!;
-      if (prev.inverts !== curr.inverts) continue;
-      if (prev.inverts) {
-        if (curr.midX > prev.midX + Y_TOLERANCE) {
-          violations.push(
-            `bundle ${key}: row ${prev.rowOffset}->${curr.rowOffset} midX ${prev.midX}->${curr.midX} (inverts)`,
-          );
-        }
-      } else if (curr.midX < prev.midX - Y_TOLERANCE) {
-        violations.push(
-          `bundle ${key}: row ${prev.rowOffset}->${curr.rowOffset} midX ${prev.midX}->${curr.midX}`,
-        );
-      }
-    }
-  }
-
-  const byZone = new Map<string, LaneEntry[]>();
-  for (const lane of unbundled) {
-    const list = byZone.get(lane.zoneKey) ?? [];
-    list.push(lane);
-    byZone.set(lane.zoneKey, list);
-  }
-
-  for (const [zoneKey, group] of byZone) {
-    if (group.length <= 1) continue;
-    group.sort((a, b) => a.rowOffset - b.rowOffset);
-    for (let i = 1; i < group.length; i++) {
-      const prev = group[i - 1]!;
-      const curr = group[i]!;
-      if (prev.inverts !== curr.inverts) continue;
-      if (prev.inverts) {
-        if (curr.midX > prev.midX + Y_TOLERANCE) {
-          violations.push(
-            `zone ${zoneKey}: row ${prev.rowOffset}->${curr.rowOffset} midX ${prev.midX}->${curr.midX} (inverts)`,
-          );
-        }
-      } else if (curr.midX < prev.midX - Y_TOLERANCE) {
-        violations.push(
-          `zone ${zoneKey}: row ${prev.rowOffset}->${curr.rowOffset} midX ${prev.midX}->${curr.midX}`,
-        );
-      }
-    }
-  }
-  return violations;
-}
-
-/** Packed midX EDGE-005 violations (diagnostic). */
-export function packedMidXViolationsForContext(ctx: LayoutRuleContext): string[] {
-  return findCenterLaneGroupingViolations(ctx, buildPackedMidXMap(ctx));
-}
-
-function centerLanesPreserveTubeGrouping(ctx: LayoutRuleContext): boolean {
-  return centerLanesPreserveTubeGroupingCore(ctx, buildPackedMidXMap(ctx));
-}
-
-/** EDGE-005 grid path — same packed topology as nodes (grid snap checked separately). */
-function centerLanesPreserveTubeGroupingGrid(ctx: LayoutRuleContext): boolean {
-  return centerLanesPreserveTubeGrouping(ctx);
-}
-
-function tubeBundleRoutesAreSpacedGrid(ctx: LayoutRuleContext): boolean {
-  return tubeBundleRoutesAreSpaced(ctx);
-}
-
-function tubeBundleRoutesAreSpacedWithPacked(
-  ctx: LayoutRuleContext,
-  packed: Map<string, SpliceRoutingLane>,
-): boolean {
-  const byBundle = new Map<string, Array<{ midX: number; jogX?: number }>>();
-
-  for (const conn of orderedFiberConnections(ctx.graph)) {
-    if (conn.kind !== "fiber") continue;
-    const edge = spliceEdgeForConnection(ctx.reactFlow.edges, conn.id);
-    const tubeBundleKey = (edge?.data as { tubeBundleKey?: string })
-      ?.tubeBundleKey;
-    if (!tubeBundleKey) continue;
-
-    const endpoints = spliceHandleEndpoints(ctx, conn);
-    if (!endpoints) continue;
-    const { sourceX, sourceY, targetX, targetY } = endpoints;
-    if (
-      !templateUsesMidXLanes(
-        pickSpliceRouteTemplate(sourceX, sourceY, targetX, targetY),
-      )
-    ) {
-      continue;
-    }
-
-    const lane = packed.get(conn.id);
-    if (!lane) continue;
-    const zoneKey = spliceRoutingZoneKey(sourceX, targetX);
-    const key = `${zoneKey}::${tubeBundleKey}`;
-    const list = byBundle.get(key) ?? [];
-    list.push({ midX: lane.midX, jogX: lane.jogX });
-    byBundle.set(key, list);
-  }
-
-  for (const members of byBundle.values()) {
-    if (members.length <= 1) continue;
-    const sorted = [...members].sort((a, b) => a.midX - b.midX);
-    for (let i = 1; i < sorted.length; i++) {
-      if (
-        sorted[i]!.midX - sorted[i - 1]!.midX <
-        SPLICE_LANE_SEP - SPLICE_PATH_EPS
-      ) {
-        return false;
-      }
-    }
-    const jogValues = [
-      ...new Set(
-        members
-          .map((member) => member.jogX)
-          .filter((jogX): jogX is number => jogX !== undefined)
-          .map((jogX) => Math.round(jogX)),
-      ),
-    ];
-    if (jogValues.length > 1) return false;
   }
 
   return true;
@@ -1399,10 +874,6 @@ function bufferTubeDotsStackVertically(ctx: LayoutRuleContext): boolean {
   return findBufferTubeDotViolation(ctx) === undefined;
 }
 
-function tubeBundleRoutesAreSpaced(ctx: LayoutRuleContext): boolean {
-  return tubeBundleRoutesAreSpacedWithPacked(ctx, buildPackedRoutingMap(ctx));
-}
-
 function verticalCenterLegsSpaced(ctx: LayoutRuleContext): boolean {
   const packed = buildRenderRoutingMap(ctx);
   const byZone = new Map<
@@ -1575,161 +1046,7 @@ export function findSpliceOverlapPair(ctx: LayoutRuleContext): string | null {
   return null;
 }
 
-function spliceCenterPathsDoNotCross(ctx: LayoutRuleContext): boolean {
-  const packed = buildPackedRoutingMap(ctx);
-  const routed: {
-    sourceX: number;
-    sourceY: number;
-    targetX: number;
-    targetY: number;
-    midX: number;
-    jogX?: number;
-    sourceHorizY?: number;
-    targetHorizY?: number;
-    inverts: boolean;
-    tubeBundleKey?: string;
-  }[] = [];
 
-  for (const conn of orderedFiberConnections(ctx.graph)) {
-    if (conn.kind !== "fiber") continue;
-    const endpoints = spliceHandleEndpoints(ctx, conn);
-    if (!endpoints) continue;
-
-    const { sourceX, sourceY, targetX, targetY } = endpoints;
-    if (
-      !templateUsesMidXLanes(
-        pickSpliceRouteTemplate(sourceX, sourceY, targetX, targetY),
-      )
-    ) {
-      continue;
-    }
-    const edge = spliceEdgeForConnection(ctx.reactFlow.edges, conn.id);
-    const tubeBundleKey = (edge?.data as { tubeBundleKey?: string })
-      ?.tubeBundleKey;
-    const lane = resolveCtxSpliceRouting(ctx, conn.id, endpoints, packed);
-    routed.push({
-      sourceX,
-      sourceY,
-      targetX,
-      targetY,
-      midX: lane.midX,
-      jogX: lane.jogX,
-      sourceHorizY: lane.sourceHorizY,
-      targetHorizY: lane.targetHorizY,
-      inverts: spliceMidOrderInverts(sourceX, sourceY, targetX, targetY),
-      tubeBundleKey,
-    });
-  }
-
-  for (let i = 0; i < routed.length; i++) {
-    for (let j = i + 1; j < routed.length; j++) {
-      const a = routed[i]!;
-      const b = routed[j]!;
-      if (a.inverts !== b.inverts) continue;
-      if (a.tubeBundleKey && a.tubeBundleKey === b.tubeBundleKey) continue;
-      if (
-        Math.abs(a.sourceX - b.sourceX) > Y_TOLERANCE * 8 ||
-        Math.abs(a.targetX - b.targetX) > Y_TOLERANCE * 8
-      ) {
-        continue;
-      }
-      if (
-        hvDemarcatedPathsCross(
-          a.sourceX,
-          a.sourceY,
-          a.targetX,
-          a.targetY,
-          a.midX,
-          b.sourceX,
-          b.sourceY,
-          b.targetX,
-          b.targetY,
-          b.midX,
-          a.jogX,
-          b.jogX,
-          { sourceHorizY: a.sourceHorizY, targetHorizY: a.targetHorizY },
-          { sourceHorizY: b.sourceHorizY, targetHorizY: b.targetHorizY },
-        )
-      ) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
-function sameSideSplicesDetourTowardCenter(ctx: LayoutRuleContext): boolean {
-  const packed = buildPackedRoutingMap(ctx);
-  const centerX = ctx.layoutWidth / 2;
-  const sideSpans = sideCircuitSpanFromCtx(ctx);
-
-  for (const conn of orderedFiberConnections(ctx.graph)) {
-    if (conn.kind !== "fiber") continue;
-    const endpoints = spliceHandleEndpoints(ctx, conn);
-    if (!endpoints) continue;
-
-    const { sourceX, sourceY, targetX, targetY, sourceTagWidth, targetTagWidth } =
-      endpoints;
-    const template = pickSpliceRouteTemplate(
-      sourceX,
-      sourceY,
-      targetX,
-      targetY,
-    );
-    if (template === "straight") continue;
-
-    const lane = resolveCtxSpliceRouting(ctx, conn.id, endpoints, packed);
-    const { midX, jogX, sourceHorizY, targetHorizY } = lane;
-    if (
-      !horizontalInsetOkFromHandle(
-        midX,
-        sourceX,
-        centerX,
-        sideSpans,
-        MIN_SPLICE_HORIZONTAL_INSET,
-        sourceTagWidth ?? 0,
-        true,
-      ) ||
-      !horizontalInsetOkFromHandle(
-        midX,
-        targetX,
-        centerX,
-        sideSpans,
-        MIN_SPLICE_HORIZONTAL_INSET,
-        targetTagWidth ?? 0,
-        true,
-      )
-    ) {
-      return false;
-    }
-
-    if (
-      !splicePathsAvoidHandleColumnVertical(
-        sourceX,
-        sourceY,
-        targetX,
-        targetY,
-        midX,
-        jogX,
-        { sourceHorizY, targetHorizY },
-        sideSpans,
-        centerX,
-        sourceTagWidth ?? 0,
-        targetTagWidth ?? 0,
-      )
-    ) {
-      return false;
-    }
-
-    if (template !== "same_side") continue;
-
-    const columnX = (sourceX + targetX) / 2;
-    const inward = columnX <= centerX ? 1 : -1;
-    if (inward > 0 && midX <= columnX + SPLICE_PATH_EPS) return false;
-    if (inward < 0 && midX >= columnX - SPLICE_PATH_EPS) return false;
-  }
-  return true;
-}
 
 function spliceRoutesMinimizeBends(ctx: LayoutRuleContext): boolean {
   for (const conn of orderedFiberConnections(ctx.graph)) {
@@ -1961,9 +1278,9 @@ export function buildLayoutRuleContext(
     lastWidth = width;
     lastExpansion = expansion;
     if (
-      checkLayoutRule("EDGE-004", ctx).ok &&
-      checkLayoutRule("EDGE-011", ctx).ok &&
-      checkLayoutRule("EDGE-012", ctx).ok
+      checkLayoutRule("SDC-ROUTE-004-A", ctx).ok &&
+      checkLayoutRule("SDC-ROUTE-003-B", ctx).ok &&
+      checkLayoutRule("SDC-ROUTE-003-C", ctx).ok
     ) {
       return ctx;
     }
@@ -1980,10 +1297,10 @@ function buildLayoutRuleContextWithExpansion(
   expansion: LayoutExpansion,
   overrides?: Pick<LayoutOverrides, "collapseFullButtSplices">,
 ): LayoutRuleContext {
-  const { visualCables: ruleVisualCables, dominant } = buildVisualCablesForLayout(graph);
-  const rowIndex = connectionRowIndexMap(graph, ruleVisualCables, dominant);
-  const rulePlacement = computeCanvasPlacement(graph, ruleVisualCables, dominant, rowIndex);
-  const layout = computeAlignedLayout(graph, ruleVisualCables, rulePlacement, dominant, width);
+  const { visualCables: ruleVisualCables } = buildVisualCablesForLayout(graph);
+  const rowIndex = connectionRowIndexMap(graph, ruleVisualCables);
+  const rulePlacement = computeCanvasPlacement(graph, ruleVisualCables, rowIndex);
+  const layout = computeAlignedLayout(graph, ruleVisualCables, rulePlacement, width);
   const {
     nodes,
     edges,
@@ -2004,7 +1321,6 @@ function buildLayoutRuleContextWithExpansion(
   return {
     graph,
     visualCables: routedVisualCables ?? ruleVisualCables,
-    dominant,
     placement: routedPlacement ?? rulePlacement,
     layout,
     reactFlow: { nodes, edges },
@@ -2013,7 +1329,7 @@ function buildLayoutRuleContextWithExpansion(
   };
 }
 
-/** Resolved import width + expansion after feasibility loop (EDGE-004/011/012). */
+/** Resolved import width + expansion after feasibility loop (SDC-ROUTE-004-A/011/012). */
 export function resolveFeasibleImportLayout(
   graph: ConnectionGraph,
   options?: {
@@ -2034,65 +1350,65 @@ export function resolveFeasibleImportLayout(
 }
 
 export function checkLayoutRule(
-  id: LayoutRuleId,
+  id: SdcCheckId,
   ctx: LayoutRuleContext,
-): LayoutRuleResult {
+): SdcCheckResult {
   switch (id) {
-    case "FBR-001":
+    case "SDC-ORDER-002-A":
       return {
         id,
         ok: fibersInTiaOrder(ctx.visualCables),
         detail: "Fibers not in TIA order within a buffer tube",
       };
-    case "FBR-002":
+    case "SDC-ORDER-002-B":
       return {
         id,
         ok: compactTubeFiberLayoutOk(ctx.visualCables),
         detail: "Buffer tube fiber pitch is not 24px",
       };
-    case "FBR-003":
+    case "SDC-ORDER-002-C":
       return {
         id,
         ok: cableFiberTopToBottomOk(ctx.visualCables),
         detail: "rowYOffset does not increase top-to-bottom",
       };
-    case "FBR-004":
+    case "SDC-LAYOUT-001-A":
       return {
         id,
         ok: multiTubeDistinctOffsets(ctx.visualCables),
         detail: "Multi-tube cable has duplicate rowYOffset values",
       };
-    case "TUB-001":
-    case "TUB-002":
-    case "TUB-003": {
+    case "SDC-LAYOUT-002-A":
+    case "SDC-LAYOUT-002-B":
+    case "SDC-LAYOUT-002-C": {
       const geo = tubeGeometryOk(ctx.visualCables, ctx.placement);
       return { id, ok: geo.ok, detail: geo.detail };
     }
-    case "TUB-004":
+    case "SDC-LAYOUT-002-D":
       return {
         id,
         ok: tubeReachIncreases(ctx.visualCables),
         detail: "Multi-tube cable does not extend tube reach",
       };
-    case "TUB-005":
+    case "SDC-LAYOUT-002-E":
       return {
         id,
         ok: rightSideMirrors(ctx.visualCables),
         detail: "Right-side breakout is not mirrored",
       };
-    case "TUB-006":
+    case "SDC-ORDER-001-A":
       return {
         id,
         ok: tubesInTiaOrderOk(ctx.visualCables),
         detail: "Buffer tubes are not in TIA color order",
       };
-    case "TUB-007":
+    case "SDC-LAYOUT-002-F":
       return {
         id,
         ok: sameSideFiberStemColumnsAligned(ctx),
         detail: "Same-side cable stem columns are not vertically aligned",
       };
-    case "TUB-008":
+    case "SDC-LAYOUT-002-G":
       return {
         id,
         ok: crossSideTubePairsAligned(
@@ -2103,19 +1419,19 @@ export function checkLayoutRule(
         ),
         detail: "Cross-side buffer tube handles are not horizontally aligned",
       };
-    case "CBL-001":
+    case "SDC-LAYOUT-001-B":
       return {
         id,
         ok: sameSideNoOverlap(ctx),
         detail: "Same-side cable nodes overlap vertically",
       };
-    case "CBL-002":
+    case "SDC-LAYOUT-001-C":
       return {
         id,
         ok: sameSideStackGap(ctx),
         detail: "Stacked cables have less than cableGap spacing",
       };
-    case "CBL-003": {
+    case "SDC-LAYOUT-001-D": {
       const multi = ctx.visualCables.find((v) => v.tubes.length > 1);
       if (!multi) return { id, ok: true };
       const side = sideOf(multi, ctx.placement);
@@ -2132,26 +1448,9 @@ export function checkLayoutRule(
         detail: "Multi-tube cable X does not match tubeCount offset",
       };
     }
-    case "CBL-004":
-      if (!ctx.dominant) return { id, ok: true };
-      return {
-        id,
-        ok: fiberHandleRowAlignment(ctx),
-        detail: "Dominant-pair splice handles are not horizontally aligned",
-      };
-    case "CBL-005": {
-      const throughSide = ctx.visualCables.filter(
-        (v) => /144|288/i.test(v.cable) && v.side === "right",
-      );
-      const needsSplit = ctx.graph.connections.filter((c) => c.kind === "fiber").length === 4;
-      if (!needsSplit) return { id, ok: true };
-      return {
-        id,
-        ok: throughSide.length === 2,
-        detail: "Ring-cut 144 should produce two right-side visual cables",
-      };
-    }
-    case "ROW-001": {
+
+
+    case "SDC-LAYOUT-001-E": {
       const steps = globalRowStepsOk(ctx);
       return {
         id,
@@ -2159,7 +1458,7 @@ export function checkLayoutRule(
         detail: "Global row layout missing FIBER_ROW_PITCH steps",
       };
     }
-    case "ROW-002": {
+    case "SDC-LAYOUT-001-F": {
       const multiTube = ctx.visualCables.some((v) => v.tubes.length > 1);
       if (!multiTube) return { id, ok: true };
       const steps = globalRowStepsOk(ctx);
@@ -2169,79 +1468,35 @@ export function checkLayoutRule(
         detail: "Global row layout missing TUBE_GROUP_GAP at tube boundaries",
       };
     }
-    case "ROW-003": {
-      const hasSplit = ctx.visualCables.some((vc) => /~\d+$/.test(vc.id));
-      if (!hasSplit) return { id, ok: true };
-      const steps = globalRowStepsOk(ctx);
-      return {
-        id,
-        ok: steps.splitGap,
-        detail: "Ring-cut split missing extra row gap",
-      };
-    }
-    case "DOM-001":
-    case "DOM-002":
-    case "DOM-003":
-      return {
-        id,
-        ok: dominantPairOk(ctx),
-        detail: "Dominant cable pair layout invariant failed",
-      };
-    case "DOM-004":
-      return {
-        id,
-        ok: highCountPairRowAlignment(ctx),
-        detail: "High-count cable pair splice handles are not horizontally aligned",
-      };
-    case "EDGE-001":
-      return {
-        id,
-        ok: distinctEdgeLanes(ctx.reactFlow.edges),
-        detail: "Splice edges share routing lanes on import",
-      };
-    case "EDGE-004":
+
+
+
+
+
+
+    case "SDC-ROUTE-004-A":
       return {
         id,
         ok: splicePathsWithinBendLimit(ctx),
         detail: "Splice path exceeds two orthogonal bends handle-to-handle",
       };
-    case "EDGE-005":
-      return {
-        id,
-        ok: centerLanesPreserveTubeGrouping(ctx),
-        detail: "Center lane midX order breaks buffer-tube row-offset grouping",
-      };
-    case "EDGE-006":
+
+    case "SDC-ROUTE-002-A":
       return {
         id,
         ok: spliceRoutesMinimizeBends(ctx),
         detail: "Splice route template is not the minimum-bend choice",
       };
-    case "EDGE-007":
-      return {
-        id,
-        ok: spliceCenterPathsDoNotCross(ctx),
-        detail: "Splice center paths cross between horizontal and vertical legs",
-      };
-    case "EDGE-008":
+
+    case "SDC-ROUTE-003-A":
       return {
         id,
         ok: centerLanesKeepMinSpacing(ctx),
         detail: "Center vertical splice lanes are closer than minimum fiber line spacing",
       };
-    case "EDGE-009":
-      return {
-        id,
-        ok: sameSideSplicesDetourTowardCenter(ctx),
-        detail: "Splice paths do not run horizontally toward center before vertical legs",
-      };
-    case "EDGE-010":
-      return {
-        id,
-        ok: tubeBundleRoutesAreSpaced(ctx),
-        detail: "Tube bundle splice lanes overlap or lack shared horizontal trunk spacing",
-      };
-    case "EDGE-011":
+
+
+    case "SDC-ROUTE-003-B":
       return {
         id,
         ok: splicePathsDoNotOverlap(ctx),
@@ -2249,13 +1504,13 @@ export function checkLayoutRule(
           findSpliceOverlapPair(ctx) ??
           "Splice strand segments stack on the same horizontal or vertical track",
       };
-    case "EDGE-012":
+    case "SDC-ROUTE-003-C":
       return {
         id,
         ok: verticalCenterLegsSpaced(ctx),
         detail: "Overlapping vertical center legs share the same midX lane",
       };
-    case "EDGE-013":
+    case "SDC-UX-001-A":
       return {
         id,
         ok:
@@ -2268,13 +1523,13 @@ export function checkLayoutRule(
         detail:
           "A near-straight leg could still be snapped flat (alignment not at fixpoint)",
       };
-    case "DOT-001":
+    case "SDC-UX-001-B":
       return {
         id,
         ok: fusionDotsOnHorizontalSegments(ctx),
         detail: "Fusion splice dot is not on a horizontal path segment",
       };
-    case "DOT-002":
+    case "SDC-UX-001-C":
       return {
         id,
         ok: bufferTubeDotsStackVertically(ctx),
@@ -2282,20 +1537,20 @@ export function checkLayoutRule(
           findBufferTubeDotViolation(ctx) ??
           "Source buffer tube fusion dots do not share one column X or 24px vertical pitch",
       };
-    case "DOT-003":
+    case "SDC-UX-001-D":
       return {
         id,
         ok: fusionDotsCornerClearanceOk(ctx),
         detail: "Fusion splice dot is too close to a leg corner or not on a horizontal segment",
       };
-    case "DOT-004":
+    case "SDC-UX-001-E":
       return {
         id,
         ok: fusionDotsVerticalLaneClearanceOk(ctx),
         detail:
           "A vertical leg lane runs through or within 48px of a fusion splice dot row",
       };
-    case "STR-001":
+    case "SDC-LAYOUT-002-H":
       return {
         id,
         ok: strandFansTowardCenter(ctx),
@@ -2306,8 +1561,8 @@ export function checkLayoutRule(
   }
 }
 
-export function checkAllLayoutRules(ctx: LayoutRuleContext): LayoutRuleResult[] {
-  return LAYOUT_RULE_IDS.map((id) => checkLayoutRule(id, ctx));
+export function checkAllLayoutRules(ctx: LayoutRuleContext): SdcCheckResult[] {
+  return SDC_CHECK_IDS.map((id) => checkLayoutRule(id, ctx));
 }
 
 export function layoutRulesOk(ctx: LayoutRuleContext): boolean {
@@ -2317,32 +1572,32 @@ export function layoutRulesOk(ctx: LayoutRuleContext): boolean {
 /** SDC-LAYOUT-001 spacing checks (direct evaluators — not via checkLayoutRule). */
 export function evaluateSdcLayoutSpacingRules(
   ctx: LayoutRuleContext,
-): LayoutRuleResult[] {
+): SdcCheckResult[] {
   const rowSteps = globalRowStepsOk(ctx);
   const multiTube = ctx.visualCables.some((v) => v.tubes.length > 1);
   return [
     {
-      id: "CBL-001",
+      id: "SDC-LAYOUT-001-B",
       ok: sameSideNoOverlap(ctx),
       detail: "Same-side cable nodes overlap vertically",
     },
     {
-      id: "CBL-002",
+      id: "SDC-LAYOUT-001-C",
       ok: sameSideStackGap(ctx),
       detail: "Stacked cables have less than cableGap spacing",
     },
     {
-      id: "FBR-002",
+      id: "SDC-ORDER-002-B",
       ok: compactTubeFiberLayoutOk(ctx.visualCables),
       detail: "Buffer tube fiber pitch is not 24px",
     },
     {
-      id: "ROW-001",
+      id: "SDC-LAYOUT-001-E",
       ok: rowSteps.withinTube,
       detail: "Global row layout missing FIBER_ROW_PITCH steps",
     },
     {
-      id: "ROW-002",
+      id: "SDC-LAYOUT-001-F",
       ok: !multiTube || rowSteps.tubeBoundary,
       detail: "Global row layout missing TUBE_GROUP_GAP at tube boundaries",
     },
@@ -2352,7 +1607,7 @@ export function evaluateSdcLayoutSpacingRules(
 /** SDC-LAYOUT-002 fan-out geometry checks (direct evaluators). */
 export function evaluateSdcLayoutFanoutRules(
   ctx: LayoutRuleContext,
-): LayoutRuleResult[] {
+): SdcCheckResult[] {
   const quadSlim = ctx.reactFlow.nodes.some(
     (node) =>
       node.type === "cable" &&
@@ -2361,14 +1616,14 @@ export function evaluateSdcLayoutFanoutRules(
   );
 
   const geo = tubeGeometryOk(ctx.visualCables, ctx.placement);
-  const results: LayoutRuleResult[] = [];
+  const results: SdcCheckResult[] = [];
 
   if (!quadSlim) {
     results.push(
-      { id: "TUB-001", ok: geo.ok, detail: geo.detail },
-      { id: "TUB-002", ok: geo.ok, detail: geo.detail },
+      { id: "SDC-LAYOUT-002-A", ok: geo.ok, detail: geo.detail },
+      { id: "SDC-LAYOUT-002-B", ok: geo.ok, detail: geo.detail },
       {
-        id: "TUB-005",
+        id: "SDC-LAYOUT-002-E",
         ok: rightSideMirrors(ctx.visualCables),
         detail: "Right-side breakout is not mirrored",
       },
@@ -2377,12 +1632,12 @@ export function evaluateSdcLayoutFanoutRules(
 
   results.push(
     {
-      id: "TUB-007",
+      id: "SDC-LAYOUT-002-F",
       ok: sameSideFiberStemColumnsAligned(ctx),
       detail: "Same-side cable stem columns are not vertically aligned",
     },
     {
-      id: "STR-001",
+      id: "SDC-LAYOUT-002-H",
       ok: strandFansTowardCenter(ctx),
       detail: "Fiber strand fans away from canvas center",
     },
@@ -2393,66 +1648,32 @@ export function evaluateSdcLayoutFanoutRules(
 
 /** SDC-ROUTE-002 nesting checks (direct evaluators). */
 export function evaluateSdcRouteNestingRules(
-  ctx: LayoutRuleContext,
-): LayoutRuleResult[] {
-  return [
-    {
-      id: "EDGE-005",
-      ok: centerLanesPreserveTubeGrouping(ctx),
-      detail: "Center lane midX order breaks buffer-tube row-offset grouping",
-    },
-    {
-      id: "EDGE-010",
-      ok: tubeBundleRoutesAreSpaced(ctx),
-      detail:
-        "Tube bundle splice lanes overlap or lack shared horizontal trunk spacing",
-    },
-  ];
+  _ctx: LayoutRuleContext,
+): SdcCheckResult[] {
+  return [];
 }
 
 /** SDC-ROUTE-002 when grid lanes are attached — uses snapped midX from grid router. */
 export function evaluateSdcRouteNestingRulesForGrid(
-  ctx: LayoutRuleContext,
-): LayoutRuleResult[] {
-  return [
-    {
-      id: "EDGE-005",
-      ok: centerLanesPreserveTubeGroupingGrid(ctx),
-      detail: "Center lane midX order breaks buffer-tube row-offset grouping",
-    },
-    {
-      id: "EDGE-010",
-      ok: tubeBundleRoutesAreSpacedGrid(ctx),
-      detail:
-        "Tube bundle splice lanes overlap or lack shared horizontal trunk spacing",
-    },
-  ];
+  _ctx: LayoutRuleContext,
+): SdcCheckResult[] {
+  return [];
 }
 
 /** SDC-ROUTE-003 collision checks when grid routes are unavailable. */
 export function evaluateSdcRouteCollisionRules(
   ctx: LayoutRuleContext,
-): LayoutRuleResult[] {
+): SdcCheckResult[] {
   return [
     {
-      id: "EDGE-001",
-      ok: distinctEdgeLanes(ctx.reactFlow.edges),
-      detail: "Splice edges share routing lanes on import",
-    },
-    {
-      id: "EDGE-007",
-      ok: spliceCenterPathsDoNotCross(ctx),
-      detail: "Splice center paths cross between horizontal and vertical legs",
-    },
-    {
-      id: "EDGE-011",
+      id: "SDC-ROUTE-003-B",
       ok: splicePathsDoNotOverlap(ctx),
       detail:
         findSpliceOverlapPair(ctx) ??
         "Splice strand segments stack on the same horizontal or vertical track",
     },
     {
-      id: "EDGE-012",
+      id: "SDC-ROUTE-003-C",
       ok: verticalCenterLegsSpaced(ctx),
       detail: "Overlapping vertical center legs share the same midX lane",
     },

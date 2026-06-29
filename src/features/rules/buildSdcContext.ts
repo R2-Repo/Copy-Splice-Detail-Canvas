@@ -36,7 +36,7 @@ export type BuildSdcRuleContextOptions = {
   layoutWidth?: number;
   overrides?: LayoutOverrides;
   skipReactFlow?: boolean;
-  routingEngine?: "legacy" | "grid" | "nodes";
+  routingEngine?: "composite" | "grid" | "nodes" | "legacy";
   /** Attach grid map + routes for SDC-GRID/ROUTE validators. Default true when React Flow is built. */
   withGrid?: boolean;
 };
@@ -51,7 +51,7 @@ export function buildGridRoutingInput(
     reportKey: overrides?.reportKey ?? "grid-routing",
     positions: overrides?.positions ?? {},
     ...overrides,
-    routingEngine: "legacy",
+    routingEngine: "composite",
   };
   const { nodes, edges } = buildReactFlowGraph(
     graph,
@@ -189,7 +189,6 @@ function minimalAlignedLayout(
 function buildLayoutRuleContextFromEvaluated(
   ctx: SdcRuleContext,
 ): LayoutRuleContext {
-  const { dominant } = buildVisualCablesForLayout(ctx.graph);
   const visualCables =
     ctx.visualCables ?? buildVisualCablesForLayout(ctx.graph).visualCables;
   const layoutWidth = ctx.layoutWidth ?? 1920;
@@ -203,7 +202,6 @@ function buildLayoutRuleContextFromEvaluated(
   return {
     graph: ctx.graph,
     visualCables,
-    dominant,
     placement,
     layout: minimalAlignedLayout(ctx.reactFlow!.nodes, layoutWidth),
     reactFlow: ctx.reactFlow!,

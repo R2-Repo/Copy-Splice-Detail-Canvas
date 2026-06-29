@@ -157,7 +157,7 @@ export function applyLegOverridesToEdge(
   }
 
   // Manual mode is fully manual: apply even if it trips a readability rule
-  // (EDGE-004 / DOT-*) — the drag-time banner already flagged it.
+  // (SDC-ROUTE-004-A / SDC-UX-001-*) — the drag-time banner already flagged it.
   return {
     ...edge,
     data: {

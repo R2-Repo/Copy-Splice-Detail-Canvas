@@ -39,13 +39,13 @@ Fiber Cable
 - Strands exit the fan out toward the left.
 
 ### Top-Side Cable
-- Only used in four-sided mode [SDC-CORE-001].
+- Used when the import optimizer places a cable on the top edge [SDC-CORE-001], [SDC-SCORE-001].
 - Buffer tubes fan out toward the center.
 - Strands are ordered horizontally left to right.
 - Strands exit the fan out downward.
 
 ### Bottom-Side Cable
-- Only used in four-sided mode [SDC-CORE-001].
+- Used when the import optimizer places a cable on the bottom edge [SDC-CORE-001], [SDC-SCORE-001].
 - Buffer tubes fan out toward the center.
 - Strands are ordered horizontally left to right.
 - Strands exit the fan out upward.

@@ -9,6 +9,7 @@ import { sdcOrder002 } from "./order002";
 import { sdcRoute001 } from "./route001";
 import { sdcRoute002 } from "./route002";
 import { sdcRoute003 } from "./route003";
+import { sdcRoute004 } from "./route004";
 import { sdcScore001 } from "./score001";
 import { sdcUx001 } from "./ux001";
 import type { SdcRule, SdcRuleId } from "./types";
@@ -27,6 +28,7 @@ export const SDC_RULES: SdcRule[] = [
   sdcUx001,
   sdcRoute002,
   sdcRoute003,
+  sdcRoute004,
   sdcScore001,
 ];
 

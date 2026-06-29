@@ -54,7 +54,14 @@ The user may move a buffer tube or fan out area. Once adjusted, it becomes locke
 The user may adjust a fiber strand leg, usually a vertical lane segment. The strand remains connected to its fan out exit and fusion splice dot. The adjusted lane becomes a locked override [SDC-GRID-001].
 
 ### Fusion Splice Dot Adjustment
-The user may move a fusion splice dot horizontally, or along allowed axes based on future dot placement rules. Connected strand legs reconnect to the new dot position. The dot becomes locked.
+
+Fusion splice dots for strands in the same buffer tube group MUST stay on one organized line (shared row or column depending on path orientation). Paths may run horizontally (left↔right) or vertically (top↔bottom) per cable placement — dots align to the path axis, not a fixed horizontal-only rule.
+
+The user may move a fusion splice dot along the allowed axis for its group. Connected strand legs reconnect to the new dot position. The dot becomes locked.
+
+### Near-straight snap (manual adjustment)
+
+When the user drags a cable or adjusts a leg, the canvas SHOULD snap small misalignments so strand runs become straight. The goal is straight fiber lines without fighting the canvas — same intent as import-time near-straight alignment [SDC-LAYOUT-001].
 
 ### Bundle / Group Adjustment
 The user may lock a group of related strands, such as fibers from the same buffer tube. The locked bundle should preserve its spacing and relative shape [SDC-ROUTE-002], [SDC-LAYOUT-001].
@@ -126,6 +133,7 @@ FAIL this rule if:
 - A manual edit breaks data connections.
 - A cable side move fails to mirror attached components.
 - Locked positions are not saved or restored.
+- Fusion splice dots in the same buffer tube group are not on one organized line.
 
 WARN if:
 - Locks make a valid clean route impossible.

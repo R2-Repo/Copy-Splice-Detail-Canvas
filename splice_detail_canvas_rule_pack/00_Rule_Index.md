@@ -34,6 +34,7 @@ Recommended groups:
 | SDC-ROUTE-001 | Fiber Strand Routing Zone | Valid center routing area and bend clearance requirements. |
 | SDC-ROUTE-002 | Fiber Strand Nesting | Hierarchy-aware group routing and lane bands. |
 | SDC-ROUTE-003 | Fiber Strand Overlap, Crossing, and Collision | Invalid route interference and allowed crossing exception. |
+| SDC-ROUTE-004 | Splice Bend Budget | Max 2 corners per splice path (both legs combined). |
 | SDC-SCORE-001 | Composite Layout Soft Score | Tier-2 optimization score for routing-first search (crossings, bends, sides, compactness). |
 | SDC-UX-001 | Auto Layout and Manual Locks | Always-on auto layout with locked manual overrides. |
 
@@ -43,12 +44,12 @@ Recommended groups:
 2. Build cable hierarchy [SDC-DATA-001].
 3. Infer buffer tube count and validate strand grouping [SDC-DATA-002].
 4. Apply buffer tube and strand color order [SDC-ORDER-001], [SDC-ORDER-002].
-5. Place cables, buffer tubes, labels, and fanouts [SDC-LAYOUT-002], [SDC-LAYOUT-001].
+5. Place cables on optimizer-chosen edges, buffer tubes, labels, and fanouts [SDC-LAYOUT-002], [SDC-LAYOUT-001], [SDC-CORE-001].
 6. Calculate routing zone boundaries and grid occupancy [SDC-ROUTE-001], [SDC-GRID-001].
 7. Apply locked manual overrides as fixed constraints [SDC-UX-001].
 8. Build nested routing groups and lane bands [SDC-ROUTE-002].
 9. Route strands inside the routing zone [SDC-GRID-001], [SDC-ROUTE-001].
-10. Validate overlap, crossing, collision, spacing, labels, and reserved areas [SDC-ROUTE-003], [SDC-LAYOUT-001].
+10. Validate overlap, crossing, collision, bend budget, spacing, labels, and reserved areas [SDC-ROUTE-003], [SDC-ROUTE-004], [SDC-LAYOUT-001].
 11. Score the layout and retry if needed [SDC-SCORE-001].
 12. Save/export PDF/config. Future rule: [SDC-EXPORT-001].
 
@@ -60,10 +61,11 @@ When rules conflict, resolve them in this order:
 2. Absolute strand numbers must not be renumbered [SDC-DATA-002], [SDC-LAYOUT-002].
 3. Locked manual overrides are fixed constraints unless the user unlocks them [SDC-UX-001].
 4. Fiber routes must stay inside valid routing zones and avoid reserved areas [SDC-ROUTE-001].
-5. Overlap, collision, and illegal shared lanes must be prevented or flagged [SDC-ROUTE-003].
-6. Minimum spacing must be preserved unless the controlled crossing exception applies [SDC-LAYOUT-001], [SDC-ROUTE-003].
-7. Nesting and grouping should be preserved unless breaking nesting is required to solve a higher-priority routing failure [SDC-ROUTE-002].
-8. Aesthetic goals such as fewer bends, shorter paths, and compact layout are optimization goals, not hard data rules [SDC-GRID-001].
+5. Splice bend budget must not be exceeded [SDC-ROUTE-004].
+6. Overlap, collision, and illegal shared lanes must be prevented or flagged [SDC-ROUTE-003].
+7. Minimum spacing must be preserved unless the controlled crossing exception applies [SDC-LAYOUT-001], [SDC-ROUTE-003], [SDC-GRID-001].
+8. Nesting and grouping should be preserved unless breaking nesting is required to solve a higher-priority routing failure [SDC-ROUTE-002].
+9. Aesthetic goals such as fewer bends, shorter paths, and compact layout are optimization goals, not hard data rules [SDC-SCORE-001].
 
 ## Related Rule Matrix
 
@@ -79,6 +81,7 @@ When rules conflict, resolve them in this order:
 | SDC-LAYOUT-002 | SDC-ORDER-002, SDC-LAYOUT-001, SDC-ROUTE-001, SDC-ROUTE-002, SDC-ROUTE-003 |
 | SDC-ROUTE-001 | SDC-GRID-001, SDC-LAYOUT-001, SDC-LAYOUT-002, SDC-ROUTE-002, SDC-ROUTE-003, SDC-UX-001 |
 | SDC-ROUTE-002 | SDC-DATA-001, SDC-LAYOUT-002, SDC-GRID-001, SDC-LAYOUT-001, SDC-ROUTE-001, SDC-ROUTE-003 |
-| SDC-ROUTE-003 | SDC-GRID-001, SDC-LAYOUT-001, SDC-ROUTE-001, SDC-ROUTE-002, SDC-UX-001 |
-| SDC-SCORE-001 | SDC-GRID-001, SDC-ROUTE-001, SDC-ROUTE-002, SDC-ROUTE-003, SDC-LAYOUT-001 |
+| SDC-ROUTE-003 | SDC-GRID-001, SDC-LAYOUT-001, SDC-ROUTE-001, SDC-ROUTE-002, SDC-ROUTE-004, SDC-UX-001 |
+| SDC-ROUTE-004 | SDC-GRID-001, SDC-LAYOUT-001, SDC-ROUTE-001, SDC-ROUTE-002, SDC-ROUTE-003, SDC-UX-001 |
+| SDC-SCORE-001 | SDC-GRID-001, SDC-ROUTE-001, SDC-ROUTE-002, SDC-ROUTE-003, SDC-ROUTE-004, SDC-LAYOUT-001 |
 | SDC-UX-001 | SDC-GRID-001, SDC-ROUTE-001, SDC-ROUTE-003, SDC-LAYOUT-001, SDC-LAYOUT-002, SDC-ROUTE-002 |

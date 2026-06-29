@@ -5,10 +5,10 @@ alwaysApply: true
 
 # Splice Detail Canvas
 
-Read `AGENTS.md`, then `docs/agent/SCOPE.md`, `RULE_PRIORITY.md`, `CONTEXT.md`, and `HANDOFF.md` before coding. For diagram/canvas layout work, also read `docs/agent/LAYOUT_RULES.md`. When the user names diagram parts or routing, read `docs/agent/SIMPLE_TERMS.md` and map simple terms before acting. Use `docs/reference/` when the user cites files there.
+Read `AGENTS.md`, then `docs/agent/SCOPE.md`, `CONTEXT.md`, and `HANDOFF.md` before coding. For diagram/canvas layout work, read `splice_detail_canvas_rule_pack/00_Rule_Index.md`. When the user names diagram parts or routing, read `docs/agent/SIMPLE_TERMS.md` and map simple terms before acting. Use `docs/reference/` when the user cites files there.
 
 - `CONTEXT.md` is current-only; do not treat `CHANGELOG.md` as active requirements.
-- Read `RULE_PRIORITY.md` before changing routing or layout.
+- Cite **SDC rule IDs only** in chat — see `docs/agent/RULE_DICTIONARY.md`.
 
 ## Stack
 

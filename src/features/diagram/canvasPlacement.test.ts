@@ -6,51 +6,19 @@ import {
   stackOrderCrossingCount,
 } from "./canvasPlacement";
 import { connectionRowIndexMap } from "./connectionRowOrder";
-import { parentVisualGroupKey } from "./dominantCablePair";
 import { buildVisualCablesForLayout } from "./visualCables";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
 import { readReferenceCsv } from "@/testHelpers/layoutContractCsvPaths";
 
 describe("computeCanvasPlacement", () => {
-  it("Example #2: dominant pair cables stack first on each side", () => {
-    const graph = buildConnectionGraph(
-      parseBentleyCsv(readReferenceCsv("CSV Splice Detail Example #2.csv")),
-    );
-    const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-    expect(dominant).not.toBeNull();
-    const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
-    const placement = computeCanvasPlacement(
-      graph,
-      visualCables,
-      dominant,
-      rowIndex,
-    );
-
-    const orderOf = (side: "left" | "right") =>
-      visualCables
-        .filter((vc) => (placement.get(vc.id)?.side ?? vc.side) === side)
-        .sort(
-          (a, b) =>
-            (placement.get(a.id)?.order ?? 0) - (placement.get(b.id)?.order ?? 0),
-        );
-
-    const leftFirst = orderOf("left")[0]!;
-    const rightFirst = orderOf("right")[0]!;
-    expect(parentVisualGroupKey(leftFirst.id)).toBe(dominant!.leftGroupKey);
-    expect(parentVisualGroupKey(rightFirst.id)).toBe(dominant!.rightGroupKey);
-  });
-
   it("Example #3: optimized stack order has no strand crossings", () => {
     const graph = buildConnectionGraph(
       parseBentleyCsv(readReferenceCsv("CSV Splice Detail Example #3.csv")),
     );
-    const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-    const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
+    const { visualCables } = buildVisualCablesForLayout(graph);
+    const rowIndex = connectionRowIndexMap(graph, visualCables);
     const placement = computeCanvasPlacement(
-      graph,
-      visualCables,
-      dominant,
-      rowIndex,
+      graph, visualCables, rowIndex,
     );
 
     const leftOrder = visualCables

@@ -4,7 +4,7 @@
 
 | ID | Fixture | Symptom | Rule | Track | Reproduce |
 |----|---------|---------|------|-------|-----------|
-| KI-003 | Left-SPI-215_I-80 | Full feasibility overlap (~21 min) | EDGE-011 | Slow hardening | `RUN_KNOWN_ISSUES=1 npm run test:layout-slow` |
+| KI-003 | Left-SPI-215_I-80 | Full feasibility overlap (~21 min) | SDC-ROUTE-003-B | Slow hardening | `RUN_KNOWN_ISSUES=1 npm run test:layout-slow` |
 
 ## Phase 5 resolution (2026-06-27)
 

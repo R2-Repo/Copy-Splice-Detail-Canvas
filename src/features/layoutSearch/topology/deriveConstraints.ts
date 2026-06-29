@@ -1,5 +1,4 @@
-import type { DominantCablePair } from "@/features/diagram/dominantCablePair";
-import { parentVisualGroupKey } from "@/features/diagram/dominantCablePair";
+import { parentVisualGroupKey } from "@/features/diagram/visualCables";
 import { isThroughCable } from "@/features/diagram/throughCable";
 import { cableNameKey, computeCableCanvasSides } from "@/features/import/cableLegIdentity";
 import type { ConnectionGraph } from "@/types/splice";
@@ -14,7 +13,7 @@ import {
 } from "../layoutCandidate";
 import type {
   CableAffinity,
-  DominantPairLock,
+  PrimaryPairLock,
   ProxyBundleGroup,
   TopologyConstraints,
 } from "./topologyTypes";
@@ -23,7 +22,8 @@ import {
   LOCK_OPPOSITE_MIN_AFFINITY,
   LOCK_OPPOSITE_MIN_COUNT,
 } from "./topologyTypes";
-function cableFromDominantGroup(
+
+function cableFromVisualGroup(
   groupKey: string,
   visualCables: VisualCable[],
 ): string | undefined {
@@ -39,7 +39,6 @@ type DeriveInput = {
   graph: ConnectionGraph;
   cableKeys: string[];
   affinities: CableAffinity[];
-  dominant: DominantCablePair | null;
   visualCables: VisualCable[];
   throughCableConfidence: Record<string, number>;
   hubCables: string[];
@@ -75,14 +74,11 @@ function lockSymmetricThroughPair(
   cableKeys: string[],
   throughCableConfidence: Record<string, number>,
   heuristic: Map<string, LayoutSide>,
-): DominantPairLock | undefined {
+): PrimaryPairLock | undefined {
   const throughCables = cableKeys
     .filter((c) => isThroughCable(c, graph))
-    .sort(
-      (a, b) =>
-        (throughCableConfidence[b] ?? 0) - (throughCableConfidence[a] ?? 0) ||
-        a.localeCompare(b),
-    );
+    .filter((c) => (throughCableConfidence[c] ?? 0) >= 0.5)
+    .sort((a, b) => (throughCableConfidence[b] ?? 0) - (throughCableConfidence[a] ?? 0));
 
   if (throughCables.length < 2) return undefined;
 
@@ -90,9 +86,7 @@ function lockSymmetricThroughPair(
   const cableB = throughCables[1]!;
   const sideA = heuristic.get(cableA) ?? "left";
   let sideB = heuristic.get(cableB) ?? "right";
-  if (sideA === sideB) {
-    sideB = oppositeSide(sideA);
-  }
+  if (sideA === sideB) sideB = oppositeSide(sideA);
   return { cableA, cableB, sideA, sideB };
 }
 
@@ -102,10 +96,12 @@ function lockFromHighAffinity(
   throughCableConfidence: Record<string, number>,
   graph: ConnectionGraph,
   heuristic: Map<string, LayoutSide>,
-): DominantPairLock | undefined {
+): PrimaryPairLock | undefined {
   const threshold = adaptiveLockCountThreshold(totalConnections);
-
-  for (const affinity of affinities) {
+  const sorted = [...affinities].sort(
+    (a, b) => b.connectionCount - a.connectionCount,
+  );
+  for (const affinity of sorted) {
     if (affinity.connectionCount < threshold) continue;
     if (
       affinity.affinityA < LOCK_OPPOSITE_MIN_AFFINITY &&
@@ -113,13 +109,16 @@ function lockFromHighAffinity(
     ) {
       continue;
     }
-    const throughA = isThroughCable(affinity.cableA, graph);
-    const throughB = isThroughCable(affinity.cableB, graph);
-    if (!throughA && !throughB) continue;
-    const confA = throughCableConfidence[affinity.cableA] ?? 0;
-    const confB = throughCableConfidence[affinity.cableB] ?? 0;
-    if (confA < 0.5 && confB < 0.5) continue;
-
+    const throughScore =
+      (isThroughCable(affinity.cableA, graph)
+        ? throughCableConfidence[affinity.cableA] ?? 0
+        : 0) +
+      (isThroughCable(affinity.cableB, graph)
+        ? throughCableConfidence[affinity.cableB] ?? 0
+        : 0);
+    if (throughScore < 0.5 && affinity.connectionCount < LOCK_OPPOSITE_MIN_COUNT) {
+      continue;
+    }
     const sideA = heuristic.get(affinity.cableA) ?? "left";
     let sideB = heuristic.get(affinity.cableB) ?? "right";
     if (sideA === sideB) sideB = oppositeSide(sideA);
@@ -133,29 +132,12 @@ function lockFromHighAffinity(
   return undefined;
 }
 
-function lockFromDominantPair(
-  dominant: DominantCablePair,
-  visualCables: VisualCable[],
-  heuristic: Map<string, LayoutSide>,
-): DominantPairLock | undefined {
-  const cableA = cableFromDominantGroup(dominant.leftGroupKey, visualCables);
-  const cableB = cableFromDominantGroup(dominant.rightGroupKey, visualCables);
-  if (!cableA || !cableB || cableA === cableB) return undefined;
-
-  const sideA = heuristic.get(cableA) ?? "left";
-  let sideB = heuristic.get(cableB) ?? "right";
-  if (sideA === sideB) sideB = oppositeSide(sideA);
-  return { cableA, cableB, sideA, sideB };
-}
-
 /** Build locks, forbidden pairs, and searchable cable set. */
 export function deriveConstraints(input: DeriveInput): TopologyConstraints {
   const {
     graph,
     cableKeys,
     affinities,
-    dominant,
-    visualCables,
     throughCableConfidence,
     hubCables,
     satelliteCables,
@@ -168,7 +150,7 @@ export function deriveConstraints(input: DeriveInput): TopologyConstraints {
   const heuristic = heuristicSides(graph);
   const lockedCableSides: Record<string, LayoutSide> = {};
 
-  const dominantPairLock =
+  const primaryPairLock =
     lockFromHighAffinity(
       affinities,
       totalConnections,
@@ -181,14 +163,11 @@ export function deriveConstraints(input: DeriveInput): TopologyConstraints {
       cableKeys,
       throughCableConfidence,
       heuristic,
-    ) ??
-    (dominant
-      ? lockFromDominantPair(dominant, visualCables, heuristic)
-      : undefined);
+    );
 
-  if (dominantPairLock) {
-    lockedCableSides[dominantPairLock.cableA] = dominantPairLock.sideA;
-    lockedCableSides[dominantPairLock.cableB] = dominantPairLock.sideB;
+  if (primaryPairLock) {
+    lockedCableSides[primaryPairLock.cableA] = primaryPairLock.sideA;
+    lockedCableSides[primaryPairLock.cableB] = primaryPairLock.sideB;
   }
 
   const forbiddenSameSidePairs = affinities
@@ -207,7 +186,7 @@ export function deriveConstraints(input: DeriveInput): TopologyConstraints {
     hubCables: [...hubCables],
     satelliteCables: [...satelliteCables],
     proxyBundleGroups,
-    dominantPairLock,
+    primaryPairLock,
     lockedCableCount: Object.keys(lockedCableSides).length,
   };
 }
@@ -228,9 +207,9 @@ export function candidateViolatesForbiddenPairs(
   candidate: LayoutCandidate,
   constraints: TopologyConstraints,
 ): boolean {
-  for (const { cableA, cableB } of constraints.forbiddenSameSidePairs) {
-    const sideA = candidate.cableSides[cableA];
-    const sideB = candidate.cableSides[cableB];
+  for (const pair of constraints.forbiddenSameSidePairs) {
+    const sideA = candidate.cableSides[pair.cableA];
+    const sideB = candidate.cableSides[pair.cableB];
     if (sideA && sideB && sideA === sideB) return true;
   }
   return false;
@@ -275,9 +254,9 @@ export function applyConstraintLocks(
   return next;
 }
 
-export function forceDominantPairOpposite(
+export function forcePrimaryPairOpposite(
   candidate: LayoutCandidate,
-  lock: DominantPairLock,
+  lock: PrimaryPairLock,
 ): LayoutCandidate {
   return applyConstraintLocks(candidate, {
     lockedCableSides: {
@@ -289,7 +268,12 @@ export function forceDominantPairOpposite(
     hubCables: [lock.cableA, lock.cableB],
     satelliteCables: [],
     proxyBundleGroups: [],
-    dominantPairLock: lock,
+    primaryPairLock: lock,
     lockedCableCount: 2,
   });
 }
+
+/** @deprecated Use `forcePrimaryPairOpposite`. */
+export const forceDominantPairOpposite = forcePrimaryPairOpposite;
+
+export { cableFromVisualGroup as cableFromDominantGroup };

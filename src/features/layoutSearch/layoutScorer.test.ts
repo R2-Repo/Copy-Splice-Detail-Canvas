@@ -186,8 +186,8 @@ describe("layoutScorer four-side", () => {
   it("top/bottom screen score beats same-side L/L on relief fixture", () => {
     const graph = syntheticTopBottomReliefGraph();
     const cableKeys = cableKeysFromGraph(graph);
-    const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-    const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
+    const { visualCables } = buildVisualCablesForLayout(graph);
+    const rowIndex = connectionRowIndexMap(graph, visualCables);
 
     const allLeft = enumerateCandidates(cableKeys, [1200]).find(
       (c: LayoutCandidate) =>
@@ -221,8 +221,8 @@ describe("layoutScorer four-side", () => {
   it("fourSideCrossingEstimate runs for quad candidates", () => {
     const graph = twoCableGraph();
     const cableKeys = cableKeysFromGraph(graph);
-    const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-    const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
+    const { visualCables } = buildVisualCablesForLayout(graph);
+    const rowIndex = connectionRowIndexMap(graph, visualCables);
     const quad = enumerateCandidates(cableKeys, [1200]).find(
       (c: LayoutCandidate) => c.stackOrder.top.length > 0,
     );

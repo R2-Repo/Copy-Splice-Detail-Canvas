@@ -24,13 +24,14 @@ The routing zone is calculated after placement of:
 
 All reserved areas outside the routing zone should become blocked grid areas [SDC-GRID-001].
 
-## Diagram Modes
+## Routing Zone Shape
 
-### Two-Sided Mode
-The routing zone exists between the left fan out area and the right fan out area.
+The routing zone is the open center area bounded by populated cable edges and their fan-out regions.
 
-### Four-Sided Mode
-The routing zone exists between the left, right, top, and bottom fan out areas. Strands from all four sides share the same center routing zone [SDC-CORE-001], [SDC-GRID-001].
+- When only left and right edges hold cables, the zone spans horizontally between the left and right fan-out areas.
+- When top and/or bottom edges are also populated (optimizer outcome), the zone expands to include all four fan-out boundaries. Strands from every populated edge share the same center routing zone [SDC-CORE-001], [SDC-GRID-001].
+
+There is no separate two-sided vs four-sided mode. Edge population is whatever the import routing search selects [SDC-SCORE-001].
 
 ## Boundary Rule
 

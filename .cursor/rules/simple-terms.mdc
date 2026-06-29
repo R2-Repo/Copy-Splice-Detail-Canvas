@@ -22,12 +22,12 @@ The user speaks in **simple terms** defined in [`docs/agent/SIMPLE_TERMS.md`](do
 | User says | Means |
 |-----------|--------|
 | **Corner** | 90° bend on **left leg** or **right leg** |
-| **Bend budget** | **2 corners total** per splice (left + right combined) — **EDGE-004** |
+| **Bend budget** | **2 corners total** per splice (left + right combined) — **SDC-ROUTE-004-A** |
 | **Tube bundle** / **shared run** | Same buffer tube → same target cable; **bundle trunk** / **jogX** |
-| **Center nest** | Staggered corners in a bundle; **EDGE-005**, **EDGE-007** |
-| **Fiber order** | Top→bottom inside one tube — **FBR-001** |
-| **Tube order** | Top→bottom of tubes on cable — **TUB-006** |
-| **Row order** | Top→bottom splice rows on diagram — **ROW-***, **DOM-*** |
+| **Center nest** | Staggered corners in a bundle; **SDC-ROUTE-002**, **SDC-ROUTE-003** |
+| **Fiber order** | Top→bottom inside one tube — **SDC-ORDER-002-A** |
+| **Tube order** | Top→bottom of tubes on cable — **SDC-ORDER-001-A** |
+| **Row order** | Top→bottom splice rows on diagram — **SDC-LAYOUT-001-E/F** |
 
 Fan-out curves on the **cable** are **not** splice corners.
 

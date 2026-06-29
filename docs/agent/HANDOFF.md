@@ -4,7 +4,7 @@
 
 ## Last updated
 
-2026-06-28 — **SDC-LAYOUT-002 import false failures**
+2026-06-29 — **SDC-LAYOUT-002 import false failures** (merged with main routing-first docs)
 
 ### Root cause
 
@@ -16,12 +16,12 @@ Import rule checks rebuilt a default 2-side layout (`buildLayoutRuleContext`) bu
 |------|--------|
 | `buildSdcContext.ts` | `buildSdcContextFromLayout` derives placement from evaluated cable nodes — no rebuild |
 | `quadGeometry.ts` | `quadStemAlignCanvasValue`, `quadFansTowardCenter`, `quadSameSideStemColumnsAligned` |
-| `layoutRules.ts` | Quad-aware stem alignment + fan direction; skip horizontal-only tube geometry for quad slim |
+| `layoutRules.ts` | Quad-aware stem alignment + fan direction; skip horizontal-only tube geometry for quad slim; SDC check IDs (`SDC-LAYOUT-002-A` … `H`) |
 | Tests | `quadGeometry.validation.test.ts`, `layout002Import.test.ts` (STATE_OFFICE heuristic + quad seeds) |
 
 ### Gates
 
-- `npm run smoke` — pass (354 fast tests + build)
+- `npm run smoke` — pass after merge
 - `layout002Import.test.ts` — STATE_OFFICE quad seeds pass SDC-LAYOUT-002
 
 ### Manual QA
@@ -31,6 +31,12 @@ Import Left-STATE_OFFICE with optimizer on; confirm optimizer finalists no longe
 ### Frozen
 
 `spliceEdgeRouting.ts` drag hooks — not touched.
+
+---
+
+## Prior session (main, 2026-06-29)
+
+**Routing-first side placement documentation** — SDC-CORE-001, rule pack, QUAD_LAYOUT.md, agent docs: top/bottom edges are optimizer outcomes, not a user mode toggle. Documentation-only; no code behavior change.
 
 ---
 
