@@ -1,0 +1,144 @@
+{
+  "id": "bad-missed-straight-horizontal-splice-routing",
+  "verdict": "bad",
+  "source_image": "bad-missed-straight-horizontal-splice-routing.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/Images/bad/bad-missed-straight-horizontal-splice-routing.png",
+  "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/bad-missed-straight-horizontal-splice-routing.json",
+  "title": "Right-side cable placement misses straight horizontal splice routing",
+  "summary": "The Slate and White splice paths should be able to stay straight and horizontal to the Blue and Orange splice dots if the right-side 144-count cable group is shifted upward. Instead, the layout introduces unnecessary bends, creates avoidable nesting/crossing issues while routing Slate and White downward, and places two splice dots directly on top of the vertical Yellow strand.",
+  "classification": {
+    "example_type": "bad",
+    "confidence": "high",
+    "based_on_user_reported_issue": true
+  },
+  "image_observations": {
+    "dimensions_px": {
+      "width": 1676,
+      "height": 272
+    },
+    "uploaded_filename": "01-Screenshot-2026-06-23-121215.png",
+    "sha256": "f5cdfe82519c967e1ac83dd88e9f8dc4dac585b2c30519c09fd0cd1a60863c98"
+  },
+  "visually_observable_issues": [
+    "Two black splice dots sit directly on the vertical Yellow strand in the center routing area.",
+    "The Slate and White fibers bend downward near the right side instead of continuing as clean horizontal runs.",
+    "The White fiber crosses the Slate fiber unnecessarily while the Slate and White fibers transition downward.",
+    "The right-side 144-count cable with the Green and Violet buffer tubes appears low relative to the left-side Blue and Orange splice lanes, forcing avoidable bend geometry.",
+    "The Slate and White splice paths would likely be straight and horizontal if the right-side cable/fan-out group were shifted upward into alignment with the Blue and Orange strands from the left."
+  ],
+  "issue_priority": [
+    {
+      "priority": 1,
+      "severity": "critical",
+      "issue": "Missed straight horizontal routing opportunity",
+      "why_it_matters": "The best correction is to shift the right-side 144-count cable group upward so the Slate and White fibers align horizontally with the Blue and Orange fibers from the left. This removes the unnecessary bends entirely, and it is the most important failure in this example."
+    },
+    {
+      "priority": 2,
+      "severity": "high",
+      "issue": "Splice dots overlap the vertical Yellow strand",
+      "why_it_matters": "Fusion splice dots should remain readable and visually separate from routed strand segments. Here the dots land directly on the Yellow vertical run, so either the dots need to move or the Yellow and Violet vertical strands need to shift."
+    },
+    {
+      "priority": 3,
+      "severity": "medium",
+      "issue": "Slate and White nesting/crossing is broken by the downward bend",
+      "why_it_matters": "The White fiber crosses the Slate fiber and then bends where it should have routed sooner. This is still a useful nesting example, but it is secondary because the critical straightening correction would remove the downward bend and eliminate this crossing problem."
+    }
+  ],
+  "likely_broken_rules": [
+    {
+      "rule_id": "SDC-LAYOUT-001",
+      "rule_name": "Spacing",
+      "related_file": "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md",
+      "broken_requirements": [
+        "During automatic layout, cable and fan-out positions should be nudged so near-horizontal or near-vertical strand runs become straight.",
+        "Tiny unnecessary jogs must not remain when a straight run is feasible without violating higher-priority hard rules.",
+        "Individual fiber strand routes must maintain the 24px grid pitch around bends, lane transitions, fan-out exits, and fusion splice dots.",
+        "Strands must not visually merge into one line."
+      ],
+      "why_this_image_fails": "The right-side cable/fan-out group is not aligned to let the Slate and White fibers continue horizontally to the Blue and Orange splice relationship. That missed placement creates unnecessary bends and also places splice dots on top of the Yellow route."
+    },
+    {
+      "rule_id": "SDC-ROUTE-004",
+      "rule_name": "Splice Bend Budget",
+      "related_file": "splice_detail_canvas_rule_pack/00_Rule_Index.md",
+      "broken_requirements": [
+        "Splice paths must stay within the max two-corner bend budget.",
+        "Avoidable extra bends and direction changes should be rejected during route validation.",
+        "Fewer bends and shorter paths are layout optimization goals."
+      ],
+      "why_this_image_fails": "The Slate and White fibers introduce avoidable bend geometry even though a straight horizontal alignment appears available by shifting the right-side 144-count cable group upward."
+    },
+    {
+      "rule_id": "SDC-ROUTE-003",
+      "rule_name": "Fiber Strand Overlap, Crossing, and Collision",
+      "related_file": "splice_detail_canvas_rule_pack/11_SDC-ROUTE-003_Fiber_Strand_Overlap_Crossing_Collision.md",
+      "broken_requirements": [
+        "Routes must avoid unnecessary crossing.",
+        "A strand crosses another strand invalidly when a clear route was available.",
+        "A crossing is invalid when it happens because a strand bends too late.",
+        "A route fails when it ignores an available cleaner path.",
+        "Routes must remain visually traceable from fan-out exit to fusion splice dot."
+      ],
+      "why_this_image_fails": "The White fiber crosses the Slate fiber while routing downward even though the better layout is to avoid the downward transition by aligning the right-side cable/fan-out group horizontally with the target splice lanes."
+    },
+    {
+      "rule_id": "SDC-ROUTE-002",
+      "rule_name": "Fiber Strand Nesting",
+      "related_file": "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "broken_requirements": [
+        "Related strands should stay near each other and use adjacent routing lanes.",
+        "Lane bands should keep related strand lanes adjacent while preserving readable separation.",
+        "A strand should not cross through an unrelated group unnecessarily.",
+        "Nesting should break only when required to prevent a higher-priority routing failure."
+      ],
+      "why_this_image_fails": "The Slate and White routes lose clean nested order when White crosses Slate during the downward transition. This nesting issue is secondary to the cable-placement alignment failure that caused the transition to be needed."
+    },
+    {
+      "rule_id": "SDC-GRID-001",
+      "rule_name": "Canvas Grid System",
+      "related_file": "splice_detail_canvas_rule_pack/06_SDC-GRID-001_Canvas_Grid_System.md",
+      "broken_requirements": [
+        "The routing engine must reserve the exact lane segments used by each accepted route.",
+        "Unrelated strands must not use the same occupied segment unless a specific bundling rule allows it.",
+        "Blocked areas include splice points, cable, label, fanout, and spacing regions.",
+        "Invalid layouts should be rejected and valid layouts should be scored by overlaps, crossings, bends, nesting, spacing, path length, and congestion."
+      ],
+      "why_this_image_fails": "The splice dots overlap the occupied vertical Yellow lane, and the selected layout accepts a bend/crossing pattern that a cleaner grid-aligned horizontal placement should avoid."
+    },
+    {
+      "rule_id": "SDC-ROUTE-001",
+      "rule_name": "Fiber Strand Routing Zone",
+      "related_file": "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "broken_requirements": [
+        "The routing engine should use the full available routing zone.",
+        "Routes should use available horizontal and vertical space.",
+        "A route fails when it ignores available spacing and creates avoidable congestion.",
+        "Every strand should enter the center zone cleanly and remain traceable from fan-out exit to splice dot."
+      ],
+      "why_this_image_fails": "The layout ignores the cleaner available horizontal alignment and instead creates avoidable congestion around the center splice dots and the Slate/White downward bend."
+    }
+  ],
+  "notes": [
+    "This is a hard bad example because the critical failure is structural: the import/layout optimizer selected a cable placement that created bends where straight horizontal splice routes appear feasible.",
+    "Expected correction: shift the right-side 144-count cable/fan-out group with the Green and Violet buffer tubes upward until the Slate and White fibers align horizontally with the Blue and Orange splice lanes from the left.",
+    "Expected correction: keep the Slate and White splice paths straight and horizontal when possible; do not introduce a downward bend unless required by a higher-priority rule.",
+    "Expected correction: move the two splice dots or shift the Yellow and Violet vertical strand lanes so the dots do not sit on top of the Yellow strand.",
+    "The Slate/White nesting issue is still worth preserving in this metadata, but it is downstream of the more important straight-routing/cable-placement issue.",
+    "This example focuses on the canvas geometry produced after CSV import. It does not assert that the CSV cable hierarchy, buffer tube colors, strand colors, or splice pairings are wrong."
+  ],
+  "grounding": {
+    "primary_rule_files": [
+      "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md",
+      "splice_detail_canvas_rule_pack/00_Rule_Index.md",
+      "splice_detail_canvas_rule_pack/11_SDC-ROUTE-003_Fiber_Strand_Overlap_Crossing_Collision.md"
+    ],
+    "supporting_rule_files": [
+      "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "splice_detail_canvas_rule_pack/06_SDC-GRID-001_Canvas_Grid_System.md",
+      "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md"
+    ],
+    "reference_library_location": "docs/reference/rule_examples"
+  }
+}
