@@ -18,7 +18,6 @@ import {
   layoutWidthForViewport,
   minLayoutWidthForGraph,
 } from "@/features/diagram/layoutSpliceDiagram";
-import { stageInnerWidth } from "@/features/canvas/diagramViewport";
 import { computeCanvasPlacement } from "@/features/diagram/canvasPlacement";
 import {
   connectionRowIndexMap,
@@ -165,7 +164,7 @@ describe("importLayoutWidthForGraph", () => {
     expect(collapsed).toBe(expanded);
   });
 
-  it("fills viewport width when stage is wider than content minimum", () => {
+  it("uses content minimum regardless of stage width", () => {
     const csv = readFileSync(
       join(legacyExamples, "CSV Splice Detail Example #2.csv"),
       "utf8",
@@ -173,9 +172,11 @@ describe("importLayoutWidthForGraph", () => {
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const minWidth = minLayoutWidthForGraph(graph);
     const stageWidth = minWidth + 480;
-    const viewportWidth = Math.max(stageInnerWidth(stageWidth), minWidth);
 
-    expect(importLayoutWidthForGraph(graph, { stageWidth })).toBe(viewportWidth);
+    expect(importLayoutWidthForGraph(graph, { stageWidth })).toBe(minWidth);
+    expect(importLayoutWidthForGraph(graph)).toBe(
+      Math.max(CABLE_LAYOUT.width, minWidth),
+    );
   });
 
   it("content minimum wins when stage is narrower than routing needs", () => {
@@ -199,15 +200,14 @@ describe("importLayoutWidthForGraph", () => {
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const minWidth = minLayoutWidthForGraph(graph);
     const stageWidth = minWidth + 200;
-    const userExpanded = stageWidth + 600;
-    const viewportWidth = Math.max(stageInnerWidth(stageWidth), minWidth);
+    const userExpanded = minWidth + 600;
 
     expect(
       layoutWidthForViewport(graph, stageWidth, userExpanded),
     ).toBe(userExpanded);
     expect(
       layoutWidthForViewport(graph, stageWidth, minWidth),
-    ).toBe(viewportWidth);
+    ).toBe(Math.max(CABLE_LAYOUT.width, minWidth));
   });
 
   it("applyLayoutOverrides refreshColumnX keeps saved Y only", () => {
@@ -236,8 +236,8 @@ describe("importLayoutWidthForGraph", () => {
     () => {
     const csv = readFileSync(join(examples, "Left-SPI-215_I-80.csv"), "utf8");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
-    const baseWidth = importLayoutWidthForGraph(graph, { stageWidth: 1920 });
-    const resolved = resolveFeasibleImportLayout(graph, { stageWidth: 1920 });
+    const baseWidth = importLayoutWidthForGraph(graph);
+    const resolved = resolveFeasibleImportLayout(graph);
     expect(resolved.layoutWidth).toBeGreaterThanOrEqual(baseWidth);
 
     const ctx = runWithLayoutExpansion(resolved.expansion, () =>

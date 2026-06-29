@@ -206,15 +206,12 @@ import { syncNodesEngineDragLayout } from "@/features/diagram/syncNodesEngineDra
 import { detectFullButtSpliceTubes } from "@/features/diagram/fullButtSplice";
 import {
   boundsFromFlowNodes,
-  viewportAtUnitZoomFocused,
-  viewportForFitWidth,
+  viewportForFitPage,
 } from "@/features/canvas/diagramViewport";
 import {
   activeSpliceLaneCount,
   importLayoutWidthForGraph,
   reportStorageKey,
-  resolveLayoutWidthForStage,
-  stageLayoutWidthForGraph,
 } from "@/features/diagram/layoutSpliceDiagram";
 import { estimatedCableNodeWidth } from "@/features/diagram/spliceRowLayout";
 import { nearStraightCableShift } from "@/features/diagram/horizontalAlign";
@@ -267,10 +264,10 @@ function engineNodesFrom(nodes: Node[]): Node[] {
   return nodes.filter((n) => !isDiagramOverlayNode(n));
 }
 
-const FIT_WIDTH_OPTIONS = {
+const FIT_VIEW_OPTIONS = {
   paddingRatio: 0.08,
-  maxZoom: 1,
   minZoom: 0.05,
+  maxZoom: 4,
 } as const;
 
 /** Ignore sub-pixel resize noise from React Flow / scrollbar churn. */
@@ -393,9 +390,8 @@ function WorkflowCanvasInner() {
   const updateNodeInternals = useUpdateNodeInternals();
   const fitViewRequestRef = useRef(0);
   const fitViewHandledRef = useRef(0);
-  const fitViewUnitZoomRef = useRef(false);
   const [fitViewTick, setFitViewTick] = useState(0);
-  /** Set when the user drags a cable column outward beyond the viewport fill. */
+  /** Set when the user drags a cable column outward beyond the content width. */
   const userExpandedLayoutRef = useRef(false);
   const [nodes, setNodes, onNodesChange] = useNodesState(emptyNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(emptyEdges);
@@ -422,7 +418,6 @@ function WorkflowCanvasInner() {
       collapse: boolean,
       options?: {
         fitView?: boolean;
-        fitAtUnitZoom?: boolean;
         cableSidesPatch?: Record<string, "left" | "right">;
         layoutWidth?: number;
         refreshLayout?: boolean;
@@ -690,26 +685,18 @@ function WorkflowCanvasInner() {
     [syncManualCableDrag, syncNodesEngineDrag, syncQuadCableDrag],
   );
 
-  const stageWidthForLayout = useCallback((): number => {
-    return stageRef.current?.clientWidth ?? stageWidthRef.current ?? 0;
-  }, []);
-
   const resolveLayoutWidth = useCallback(
     (graph: ConnectionGraph, preserveUserExpansion = true): number => {
-      const stageWidth = stageWidthForLayout();
-      if (stageWidth <= 0) {
-        return importLayoutWidthForGraph(graph);
-      }
-      const viewportWidth = importLayoutWidthForGraph(graph, { stageWidth });
+      const contentWidth = importLayoutWidthForGraph(graph);
       if (
         preserveUserExpansion &&
-        layoutWidthRef.current > viewportWidth + 1
+        layoutWidthRef.current > contentWidth + 1
       ) {
         return layoutWidthRef.current;
       }
-      return viewportWidth;
+      return contentWidth;
     },
-    [stageWidthForLayout],
+    [],
   );
 
   useEffect(() => {
@@ -727,20 +714,12 @@ function WorkflowCanvasInner() {
     fitViewHandledRef.current = requestId;
     const stageWidth = stage.clientWidth;
     const stageHeight = stage.clientHeight;
-    const unitZoom = fitViewUnitZoomRef.current;
-    const viewport = unitZoom
-      ? viewportAtUnitZoomFocused(
-          bounds,
-          stageWidth,
-          stageHeight,
-          layoutWidthRef.current / 2,
-        )
-      : viewportForFitWidth(
-          bounds,
-          stageWidth,
-          stageHeight,
-          FIT_WIDTH_OPTIONS,
-        );
+    const viewport = viewportForFitPage(
+      bounds,
+      stageWidth,
+      stageHeight,
+      FIT_VIEW_OPTIONS,
+    );
 
     void setViewport(viewport, { duration: 0 });
   }, [nodesInitialized, nodes, setViewport, fitViewTick]);
@@ -749,7 +728,7 @@ function WorkflowCanvasInner() {
   const scheduleFitViewAfterLayout = useCallback(() => {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        void fitView({ padding: 0.08, duration: 0, maxZoom: 1 });
+        void fitView({ padding: 0.08, duration: 0 });
       });
     });
   }, [fitView]);
@@ -761,8 +740,6 @@ function WorkflowCanvasInner() {
     refreshLayout?: boolean;
     refreshColumnX?: boolean;
     refreshRowLayout?: boolean;
-    /** Size layout to stage inner width and show at zoom 1 (import default). */
-    fitAtUnitZoom?: boolean;
   };
 
   const persistLayout = useCallback(
@@ -807,28 +784,11 @@ function WorkflowCanvasInner() {
         legOverrides: existing?.legOverrides,
         titleBlock: existing?.titleBlock,
       });
-      const stageWidth = stageWidthForLayout();
-      const viewportLayoutWidth =
-        stageWidth > 0
-          ? options?.fitAtUnitZoom
-            ? stageLayoutWidthForGraph(graph, stageWidth, {
-                userExpandedLayoutWidth: userExpandedLayoutRef.current
-                  ? layoutWidthRef.current
-                  : undefined,
-              })
-            : resolveLayoutWidthForStage(
-                graph,
-                stageWidth,
-                existing?.layoutWidth,
-              )
-          : undefined;
       let layoutWidthArg =
         options?.layoutWidth ??
-        (options?.refreshColumnX && viewportLayoutWidth !== undefined
-          ? viewportLayoutWidth
-          : undefined) ??
         existing?.layoutWidth ??
-        layoutWidthRef.current;
+        layoutWidthRef.current ??
+        importLayoutWidthForGraph(graph);
 
       let layoutExpansion: LayoutExpansion =
         existing?.layoutExpansion ?? DEFAULT_LAYOUT_EXPANSION;
@@ -840,17 +800,11 @@ function WorkflowCanvasInner() {
         !useOptimizedCandidate &&
         options?.layoutWidth === undefined &&
         !options?.refreshRowLayout &&
-        (options?.fitAtUnitZoom === true ||
-          options?.refreshLayout === true ||
+        (options?.refreshLayout === true ||
           existing?.layoutExpansion === undefined);
       if (shouldResolveFeasibleLayout) {
         const resolved = resolveFeasibleImportLayout(graph, {
-          stageWidth: stageWidth > 0 ? stageWidth : undefined,
-          layoutWidth:
-            viewportLayoutWidth ??
-            (stageWidth > 0
-              ? importLayoutWidthForGraph(graph, { stageWidth })
-              : undefined),
+          layoutWidth: layoutWidthArg,
           collapseFullButtSplices: collapse,
         });
         layoutWidthArg = resolved.layoutWidth;
@@ -972,7 +926,6 @@ function WorkflowCanvasInner() {
         );
       }
       if (options?.fitView) {
-        fitViewUnitZoomRef.current = options.fitAtUnitZoom === true;
         fitViewRequestRef.current += 1;
         setFitViewTick((tick) => tick + 1);
       }
@@ -981,7 +934,7 @@ function WorkflowCanvasInner() {
       });
       void layout;
     },
-    [setNodes, setEdges, updateNodeInternals, stageWidthForLayout],
+    [setNodes, setEdges, updateNodeInternals],
   );
 
   applyGraphRef.current = applyGraph;
@@ -993,30 +946,18 @@ function WorkflowCanvasInner() {
     let raf = 0;
     const observer = new ResizeObserver((entries) => {
       const width = Math.round(entries[0]?.contentRect.width ?? 0);
-      if (width <= 0) return;
+      const height = Math.round(entries[0]?.contentRect.height ?? 0);
+      if (width <= 0 || height <= 0) return;
 
       const prevStageWidth = stageWidthRef.current;
       stageWidthRef.current = width;
       if (Math.abs(width - prevStageWidth) < STAGE_WIDTH_DELTA_PX) return;
-
-      const graph = graphRef.current;
-      const reportKey = reportKeyRef.current;
-      if (!graph || !reportKey) return;
-      if (!autoAdjustRef.current) return;
-
-      const nextWidth = stageLayoutWidthForGraph(graph, width, {
-        userExpandedLayoutWidth: userExpandedLayoutRef.current
-          ? layoutWidthRef.current
-          : undefined,
-      });
-      if (Math.abs(nextWidth - layoutWidthRef.current) < 1) return;
+      if (!graphRef.current) return;
 
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        applyGraphRef.current(graph, reportKey, collapseRef.current, {
-          layoutWidth: nextWidth,
-          refreshColumnX: true,
-        });
+        fitViewRequestRef.current += 1;
+        setFitViewTick((tick) => tick + 1);
       });
     });
 
@@ -1029,40 +970,15 @@ function WorkflowCanvasInner() {
     };
   }, []);
 
-  /** Correct layout when import ran before the stage had width, or stale saved width. */
+  /** Fit diagram to stage once nodes are measured (e.g. after import). */
   useEffect(() => {
-    if (!nodesInitialized) return;
-    const graph = graphRef.current;
-    const reportKey = reportKeyRef.current;
-    if (!graph || !reportKey) return;
+    if (!nodesInitialized || nodes.length === 0) return;
+    const stage = stageRef.current;
+    if (!stage || stage.clientWidth <= 0 || stage.clientHeight <= 0) return;
 
-    const stageWidth = stageRef.current?.clientWidth ?? stageWidthRef.current;
-    if (stageWidth <= 0) return;
-
-    const existing = loadLayoutOverrides(reportKey);
-    if (
-      existing?.optimizedLayoutCandidate &&
-      !heuristicImportLayoutEnabled()
-    ) {
-      return;
-    }
-
-    const target = stageLayoutWidthForGraph(graph, stageWidth, {
-      userExpandedLayoutWidth: userExpandedLayoutRef.current
-        ? layoutWidthRef.current
-        : undefined,
-    });
-    if (Math.abs(target - layoutWidthRef.current) < STAGE_WIDTH_DELTA_PX) return;
-    if (!autoAdjustRef.current) return;
-
-    applyGraphRef.current(graph, reportKey, collapseRef.current, {
-      layoutWidth: target,
-      refreshColumnX: true,
-      refreshRowLayout: true,
-      fitView: true,
-      fitAtUnitZoom: true,
-    });
-  }, [nodesInitialized]);
+    fitViewRequestRef.current += 1;
+    setFitViewTick((tick) => tick + 1);
+  }, [nodesInitialized, nodes.length]);
 
   const activateDiagram = useCallback(
     (
@@ -1124,7 +1040,6 @@ function WorkflowCanvasInner() {
       ) => {
         applyGraph(graph, reportKey, collapsed, {
           fitView: options.viewport === undefined,
-          fitAtUnitZoom: options.viewport === undefined,
           layoutWidth,
           refreshLayout,
           refreshColumnX: true,
@@ -1161,16 +1076,8 @@ function WorkflowCanvasInner() {
         const importDiag = getActiveImportDiagnostics();
 
         const applyCandidateLayout = (candidate: LayoutCandidate) => {
-          const stageWidth =
-            stageRef.current?.clientWidth ?? stageWidthRef.current ?? 0;
-          const renderWidth =
-            stageWidth > 0
-              ? stageLayoutWidthForGraph(graph, stageWidth)
-              : candidate.layoutWidth;
-          const renderCandidate =
-            renderWidth !== candidate.layoutWidth
-              ? { ...candidate, layoutWidth: renderWidth }
-              : candidate;
+          const renderWidth = candidate.layoutWidth;
+          const renderCandidate = candidate;
 
           timePhase(importDiag, "applyWinner", () => {
             saveLayoutOverrides(
@@ -1183,8 +1090,7 @@ function WorkflowCanvasInner() {
             layoutModeRef.current = deriveLayoutMode(renderCandidate);
             setLayoutModeState(deriveLayoutMode(renderCandidate));
             applyGraph(graph, reportKey, collapsed, {
-              fitView: false,
-              fitAtUnitZoom: false,
+              fitView: true,
               layoutWidth: renderWidth,
               refreshLayout: true,
               refreshColumnX: true,
@@ -1194,7 +1100,6 @@ function WorkflowCanvasInner() {
           setMeta(
             `${options.sourceLabel} — ${graph.report.pairs.length} pair(s), ${graph.connections.length} connection(s)`,
           );
-          scheduleFitViewAfterLayout();
         };
 
         const resolveCandidateFromSearch = (
@@ -1502,14 +1407,10 @@ function WorkflowCanvasInner() {
         if (stageWidth > 0) {
           stageWidthRef.current = stageWidth;
         }
-        const stageDefaultWidth =
-          stageWidth > 0
-            ? stageLayoutWidthForGraph(graph, stageWidth)
-            : CABLE_LAYOUT.width;
         const layoutWidth =
           options.useSavedLayoutWidth && saved?.layoutWidth
             ? saved.layoutWidth
-            : stageDefaultWidth;
+            : importLayoutWidthForGraph(graph);
 
         const shouldOptimize =
           options.optimizeLayout === true &&
@@ -2082,7 +1983,6 @@ function WorkflowCanvasInner() {
         refreshColumnX: true,
         refreshRowLayout: true,
         fitView: true,
-        fitAtUnitZoom: true,
       });
     },
     [applyGraph, resolveLayoutWidth],
@@ -2115,7 +2015,6 @@ function WorkflowCanvasInner() {
       refreshColumnX: true,
       refreshRowLayout: true,
       fitView: true,
-      fitAtUnitZoom: true,
     });
   }, [applyGraph, resolveLayoutWidth]);
 
@@ -2397,10 +2296,9 @@ function WorkflowCanvasInner() {
       layoutWidthRef.current = layoutWidth;
       xBoundsRef.current = bounds;
 
-      const stageWidth = stageRef.current?.clientWidth ?? stageWidthRef.current;
-      if (graph && stageWidth > 0) {
-        const viewportFill = importLayoutWidthForGraph(graph, { stageWidth });
-        if (layoutWidth > viewportFill + STAGE_WIDTH_DELTA_PX) {
+      if (graph) {
+        const contentWidth = importLayoutWidthForGraph(graph);
+        if (layoutWidth > contentWidth + STAGE_WIDTH_DELTA_PX) {
           userExpandedLayoutRef.current = true;
         }
       } else if (layoutWidth > prevLayoutWidth + STAGE_WIDTH_DELTA_PX) {
