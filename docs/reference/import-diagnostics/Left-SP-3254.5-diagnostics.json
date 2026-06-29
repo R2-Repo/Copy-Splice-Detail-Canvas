@@ -1,0 +1,344 @@
+{
+  "importId": "import-1",
+  "reportKey": "splice-detail-layout:SP-3254.5",
+  "startedAt": 840.1999999880791,
+  "phaseTimings": [
+    {
+      "phase": "parse",
+      "startMs": 840.2999999523163,
+      "endMs": 842.0999999642372,
+      "durationMs": 2
+    },
+    {
+      "phase": "buildGraph",
+      "startMs": 842.1999999880791,
+      "endMs": 848.2999999523163,
+      "durationMs": 6
+    },
+    {
+      "phase": "importRules",
+      "startMs": 849.0999999642372,
+      "endMs": 850.1999999880791,
+      "durationMs": 1
+    },
+    {
+      "phase": "heuristicCandidate",
+      "startMs": 857.6999999880791,
+      "endMs": 858.8999999761581,
+      "durationMs": 1
+    },
+    {
+      "phase": "heuristicPaint",
+      "startMs": 858.8999999761581,
+      "endMs": 891,
+      "durationMs": 32
+    },
+    {
+      "phase": "finalRuleValidation",
+      "startMs": 891,
+      "endMs": 899.5999999642372,
+      "durationMs": 9
+    },
+    {
+      "phase": "topology",
+      "startMs": 91.5,
+      "endMs": 93.69999998807907,
+      "durationMs": 2
+    },
+    {
+      "phase": "fallback",
+      "startMs": 1508.5999999642372,
+      "endMs": 1508.7999999523163,
+      "durationMs": 0
+    },
+    {
+      "phase": "applyWinner",
+      "startMs": 1509.199999988079,
+      "endMs": 1522.8999999761581,
+      "durationMs": 14
+    }
+  ],
+  "searchStats": {
+    "generated": 0,
+    "evaluatedT0": 54,
+    "evaluatedT1": 39,
+    "evaluatedT2": 0,
+    "finalists": 0,
+    "cacheHits": 0,
+    "cacheMisses": 0,
+    "horizontalOnlyGenerated": 0,
+    "topGenerated": 0,
+    "bottomGenerated": 0,
+    "topOrBottomGenerated": 0,
+    "topOrBottomReachedT0": 42,
+    "topOrBottomReachedT1": 36,
+    "topOrBottomReachedT2": 0,
+    "topOrBottomFinalists": 0,
+    "bestHorizontalScore": 1940.8,
+    "bestTopBottomScore": -13150
+  },
+  "evalSubPhaseMs": {
+    "buildReactFlowGraph": 30,
+    "routeAllOnGrid": 13.899999856948853,
+    "runRules": 10.70000010728836,
+    "scoreLayoutEvaluation": 1.5,
+    "evaluateT0": 5.899999976158142,
+    "evaluateT1": 59.80000001192093,
+    "evaluateT2": 0
+  },
+  "evalSubPhaseCounts": {
+    "buildReactFlowGraph": 39,
+    "routeAllOnGrid": 39,
+    "runRules": 57,
+    "scoreLayoutEvaluation": 39,
+    "evaluateT0": 54,
+    "evaluateT1": 39,
+    "evaluateT2": 0
+  },
+  "ruleRejectCounts": {
+    "SDC-LAYOUT-001": 36,
+    "SDC-ROUTE-003": 27
+  },
+  "topCandidates": [
+    {
+      "candidateId": "T[6 DROP (TSC): I-15 NB & 1600 S]B[]L[72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:top|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1133",
+      "tier": "T0",
+      "feasible": true,
+      "score": -13150,
+      "softScore": {
+        "crossings": 1,
+        "bendsOverBudget": 0,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 3,
+        "centerWidth": 0,
+        "heightImbalance": 160,
+        "pathLength": 0,
+        "sidePairPenalty": 100,
+        "topBottomRelief": -16000,
+        "total": -13150
+      },
+      "failedRules": [],
+      "timingMs": 0,
+      "usesTop": true,
+      "usesBottom": false
+    },
+    {
+      "candidateId": "T[]B[6 DROP (TSC): I-15 NB & 1600 S]L[72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:bottom|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1133",
+      "tier": "T0",
+      "feasible": true,
+      "score": -13150,
+      "softScore": {
+        "crossings": 1,
+        "bendsOverBudget": 0,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 3,
+        "centerWidth": 0,
+        "heightImbalance": 160,
+        "pathLength": 0,
+        "sidePairPenalty": 100,
+        "topBottomRelief": -16000,
+        "total": -13150
+      },
+      "failedRules": [],
+      "timingMs": 0,
+      "usesTop": false,
+      "usesBottom": true
+    },
+    {
+      "candidateId": "T[6 DROP (TSC): I-15 NB & 1600 S]B[]L[72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:top|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1200",
+      "tier": "T0",
+      "feasible": true,
+      "score": -13150,
+      "softScore": {
+        "crossings": 1,
+        "bendsOverBudget": 0,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 3,
+        "centerWidth": 0,
+        "heightImbalance": 160,
+        "pathLength": 0,
+        "sidePairPenalty": 100,
+        "topBottomRelief": -16000,
+        "total": -13150
+      },
+      "failedRules": [],
+      "timingMs": 0,
+      "usesTop": true,
+      "usesBottom": false
+    },
+    {
+      "candidateId": "T[]B[6 DROP (TSC): I-15 NB & 1600 S]L[72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:bottom|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1200",
+      "tier": "T0",
+      "feasible": true,
+      "score": -13150,
+      "softScore": {
+        "crossings": 1,
+        "bendsOverBudget": 0,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 3,
+        "centerWidth": 0,
+        "heightImbalance": 160,
+        "pathLength": 0,
+        "sidePairPenalty": 100,
+        "topBottomRelief": -16000,
+        "total": -13150
+      },
+      "failedRules": [],
+      "timingMs": 0,
+      "usesTop": false,
+      "usesBottom": true
+    },
+    {
+      "candidateId": "T[6 DROP (TSC): I-15 NB & 1600 S]B[]L[72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:top|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1400",
+      "tier": "T0",
+      "feasible": true,
+      "score": -13150,
+      "softScore": {
+        "crossings": 1,
+        "bendsOverBudget": 0,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 3,
+        "centerWidth": 0,
+        "heightImbalance": 160,
+        "pathLength": 0,
+        "sidePairPenalty": 100,
+        "topBottomRelief": -16000,
+        "total": -13150
+      },
+      "failedRules": [],
+      "timingMs": 0,
+      "usesTop": true,
+      "usesBottom": false
+    },
+    {
+      "candidateId": "T[]B[6 DROP (TSC): I-15 NB & 1600 S]L[72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:bottom|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1400",
+      "tier": "T0",
+      "feasible": true,
+      "score": -13150,
+      "softScore": {
+        "crossings": 1,
+        "bendsOverBudget": 0,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 3,
+        "centerWidth": 0,
+        "heightImbalance": 160,
+        "pathLength": 0,
+        "sidePairPenalty": 100,
+        "topBottomRelief": -16000,
+        "total": -13150
+      },
+      "failedRules": [],
+      "timingMs": 0,
+      "usesTop": false,
+      "usesBottom": true
+    },
+    {
+      "candidateId": "T[6 DROP (TSC): I-15 NB & 1600 S]B[144-SMF I-15 DIST: MP 258.96 - 4800 S]L[72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:bottom|6 DROP (TSC): I-15 NB & 1600 S:top|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1133",
+      "tier": "T0",
+      "feasible": true,
+      "score": -3220,
+      "softScore": {
+        "crossings": 0,
+        "bendsOverBudget": 0,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 4,
+        "centerWidth": 0,
+        "heightImbalance": 48,
+        "pathLength": 0,
+        "sidePairPenalty": 100,
+        "topBottomRelief": -4000,
+        "total": -3220
+      },
+      "failedRules": [],
+      "timingMs": 0,
+      "usesTop": true,
+      "usesBottom": true
+    },
+    {
+      "candidateId": "T[144-SMF I-15 DIST: MP 258.96 - 4800 S]B[6 DROP (TSC): I-15 NB & 1600 S]L[72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:top|6 DROP (TSC): I-15 NB & 1600 S:bottom|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1133",
+      "tier": "T0",
+      "feasible": true,
+      "score": -3220,
+      "softScore": {
+        "crossings": 0,
+        "bendsOverBudget": 0,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 4,
+        "centerWidth": 0,
+        "heightImbalance": 48,
+        "pathLength": 0,
+        "sidePairPenalty": 100,
+        "topBottomRelief": -4000,
+        "total": -3220
+      },
+      "failedRules": [],
+      "timingMs": 0,
+      "usesTop": true,
+      "usesBottom": true
+    }
+  ],
+  "finalists": [],
+  "notes": [
+    "Worker search wall: 603ms",
+    "WARNING: no top/bottom candidates generated.",
+    "WARNING: no top/bottom candidates generated."
+  ],
+  "graphStats": {
+    "cableCount": 4,
+    "connectionCount": 10,
+    "fiberConnectionCount": 10
+  },
+  "recoverableSelection": {
+    "selectionKind": "fully-passing",
+    "selectedCandidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1132.4",
+    "isHeuristic": true,
+    "reason": "heuristic baseline fully passes rules",
+    "weightedFallbackScore": 0,
+    "hardFailureCount": 0,
+    "routeZoneFailures": 0,
+    "layoutLabelFanoutFailures": 0,
+    "routingValidityFailures": 0,
+    "comparisonVsHeuristic": {
+      "heuristicCandidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1132.4",
+      "heuristicPenalty": 0,
+      "pickedPenalty": 0,
+      "heuristicHardFails": 0,
+      "pickedHardFails": 0,
+      "heuristicWon": true
+    },
+    "rejected": [
+      {
+        "candidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1133",
+        "source": "search-best",
+        "isHeuristic": false,
+        "whyLost": "worse soft score (1940.8 vs 1940.2)",
+        "weightedFallbackScore": 0,
+        "hardFailureCount": 0,
+        "routeZoneFailures": 0,
+        "layoutLabelFanoutFailures": 0
+      }
+    ]
+  },
+  "selected": {
+    "candidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1132.4",
+    "tier": "winner",
+    "feasible": true,
+    "score": 1940.2,
+    "softScore": {
+      "crossings": 0,
+      "bendsOverBudget": 0,
+      "sameSideLoopbacks": 2,
+      "sidesUsed": 2,
+      "centerWidth": 360.20000000000005,
+      "heightImbalance": 48,
+      "pathLength": 0,
+      "total": 1940.2
+    },
+    "failedRules": [],
+    "reason": "heuristic baseline fully passes rules",
+    "usesTop": false,
+    "usesBottom": false
+  },
+  "finishedAt": 1523.0999999642372,
+  "totalMs": 683
+}
