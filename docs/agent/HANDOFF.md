@@ -4,23 +4,42 @@
 
 ## Last updated
 
-2026-06-29 — **Routing-first side placement documentation**
+2026-06-29 — **SDC-LAYOUT-002 import false failures** (merged with main routing-first docs)
 
-### Done
+### Root cause
+
+Import rule checks rebuilt a default 2-side layout (`buildLayoutRuleContext`) but validated the optimizer's **quad** React Flow nodes. Stem-column alignment grouped cables by stale left/right placement, so quad finalists falsely failed `SDC-LAYOUT-002` ("shared label column misaligned").
+
+### Fix
 
 | Area | Change |
 |------|--------|
-| SDC-CORE-001 | Replaced "two-sided / four-sided modes" with "diagram edges and cable placement" — optimizer-driven, no toggle |
-| SDC-GRID-001, SDC-ROUTE-001, SDC-LAYOUT-002, SDC-ORDER-001/002 | Top/bottom edges = optimizer outcome, not a mode gate |
-| SDC-SCORE-001 | Tie-break wording: fewer sides is soft preference, not a mode |
-| Consolidated rules + 13/14 review docs | Same vocabulary alignment |
-| QUAD_LAYOUT.md | Rewritten as top/bottom geometry reference (not a user mode) |
-| AGENTS, ARCHITECTURE, SCOPE, ROUTING_FIRST_LAYOUT, Rule Index | Cross-links updated |
+| `buildSdcContext.ts` | `buildSdcContextFromLayout` derives placement from evaluated cable nodes — no rebuild |
+| `quadGeometry.ts` | `quadStemAlignCanvasValue`, `quadFansTowardCenter`, `quadSameSideStemColumnsAligned` |
+| `layoutRules.ts` | Quad-aware stem alignment + fan direction; skip horizontal-only tube geometry for quad slim; SDC check IDs (`SDC-LAYOUT-002-A` … `H`) |
+| Tests | `quadGeometry.validation.test.ts`, `layout002Import.test.ts` (STATE_OFFICE heuristic + quad seeds) |
+
+### Gates
+
+- `npm run smoke` — pass after merge
+- `layout002Import.test.ts` — STATE_OFFICE quad seeds pass SDC-LAYOUT-002
 
 ### Manual QA
 
-Not required — documentation-only change.
+Import Left-STATE_OFFICE with optimizer on; confirm optimizer finalists no longer all fail SDC-LAYOUT-002 in `VITE_DEBUG_IMPORT_RULES=1` console table.
 
 ### Frozen
 
-`spliceEdgeRouting.ts` symbols untouched.
+`spliceEdgeRouting.ts` drag hooks — not touched.
+
+---
+
+## Prior session (main, 2026-06-29)
+
+**Routing-first side placement documentation** — SDC-CORE-001, rule pack, QUAD_LAYOUT.md, agent docs: top/bottom edges are optimizer outcomes, not a user mode toggle. Documentation-only; no code behavior change.
+
+---
+
+## Prior session
+
+2026-06-28 — Recoverable import fallback. See git history.
