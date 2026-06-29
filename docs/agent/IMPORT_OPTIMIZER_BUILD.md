@@ -278,7 +278,7 @@ Checklist per fixture:
 | `VITE_DEBUG_LAYOUT_SEARCH=1` | Console diagnostics |
 | `VITE_DEBUG_IMPORT_CANDIDATES=1` | Candidate detail logs |
 | `VITE_DISABLE_OPTIMIZED_IMPORT=1` | Skip search |
-| `VITE_USE_LEGACY_IMPORT_LAYOUT=1` | Legacy layout path |
+| `VITE_USE_HEURISTIC_IMPORT=1` | Heuristic layout path (skip optimizer) |
 
 ---
 
