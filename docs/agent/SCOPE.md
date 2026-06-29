@@ -112,7 +112,7 @@ To:   [Cable], [Buffer #], [Tube color], [Fiber color], [Device], [OS]
 |-------|------|
 | **Connection graph** | Authoritative — every row → `SplicePair { endpointA, endpointB }`; dedupe mirrored Left/Right rows |
 | **Side hints** | CSV Left/Right = **soft** starting placement only |
-| **Layout optimizer** | May **reorder and reassign visual side** when CSV is suboptimal or mistaken; maximize straight horizontal splices |
+| **Layout optimizer** | On import, routing-first search assigns each cable to an edge (L/R/T/B), routes every strand on the grid, scores against SDC rules, and paints the best layout. CSV Left/Right hints are soft only. No user 2-side / 4-side toggle. |
 | **User overrides** | Persist layout separately from CSV |
 
 Same-side splices (both endpoints on same edge) are valid — they still meet in the **center splice zone**.

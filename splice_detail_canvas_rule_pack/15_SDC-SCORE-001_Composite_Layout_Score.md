@@ -44,7 +44,7 @@ total = crossings×1000 + bendsOverBudget×100 + sameSideLoopbacks×500
 
 When two candidates have equal soft score:
 
-1. **Fewer sides used** (prefer two-sided layouts when scores tie).
+1. **Fewer sides used** (soft preference — prefer left/right-only outcomes when scores tie; not a layout-mode constraint).
 2. **Lexicographic stable candidate id** (`candidateStableId`).
 
 Search uses `compareCandidates()` with this order.

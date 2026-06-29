@@ -97,13 +97,17 @@ Status: Active
 ## Purpose
 Define the shared language for the splice detail canvas. This rule is not a routing rule by itself. It standardizes the terms used by the app, AI agents, rules, validators, and user-facing documentation.
 
-## Core Diagram Modes
 
-### Two-Sided Diagram Mode
-A two-sided diagram uses left-side and right-side fiber cables. The primary flow is left-to-right or right-to-left. This mode is the default for simpler splice details [SDC-ROUTE-001].
+## Diagram Edges and Cable Placement
 
-### Four-Sided Diagram Mode
-A four-sided diagram can use left-side, right-side, top-side, and bottom-side fiber cables. The primary flow may be left-to-right, right-to-left, top-to-bottom, or bottom-to-top. Top and bottom cable positions are layout options that help reduce congestion on larger splice diagrams [SDC-GRID-001], [SDC-ROUTE-001].
+The diagram has four available edges: **left**, **right**, **top**, and **bottom**. Each fiber cable is placed on exactly one edge.
+
+**There is no user layout-mode toggle.** On CSV import, the routing-first layout engine evaluates many candidate placements, routes every fiber strand on the internal grid, scores each result against SDC rules, and paints the best feasible layout [SDC-SCORE-001], [SDC-UX-001]. **Cable side assignment is a search output**, not a user setting.
+
+- Any subset of the four edges may be populated; unused edges stay empty.
+- A layout that uses only left and right edges is a valid **outcome** for simpler splices — not a separate mode.
+- Top and bottom edges are used when routing optimization needs them to reduce congestion or improve strand paths [SDC-GRID-001], [SDC-ROUTE-001].
+- CSV Left/Right section hints are soft starting signals only; the optimizer may reassign visual side when that improves routing [SDC-SCORE-001].
 
 ## Required Component Vocabulary
 
@@ -191,12 +195,14 @@ Left Fiber Cable
 <- Right Fiber Cable
 ```
 
-### Four-Sided General Flow
+### Multi-Edge General Flow
+When cables sit on any combination of edges (including top or bottom), the same hierarchy applies per cable:
+
 ```text
-Side Fiber Cable
-  -> Side Buffer Tube
-      -> Side Fiber Strand Fan Out
-          -> Side Fiber Strand
+Edge Fiber Cable
+  -> Edge Buffer Tube
+      -> Edge Fiber Strand Fan Out
+          -> Edge Fiber Strand
               -> Center Routing Zone
                   -> Fusion Splice Dot
 ```
@@ -564,7 +570,7 @@ Striped buffer tubes MUST NOT appear before all 12 base buffer tube colors are u
 - Top-side cable: buffer tubes are ordered horizontally from left to right.
 - Bottom-side cable: buffer tubes are ordered horizontally from left to right.
 
-Top-side and bottom-side cable origins only apply in four-sided diagram mode [SDC-CORE-001], [SDC-GRID-001].
+Top-side and bottom-side cable ordering applies when the import optimizer places cables on those edges [SDC-CORE-001], [SDC-GRID-001], [SDC-SCORE-001].
 
 ## Scope
 
@@ -673,7 +679,7 @@ For 6-count buffer tubes, only the first six colors are used [SDC-DATA-002]:
 - Top-side cable: strands are ordered horizontally from left to right.
 - Bottom-side cable: strands are ordered horizontally from left to right.
 
-Top and bottom sides only apply in four-sided diagram mode [SDC-CORE-001].
+Top and bottom strand ordering applies when the import optimizer places cables on those edges [SDC-CORE-001], [SDC-SCORE-001].
 
 ## Scope
 
@@ -779,7 +785,7 @@ x=120,y=240 -> x=400,y=240 -> x=400,y=320 -> x=760,y=320
 
 The routing engine MUST reserve the exact lane segments used by each accepted route. Unrelated strands MUST NOT use the same occupied segment unless a specific bundling rule allows it [SDC-ROUTE-003].
 
-## Four-Sided Layout Support
+## Multi-Edge Layout Support
 
 The grid MUST support these zones:
 
@@ -791,7 +797,7 @@ Bottom cable zone
 Center routing grid
 ```
 
-Cables MAY be placed on left, right, top, or bottom sides when four-sided diagram mode is enabled [SDC-CORE-001].
+Cables MAY be placed on left, right, top, or bottom edges. Side assignment is determined by the import routing optimizer — not by a user layout-mode toggle [SDC-CORE-001], [SDC-SCORE-001]. Any subset of edges may be populated; unused edges remain empty.
 
 ## Routing Quadrants
 
@@ -1071,13 +1077,13 @@ Fiber Cable
 - Strands exit the fan out toward the left.
 
 ### Top-Side Cable
-- Only used in four-sided mode [SDC-CORE-001].
+- Used when the import optimizer places a cable on the top edge [SDC-CORE-001], [SDC-SCORE-001].
 - Buffer tubes fan out toward the center.
 - Strands are ordered horizontally left to right.
 - Strands exit the fan out downward.
 
 ### Bottom-Side Cable
-- Only used in four-sided mode [SDC-CORE-001].
+- Used when the import optimizer places a cable on the bottom edge [SDC-CORE-001], [SDC-SCORE-001].
 - Buffer tubes fan out toward the center.
 - Strands are ordered horizontally left to right.
 - Strands exit the fan out upward.
@@ -1213,11 +1219,14 @@ All reserved areas outside the routing zone should become blocked grid areas [SD
 
 ## Diagram Modes
 
-### Two-Sided Mode
-The routing zone exists between the left fan out area and the right fan out area.
+## Routing Zone Shape
 
-### Four-Sided Mode
-The routing zone exists between the left, right, top, and bottom fan out areas. Strands from all four sides share the same center routing zone [SDC-CORE-001], [SDC-GRID-001].
+The routing zone is the open center area bounded by populated cable edges and their fan-out regions.
+
+- When only left and right edges hold cables, the zone spans horizontally between the left and right fan-out areas.
+- When top and/or bottom edges are also populated (optimizer outcome), the zone expands to include all four fan-out boundaries. Strands from every populated edge share the same center routing zone [SDC-CORE-001], [SDC-GRID-001].
+
+There is no separate two-sided vs four-sided mode. Edge population is whatever the import routing search selects [SDC-SCORE-001].
 
 ## Boundary Rule
 
@@ -1837,8 +1846,8 @@ Spacing rules mention minimum and maximum values, but only routing zone bend cle
 
 Resolution: create a future layout constants/defaults rule, or define defaults inside [SDC-LAYOUT-001].
 
-### 7. Four-Sided Layout Needs Connection/Dot Placement Rules
-The four-sided layout is well defined at a high level [SDC-CORE-001], [SDC-GRID-001], but fusion splice dot placement is not yet fully specified.
+### 7. Multi-Edge Layout Needs Connection/Dot Placement Rules
+Import-driven cable placement on any edge (left, right, top, bottom) is defined at a high level [SDC-CORE-001], [SDC-GRID-001], but fusion splice dot placement is not yet fully specified.
 
 Resolution: create a fusion splice dot placement and connection pairing rule.
 
@@ -1912,7 +1921,7 @@ Should include:
 - Dot spacing.
 - Dot-to-strand endpoint mapping.
 - Dot lock behavior.
-- Multi-side connection behavior in four-sided mode.
+- Multi-edge connection behavior when the optimizer places cables on top or bottom edges.
 - Handling missing or one-sided/unconnected strands.
 
 Why it matters:
@@ -1969,21 +1978,22 @@ Should include:
 Why it matters:
 The grid rule implies orthogonal paths, but route geometry should be explicit for implementation.
 
-## 6. Layout Modes, Side Assignment, and Cable Placement
+## 6. Side Assignment and Cable Placement (partially covered)
 Suggested Rule ID: SDC-LAYOUT-003
 
 Purpose:
 Define how the app chooses left/right/top/bottom cable placement during auto layout and retry layout.
 
+**Current state:** Side assignment is driven by the routing-first import optimizer [SDC-SCORE-001], [SDC-CORE-001]. There is no user two-sided vs four-sided toggle. A dedicated SDC-LAYOUT-003 rule may still formalize retry-layout side moves and user drag side changes [SDC-UX-001].
+
 Should include:
-- Two-sided vs four-sided triggers.
-- Side scoring.
-- Cable ordering on each side.
+- Optimizer side scoring and seed strategies.
+- Cable ordering on each populated edge.
 - Side move behavior references [SDC-UX-001].
 - Cleanest-side selection.
 
 Why it matters:
-The current grid and glossary rules support four-sided layout, but side assignment deserves its own rule.
+The grid and glossary rules define multi-edge geometry, but side-assignment scoring and retry behavior deserve explicit documentation.
 
 ## 7. Validation Messages and Severity Levels
 Suggested Rule ID: SDC-VALIDATE-001

@@ -43,8 +43,8 @@ Spacing rules mention minimum and maximum values, but only routing zone bend cle
 
 Resolution: create a future layout constants/defaults rule, or define defaults inside [SDC-LAYOUT-001].
 
-### 7. Four-Sided Layout Needs Connection/Dot Placement Rules
-The four-sided layout is well defined at a high level [SDC-CORE-001], [SDC-GRID-001], but fusion splice dot placement is not yet fully specified.
+### 7. Multi-Edge Layout Needs Connection/Dot Placement Rules
+Import-driven cable placement on any edge (left, right, top, bottom) is defined at a high level [SDC-CORE-001], [SDC-GRID-001], but fusion splice dot placement is not yet fully specified.
 
 Resolution: create a fusion splice dot placement and connection pairing rule.
 

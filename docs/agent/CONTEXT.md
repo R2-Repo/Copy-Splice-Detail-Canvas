@@ -2,11 +2,9 @@
 
 > Agents: keep this file current-only. History lives in git log and [`CHANGELOG.md`](./CHANGELOG.md).
 
-## Focus (2026-06-28)
+## Focus (2026-06-29)
 
-**SDC-only rule vocabulary** — legacy check IDs removed; atomic checks use **SDC subcodes** (`sdcCheckIds.ts`).
-
-**Import perf fast-path** — heuristic T2 → immediate paint; background optimizer.
+**Routing-first side placement docs** — rule pack + agent docs updated: no user 2-side / 4-side toggle; import optimizer assigns cable edges (L/R/T/B) from strand routing search [SDC-CORE-001], [SDC-SCORE-001].
 
 ## Active build track
 
@@ -15,4 +13,4 @@
 
 ## Branch
 
-- `cursor/sdc-rules-cleanup-78ac` — PR #28 ready for merge after smoke
+- `cursor/routing-first-side-placement-docs-6a58` — rule pack + agent doc updates

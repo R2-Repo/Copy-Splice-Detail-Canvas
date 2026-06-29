@@ -4,21 +4,22 @@
 
 ## Last updated
 
-2026-06-28 — **SDC-only rule vocabulary (merge-ready)**
+2026-06-29 — **Routing-first side placement documentation**
 
-### Done (PR #28)
+### Done
 
 | Area | Change |
 |------|--------|
-| Rule pack + docs | SDC-ROUTE-004, 24px in SDC-GRID-001; deleted legacy agent docs |
-| Enforcement | Q3/Q4/Q7/Q8 dropped; dominant pair, ring-cut split, nest validators removed |
-| Subcodes | All atomic checks renamed to `SDC-*-NNN-A` … in `sdcCheckIds.ts` |
-| Purge | No FBR/TUB/CBL/ROW/EDGE/DOT/STR/DOM IDs in src or active agent docs |
-| Gates | `npm run smoke` pass |
+| SDC-CORE-001 | Replaced "two-sided / four-sided modes" with "diagram edges and cable placement" — optimizer-driven, no toggle |
+| SDC-GRID-001, SDC-ROUTE-001, SDC-LAYOUT-002, SDC-ORDER-001/002 | Top/bottom edges = optimizer outcome, not a mode gate |
+| SDC-SCORE-001 | Tie-break wording: fewer sides is soft preference, not a mode |
+| Consolidated rules + 13/14 review docs | Same vocabulary alignment |
+| QUAD_LAYOUT.md | Rewritten as top/bottom geometry reference (not a user mode) |
+| AGENTS, ARCHITECTURE, SCOPE, ROUTING_FIRST_LAYOUT, Rule Index | Cross-links updated |
 
-### Manual QA before merge
+### Manual QA
 
-Import **example-2** + any touched Left-* CSVs.
+Not required — documentation-only change.
 
 ### Frozen
 

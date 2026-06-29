@@ -65,7 +65,7 @@ For 6-count buffer tubes, only the first six colors are used [SDC-DATA-002]:
 - Top-side cable: strands are ordered horizontally from left to right.
 - Bottom-side cable: strands are ordered horizontally from left to right.
 
-Top and bottom sides only apply in four-sided diagram mode [SDC-CORE-001].
+Top and bottom strand ordering applies when the import optimizer places cables on those edges [SDC-CORE-001], [SDC-SCORE-001].
 
 ## Scope
 

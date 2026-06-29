@@ -12,7 +12,7 @@ Frontend-only React PWA: node/workflow canvas (React Flow). No backend unless th
 | `docs/agent/ARCHITECTURE.md` | Folders, patterns, extension points |
 | `splice_detail_canvas_rule_pack/00_Rule_Index.md` | **Canonical SDC rules** — public contract |
 | `src/features/rules/sdcCheckIds.ts` | **SDC subcodes** for atomic layout/routing checks |
-| `docs/agent/QUAD_LAYOUT.md` | **4-side (quad) layout** — geometry reference; auto import direction in ROUTING_FIRST_LAYOUT |
+| `docs/agent/QUAD_LAYOUT.md` | **Top/bottom edge geometry** — render adapters when optimizer places cables on T/B; see ROUTING_FIRST_LAYOUT |
 | `docs/agent/ROUTING_FIRST_LAYOUT.md` | **Routing-first auto layout** — search pipeline build plan (canonical for import placement) |
 | `docs/agent/IMPORT_OPTIMIZER_BUILD.md` | **Import optimizer one-pass build** — four-side scoring, beam search, finalists (active) |
 | `.cursor/rules/frozen-routing.mdc` | **Frozen** splice routing symbols — user approval required |
