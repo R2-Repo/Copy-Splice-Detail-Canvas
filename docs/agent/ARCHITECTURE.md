@@ -24,7 +24,7 @@ docs/archive/        # Superseded planning docs
 ```
 Bentley CSV
   → parse (SplicePair graph, dedupe mirrors)
-  → layout (side hints, ordering, coordinates)
+  → layout (routing-first search → optimizer-chosen edges, ordering, coordinates)
   → React Flow (edit + persist overrides)
   → export (model + layout → PDF/SVG) [future]
 ```
@@ -42,9 +42,9 @@ Bentley CSV
 - `features/import/parseBentleyCsv.ts` — CSV parser
 - `features/diagram/buildConnectionGraph.ts` — splice-pair graph
 - `features/diagram/layoutSpliceDiagram.ts` — layout orchestration
-- `features/diagram/buildReactFlowGraph.ts` — React Flow nodes/edges; **gates to quad** when `layoutMode === "quad"`
-- `features/diagram/quad/` — **4-side layout engine** (paused MVP — see [`docs/agent/QUAD_LAYOUT.md`](./QUAD_LAYOUT.md))
-  - `buildQuadReactFlowGraph.ts` — quad pipeline entry
+- `features/diagram/buildReactFlowGraph.ts` — React Flow nodes/edges; horizontal breakout for L/R cables, quad geometry adapters for T/B when optimizer assigns those edges
+- `features/diagram/quad/` — **top/bottom edge geometry** (render adapters — see [`docs/agent/QUAD_LAYOUT.md`](./QUAD_LAYOUT.md))
+  - `buildQuadReactFlowGraph.ts` — legacy quad pipeline (tests / config restore)
   - `quadPlacement.ts`, `quadGeometry.ts`, `quadChannels.ts`, `quadRouter.ts`, `quadTypes.ts`
 - `features/diagram/layoutRules.ts` — contract enforcement (31 rule IDs)
 - `features/diagram/spliceRowLayout.ts` — row alignment and cable placement
@@ -81,7 +81,7 @@ Vite dev server — typically http://localhost:5173
 - **Import / drag-stop:** `buildReactFlowGraph` runs full placement — same-side cable stack collision, cross-side tube auto-align (`SDC-LAYOUT-002-G`), and grid lane assignment (default) or `routeCenterSplices` (nodes escape hatch).
 - **Live cable drag:** `syncNodesEngineDragLayout` calls `buildReactFlowGraph` with `dragSync: true`, which skips collision re-stack and tube auto-align until drag stop. Routing lanes and fiber anchors still refresh from live handle positions.
 - **Grid drag-stop (auto):** When the routing engine is grid and the cable stayed on the same side, drag stop reuses the pre-drag `priorGridRoutes` snapshot plus live `dragCacheEdges`, and reroutes only splices on the dragged cable (`rerouteConnectionIds`). Collision stack runs on release; unaffected splices keep drag-sync midX lanes.
-- **Quad (4-side) mode:** `buildReactFlowGraph` delegates to `buildQuadReactFlowGraph`; `WorkflowCanvas` early-returns quad cable drag to `syncQuadCableDrag` before horizontal manual/auto paths. See [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md).
+- **Top/bottom cables:** When the import optimizer places cables on top or bottom edges, `buildReactFlowGraph` / `candidateToGraph` use quad geometry adapters (`quadRenderTransform`, `quadChannels`, `quadRouter`). See [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md). No user layout-mode toggle.
 - **`assignSpliceRoutingLanesFromLiveHandles`** — wired on live cable drag (`dragSync` → `useLiveHandleLanes` in `computeSpliceLayout` / `gridRouter`). Non-bundle entries get fresh `rowOffset` from handle Y; tube-bundle members keep layout rank. Dev lane diffs: `VITE_DEBUG_LANE_DIFF=1`.
 
 ### What differs on drag vs import

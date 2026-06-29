@@ -58,7 +58,7 @@ x=120,y=240 -> x=400,y=240 -> x=400,y=320 -> x=760,y=320
 
 The routing engine MUST reserve the exact lane segments used by each accepted route. Unrelated strands MUST NOT use the same occupied segment unless a specific bundling rule allows it [SDC-ROUTE-003].
 
-## Four-Sided Layout Support
+## Multi-Edge Layout Support
 
 The grid MUST support these zones:
 
@@ -70,7 +70,7 @@ Bottom cable zone
 Center routing grid
 ```
 
-Cables MAY be placed on left, right, top, or bottom sides when four-sided diagram mode is enabled [SDC-CORE-001].
+Cables MAY be placed on left, right, top, or bottom edges. Side assignment is determined by the import routing optimizer — not by a user layout-mode toggle [SDC-CORE-001], [SDC-SCORE-001]. Any subset of edges may be populated; unused edges remain empty.
 
 ## Routing Quadrants
 

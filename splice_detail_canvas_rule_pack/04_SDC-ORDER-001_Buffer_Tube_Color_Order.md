@@ -79,7 +79,7 @@ Striped buffer tubes MUST NOT appear before all 12 base buffer tube colors are u
 - Top-side cable: buffer tubes are ordered horizontally from left to right.
 - Bottom-side cable: buffer tubes are ordered horizontally from left to right.
 
-Top-side and bottom-side cable origins only apply in four-sided diagram mode [SDC-CORE-001], [SDC-GRID-001].
+Top-side and bottom-side cable ordering applies when the import optimizer places cables on those edges [SDC-CORE-001], [SDC-GRID-001], [SDC-SCORE-001].
 
 ## Scope
 

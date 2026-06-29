@@ -33,7 +33,7 @@ Should include:
 - Dot spacing.
 - Dot-to-strand endpoint mapping.
 - Dot lock behavior.
-- Multi-side connection behavior in four-sided mode.
+- Multi-edge connection behavior when the optimizer places cables on top or bottom edges.
 - Handling missing or one-sided/unconnected strands.
 
 Why it matters:
@@ -90,21 +90,22 @@ Should include:
 Why it matters:
 The grid rule implies orthogonal paths, but route geometry should be explicit for implementation.
 
-## 6. Layout Modes, Side Assignment, and Cable Placement
+## 6. Side Assignment and Cable Placement (partially covered)
 Suggested Rule ID: SDC-LAYOUT-003
 
 Purpose:
 Define how the app chooses left/right/top/bottom cable placement during auto layout and retry layout.
 
+**Current state:** Side assignment is driven by the routing-first import optimizer [SDC-SCORE-001], [SDC-CORE-001]. There is no user two-sided vs four-sided toggle. A dedicated SDC-LAYOUT-003 rule may still formalize retry-layout side moves and user drag side changes [SDC-UX-001].
+
 Should include:
-- Two-sided vs four-sided triggers.
-- Side scoring.
-- Cable ordering on each side.
+- Optimizer side scoring and seed strategies.
+- Cable ordering on each populated edge.
 - Side move behavior references [SDC-UX-001].
 - Cleanest-side selection.
 
 Why it matters:
-The current grid and glossary rules support four-sided layout, but side assignment deserves its own rule.
+The grid and glossary rules define multi-edge geometry, but side-assignment scoring and retry behavior deserve explicit documentation.
 
 ## 7. Validation Messages and Severity Levels
 Suggested Rule ID: SDC-VALIDATE-001

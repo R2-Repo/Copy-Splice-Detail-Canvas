@@ -9,13 +9,16 @@ Status: Active
 ## Purpose
 Define the shared language for the splice detail canvas. This rule is not a routing rule by itself. It standardizes the terms used by the app, AI agents, rules, validators, and user-facing documentation.
 
-## Core Diagram Modes
+## Diagram Edges and Cable Placement
 
-### Two-Sided Diagram Mode
-A two-sided diagram uses left-side and right-side fiber cables. The primary flow is left-to-right or right-to-left. This mode is the default for simpler splice details [SDC-ROUTE-001].
+The diagram has four available edges: **left**, **right**, **top**, and **bottom**. Each fiber cable is placed on exactly one edge.
 
-### Four-Sided Diagram Mode
-A four-sided diagram can use left-side, right-side, top-side, and bottom-side fiber cables. The primary flow may be left-to-right, right-to-left, top-to-bottom, or bottom-to-top. Top and bottom cable positions are layout options that help reduce congestion on larger splice diagrams [SDC-GRID-001], [SDC-ROUTE-001].
+**There is no user layout-mode toggle.** On CSV import, the routing-first layout engine evaluates many candidate placements, routes every fiber strand on the internal grid, scores each result against SDC rules, and paints the best feasible layout [SDC-SCORE-001], [SDC-UX-001]. **Cable side assignment is a search output**, not a user setting.
+
+- Any subset of the four edges may be populated; unused edges stay empty.
+- A layout that uses only left and right edges is a valid **outcome** for simpler splices — not a separate mode.
+- Top and bottom edges are used when routing optimization needs them to reduce congestion or improve strand paths [SDC-GRID-001], [SDC-ROUTE-001].
+- CSV Left/Right section hints are soft starting signals only; the optimizer may reassign visual side when that improves routing [SDC-SCORE-001].
 
 ## Required Component Vocabulary
 
@@ -103,12 +106,14 @@ Left Fiber Cable
 <- Right Fiber Cable
 ```
 
-### Four-Sided General Flow
+### Multi-Edge General Flow
+When cables sit on any combination of edges (including top or bottom), the same hierarchy applies per cable:
+
 ```text
-Side Fiber Cable
-  -> Side Buffer Tube
-      -> Side Fiber Strand Fan Out
-          -> Side Fiber Strand
+Edge Fiber Cable
+  -> Edge Buffer Tube
+      -> Edge Fiber Strand Fan Out
+          -> Edge Fiber Strand
               -> Center Routing Zone
                   -> Fusion Splice Dot
 ```

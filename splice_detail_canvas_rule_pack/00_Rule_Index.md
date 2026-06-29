@@ -44,7 +44,7 @@ Recommended groups:
 2. Build cable hierarchy [SDC-DATA-001].
 3. Infer buffer tube count and validate strand grouping [SDC-DATA-002].
 4. Apply buffer tube and strand color order [SDC-ORDER-001], [SDC-ORDER-002].
-5. Place cables, buffer tubes, labels, and fanouts [SDC-LAYOUT-002], [SDC-LAYOUT-001].
+5. Place cables on optimizer-chosen edges, buffer tubes, labels, and fanouts [SDC-LAYOUT-002], [SDC-LAYOUT-001], [SDC-CORE-001].
 6. Calculate routing zone boundaries and grid occupancy [SDC-ROUTE-001], [SDC-GRID-001].
 7. Apply locked manual overrides as fixed constraints [SDC-UX-001].
 8. Build nested routing groups and lane bands [SDC-ROUTE-002].
