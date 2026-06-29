@@ -1,0 +1,84 @@
+{
+  "id": "bad-fanout-routing-clearance",
+  "verdict": "bad",
+  "source_image": "01-Screenshot-2026-06-23-090631.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/bad-fanout-routing-clearance.png",
+  "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/bad-fanout-routing-clearance.json",
+  "title": "Routing bends too close to fan-out and crosses reserved label/fan-out areas",
+  "summary": "Fiber strand routing begins immediately after the fan-out and also passes through the middle of fan-out/label regions instead of traveling a minimum distance into the open center routing zone before bending.",
+  "classification": {
+    "example_type": "bad",
+    "confidence": "high",
+    "based_on_user_reported_issue": true
+  },
+  "visually_observable_issues": [
+    "Some strand routes bend immediately near the fan-out instead of first traveling into the center routing zone.",
+    "A vertical routed segment passes through the strand abbreviation and OS circuit label area.",
+    "Routing appears to occur inside or through fan-out geometry rather than only in the open center of the diagram.",
+    "The routed paths are visually close to labels and fan-out exits, making the route hard to distinguish from fan-out geometry."
+  ],
+  "likely_broken_rules": [
+    {
+      "rule_id": "SDC-ROUTE-001",
+      "rule_name": "Fiber Strand Routing Zone",
+      "related_file": "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "broken_requirements": [
+        "Routes must remain inside the center routing zone.",
+        "Route segments and bends must avoid labels, fan-out geometry, cable bodies, and buffer tubes.",
+        "Left/right strands must travel at least the default 60px into the routing zone before a vertical bend.",
+        "Any bend point that violates minimum bend clearance fails this rule."
+      ],
+      "why_this_image_fails": "The image shows bends and routed segments starting too close to the fan-out and occupying reserved fan-out/label areas instead of staying in the open center routing zone."
+    },
+    {
+      "rule_id": "SDC-LAYOUT-002",
+      "rule_name": "Fiber Strand Fan Out",
+      "related_file": "splice_detail_canvas_rule_pack/08_SDC-LAYOUT-002_Fiber_Strand_Fan_Out.md",
+      "broken_requirements": [
+        "The fan-out does not perform center routing.",
+        "The routing engine must not bend inside the fan-out area.",
+        "The routing engine must not route through the fan-out area after leaving it.",
+        "Labels must avoid route lines and stay outside the routing zone."
+      ],
+      "why_this_image_fails": "The image shows route geometry crossing the fan-out/label area after the strand exits, so the fan-out is not preserved as a clean transition area."
+    },
+    {
+      "rule_id": "SDC-LAYOUT-001",
+      "rule_name": "Spacing",
+      "related_file": "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md",
+      "broken_requirements": [
+        "Fan-out spacing must support strand abbreviation labels, OS circuit labels, and clean entry into the routing zone.",
+        "Individual strand routes must preserve spacing around fan-out exits and bends.",
+        "Bends that are too close together or too close to reserved content fail readability."
+      ],
+      "why_this_image_fails": "The route placement crowds labels, fan-out exits, and bend points, reducing readability and clean traceability."
+    },
+    {
+      "rule_id": "SDC-ROUTE-003",
+      "rule_name": "Fiber Strand Overlap, Crossing, and Collision",
+      "related_file": "splice_detail_canvas_rule_pack/11_SDC-ROUTE-003_Fiber_Strand_Overlap_Crossing_Collision.md",
+      "broken_requirements": [
+        "Routes must remain visually traceable from fan-out exit to fusion splice dot.",
+        "Routes must avoid unnecessary crossing and route interference.",
+        "A path fails when it makes the splice relationship unclear or ignores an available cleaner path."
+      ],
+      "why_this_image_fails": "The crowding through the fan-out/label region creates route interference and makes the strand path less traceable than a center-zone route."
+    }
+  ],
+  "notes": [
+    "This should be treated as a hard bad example because the defect is structural, not only aesthetic.",
+    "Expected correction: each strand should leave its fan-out cleanly, travel into the open center routing zone by at least the configured bend-clearance distance, then bend or transition lanes only inside that center zone.",
+    "Routing should never be drawn on top of or through fiber strand abbreviations, OS circuit labels, fiber fan-out geometry, buffer tubes, fiber cable bodies, or outside the diagram."
+  ],
+  "grounding": {
+    "primary_rule_files": [
+      "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "splice_detail_canvas_rule_pack/08_SDC-LAYOUT-002_Fiber_Strand_Fan_Out.md"
+    ],
+    "supporting_rule_files": [
+      "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md",
+      "splice_detail_canvas_rule_pack/11_SDC-ROUTE-003_Fiber_Strand_Overlap_Crossing_Collision.md"
+    ],
+    "reference_library_location": "docs/reference/rule_examples"
+  }
+}
