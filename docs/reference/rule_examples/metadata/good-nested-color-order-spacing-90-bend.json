@@ -1,0 +1,106 @@
+{
+  "id": "good-nested-color-order-spacing-90-bend",
+  "verdict": "good",
+  "source_image": "01-Screenshot-2026-06-29-113138.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/Images/good/good-nested-color-order-spacing-90-bend.png",
+  "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/good-nested-color-order-spacing-90-bend.json",
+  "title": "Nested strand bundle with ordered colors, even spacing, and clean 90-degree bends",
+  "summary": "The image shows a grouped set of fiber strands routed as a clean nested bundle. The strands preserve standard fiber color-code order, keep consistent strand-to-strand spacing, and make simple orthogonal 90-degree turns without loopback, overlap, or crowding.",
+  "classification": {
+    "example_type": "good",
+    "confidence": "high",
+    "based_on_user_reported_issue": true
+  },
+  "visually_observable_good_behavior": [
+    "The colored strand routes remain nested as a coherent bundle through the horizontal run and the bend.",
+    "The visible strand colors follow the standard fiber strand color-code sequence from Blue through Aqua.",
+    "Adjacent strands maintain consistent spacing and do not visually merge into shared lanes.",
+    "Each strand makes a clean orthogonal 90-degree bend at the corner.",
+    "The route bundle avoids loopback shapes, same-lane overlap, and unnecessary crossing."
+  ],
+  "likely_followed_rules": [
+    {
+      "rule_id": "SDC-ROUTE-002",
+      "rule_name": "Fiber Strand Nesting",
+      "related_file": "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "followed_requirements": [
+        "Related fiber strands stay visually grouped as they move through the splice detail diagram.",
+        "Nested strands use adjacent routing lanes and move through the routing zone as an organized group.",
+        "Same-buffer-tube fibers route near each other and remain readable through bends."
+      ],
+      "why_this_image_passes": "The strand paths remain side-by-side as a nested bundle and preserve a coherent group shape through the bend."
+    },
+    {
+      "rule_id": "SDC-ORDER-002",
+      "rule_name": "Fiber Strand Color Order",
+      "related_file": "splice_detail_canvas_rule_pack/05_SDC-ORDER-002_Fiber_Strand_Color_Order.md",
+      "followed_requirements": [
+        "Fiber strands display in standard fiber optic color-code order inside each buffer tube, fan out, strand group, and nested route group.",
+        "Nested routing should preserve strand order when assigning nearby lanes inside a buffer tube group.",
+        "Neighboring fiber strands inside the same buffer tube maintain the 24px pitch rhythm."
+      ],
+      "why_this_image_passes": "The visible route order follows the standard strand color sequence and keeps that order through the nested bend."
+    },
+    {
+      "rule_id": "SDC-LAYOUT-001",
+      "rule_name": "Spacing",
+      "related_file": "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md",
+      "followed_requirements": [
+        "Individual fiber strand routes maintain the 24px grid pitch in all directions.",
+        "Spacing applies around bends, lane transitions, and between strand groups.",
+        "Strands remain visually separated and traceable without avoidable congestion."
+      ],
+      "why_this_image_passes": "The strands are evenly spaced before, during, and after the corner, with no visible lane sharing or route merging."
+    },
+    {
+      "rule_id": "SDC-GRID-001",
+      "rule_name": "Canvas Grid System",
+      "related_file": "splice_detail_canvas_rule_pack/06_SDC-GRID-001_Canvas_Grid_System.md",
+      "followed_requirements": [
+        "The canvas grid uses a 24px base pitch on both axes.",
+        "Fiber strands route on grid lines with approved bend points or transition points.",
+        "Strands inside the same buffer tube use adjacent or nearby lanes where possible."
+      ],
+      "why_this_image_passes": "The routes appear aligned to a consistent grid pitch and bend together at clean grid intersections."
+    },
+    {
+      "rule_id": "SDC-ROUTE-001",
+      "rule_name": "Fiber Strand Routing Zone",
+      "related_file": "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "followed_requirements": [
+        "All bends remain inside the routing zone.",
+        "Routes use available spacing instead of collapsing into a congested area.",
+        "Every strand remains traceable from the visible route segment through the bend."
+      ],
+      "why_this_image_passes": "The crop shows clean center-zone-style routing with bends placed away from labels, fanout geometry, and reserved objects."
+    },
+    {
+      "rule_id": "SDC-ROUTE-004",
+      "rule_name": "Splice Bend Budget",
+      "related_file": "splice_detail_canvas_rule_pack/00_Rule_Index.md",
+      "followed_requirements": [
+        "Splice paths should use simple orthogonal route transitions.",
+        "Routes should avoid extra loopback bends when a clean bend is available."
+      ],
+      "why_this_image_passes": "Each visible route turns once at the corner and does not overshoot, return, or create a loopback shape."
+    }
+  ],
+  "notes": [
+    "This is a good reference example for nested grouped routing through a bend.",
+    "The image is especially useful as a positive contrast to same-lane overlap, broken spacing, and loopback bend examples.",
+    "The screenshot is a cropped route detail; it does not show the full CSV-derived cable, buffer tube, fan-out, or splice-dot context."
+  ],
+  "grounding": {
+    "primary_rule_files": [
+      "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "splice_detail_canvas_rule_pack/05_SDC-ORDER-002_Fiber_Strand_Color_Order.md",
+      "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md"
+    ],
+    "supporting_rule_files": [
+      "splice_detail_canvas_rule_pack/06_SDC-GRID-001_Canvas_Grid_System.md",
+      "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "splice_detail_canvas_rule_pack/00_Rule_Index.md"
+    ],
+    "reference_library_location": "docs/reference/rule_examples"
+  }
+}
