@@ -1,8 +1,8 @@
 {
   "id": "bad-fanout-routing-clearance",
   "verdict": "bad",
-  "source_image": "01-Screenshot-2026-06-23-090631.png",
-  "suggested_repo_image_path": "docs/reference/rule_examples/bad-fanout-routing-clearance.png",
+  "source_image": "bad-fanout-routing-clearance.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/Images/bad/bad-fanout-routing-clearance.png",
   "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/bad-fanout-routing-clearance.json",
   "title": "Routing bends too close to fan-out and crosses reserved label/fan-out areas",
   "summary": "Fiber strand routing begins immediately after the fan-out and also passes through the middle of fan-out/label regions instead of traveling a minimum distance into the open center routing zone before bending.",
