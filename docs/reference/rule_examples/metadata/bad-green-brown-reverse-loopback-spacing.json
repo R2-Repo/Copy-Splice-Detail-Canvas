@@ -1,0 +1,114 @@
+{
+  "id": "bad-green-brown-reverse-loopback-spacing",
+  "verdict": "bad",
+  "source_image": "bad-green-brown-reverse-loopback-spacing.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/Images/bad/bad-green-brown-reverse-loopback-spacing.png",
+  "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/bad-green-brown-reverse-loopback-spacing.json",
+  "title": "Green and Brown strands reverse direction, overlap Slate and White, and crowd Black",
+  "summary": "The Green and Brown fiber strands are spliced to Slate and White strands arriving from the left, so after the center splice area they should route toward the right side of the canvas. Instead, Green and Brown first route back toward the left, create unnecessary loopback geometry, share the same path as Slate and White for a meaningful distance, and then violate spacing near the Black strand once they begin heading right.",
+  "classification": {
+    "example_type": "bad",
+    "confidence": "high",
+    "based_on_user_reported_issue": true
+  },
+  "visually_observable_issues": [
+    "The Green and Brown strands bend left/up from the center splice area before continuing right, creating an avoidable loopback shape.",
+    "The Green and Brown strands route in the wrong initial direction relative to their expected center-to-right path.",
+    "The Green and Brown strands run on top of, or directly share the same path as, the Slate and White strands for an extended segment.",
+    "The Green and Brown strands are difficult to trace independently while they overlap the Slate and White route geometry.",
+    "After the Green and Brown strands begin traveling right, their spacing is too close to the Black strand that is spliced to White."
+  ],
+  "likely_broken_rules": [
+    {
+      "rule_id": "SDC-ROUTE-004",
+      "rule_name": "Splice Bend Budget",
+      "related_file": "splice_detail_canvas_rule_pack/00_Rule_Index.md",
+      "broken_requirements": [
+        "Splice paths must stay within the max two-corner bend budget.",
+        "Avoidable loopback shapes and extra direction reversals should be rejected during route validation."
+      ],
+      "why_this_image_fails": "Green and Brown route away from their intended rightward destination before turning back, creating an unnecessary loopback and extra bend sequence instead of a direct center-to-right splice path."
+    },
+    {
+      "rule_id": "SDC-ROUTE-003",
+      "rule_name": "Fiber Strand Overlap, Crossing, and Collision",
+      "related_file": "splice_detail_canvas_rule_pack/11_SDC-ROUTE-003_Fiber_Strand_Overlap_Crossing_Collision.md",
+      "broken_requirements": [
+        "Two strands must not run directly on top of each other.",
+        "Two strands must not share the same horizontal or vertical route lane.",
+        "Routes must avoid shared lanes unless an explicit bundling rule allows it.",
+        "Each strand must remain visually traceable from fan-out exit to fusion splice dot.",
+        "Routes must use separate lanes when separate lanes are available."
+      ],
+      "why_this_image_fails": "Green and Brown share the Slate and White route path for a meaningful distance, making the individual splice paths ambiguous and creating same-lane overlap."
+    },
+    {
+      "rule_id": "SDC-LAYOUT-001",
+      "rule_name": "Spacing",
+      "related_file": "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md",
+      "broken_requirements": [
+        "Individual fiber strand routes must maintain the 24px grid pitch.",
+        "Every individual strand route must have a minimum spacing buffer in all directions.",
+        "Unrelated strands must not share the same horizontal or vertical lane.",
+        "Strands must not visually merge into one line.",
+        "Bends that are so close together that the route cannot be understood fail readability."
+      ],
+      "why_this_image_fails": "The overlap with Slate and White collapses multiple strands into the same lane, and the later rightward segment places Green and Brown too close to the Black strand."
+    },
+    {
+      "rule_id": "SDC-GRID-001",
+      "rule_name": "Canvas Grid System",
+      "related_file": "splice_detail_canvas_rule_pack/06_SDC-GRID-001_Canvas_Grid_System.md",
+      "broken_requirements": [
+        "The canvas grid must use a 24px base pitch on both axes.",
+        "The routing engine must reserve the exact lane segments used by each accepted route.",
+        "Unrelated strands must not use the same occupied segment unless a specific bundling rule allows it.",
+        "Fiber strands should route on grid lines and valid lane segments."
+      ],
+      "why_this_image_fails": "The Green and Brown route appears to reuse occupied Slate and White lane segments, then compresses spacing near Black instead of reserving separate readable grid lanes."
+    },
+    {
+      "rule_id": "SDC-ROUTE-001",
+      "rule_name": "Fiber Strand Routing Zone",
+      "related_file": "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "broken_requirements": [
+        "The routing engine should use the full available routing zone.",
+        "The routing engine should spread strand groups apart and reserve lanes for different groups.",
+        "A route fails when it ignores available spacing and creates avoidable congestion.",
+        "Every strand should remain traceable from fan-out exit to splice dot."
+      ],
+      "why_this_image_fails": "Green and Brown ignore a cleaner available center-to-right routing path and instead create avoidable congestion by looping back over the left-to-center Slate and White paths."
+    },
+    {
+      "rule_id": "SDC-ROUTE-002",
+      "rule_name": "Fiber Strand Nesting",
+      "related_file": "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "broken_requirements": [
+        "Related strands should use adjacent routing lanes as an organized group.",
+        "Lane bands should keep related strand lanes adjacent while preserving readable separation.",
+        "Interleaving or grouping should not create avoidable confusion or collisions."
+      ],
+      "why_this_image_fails": "Green and Brown do not remain a clean, readable center-to-right pair; their loopback and shared path with Slate and White disrupt the intended grouped routing behavior."
+    }
+  ],
+  "notes": [
+    "This should be treated as a hard bad example because the defects affect route correctness and traceability, not only visual polish.",
+    "Expected correction: once Green and Brown connect to the center splice relationship, they should route from the center toward the right side without first looping back toward the left.",
+    "Expected correction: Green and Brown should use their own readable lane segments instead of sharing the Slate and White path.",
+    "Expected correction: the rightward Green and Brown run should preserve minimum strand spacing from the Black strand that is spliced to White.",
+    "CSV import correctness still depends on the imported cable, buffer tube, strand color, and splice pairing data; this example focuses on the canvas routing produced after those relationships are known."
+  ],
+  "grounding": {
+    "primary_rule_files": [
+      "splice_detail_canvas_rule_pack/00_Rule_Index.md",
+      "splice_detail_canvas_rule_pack/11_SDC-ROUTE-003_Fiber_Strand_Overlap_Crossing_Collision.md",
+      "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md"
+    ],
+    "supporting_rule_files": [
+      "splice_detail_canvas_rule_pack/06_SDC-GRID-001_Canvas_Grid_System.md",
+      "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md"
+    ],
+    "reference_library_location": "docs/reference/rule_examples"
+  }
+}
