@@ -2,6 +2,7 @@ import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
 import {
   buildLayoutRuleContext,
+  placementFromReactFlowNodes,
   type LayoutRuleContext,
 } from "@/features/diagram/layoutRules";
 import { routeAllOnGrid } from "@/features/grid/gridRouter";
@@ -22,6 +23,9 @@ function lanesByConnectionId(
   return byConn;
 }
 import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
+
+import { DEFAULT_LAYOUT_EXPANSION } from "@/features/diagram/layoutExpansion";
+import { computeAlignedLayout } from "@/features/diagram/spliceRowLayout";
 
 import type { SdcRuleContext } from "./types";
 
@@ -131,12 +135,45 @@ export function buildSdcRuleContext(
   return ctx;
 }
 
-/** Bridge SDC context to legacy layoutRules context when React Flow data exists. */
+/** Build layout rule context from an already-rendered search/import graph. */
+function buildLayoutRuleContextFromRender(
+  ctx: SdcRuleContext,
+): LayoutRuleContext {
+  const visualCables =
+    ctx.visualCables ??
+    buildVisualCablesForLayout(ctx.graph).visualCables;
+  const layoutWidth = ctx.layoutWidth ?? 1920;
+  const placement = placementFromReactFlowNodes(ctx.reactFlow!.nodes);
+  return {
+    graph: ctx.graph,
+    visualCables,
+    placement,
+    layout: computeAlignedLayout(
+      ctx.graph,
+      visualCables,
+      placement,
+      layoutWidth,
+    ),
+    reactFlow: ctx.reactFlow!,
+    layoutWidth,
+    layoutExpansion:
+      ctx.overrides?.layoutExpansion ?? DEFAULT_LAYOUT_EXPANSION,
+  };
+}
+
+/** Bridge SDC context to layoutRules when React Flow data exists. */
 export function buildSdcContextFromLayout(
   ctx: SdcRuleContext,
 ): LayoutRuleContext | undefined {
   if (!ctx.reactFlow) return undefined;
   try {
+    if (
+      ctx.overrides?.optimizedLayoutCandidate ||
+      ctx.overrides?.layoutMode === "quad"
+    ) {
+      return buildLayoutRuleContextFromRender(ctx);
+    }
+
     const layoutCtx = buildLayoutRuleContext(
       ctx.graph,
       ctx.layoutWidth,

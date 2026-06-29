@@ -12,6 +12,7 @@ export { sdcOrder001 } from "./order001";
 export { sdcOrder002 } from "./order002";
 export { sdcLayout001 } from "./layout001";
 export { sdcLayout002 } from "./layout002";
+export { sdcLayout003 } from "./layout003";
 export { sdcGrid001 } from "./grid001";
 export { sdcRoute001 } from "./route001";
 export { sdcRoute002 } from "./route002";

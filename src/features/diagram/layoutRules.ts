@@ -1,5 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 
+import type { CableNodeData } from "@/features/canvas/nodes/types";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
 import {
   computeCableBreakout,
@@ -55,7 +56,7 @@ import {
   endpointOnVisualSide,
   type VisualCable,
 } from "@/features/diagram/visualCables";
-import type { ConnectionGraph, FiberConnection, LayoutOverrides, TubeColorCode } from "@/types/splice";
+import type { ConnectionGraph, FiberConnection, LayoutOverrides, QuadSide, TubeColorCode } from "@/types/splice";
 import type { CablePlacement } from "@/features/diagram/canvasPlacement";
 import {
   assignSpliceMidXLanes,
@@ -86,7 +87,6 @@ import {
 } from "@/features/canvas/edges/spliceEdgeRouting";
 import { orderedFiberConnections } from "@/features/diagram/buildConnectionGraph";
 import { visualCableIdFromNodeId } from "@/features/diagram/cableDisplaySide";
-import type { CableNodeData } from "@/features/canvas/nodes/types";
 import {
   cablePositionsFromNodePositions,
   crossSideTubePairsAligned,
@@ -124,6 +124,83 @@ export type SdcCheckResult = {
 
 const Y_TOLERANCE = 2;
 const SHEATH_ASPECT = SHEATH_SIZE.baseWidth / SHEATH_SIZE.baseHeight;
+
+function layoutUsesQuadEdges(ctx: LayoutRuleContext): boolean {
+  return ctx.reactFlow.nodes.some((node) => {
+    if (node.type !== "cable") return false;
+    const quadSide = (node.data as CableNodeData).quadSide;
+    return quadSide === "top" || quadSide === "bottom";
+  });
+}
+
+function diagramCenterYFromNodes(nodes: Node[]): number {
+  let maxY = 0;
+  for (const node of nodes) {
+    maxY = Math.max(maxY, node.position.y + (node.height ?? 0));
+  }
+  return maxY > 0 ? maxY / 2 : 400;
+}
+
+/** Placement derived from painted cable nodes (search/import render path). */
+export function placementFromReactFlowNodes(
+  nodes: Node[],
+): Map<string, CablePlacement> {
+  const buckets: Record<"left" | "right", Array<{ vcId: string; pos: number }>> =
+    {
+      left: [],
+      right: [],
+    };
+  const vertical: Array<{ vcId: string; pos: number }> = [];
+
+  for (const node of nodes) {
+    if (node.type !== "cable") continue;
+    const vcId = visualCableIdFromNodeId(node.id);
+    if (!vcId) continue;
+    const data = node.data as CableNodeData;
+    const side = data.quadSide ?? data.side;
+    if (side === "left" || side === "right") {
+      buckets[side].push({ vcId, pos: node.position.y });
+    } else {
+      vertical.push({ vcId, pos: node.position.x });
+    }
+  }
+
+  const placement = new Map<string, CablePlacement>();
+  for (const side of ["left", "right"] as const) {
+    buckets[side]
+      .sort((a, b) => a.pos - b.pos)
+      .forEach((entry, order) => {
+        placement.set(entry.vcId, { side, order });
+      });
+  }
+  vertical
+    .sort((a, b) => a.pos - b.pos)
+    .forEach((entry, order) => {
+      placement.set(entry.vcId, { side: "left", order });
+    });
+  return placement;
+}
+
+function cableQuadSideFromNode(
+  nodes: Node[],
+  vcId: string,
+): QuadSide | "left" | "right" | undefined {
+  const node = nodes.find((n) => n.id === `cable-${vcId}`);
+  if (!node || node.type !== "cable") return undefined;
+  const data = node.data as CableNodeData;
+  return data.quadSide ?? data.side;
+}
+
+function tubeGeometryOkForContext(
+  ctx: LayoutRuleContext,
+): { ok: boolean; detail?: string } {
+  const horizontalCables = ctx.visualCables.filter((vc) => {
+    const side = cableQuadSideFromNode(ctx.reactFlow.nodes, vc.id);
+    return side === "left" || side === "right" || side === undefined;
+  });
+  if (horizontalCables.length === 0) return { ok: true };
+  return tubeGeometryOk(horizontalCables, ctx.placement);
+}
 
 function sideOf(
   vc: VisualCable,
@@ -1064,41 +1141,51 @@ function spliceRoutesMinimizeBends(ctx: LayoutRuleContext): boolean {
 }
 
 function sameSideFiberStemColumnsAligned(ctx: LayoutRuleContext): boolean {
-  for (const side of ["left", "right"] as const) {
-    const stemCanvasX: number[] = [];
+  const quad = layoutUsesQuadEdges(ctx);
+  const sides: Array<"left" | "right" | "top" | "bottom"> = quad
+    ? ["left", "right", "top", "bottom"]
+    : ["left", "right"];
+
+  for (const side of sides) {
+    const stemCoords: number[] = [];
 
     for (const node of ctx.reactFlow.nodes) {
       if (node.type !== "cable") continue;
-      const data = node.data as {
-        side: "left" | "right";
-        alignedStemX?: number;
-        diagramScale?: number;
-      };
+      const data = node.data as CableNodeData;
+      const nodeSide = data.quadSide ?? data.side;
+      if (nodeSide !== side) continue;
+
       const vc = ctx.visualCables.find((v) => `cable-${v.id}` === node.id);
       if (!vc) continue;
-      if (sideOf(vc, ctx.placement) !== side) continue;
 
       const scale = data.diagramScale ?? 1;
+      const breakoutSide =
+        side === "left" || side === "right" ? side : "left";
       const geo = computeCableBreakout(
-        vc.tubes,
-        side,
+        data.tubes ?? vc.tubes,
+        breakoutSide,
         CABLE_LAYOUT.fiberRowH,
         CABLE_LAYOUT.headerH,
         CABLE_LAYOUT.tubeLabelH,
         scale,
         data.alignedStemX,
       );
-      stemCanvasX.push(
-        side === "left"
-          ? node.position.x + geo.stemX
-          : node.position.x + geo.viewWidth - geo.stemX,
-      );
+
+      if (side === "left") {
+        stemCoords.push(node.position.x + geo.stemX);
+      } else if (side === "right") {
+        stemCoords.push(node.position.x + geo.viewWidth - geo.stemX);
+      } else if (side === "top") {
+        stemCoords.push(node.position.y + geo.stemX);
+      } else {
+        stemCoords.push(node.position.y + geo.viewHeight - geo.stemX);
+      }
     }
 
-    if (stemCanvasX.length <= 1) continue;
-    const expected = stemCanvasX[0]!;
-    for (const x of stemCanvasX.slice(1)) {
-      if (Math.abs(x - expected) > Y_TOLERANCE) return false;
+    if (stemCoords.length <= 1) continue;
+    const expected = stemCoords[0]!;
+    for (const coord of stemCoords.slice(1)) {
+      if (Math.abs(coord - expected) > Y_TOLERANCE) return false;
     }
   }
   return true;
@@ -1106,45 +1193,50 @@ function sameSideFiberStemColumnsAligned(ctx: LayoutRuleContext): boolean {
 
 function strandFansTowardCenter(ctx: LayoutRuleContext): boolean {
   const centerX = ctx.layoutWidth / 2;
+  const centerY = diagramCenterYFromNodes(ctx.reactFlow.nodes);
 
   for (const node of ctx.reactFlow.nodes) {
     if (node.type !== "cable") continue;
-    const data = node.data as {
-      side: "left" | "right";
-      tubes: VisualCable["tubes"];
-      diagramScale?: number;
-      fiberPitch?: number;
-      alignedStemX?: number;
-    };
+    const data = node.data as CableNodeData;
+    const nodeSide = data.quadSide ?? data.side;
+    if (nodeSide === "top" || nodeSide === "bottom") {
+      const nodeCenterY = node.position.y + (node.height ?? 0) / 2;
+      if (nodeSide === "top" && nodeCenterY >= centerY) return false;
+      if (nodeSide === "bottom" && nodeCenterY <= centerY) return false;
+      continue;
+    }
+
     const scale = data.diagramScale ?? 1;
     const pitch = data.fiberPitch ?? CABLE_LAYOUT.fiberRowH;
+    const breakoutSide =
+      nodeSide === "left" || nodeSide === "right" ? nodeSide : "left";
     const geo = computeCableBreakout(
       data.tubes,
-      data.side,
+      breakoutSide,
       pitch,
       CABLE_LAYOUT.headerH,
       CABLE_LAYOUT.tubeLabelH,
       scale,
       data.alignedStemX,
     );
-    const sheathCenterLocal = geo.sheath.x + geo.sheath.width / 2;
+    const sheathCenterLocalX = geo.sheath.x + geo.sheath.width / 2;
 
     for (const tube of geo.tubes) {
       for (const fiber of tube.fibers) {
-        const absSheathCenter = node.position.x + sheathCenterLocal;
-        const absFanTo = node.position.x + fiber.fanTo.x;
-        if (data.side === "left" && absFanTo <= absSheathCenter + Y_TOLERANCE) {
-          return false;
-        }
-        if (data.side === "right" && absFanTo >= absSheathCenter - Y_TOLERANCE) {
-          return false;
+        const absSheathCenterX = node.position.x + sheathCenterLocalX;
+        const absFanToX = node.position.x + fiber.fanTo.x;
+
+        if (nodeSide === "left") {
+          if (absFanToX <= absSheathCenterX + Y_TOLERANCE) return false;
+        } else if (nodeSide === "right") {
+          if (absFanToX >= absSheathCenterX - Y_TOLERANCE) return false;
         }
       }
     }
 
-    const absSheathCenter = node.position.x + sheathCenterLocal;
-    if (data.side === "left" && absSheathCenter >= centerX) return false;
-    if (data.side === "right" && absSheathCenter <= centerX) return false;
+    const absSheathCenterX = node.position.x + sheathCenterLocalX;
+    if (nodeSide === "left" && absSheathCenterX >= centerX) return false;
+    if (nodeSide === "right" && absSheathCenterX <= centerX) return false;
   }
 
   return true;
@@ -1558,13 +1650,14 @@ export function evaluateSdcLayoutSpacingRules(
 export function evaluateSdcLayoutFanoutRules(
   ctx: LayoutRuleContext,
 ): SdcCheckResult[] {
-  const geo = tubeGeometryOk(ctx.visualCables, ctx.placement);
+  const quad = layoutUsesQuadEdges(ctx);
+  const geo = tubeGeometryOkForContext(ctx);
   return [
     { id: "SDC-LAYOUT-002-A", ok: geo.ok, detail: geo.detail },
     { id: "SDC-LAYOUT-002-B", ok: geo.ok, detail: geo.detail },
     {
       id: "SDC-LAYOUT-002-E",
-      ok: rightSideMirrors(ctx.visualCables),
+      ok: quad || rightSideMirrors(ctx.visualCables),
       detail: "Right-side breakout is not mirrored",
     },
     {

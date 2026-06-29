@@ -4,7 +4,7 @@
 
 ## Focus (2026-06-29)
 
-**Routing-first side placement docs** — rule pack + agent docs updated: no user 2-side / 4-side toggle; import optimizer assigns cable edges (L/R/T/B) from strand routing search [SDC-CORE-001], [SDC-SCORE-001].
+**SDC-LAYOUT-003 shipped** — side assignment rule + quad-aware LAYOUT-002 validation during import search (fixes false fan-out/stem failures on top/bottom candidates).
 
 ## Active build track
 
@@ -13,4 +13,4 @@
 
 ## Branch
 
-- `cursor/routing-first-side-placement-docs-6a58` — rule pack + agent doc updates
+- `cursor/layout-003-side-assignment-3a51`
