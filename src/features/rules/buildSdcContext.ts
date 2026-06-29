@@ -1,11 +1,20 @@
+import type { CablePlacement } from "@/features/diagram/canvasPlacement";
+import { computeCanvasPlacement } from "@/features/diagram/canvasPlacement";
+import { applyCableSideOverrides } from "@/features/diagram/cableDisplaySide";
+import { connectionRowIndexMap } from "@/features/diagram/connectionRowOrder";
 import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
 import {
-  buildLayoutRuleContext,
+  buildLayoutRuleContextFromRendered,
   type LayoutRuleContext,
 } from "@/features/diagram/layoutRules";
+import { importLayoutWidthForGraph } from "@/features/diagram/layoutSpliceDiagram";
 import { routeAllOnGrid } from "@/features/grid/gridRouter";
 import type { SpliceRoutingLane } from "@/features/diagram/centerRouter";
+import { candidateToPlacementMap } from "@/features/layoutSearch/layoutCandidate";
+import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
+
+import type { SdcRuleContext } from "./types";
 
 function lanesByConnectionId(
   lanes: Map<string, SpliceRoutingLane>,
@@ -21,9 +30,6 @@ function lanesByConnectionId(
   }
   return byConn;
 }
-import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
-
-import type { SdcRuleContext } from "./types";
 
 export type BuildSdcRuleContextOptions = {
   layoutWidth?: number;
@@ -33,6 +39,21 @@ export type BuildSdcRuleContextOptions = {
   /** Attach grid map + routes for SDC-GRID/ROUTE validators. Default true when React Flow is built. */
   withGrid?: boolean;
 };
+
+function resolveRenderedPlacement(ctx: SdcRuleContext): Map<string, CablePlacement> {
+  if (ctx.placement) return ctx.placement;
+
+  const visualCables = ctx.visualCables ?? [];
+  const candidate = ctx.overrides?.optimizedLayoutCandidate;
+  if (candidate && visualCables.length > 0) {
+    return candidateToPlacementMap(candidate, visualCables);
+  }
+
+  const rowIndex = connectionRowIndexMap(ctx.graph, visualCables);
+  const placement = computeCanvasPlacement(ctx.graph, visualCables, rowIndex);
+  applyCableSideOverrides(placement, visualCables, ctx.overrides?.cableSides);
+  return placement;
+}
 
 /** Build grid routing input from a connection graph (cable-level edges, pre-split). */
 export function buildGridRoutingInput(
@@ -46,7 +67,7 @@ export function buildGridRoutingInput(
     ...overrides,
     routingEngine: "composite",
   };
-  const { nodes, edges } = buildReactFlowGraph(
+  const graphResult = buildReactFlowGraph(
     graph,
     legacyOverrides,
     layoutWidth,
@@ -54,8 +75,8 @@ export function buildGridRoutingInput(
   const { visualCables } = buildVisualCablesForLayout(graph);
   const width = layoutWidth ?? 1920;
   return {
-    nodes,
-    edges,
+    nodes: graphResult.nodes,
+    edges: graphResult.edges,
     visualCables,
     diagramCenterX: width / 2,
     layoutWidth: width,
@@ -116,12 +137,15 @@ export function buildSdcRuleContext(
   };
 
   if (!options?.skipReactFlow) {
-    const { nodes, edges } = buildReactFlowGraph(
+    const graphResult = buildReactFlowGraph(
       graph,
       mergedOverrides,
       options?.layoutWidth,
     );
-    ctx.reactFlow = { nodes, edges };
+    ctx.reactFlow = { nodes: graphResult.nodes, edges: graphResult.edges };
+    if (graphResult.placement) {
+      ctx.placement = graphResult.placement;
+    }
 
     if (options?.withGrid !== false) {
       return enrichSdcContextWithGrid(ctx, options?.layoutWidth);
@@ -131,22 +155,23 @@ export function buildSdcRuleContext(
   return ctx;
 }
 
-/** Bridge SDC context to legacy layoutRules context when React Flow data exists. */
+/** Bridge SDC context to layout rule checks using the painted graph geometry. */
 export function buildSdcContextFromLayout(
   ctx: SdcRuleContext,
 ): LayoutRuleContext | undefined {
-  if (!ctx.reactFlow) return undefined;
+  if (!ctx.reactFlow || !ctx.visualCables?.length) return undefined;
   try {
-    const layoutCtx = buildLayoutRuleContext(
-      ctx.graph,
-      ctx.layoutWidth,
-      ctx.overrides,
-      { skipFeasibility: true },
-    );
-    return {
-      ...layoutCtx,
+    const layoutWidth =
+      ctx.layoutWidth ?? importLayoutWidthForGraph(ctx.graph);
+    return buildLayoutRuleContextFromRendered({
+      graph: ctx.graph,
+      visualCables: ctx.visualCables,
       reactFlow: ctx.reactFlow,
-    };
+      layoutWidth,
+      placement: resolveRenderedPlacement(ctx),
+      layoutExpansion: ctx.overrides?.layoutExpansion,
+      reportKey: ctx.overrides?.reportKey,
+    });
   } catch {
     return undefined;
   }

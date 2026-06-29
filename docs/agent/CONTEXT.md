@@ -4,13 +4,13 @@
 
 ## Focus (2026-06-29)
 
-**Routing-first side placement docs** — rule pack + agent docs updated: no user 2-side / 4-side toggle; import optimizer assigns cable edges (L/R/T/B) from strand routing search [SDC-CORE-001], [SDC-SCORE-001].
+**SDC-LAYOUT-001 import validation** — spacing checks now use painted candidate geometry (node positions + placement) instead of rebuilding default heuristic layout during search.
 
 ## Active build track
 
 - Import optimizer / routing-first layout
-- Manual QA on reference CSVs after merge
+- Manual QA: import example-2 + Left-SP-3254.5 after layout rule changes
 
 ## Branch
 
-- `cursor/routing-first-side-placement-docs-6a58` — rule pack + agent doc updates
+- `cursor/fix-layout001-import-violations-ad52`

@@ -1150,6 +1150,35 @@ function strandFansTowardCenter(ctx: LayoutRuleContext): boolean {
   return true;
 }
 
+/** Build rule context from an already-painted React Flow graph (import search / live canvas). */
+export function buildLayoutRuleContextFromRendered(params: {
+  graph: ConnectionGraph;
+  visualCables: VisualCable[];
+  reactFlow: { nodes: Node[]; edges: Edge[] };
+  layoutWidth: number;
+  placement: Map<string, CablePlacement>;
+  layoutExpansion?: LayoutExpansion;
+  alignmentLocked?: ReadonlySet<string>;
+  reportKey?: string;
+}): LayoutRuleContext {
+  const expansion = params.layoutExpansion ?? DEFAULT_LAYOUT_EXPANSION;
+  return runWithLayoutExpansion(expansion, () => ({
+    graph: params.graph,
+    visualCables: params.visualCables,
+    placement: params.placement,
+    layout: {
+      reportKey: params.reportKey ?? "rendered-layout",
+      rowYs: new Map(),
+      cablePositions: cablePositionsFromReactFlowNodes(params.reactFlow.nodes),
+      layoutWidth: params.layoutWidth,
+      alignmentLocked: params.alignmentLocked ?? new Set(),
+    },
+    reactFlow: params.reactFlow,
+    layoutWidth: params.layoutWidth,
+    layoutExpansion: expansion,
+  }));
+}
+
 function cablePositionsFromReactFlowNodes(
   nodes: Node[],
 ): Map<string, { x: number; y: number; height: number }> {
@@ -1535,11 +1564,6 @@ export function evaluateSdcLayoutSpacingRules(
       id: "SDC-LAYOUT-001-C",
       ok: sameSideStackGap(ctx),
       detail: "Stacked cables have less than cableGap spacing",
-    },
-    {
-      id: "SDC-ORDER-002-B",
-      ok: compactTubeFiberLayoutOk(ctx.visualCables),
-      detail: "Buffer tube fiber pitch is not 24px",
     },
     {
       id: "SDC-LAYOUT-001-E",

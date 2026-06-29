@@ -141,6 +141,7 @@ export function evaluateLayoutCandidate(
       visualCables,
       overrides,
       reactFlow: { nodes: graphResult.nodes, edges: gridResult.edges },
+      placement: graphResult.placement,
       grid: gridResult.grid,
       gridRoutes: gridResult.routes,
       gridLanes,

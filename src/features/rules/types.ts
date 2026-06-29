@@ -2,8 +2,9 @@ import type { Edge, Node } from "@xyflow/react";
 
 import type { SpliceRoutingLane } from "@/features/diagram/centerRouter";
 import type { GridMap, GridRoute } from "@/features/grid/gridTypes";
-import type { ConnectionGraph, DiagramLocks, LayoutOverrides, SpliceReport } from "@/types/splice";
+import type { CablePlacement } from "@/features/diagram/canvasPlacement";
 import type { VisualCable } from "@/features/diagram/visualCables";
+import type { ConnectionGraph, DiagramLocks, LayoutOverrides, SpliceReport } from "@/types/splice";
 
 export type RuleSeverity = "fail" | "warn" | "info";
 
@@ -48,6 +49,8 @@ export type SdcRuleContext = {
   overrides?: LayoutOverrides;
   reactFlow?: { nodes: Node[]; edges: Edge[] };
   layoutWidth?: number;
+  /** Canvas placement from the painted graph — required for accurate SDC-LAYOUT-001 checks during search. */
+  placement?: Map<string, CablePlacement>;
 };
 
 /** When a rule may run during staged import evaluation. */
