@@ -1,0 +1,99 @@
+{
+  "id": "bad-avoidable-crossings-same-direction-bend",
+  "verdict": "bad",
+  "source_image": "01-bad-01-avoidable-crossings-same-direction.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/Images/bad/bad-avoidable-crossings-same-direction-bend.png",
+  "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/bad-avoidable-crossings-same-direction-bend.json",
+  "title": "Avoidable same-direction strand crossings inside a bend group",
+  "summary": "The image shows a same-direction group of fiber strands bending through the routing zone with avoidable lane crossings, broken nesting, and visible color-order disruption. The strands should stay in a clean nested bundle and preserve the standard fiber strand color-code order unless a higher-priority routing constraint forces a controlled local exception.",
+  "classification": {
+    "example_type": "bad",
+    "confidence": "high",
+    "based_on_user_reported_issue": true
+  },
+  "visually_observable_bad_behavior": [
+    "Multiple same-direction strands make staggered 90-degree bends that cause the routes to pass through or over nearby strand lanes.",
+    "The strand group does not remain nested as an organized adjacent lane band through the bend area.",
+    "The visible strand order changes through the bend instead of preserving the standard Blue, Orange, Green, Brown sequence for this visible group.",
+    "The bend pattern creates unnecessary crossing and visual lane swapping even though the strands are moving in the same general direction.",
+    "The group is harder to trace because related strands do not keep a simple outside-to-inside nested bend relationship."
+  ],
+  "likely_broken_rules": [
+    {
+      "rule_id": "SDC-ROUTE-002",
+      "rule_name": "Fiber Strand Nesting",
+      "related_file": "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "broken_requirements": [
+        "Related fiber strands should stay visually grouped as they move through the splice detail diagram.",
+        "Nested strands should use adjacent routing lanes and move through the routing zone as an organized group.",
+        "A strand should not cross through an unrelated or nearby group unnecessarily."
+      ],
+      "why_this_image_fails": "The visible strands bend in a way that breaks the nested lane relationship and creates avoidable lane swapping/crossing inside the group."
+    },
+    {
+      "rule_id": "SDC-ORDER-002",
+      "rule_name": "Fiber Strand Color Order",
+      "related_file": "splice_detail_canvas_rule_pack/05_SDC-ORDER-002_Fiber_Strand_Color_Order.md",
+      "broken_requirements": [
+        "Fiber strands should display in standard fiber optic color-code order inside each buffer tube, fan out, strand group, and nested route group.",
+        "Nested routing should preserve strand order when assigning nearby lanes inside a buffer tube group.",
+        "Strand order should be adjusted only when required to avoid a higher-priority routing failure."
+      ],
+      "why_this_image_fails": "The visible bend area disrupts the expected Blue, Orange, Green, Brown lane order instead of maintaining the ordered nested bundle."
+    },
+    {
+      "rule_id": "SDC-LAYOUT-001",
+      "rule_name": "Spacing",
+      "related_file": "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md",
+      "broken_requirements": [
+        "Individual fiber strand routes must maintain the 24px grid pitch in all directions.",
+        "Spacing applies around bends and lane transitions.",
+        "Strands should remain visually separated and traceable without avoidable congestion."
+      ],
+      "why_this_image_fails": "The staggered bend pattern collapses the readable spacing relationship at the bend and makes the routes appear to cut through neighboring strand lanes."
+    },
+    {
+      "rule_id": "SDC-ROUTE-003",
+      "rule_name": "Fiber Strand Overlap, Crossing, and Collision",
+      "related_file": "splice_detail_canvas_rule_pack/00_Rule_Index.md",
+      "broken_requirements": [
+        "Overlap, collision, and illegal shared lanes must be prevented or flagged.",
+        "A crossing should only be used as a controlled exception when required to reach the splice target.",
+        "Avoidable crossings should be cleaned up before the layout is accepted."
+      ],
+      "why_this_image_fails": "The crossing appears avoidable because the strands travel in the same general direction and should be routable as a nested ordered bend."
+    },
+    {
+      "rule_id": "SDC-ROUTE-001",
+      "rule_name": "Fiber Strand Routing Zone",
+      "related_file": "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "broken_requirements": [
+        "The routing engine should use available space instead of creating avoidable congestion.",
+        "Routes must remain traceable through the routing zone.",
+        "Routes should spread strand groups apart instead of stacking confusing transitions into a tight area."
+      ],
+      "why_this_image_fails": "The bend area uses the routing zone in a congested way even though the group should be traceable as a clean nested same-direction bend."
+    }
+  ],
+  "allowed_exception_context": {
+    "exception_summary": "A group may need this type of disrupted bend only when the group starts and ends on the same side of the diagram and must loop back.",
+    "why_exception_does_not_appear_to_apply": "The visible crop does not show a same-side loopback requirement, and the user identified the crossings as unnecessary. In the normal same-direction bend case, one side of the group should preserve normal nesting and color-code order rather than crossing through itself."
+  },
+  "notes": [
+    "Use this as a bad reference for avoidable crossings inside a same-direction bend group.",
+    "This example contrasts with good nested-bend examples where strand lanes preserve color order and bend as a clean bundle.",
+    "The screenshot is cropped; the full CSV-derived cable, buffer tube, fan-out, and splice-dot context is not visible, so the same-side loopback exception is recorded as a possible but unsupported exception rather than as the likely cause."
+  ],
+  "grounding": {
+    "primary_rule_files": [
+      "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "splice_detail_canvas_rule_pack/05_SDC-ORDER-002_Fiber_Strand_Color_Order.md",
+      "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md"
+    ],
+    "supporting_rule_files": [
+      "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "splice_detail_canvas_rule_pack/00_Rule_Index.md"
+    ],
+    "reference_library_location": "docs/reference/rule_examples"
+  }
+}
