@@ -1,0 +1,110 @@
+{
+  "id": "bad-fiber-strand-same-lane-overlap",
+  "verdict": "bad",
+  "source_image": "01-3.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/bad/bad-fiber-strand-same-lane-overlap.png",
+  "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/bad-fiber-strand-same-lane-overlap.json",
+  "title": "Fiber strands route in the same grid lane and lose nesting/color order",
+  "summary": "Multiple fiber strands are routed through the same lane or nearly the same lane, causing the lines to stack on top of each other. The route grouping also fails to preserve nested strand organization and standard fiber color order, and the strand spacing is too tight to remain readable.",
+  "classification": {
+    "example_type": "bad",
+    "confidence": "high",
+    "based_on_user_reported_issue": true
+  },
+  "visually_observable_issues": [
+    "Several horizontal strand segments run in the same grid lane or with too little separation.",
+    "The blue, orange, and green strand routes visually stack or nearly stack instead of using distinct readable lanes.",
+    "The route grouping appears compressed into one narrow band rather than spread across separate lanes.",
+    "The strand order and spacing do not clearly preserve a clean nested fiber group from the fan-out into the routing area."
+  ],
+  "likely_broken_rules": [
+    {
+      "rule_id": "SDC-ROUTE-003",
+      "rule_name": "Fiber Strand Overlap, Crossing, and Collision",
+      "related_file": "splice_detail_canvas_rule_pack/11_SDC-ROUTE-003_Fiber_Strand_Overlap_Crossing_Collision.md",
+      "broken_requirements": [
+        "Two strands must not run directly on top of each other.",
+        "Two strands must not share the same horizontal or vertical route lane.",
+        "Routes must avoid shared lanes unless an explicit bundling rule allows it.",
+        "Each strand must remain visually traceable from fan-out exit to fusion splice dot."
+      ],
+      "why_this_image_fails": "The image shows multiple colored strand routes occupying the same or nearly the same horizontal lane, causing visual overlap and making individual strand paths harder to trace."
+    },
+    {
+      "rule_id": "SDC-LAYOUT-001",
+      "rule_name": "Spacing",
+      "related_file": "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md",
+      "broken_requirements": [
+        "Individual fiber strand routes must maintain the 24px grid pitch.",
+        "Every individual strand route must have a minimum spacing buffer in all directions.",
+        "Unrelated strands must not share the same horizontal or vertical lane.",
+        "Strands must not visually merge into one line."
+      ],
+      "why_this_image_fails": "The strands are too close together and appear to share routing lanes, so the required readable pitch and spacing buffer are not preserved."
+    },
+    {
+      "rule_id": "SDC-ROUTE-002",
+      "rule_name": "Fiber Strand Nesting",
+      "related_file": "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "broken_requirements": [
+        "Related fiber strands should use adjacent routing lanes as an organized group.",
+        "Buffer tube groups should be assigned readable lane bands.",
+        "The diagram must preserve the cable -> buffer tube -> strand relationship.",
+        "Nested groups should spread cleanly across the routing zone instead of collapsing into one crowded routing area."
+      ],
+      "why_this_image_fails": "The strands collapse into the same narrow lane band instead of preserving a readable nested group with separate adjacent lanes."
+    },
+    {
+      "rule_id": "SDC-ORDER-002",
+      "rule_name": "Fiber Strand Color Order",
+      "related_file": "splice_detail_canvas_rule_pack/05_SDC-ORDER-002_Fiber_Strand_Color_Order.md",
+      "broken_requirements": [
+        "Fiber strands must display in standard fiber optic color-code order inside each buffer tube, fan-out, strand group, and nested route group.",
+        "Nested routing should preserve strand order when assigning nearby lanes inside a buffer tube group.",
+        "Strands from the same buffer tube must remain grouped before entering the routing zone."
+      ],
+      "why_this_image_fails": "The visible routed strands do not maintain a clearly ordered, nested color sequence as they enter and travel through the route area."
+    },
+    {
+      "rule_id": "SDC-ROUTE-001",
+      "rule_name": "Fiber Strand Routing Zone",
+      "related_file": "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "broken_requirements": [
+        "The routing engine should use the full available routing zone.",
+        "The routing engine should spread strand groups apart and reserve lanes for different groups.",
+        "A route fails when it ignores available spacing and creates avoidable congestion."
+      ],
+      "why_this_image_fails": "The routes are compressed into the same lane area instead of using available routing-zone space to keep strand paths separated."
+    },
+    {
+      "rule_id": "SDC-LAYOUT-002",
+      "rule_name": "Fiber Strand Fan Out",
+      "related_file": "splice_detail_canvas_rule_pack/08_SDC-LAYOUT-002_Fiber_Strand_Fan_Out.md",
+      "broken_requirements": [
+        "Fan-out exit points must follow fiber color-code order.",
+        "Fan-out exit points must be evenly spaced and align to valid grid lanes where possible.",
+        "The routing engine must not collapse multiple exit points into one shared path."
+      ],
+      "why_this_image_fails": "The routes visually collapse into shared paths after the fan-out transition instead of preserving distinct ordered exit lanes."
+    }
+  ],
+  "notes": [
+    "This should be treated as a hard bad example because route overlap and same-lane routing make the strand relationships ambiguous.",
+    "Expected correction: each fiber strand should keep its own grid lane, preserve 24px pitch where applicable, and remain visually separate from neighboring strands.",
+    "Expected correction: nested fiber groups should preserve standard strand color order while using adjacent readable lanes, only breaking order when required to solve a higher-priority routing conflict.",
+    "The visible issue is concentrated in the routed strand lines; CSV import correctness still depends on the imported cable, buffer tube, strand, color, and connection hierarchy."
+  ],
+  "grounding": {
+    "primary_rule_files": [
+      "splice_detail_canvas_rule_pack/11_SDC-ROUTE-003_Fiber_Strand_Overlap_Crossing_Collision.md",
+      "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md",
+      "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "splice_detail_canvas_rule_pack/05_SDC-ORDER-002_Fiber_Strand_Color_Order.md"
+    ],
+    "supporting_rule_files": [
+      "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "splice_detail_canvas_rule_pack/08_SDC-LAYOUT-002_Fiber_Strand_Fan_Out.md"
+    ],
+    "reference_library_location": "docs/reference/rule_examples"
+  }
+}
