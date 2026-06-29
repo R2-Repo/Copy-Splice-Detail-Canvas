@@ -16,7 +16,6 @@ import {
 } from "@/features/diagram/spliceRowLayout";
 import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import type { VisualCable } from "@/features/diagram/visualCables";
-import { stageInnerWidth } from "@/features/canvas/diagramViewport";
 import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
 
 export const LAYOUT = {
@@ -87,34 +86,29 @@ export function minLayoutWidthForGraph(graph: ConnectionGraph): number {
  * fewer connections shouldn't shrink the routing space and force the layout
  * to reflow in a way the user has to fix.
  *
- * When `stageWidth` is provided, layout fills the viewport (never below content
- * minimum). Without a stage, falls back to `CABLE_LAYOUT.width` for tests/offline.
+ * Layout width is **content-driven only** — viewport size does not stretch or
+ * compress cable columns. The React Flow viewport zooms to fit the diagram.
  */
 export function importLayoutWidthForGraph(
   graph: ConnectionGraph,
-  options?: ImportLayoutWidthOptions,
+  _options?: ImportLayoutWidthOptions,
 ): number {
   // Intentionally ignore options.collapse for width sizing — see fn doc above.
   const columnSpan = minLayoutWidthForGraph(graph);
-  const stageWidth = options?.stageWidth ?? 0;
-
-  if (stageWidth > 0) {
-    return Math.max(stageInnerWidth(stageWidth), columnSpan);
-  }
   return Math.max(CABLE_LAYOUT.width, columnSpan);
 }
 
-/** Layout width for import / column refresh — fills viewport when stage is known. */
+/** Layout width for import / column refresh — content min, optional saved expansion. */
 export function resolveLayoutWidthForStage(
   graph: ConnectionGraph,
-  stageWidth: number,
+  _stageWidth: number,
   savedLayoutWidth?: number,
 ): number {
-  const viewportWidth = importLayoutWidthForGraph(graph, { stageWidth });
-  if (savedLayoutWidth !== undefined && savedLayoutWidth > viewportWidth + 1) {
+  const contentWidth = importLayoutWidthForGraph(graph);
+  if (savedLayoutWidth !== undefined && savedLayoutWidth > contentWidth + 1) {
     return savedLayoutWidth;
   }
-  return viewportWidth;
+  return contentWidth;
 }
 
 /**
@@ -135,21 +129,20 @@ export function layoutWidthForViewport(
 }
 
 /**
- * Canvas width for the current stage. Uses the content routing minimum (never
- * narrower than center-gap needs). Preserves user outward drag expansion only
- * when explicitly flagged via `userExpandedLayoutWidth`.
+ * Default layout width for a graph. Uses the content routing minimum. Preserves
+ * user outward drag expansion only when explicitly flagged.
  */
 export function stageLayoutWidthForGraph(
   graph: ConnectionGraph,
-  stageWidth: number,
+  _stageWidth: number,
   options?: { userExpandedLayoutWidth?: number },
 ): number {
-  const viewportWidth = importLayoutWidthForGraph(graph, { stageWidth });
+  const contentWidth = importLayoutWidthForGraph(graph);
   const userWidth = options?.userExpandedLayoutWidth;
-  if (userWidth !== undefined && userWidth > viewportWidth + 1) {
+  if (userWidth !== undefined && userWidth > contentWidth + 1) {
     return userWidth;
   }
-  return viewportWidth;
+  return contentWidth;
 }
 
 export function reportStorageKey(graph: ConnectionGraph): string {
