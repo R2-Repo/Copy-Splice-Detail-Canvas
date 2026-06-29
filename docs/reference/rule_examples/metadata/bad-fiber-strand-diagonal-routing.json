@@ -17,7 +17,9 @@
       "height": 372
     },
     "uploaded_filename": "01-Screenshot-2026-06-13-152439.png",
-    "sha256": "f9f673aa03ec95cb5745488cb7faa24548729472d78f25ca9e9ce0488fa418bf"
+    "uploaded_sha256": "f9f673aa03ec95cb5745488cb7faa24548729472d78f25ca9e9ce0488fa418bf",
+    "repo_image_sha256": "57b653ed6d2d8426405072b22f060a9e1346539aa1a09c5bae119ed7c50aa900",
+    "repo_image_note": "Repository image is the same screenshot content saved as an optimized indexed PNG."
   },
   "visually_observable_issues": [
     "The blue, orange, green, and brown strand routes include long diagonal segments between the left-side fan-out and the right-side destination area.",
