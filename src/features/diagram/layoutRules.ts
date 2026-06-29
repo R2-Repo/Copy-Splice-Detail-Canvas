@@ -61,8 +61,9 @@ import {
   endpointOnVisualSide,
   type VisualCable,
 } from "@/features/diagram/visualCables";
-import type { ConnectionGraph, FiberConnection, LayoutOverrides, TubeColorCode } from "@/types/splice";
 import type { CablePlacement } from "@/features/diagram/canvasPlacement";
+import type { EdgePlacement } from "@/features/diagram/edgePlacement";
+import type { ConnectionGraph, FiberConnection, LayoutOverrides, TubeColorCode } from "@/types/splice";
 import {
   assignSpliceMidXLanes,
   assignSpliceRoutingLanes,
@@ -115,6 +116,8 @@ export type LayoutRuleContext = {
   graph: ConnectionGraph;
   visualCables: VisualCable[];
   placement: Map<string, CablePlacement>;
+  /** Four-edge side + stack order for SDC-LAYOUT-001 when quad/T/B cables are present. */
+  edgePlacement?: Map<string, EdgePlacement>;
   layout: AlignedDiagramLayout;
   reactFlow: { nodes: Node[]; edges: Edge[] };
   layoutWidth: number;
@@ -130,11 +133,28 @@ export type SdcCheckResult = {
 const Y_TOLERANCE = 2;
 const SHEATH_ASPECT = SHEATH_SIZE.baseWidth / SHEATH_SIZE.baseHeight;
 
+const ALL_EDGE_SIDES = ["left", "right", "top", "bottom"] as const;
+
 function sideOf(
   vc: VisualCable,
   placement: Map<string, CablePlacement>,
 ): "left" | "right" {
   return placement.get(vc.id)?.side ?? vc.side;
+}
+
+function edgeSideOf(
+  vc: VisualCable,
+  ctx: LayoutRuleContext,
+): (typeof ALL_EDGE_SIDES)[number] {
+  const edge = ctx.edgePlacement?.get(vc.id);
+  if (edge) return edge.side;
+  return sideOf(vc, ctx.placement);
+}
+
+function edgeOrderOf(vc: VisualCable, ctx: LayoutRuleContext): number {
+  const edge = ctx.edgePlacement?.get(vc.id);
+  if (edge) return edge.order;
+  return orderOf(vc, ctx.placement);
 }
 
 function orderOf(vc: VisualCable, placement: Map<string, CablePlacement>): number {
@@ -252,15 +272,46 @@ function rightSideMirrors(visualCables: VisualCable[]): boolean {
   return right.sheath.x > left.sheath.x && right.tubes[0]!.origin.x > left.tubes[0]!.origin.x;
 }
 
+function cableBoxesOverlapX(
+  a: { x: number; width: number },
+  b: { x: number; width: number },
+): boolean {
+  return a.x < b.x + b.width && b.x < a.x + a.width;
+}
+
+type CableRuleBox = { x: number; y: number; width: number; height: number };
+
+function cableRuleBox(
+  ctx: LayoutRuleContext,
+  vcId: string,
+): CableRuleBox | undefined {
+  const node = ctx.reactFlow.nodes.find((n) => n.id === `cable-${vcId}`);
+  if (node) {
+    return {
+      x: node.position.x,
+      y: node.position.y,
+      width: node.width ?? 0,
+      height: node.height ?? 0,
+    };
+  }
+  const pos = ctx.layout.cablePositions.get(vcId);
+  if (!pos) return undefined;
+  return { x: pos.x, y: pos.y, width: 0, height: pos.height };
+}
+
 function sameSideNoOverlap(ctx: LayoutRuleContext): boolean {
-  for (const side of ["left", "right"] as const) {
+  for (const side of ALL_EDGE_SIDES) {
     const boxes = ctx.visualCables
-      .filter((vc) => sideOf(vc, ctx.placement) === side)
-      .map((vc) => ctx.layout.cablePositions.get(vc.id)!)
-      .filter(Boolean);
+      .filter((vc) => edgeSideOf(vc, ctx) === side)
+      .map((vc) => cableRuleBox(ctx, vc.id))
+      .filter((box): box is CableRuleBox => box !== undefined);
+    const horizontalStack = side === "top" || side === "bottom";
     for (let i = 0; i < boxes.length; i++) {
       for (let j = i + 1; j < boxes.length; j++) {
-        if (cableBoxesOverlap(boxes[i]!, boxes[j]!)) return false;
+        const overlaps = horizontalStack
+          ? cableBoxesOverlapX(boxes[i]!, boxes[j]!)
+          : cableBoxesOverlap(boxes[i]!, boxes[j]!);
+        if (overlaps) return false;
       }
     }
   }
@@ -268,14 +319,18 @@ function sameSideNoOverlap(ctx: LayoutRuleContext): boolean {
 }
 
 function sameSideStackGap(ctx: LayoutRuleContext): boolean {
-  for (const side of ["left", "right"] as const) {
+  for (const side of ALL_EDGE_SIDES) {
+    const horizontalStack = side === "top" || side === "bottom";
     const cables = ctx.visualCables
-      .filter((vc) => sideOf(vc, ctx.placement) === side)
-      .sort((a, b) => orderOf(a, ctx.placement) - orderOf(b, ctx.placement));
+      .filter((vc) => edgeSideOf(vc, ctx) === side)
+      .sort((a, b) => edgeOrderOf(a, ctx) - edgeOrderOf(b, ctx));
     for (let i = 1; i < cables.length; i++) {
-      const prev = ctx.layout.cablePositions.get(cables[i - 1]!.id)!;
-      const curr = ctx.layout.cablePositions.get(cables[i]!.id)!;
-      const gap = curr.y - (prev.y + prev.height);
+      const prev = cableRuleBox(ctx, cables[i - 1]!.id);
+      const curr = cableRuleBox(ctx, cables[i]!.id);
+      if (!prev || !curr) return false;
+      const gap = horizontalStack
+        ? curr.x - (prev.x + prev.width)
+        : curr.y - (prev.y + prev.height);
       if (gap < CABLE_LAYOUT.cableGap - Y_TOLERANCE) return false;
     }
   }

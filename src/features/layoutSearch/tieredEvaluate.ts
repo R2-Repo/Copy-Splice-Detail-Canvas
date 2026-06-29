@@ -436,6 +436,7 @@ export function evaluateT1(
       overrides: ctx.overrides,
       reactFlow: { nodes: ctx.graphResult.nodes, edges: gridResult.edges },
       placement: ctx.graphResult.placement,
+      edgePlacement: ctx.graphResult.edgePlacement,
       grid: gridResult.grid,
       gridRoutes: gridResult.routes,
       gridLanes,

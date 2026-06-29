@@ -4,7 +4,9 @@
 
 ## Focus (2026-06-29)
 
-**Fixed layout + fit-to-view** — diagram geometry is content-driven only; viewport zoom/pan adapts to screen size (no viewport-fill column stretch).
+**Quad LAYOUT-001 at T1** — four-edge `edgePlacement` + axis-aware spacing; top/bottom no longer false-fail at T1 proxy.
+
+**Fixed layout + fit-to-view** — diagram geometry is content-driven only; viewport zoom/pan adapts to screen size.
 
 **Import searchStats diagnostics** — worker slice now records tier counters alongside eval sub-phases.
 
