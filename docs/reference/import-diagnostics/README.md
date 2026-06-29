@@ -34,6 +34,28 @@ node scripts/import-diagnostics-qa.mjs "docs/reference/examples/old csv examples
   --out-dir docs/reference/import-diagnostics --basename 300N_MAIN
 ```
 
+## Left-SP-3254.5
+
+| File | Source |
+|------|--------|
+| [`Left-SP-3254.5-console.log`](./Left-SP-3254.5-console.log) | Browser console — full `[import optimizer]` group + recoverable selection |
+| [`Left-SP-3254.5-diagnostics.json`](./Left-SP-3254.5-diagnostics.json) | `window.__SDC_LAST_IMPORT_DIAGNOSTICS__` after import |
+| [`Left-SP-3254.5-run-summary.json`](./Left-SP-3254.5-run-summary.json) | Headless QA script summary |
+| [`Left-SP-3254.5-screenshot.png`](./Left-SP-3254.5-screenshot.png) | Viewport screenshot after import (1280×720) |
+| [`Left-SP-3254.5-screenshot-fit.png`](./Left-SP-3254.5-screenshot-fit.png) | Fit-view screenshot (1920×1080) |
+
+**Fixture:** `docs/reference/examples/Left-SP-3254.5.csv` (splice **SP-3254.5**, 10 pairs, 4 cables)  
+**Captured:** 2026-06-29 (`main` @ searchStats diagnostics fix)  
+**Result:** heuristic baseline **fully passes rules** (`recoverableSelection.selectionKind: fully-passing`). Search-best candidate rejected on soft score (1940.8 vs 1940.2). Worker search wall **~660ms**; total import **~4.4s**. `searchStats.evaluatedT0: 54`, `evaluatedT1: 39`. No config error banner.
+
+Reproduce:
+
+```bash
+npm run dev
+node scripts/import-diagnostics-qa.mjs docs/reference/examples/Left-SP-3254.5.csv \
+  --out-dir docs/reference/import-diagnostics --basename Left-SP-3254.5
+```
+
 ## Left-STATE_OFFICE
 
 | File | Source |
