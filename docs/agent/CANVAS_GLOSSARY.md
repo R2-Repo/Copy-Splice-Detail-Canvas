@@ -337,4 +337,4 @@ Expected files:
 ## See also
 
 - [`RULE_DICTIONARY.md`](./RULE_DICTIONARY.md) — plain-English layout rule IDs
-- [`LAYOUT_RULES.md`](./LAYOUT_RULES.md) — full rule spec
+- [`RULE_DICTIONARY.md`](./RULE_DICTIONARY.md) — SDC rule quick reference

@@ -4,27 +4,13 @@ import {
   segmentsViolateLaneSeparation,
   type OrthogonalSegment,
 } from "@/features/diagram/centerRouter";
-import { MAX_SPLICE_BENDS } from "@/features/canvas/edges/splicePathGeometry";
 import { validateGridRoutes } from "@/features/grid/reservation";
 import type { GridPoint } from "@/features/grid/gridTypes";
 
 import type { SdcRule } from "./types";
 import { buildSdcContextFromLayout } from "./buildSdcContext";
-import { formatSdcFailureMessage } from "./legacyBridge";
+import { formatSdcFailureMessage } from "./ruleFailureMessages";
 import { fail, pass, warn } from "./helpers";
-
-function bendCountFromPoints(points: GridPoint[]): number {
-  let bends = 0;
-  for (let i = 2; i < points.length; i++) {
-    const a = points[i - 2]!;
-    const b = points[i - 1]!;
-    const c = points[i]!;
-    const dir1 = Math.abs(a.x - b.x) < 0.5 ? "v" : "h";
-    const dir2 = Math.abs(b.x - c.x) < 0.5 ? "v" : "h";
-    if (dir1 !== dir2) bends++;
-  }
-  return bends;
-}
 
 function orthogonalSegmentsFromRoute(points: GridPoint[]): OrthogonalSegment[] {
   const segments: OrthogonalSegment[] = [];
@@ -67,13 +53,7 @@ export const sdcRoute003: SdcRule = {
       failures.push(...validateGridRoutes(ctx.grid, ctx.gridRoutes));
 
       const allSegments: OrthogonalSegment[] = [];
-      for (const [connId, route] of ctx.gridRoutes) {
-        const bends = bendCountFromPoints(route.points);
-        if (bends > MAX_SPLICE_BENDS) {
-          failures.push(
-            `${connId}: ${bends} bends exceeds budget ${MAX_SPLICE_BENDS}`,
-          );
-        }
+      for (const [, route] of ctx.gridRoutes) {
         allSegments.push(...orthogonalSegmentsFromRoute(route.points));
       }
 

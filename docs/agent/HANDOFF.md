@@ -4,41 +4,34 @@
 
 ## Last updated
 
-2026-06-28 — **Import perf fast-path + T1 pruning**
+2026-06-28 — **SDC rule vocabulary cleanup (Q1–Q10)**
 
 ### Done
 
 | Area | Change |
 |------|--------|
-| `WorkflowCanvas.tsx` | Heuristic T2 check → immediate paint when feasible; background worker with `searchProfile: background` |
-| `candidatePruners.ts` | T1 gate: `top-bottom-no-relief`, quad span, adjacent-pair predictors |
-| `candidateGeometry.ts` | Width-invariant geometry key + rule validation cache |
-| `layoutSearch.ts` | Geometry memo at T0; `searchCapsForProfile` |
-| `importSearchConfig.ts` | `BACKGROUND_SEARCH_CAPS`, 10s/15s perf budget helpers |
-| `importDiagnostics.ts` | `fastPath`, `performanceBudget` blocks |
-| `import-diagnostics-qa.mjs` | `fastPath` / `performanceBudget` in summary; optional `SDC_ENFORCE_PERF_BUDGET=1` |
-| Tests | `candidateGeometry`, `candidatePruners`, `seedCandidateGeneration`, `importSearchConfig` |
+| Rule pack | **SDC-ROUTE-004** (bend budget); 24px pitch in **SDC-GRID-001** + cross-refs; UX dot grouping + snap |
+| Deleted docs | `LAYOUT_RULES.md`, `RULE_ID_MAP.md`, `RULE_PRIORITY.md` |
+| Rewritten | `RULE_DICTIONARY.md` (SDC-only), `SIMPLE_TERMS.md`, agent `.mdc` rules, `AGENTS.md` |
+| Code | `route004.ts`; `ruleFailureMessages.ts`; bend check moved off `route003` |
+| Renames (Q10) | `heuristicImportLayout`, `hill-climb` search mode, `composite` routing engine (aliases kept) |
+| New doc | `DROPPED_RULE_ENFORCEMENT.md` — contract vs code gaps |
 
-### Fast-path (production)
+### User Q&A summary
 
-1. Paint heuristic
-2. Full T2 eval on heuristic
-3. If feasible + not debug → dismiss overlay, finish diagnostics session after background search
-4. Background search may upgrade layout if strictly better score
+- **Keep hard:** SDC-ROUTE-004 bend budget; 24px pitch everywhere
+- **Drop from contract:** dominant pair, ring-cut split, center nest/jogX, Q8 path/lane/row rules
+- **Custom:** fusion dots on organized line per group (H or V path); near-straight snap import + manual
+- **Delete** RULE_PRIORITY; **rename** non-rule legacy naming
 
-### T1 pruning
+### Not done (needs follow-up)
 
-- **Do not** prune no-relief top/bottom at T0 (breaks beam ranking on relief fixture)
-- **Do** prune at T1 before `buildReactFlowGraph` / proxy route
+- Remove dropped-rule **enforcement** in `layoutRules.ts` / `dominantCablePair.ts` / frozen `spliceEdgeRouting.ts` — see `DROPPED_RULE_ENFORCEMENT.md`
+- Full validator migration out of `layoutRules.ts`
 
 ### Gates
 
 - `npm run smoke` — pass (358 fast tests + build)
-
-### Manual QA
-
-- Import Left-STATE_OFFICE **without** debug flags → canvas live in ~1–2s
-- With `VITE_DEBUG_IMPORT_OPTIMIZER=1` → full diagnostics baseline unchanged
 
 ### Frozen
 

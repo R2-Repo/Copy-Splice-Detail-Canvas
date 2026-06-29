@@ -311,6 +311,6 @@ Checklist per fixture:
 - [`ROUTING_FIRST_LAYOUT.md`](./ROUTING_FIRST_LAYOUT.md) — product intent, scoring weights
 - [`IMPORT_PERF_PLAN.md`](./IMPORT_PERF_PLAN.md) — P0–P3 shipped architecture
 - [`IMPORT_FINISH_PLAN.md`](./IMPORT_FINISH_PLAN.md) — prior one-pass checklist
-- [`RULE_PRIORITY.md`](./RULE_PRIORITY.md) — rule conflict resolution
+- [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md) — conflict priority
 - [`SIMPLE_TERMS.md`](./SIMPLE_TERMS.md) — user vocabulary
 - [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../../splice_detail_canvas_rule_pack/00_Rule_Index.md) — canonical SDC rules

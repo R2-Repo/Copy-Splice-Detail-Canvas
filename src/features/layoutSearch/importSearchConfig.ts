@@ -5,15 +5,15 @@ export function importTimeBudgetMs(strandCount: number): number {
   return Math.min(300_000, 90_000 + strandCount * 2_500);
 }
 
-export type LayoutSearchMode = "beam" | "legacy-guided";
+export type LayoutSearchMode = "beam" | "hill-climb";
 
-/** Default structured beam search; `legacy-guided` keeps hill-climb restarts. */
+/** Default structured beam search; `hill-climb` uses guided restarts. */
 export function layoutSearchMode(): LayoutSearchMode {
   const mode =
     typeof import.meta !== "undefined"
       ? import.meta.env?.VITE_LAYOUT_SEARCH_MODE
       : undefined;
-  if (mode === "legacy-guided") return "legacy-guided";
+  if (mode === "hill-climb" || mode === "legacy-guided") return "hill-climb";
   return "beam";
 }
 

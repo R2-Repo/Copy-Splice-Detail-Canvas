@@ -11,6 +11,16 @@ Use an invisible grid as the main structure for automatic layout, fiber routing,
 
 The grid is the spatial source of truth for routing. Auto layout is the process that uses the grid [SDC-UX-001].
 
+## Grid pitch constant
+
+The canvas grid MUST use a **24px** base pitch on both axes [SDC-GRID-001]. This is the same constant as:
+
+- Fiber row pitch within a buffer tube [SDC-ORDER-002].
+- Minimum strand lane separation in the routing zone [SDC-LAYOUT-001], [SDC-ROUTE-003].
+- Fan-out and nesting rhythm [SDC-LAYOUT-002], [SDC-ROUTE-002].
+
+Grid lines, lane reservation, and strand spacing MUST NOT stretch or compress this pitch to fill space.
+
 ## Grid Model
 
 The grid is not a visible box system for the user. It is an internal routing map.

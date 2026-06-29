@@ -205,7 +205,7 @@ export function buildProxyEvalContext(
     layoutWidth: width,
     layoutExpansion: candidate.layoutExpansion,
     optimizedLayoutCandidate: candidate,
-    routingEngine: "legacy",
+    routingEngine: "composite",
     layoutMode,
     ...(useQuad
       ? {

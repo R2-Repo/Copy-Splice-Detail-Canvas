@@ -9,6 +9,12 @@ Status: Active
 ## Purpose
 Ensure fiber strands are displayed in standard fiber optic color-code order inside each buffer tube, fan out, strand group, and nested route group.
 
+## Fiber row pitch
+
+Neighboring fiber strands inside the same buffer tube MUST be spaced **24px** apart on the canvas grid [SDC-GRID-001]. Pitch MUST NOT be stretched to fill vertical or horizontal space.
+
+This pitch supports strand group nesting at bends [SDC-ROUTE-002] and helps prevent overlap [SDC-ROUTE-003].
+
 ## Standard 12-Count Fiber Strand Order
 
 1. Blue

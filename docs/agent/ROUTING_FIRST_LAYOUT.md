@@ -97,7 +97,7 @@ Target: **one builder** driven by candidate side assignment:
 
 ## Scoring model
 
-Align with [`RULE_PRIORITY.md`](./RULE_PRIORITY.md) and [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md).
+Align with [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md) conflict priority section.
 
 ### Tier 1 — Reject candidate (`feasible: false`)
 
@@ -224,7 +224,7 @@ Keep fallbacks behind `USE_LEGACY_IMPORT_LAYOUT=1` env until reference CSVs pass
 | Doc | Relationship |
 |-----|----------------|
 | [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md) | Geometry/routing reference for top/bottom; auto mode fork section superseded by this plan |
-| [`RULE_PRIORITY.md`](./RULE_PRIORITY.md) | Scoring tier order |
+| [`00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md) | Scoring tier order |
 | [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md) | Re-evaluate after Phase 5 |
 | [`TESTING.md`](./TESTING.md) | Add search fixtures to manual QA checklist after Phase 4 |
 

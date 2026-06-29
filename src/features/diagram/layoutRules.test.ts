@@ -62,7 +62,7 @@ function ruleApplies(id: LayoutRuleId, exampleNum: number): boolean {
   }
 }
 
-describe("layout rules contract (docs/agent/LAYOUT_RULES.md)", () => {
+describe("layout rules contract (internal checks → SDC)", () => {
   it("documents every enforced rule ID", () => {
     expect(LAYOUT_RULES.map((r) => r.id).sort()).toEqual(
       [...LAYOUT_RULE_IDS].sort(),

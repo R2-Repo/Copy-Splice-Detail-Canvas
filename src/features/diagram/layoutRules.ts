@@ -131,7 +131,7 @@ function routingSpliceEdges(edges: Edge[]): Edge[] {
   return routed;
 }
 
-/** Stable rule IDs — must match docs/agent/LAYOUT_RULES.md */
+/** Internal layout check IDs — public contract uses SDC IDs in rule pack. */
 export const LAYOUT_RULE_IDS = [
   "FBR-001",
   "FBR-002",

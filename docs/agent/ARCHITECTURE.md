@@ -14,7 +14,7 @@ src/
   lib/               # Pure utilities
   types/             # Shared TS types (SplicePair, endpoints, etc.)
   styles/
-docs/agent/          # SCOPE, CONTEXT, HANDOFF, LAYOUT_RULES, RULE_PRIORITY
+docs/agent/          # SCOPE, CONTEXT, HANDOFF, RULE_DICTIONARY, rule pack index
 docs/reference/      # User examples, images (not shipped)
 docs/archive/        # Superseded planning docs
 ```

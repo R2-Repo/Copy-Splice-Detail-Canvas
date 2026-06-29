@@ -4,38 +4,31 @@
 
 ## Focus (2026-06-28)
 
-**Import perf fast-path** — when heuristic passes all hard rules (non-debug), paint immediately and run background optimizer (`searchProfile: background`, reduced caps). Debug mode keeps full synchronous search for diagnostics baseline.
+**SDC rule vocabulary cleanup** — legacy rule IDs removed from agent-facing docs. New active rule **SDC-ROUTE-004** (bend budget). **24px pitch** documented in **SDC-GRID-001** + cross-refs. Renamed: `heuristicImportLayout`, `hill-climb` search mode, `composite` routing engine.
 
-**Recoverable import fallback** — heuristic in final pool; `pickBestRecoverableCandidate` when no finalist fully passes.
-
-**Import optimizer** — beam search, T1 pruning for hopeless top/bottom (no relief), geometry-key rule cache, 10s/15s perf budget (non-debug).
+**Import perf fast-path** — heuristic T2 → immediate paint; background optimizer.
 
 ## Active build track
 
-- Import perf fast-path + T1 pruning + geometry cache + perf budget
-- Import optimizer — recoverable fallback + route-aware seeds
-- Routing-first auto layout — Phase 6 gated
+- SDC docs + failure messages (Tier 1 done)
+- Dropped-rule code migration — see [`DROPPED_RULE_ENFORCEMENT.md`](./DROPPED_RULE_ENFORCEMENT.md) (DOM, CBL-005, bundle/nest — frozen routing needs approval)
+- Import optimizer / routing-first layout
 
-## Search modes
+## Q&A decisions (rule cleanup)
 
-| Env | Behavior |
-|-----|----------|
-| default / `VITE_LAYOUT_SEARCH_MODE=beam` | Beam → T0/T1/T2; heuristic fast-path when feasible |
-| `VITE_DEBUG_IMPORT_OPTIMIZER=1` | Full blocking search + diagnostics (no perf budget) |
-| `VITE_LAYOUT_SEARCH_MODE=legacy-guided` | Hill-climb restarts |
-
-## Perf budget (non-debug)
-
-- Warn: 10s optimizer wall
-- Fail banner: 15s
-- QA: `SDC_ENFORCE_PERF_BUDGET=1` on `scripts/import-diagnostics-qa.mjs`
-
-## Testing policy
-
-- **Default:** `npm run smoke`
-- **Manual QA:** Left-STATE_OFFICE — heuristic fast-path ~1–2s paint; background search optional upgrade
-- Diagnostics baseline: `VITE_DEBUG_IMPORT_OPTIMIZER=1` + QA script (unchanged)
+| Topic | Decision |
+|-------|----------|
+| Bend budget | **SDC-ROUTE-004** — hard, documented everywhere |
+| 24px pitch | **SDC-GRID-001** foundation + ORDER/LAYOUT/ROUTE cross-refs |
+| Dominant pair | Dropped from contract |
+| Ring-cut split | Dropped |
+| Fusion dots | Organized line per tube group; horizontal or vertical per path |
+| Near-straight snap | **SDC-LAYOUT-001** + **SDC-UX-001** |
+| Center nest / jogX | Dropped from contract |
+| Q8 path/lane/row rules | Dropped from contract |
+| RULE_PRIORITY.md | Deleted — use rule pack index |
+| Legacy naming | Renamed in same pass |
 
 ## Branch
 
-- `cursor/import-perf-fast-path-2e03`
+- `cursor/sdc-rules-cleanup-78ac`

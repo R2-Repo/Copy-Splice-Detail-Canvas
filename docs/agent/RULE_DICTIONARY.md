@@ -1,160 +1,44 @@
-# Rule dictionary — plain English
+# Rule dictionary — plain English (SDC only)
 
-> **Public contract: SDC IDs** from [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md).  
-> Legacy prefixes (FBR, EDGE, …) below are **deprecated in chat** — implementation only.  
-> Map: [`RULE_ID_MAP.md`](./RULE_ID_MAP.md) · Conflicts: [`RULE_PRIORITY.md`](./RULE_PRIORITY.md)  
+> **Public contract:** [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md)  
 > **Simple part names:** [`SIMPLE_TERMS.md`](./SIMPLE_TERMS.md)
 
-## SDC quick reference
+## Active rules
 
 | SDC ID | Plain English |
 |--------|----------------|
-| **SDC-ORDER-002** | 24px fiber pitch + TIA color order inside tubes |
-| **SDC-ORDER-001** | TIA buffer tube stack order |
-| **SDC-LAYOUT-001** | Cable/tube/row spacing and stacking |
+| **SDC-CORE-001** | Shared vocabulary — cable → tube → fan-out → handle → legs → dot |
+| **SDC-DATA-001** | Imported cable hierarchy after CSV parse |
+| **SDC-DATA-002** | 6-count vs 12-count buffer tube inference |
+| **SDC-ORDER-001** | TIA buffer tube stack order on each cable |
+| **SDC-ORDER-002** | TIA fiber color order + **24px pitch** within each tube |
+| **SDC-GRID-001** | Internal routing grid — **24px pitch**, lanes, occupancy, four sides |
+| **SDC-LAYOUT-001** | Spacing, stacking, near-straight import alignment |
 | **SDC-LAYOUT-002** | Fan-out geometry from tube to handles |
-| **SDC-ROUTE-003** | No path overlap; max 2 corners; distinct lanes |
-| **SDC-SCORE-001** | Soft score for search winner (crossings, bends, sides, compactness) |
-| **SDC-ROUTE-002** | Tube bundle nesting and jog trunk |
-| **SDC-GRID-001** | Grid lane reservation |
-| **SDC-UX-001** | Manual locks and overrides |
+| **SDC-ROUTE-001** | Valid center routing zone and clearance |
+| **SDC-ROUTE-002** | Strand group nesting and lane bands |
+| **SDC-ROUTE-003** | No overlap, collision, or illegal shared lanes |
+| **SDC-ROUTE-004** | **Max 2 corners** per splice (both legs combined) — hard rule |
+| **SDC-SCORE-001** | Soft score for import search winner (not a hard gate) |
+| **SDC-UX-001** | Manual locks, organized fusion-dot lines, drag snap |
 
----
+## When to cite which rule
 
-## Legacy catalog (private engine — do not use in new chat)
+| You notice… | Cite |
+|-------------|------|
+| Wrong fiber colors or order in a tube | **SDC-ORDER-002** |
+| Fibers too far apart or uneven inside a tube | **SDC-ORDER-002**, **SDC-GRID-001** |
+| Cables overlap on same side | **SDC-LAYOUT-001** |
+| Two splices on same lane / paths merge | **SDC-ROUTE-003** |
+| More than 2 corners on one splice | **SDC-ROUTE-004** |
+| Fusion dots scattered in a tube group | **SDC-UX-001** |
+| Tiny jog on an almost-straight leg | **SDC-LAYOUT-001**, **SDC-UX-001** |
+| Locked item moved after drag | **SDC-UX-001** |
 
-**Prefix cheat sheet**
+## Conflict priority
 
-| Prefix | Topic |
-|--------|--------|
-| **FBR** | Individual fiber strands inside a buffer tube |
-| **TUB** | Buffer tubes (thick colored lines from cable) |
-| **CBL** | Whole cable nodes (stacking, columns, ring-cut splits) |
-| **ROW** | Global vertical row order and gaps between splice rows |
-| **DOM** | “Dominant” cable pair (most splices, straight-across first) |
-| **EDGE** | Splice lines in the center (routing, bends, lanes) |
-| **STR** | Fiber fan direction toward center |
+See **Conflict Priority** in [`00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md). Bend budget [SDC-ROUTE-004] outranks lane-offset workarounds that would add corners.
 
----
+## Implementation note
 
-## FBR — Fiber strands
-
-| ID | Short name | Plain English | Say this when… |
-|----|------------|---------------|----------------|
-| **FBR-001** | TIA fiber order | Fibers in each tube run top→bottom: fiber 1 at top, 12 at bottom (TIA color order). | Colors/fiber numbers appear in wrong vertical order inside one tube. |
-| **FBR-002** | 24px pitch | Neighboring fibers in the same tube are always **24px** apart — never stretched to fill space. | Fibers inside a tube look too far apart or unevenly spaced. |
-| **FBR-003** | Row order per cable | Every fiber on one cable has a unique vertical slot; order is top→bottom. | Fibers on one cable cross or reorder vertically. |
-| **FBR-004** | Multi-tube fiber slots | On cables with multiple buffer tubes, each fiber gets its own vertical slot (no sharing). | Two fibers from different tubes land on the same Y. |
-
----
-
-## TUB — Buffer tubes
-
-| ID | Short name | Plain English | Say this when… |
-|----|------------|---------------|----------------|
-| **TUB-001** | Tube exit from sheath | Tubes leave the cable sheath horizontally when the fiber group fits on the sheath face; otherwise they fan from cable center to the group. | Tube stems float beside the cable, wrong fan angle, or detached from sheath. |
-| **TUB-002** | Tube tip on fiber group | The tube tip aligns with the vertical center of its fiber group. Small Y shift only when tubes are **collapsed** (full-butt). | Tube stem ends too high/low relative to its fibers. |
-| **TUB-003** | Sheath aspect ratio | The cable circle/body keeps correct proportions at all sizes. | Cable blob looks squashed or stretched. |
-| **TUB-004** | Longer multi-tube reach | Cables with more buffer tubes have longer tube stems toward center. | Single-tube and multi-tube stems same length; multi-tube looks cramped. |
-| **TUB-005** | Right-side mirror | Right-side cables mirror left-side geometry (face inward). | Right cable tubes fan the wrong direction. |
-| **TUB-006** | TIA tube order | Tubes stack BL→AQ, then striped BL-BK→AQ-BK. | Tube colors in wrong vertical order on one cable. |
-| **TUB-007** | Shared label column | Cables on the same side share one vertical column for circuit tags and color codes; tubes extend to meet that column. | Labels misaligned between cables on the same side; stems too short/long. |
-| **TUB-008** | Cross-side tube align | Matching tube pairs may shift Y slightly so butt-spliced tubes line up (±12px expanded, ±24px collapsed). | Collapsed tube handles misaligned left↔right; ring-cut gaps exempt. |
-
----
-
-## CBL — Cable placement
-
-| ID | Short name | Plain English | Say this when… |
-|----|------------|---------------|----------------|
-| **CBL-001** | No cable overlap | Same-side cables never stack on top of each other. | Two cable circles overlap vertically. |
-| **CBL-002** | Cable stack gap | Same-side cables have at least **32px** gap (more if row-aligning ring-cut). | Cables too close or touching vertically. |
-| **CBL-003** | Shared cable column | Same-side cables share one X column; reach comes from tube stem length, not horizontal inset. | Cables at different X when they should align; or wrong multi-tube inset policy. |
-| **CBL-004** | Dominant pair straight | The main cable pair’s splices share the same row Y left↔right (±2px). | Main pair rows don’t line up horizontally across the diagram. |
-| **CBL-005** | Ring-cut split instances | A through-cable with four splices shows as **two** cable legs on the through side (Example #1). | Mid-span cable should split into two visuals but doesn’t. |
-
----
-
-## ROW — Row ordering
-
-| ID | Short name | Plain English | Say this when… |
-|----|------------|---------------|----------------|
-| **ROW-001** | 24px within tube | Global splice rows step 24px between fibers in the same tube. | Row spacing wrong within one tube in full diagram order. |
-| **ROW-002** | Gap at tube boundary | Extra **8px** gap when moving from one buffer tube to the next in row order. | Fibers from adjacent tubes too tight vertically in global order. |
-| **ROW-003** | Ring-cut / stub gaps | Ring-cut splits get adaptive **24–48px** gap (wider if needed to clear stacked cables). | Stub rows collide with dominant rows; split boundary too tight. |
-| **ROW-004** | Through-fiber sort order | Through-cable splices sort by fiber number; crossover stubs use max(left,right) fiber #. | Example #3 RD/BK crossover order wrong. |
-
----
-
-## DOM — Dominant cable pair
-
-| ID | Short name | Plain English | Say this when… |
-|----|------------|---------------|----------------|
-| **DOM-001** | Who is dominant | Dominant pair = left↔right group with the **most** splice rows. | Wrong pair treated as “main” straight-across pair. |
-| **DOM-002** | Dominant rows first | All dominant-pair splice rows appear **above** stub/other rows in the diagram. | Drop/stub rows appear before the main pair. |
-| **DOM-003** | Dominant Y aligned | Dominant pair fibers share same row Y on left and right (±2px). | Main pair rows stagger vertically left vs right. |
-| **DOM-004** | High-count pairs align | Pairs with **4+** splice rows (non-dominant) also align straight across. | Secondary pairs with many rows don’t line up. |
-
----
-
-## EDGE — Splice routing (center lines)
-
-| ID | Short name | Plain English | Priority | Say this when… |
-|----|------------|---------------|----------|----------------|
-| **EDGE-001** | Distinct lanes | Each splice gets its own routing lane on import (no shared mid-X). | P2 | Two splices share the same center path on import. |
-| **EDGE-002** | Orthogonal H–V–H | Center paths use right-angle horizontal and vertical segments; fusion dot sits on the horizontal fiber run before center vertical fan-out (DOT-001). | — | Diagonal splices or missing splice dot. |
-| **EDGE-003** | Lanes on mount | Lanes separate on first render — no drag needed to unstack. | — | Strands overlap until you drag a cable. |
-| **EDGE-004** | ≤2 bends | Each splice uses **at most 2 bends** total; prefer straight when rows align within 12px. Deconflict with distinct `midX` only — **no extra Y-tracks**. | **P1** | Too many elbows; zig-zag gap routing; extra horizontal tracks. |
-| **EDGE-005** | Tube order in center | Center lane order follows fiber row order (top rows bend farther on downward splices). | — | Center lanes out of color/row order. |
-| **EDGE-006** | Minimize bends | Pick the fewest bends that still preserve tube grouping. | — | Extra bends when a simpler path exists. |
-| **EDGE-007** | No path crossing | Bundles going same direction don’t cross each other in the center. | — | Strands cross in the splice zone. |
-| **EDGE-008** | 24px midX spacing | Center vertical lanes stay ≥24px apart in each zone. | P2 | Center verticals collapsed onto one X. |
-| **EDGE-009** | Past OS labels | Paths go past the widest circuit/OS label on that side, then **≥60px** inward, before turning vertical. | P4 | Vertical leg starts on top of OS text; inset too short. |
-| **EDGE-010** | Tube bundle trunk | Fibers from same tube to same target cable share a horizontal trunk then fan to 24px-spaced lanes. | P4 | Same-tube fibers scattered or stacked in center. |
-| **EDGE-011** | No stacked tracks | Parallel segments don’t share the same horizontal Y or vertical X (≥24px apart). **Subordinate to EDGE-004.** | P3 | Strands drawn on top of each other in the gap or center. |
-| **EDGE-012** | Distinct midX when Y overlaps | Vertical center legs that overlap in Y use different midX (≥24px). | P2 | Overlapping vertical center legs on same X. |
-
----
-
-## DOT — Fusion splice dots
-
-| ID | Short name | Plain English | Say this when… |
-|----|------------|---------------|----------------|
-| **DOT-001** | Dot on horizontal | Fusion dot sits on a **horizontal** strand segment, not a vertical center leg. | Dots appear mid-way up a vertical lane. |
-| **DOT-002** | Tube dot column | Same **source buffer tube** splices share one dot **X**; dots **stack vertically** on each fiber row (24px). | Tube fibers’ dots scatter at different X values. |
-| **DOT-003** | Dot corner clearance | Fusion dot stays **≥48px** along the leg path from any **corner**; still on a horizontal segment (**DOT-001**). | Dot sits right on a bend or too close to a corner. |
-| **DOT-004** | Dot vertical lane clearance | No **vertical leg** may run through or within **48px horizontal** of the fusion dot on that row. | A center vertical leg crosses the dot or hugs it. **Not** the 60px OS-label inset (**EDGE-009**). |
-
----
-
-## STR — Strand direction
-
-| ID | Short name | Plain English | Say this when… |
-|----|------------|---------------|----------------|
-| **STR-001** | Fan toward center | Fiber lines always point **inward** toward the splice center (left cables fan right, right fan left). | Fiber stub points outward away from center. |
-
----
-
-## Manual adjust (UI — not a layout rule ID)
-
-| Term | Plain English |
-|------|----------------|
-| **Manual adjust** | Toolbar toggle (`autoAdjustEnabled: false`). Cable drag = position only; fan-out/labels + leg edits go through **Manual Adjust Engine** (`src/features/manualAdjust/`). |
-| **Handle column** | All handles on a canvas side share one vertical column at max circuit-label width (~154px from stem). Labels grow **from handle toward center**. |
-| **Fan-out drag** | Vertical only per buffer tube — fan curves + labels move as a group; tube **stretches** between sheath and fan junction. Persisted in `fanoutOverrides` / `tubeOverrides.visualShiftY`. |
-| **Leg segment drag** | Numbered segments per leg at each corner; overlay handles in manual mode. Persisted in `legOverrides` (v13). |
-| **Multi-select** | Shift+click fiber anchors; box marquee on canvas. Group drag applies same delta with per-splice constraints. |
-| **Soft snap** | 24px pitch + layout-line guides; EDGE-004/012 violations show advisory banner only. |
-| **Reset to auto layout** | Clears overrides and re-runs import layout. |
-
----
-
-## Key numbers (quick ref)
-
-| Constant | Value | Rules |
-|----------|-------|-------|
-| Fiber pitch | 24px | FBR-002, ROW-001, EDGE-008/011/012 |
-| Tube boundary gap | 8px | ROW-002 |
-| Cable stack gap | 32px | CBL-002 |
-| OS inset after labels | 60px | EDGE-009 |
-| Max splice bends | 2 | EDGE-004 |
+Validators still run from `src/features/diagram/layoutRules.ts` internally. User-facing failures and docs use **SDC IDs only**. See [`DROPPED_RULE_ENFORCEMENT.md`](./DROPPED_RULE_ENFORCEMENT.md) for contract vs code gaps.

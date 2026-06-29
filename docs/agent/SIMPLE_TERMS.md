@@ -50,14 +50,14 @@ Read each **cable** outside → in: cable → buffer tube → fan-out → labels
 
 | You say | What it is (plain) | Agent / code names | Rules (when relevant) |
 |---------|-------------------|--------------------|------------------------|
-| **Cable** | Round body + cable name on the outside edge | **Cable node**; **cable sheath**; **SMFO label**; **cable name**; optional **cable stub** | CBL-* |
-| **Buffer tube** | Thick colored line from cable toward the fan | **Buffer tube** / **tube stem**; **tube origin** (sheath end); **tube tip** (fan end); **tube label** at junction (e.g. BR) | TUB-* |
-| **Fan-out** | Curved thin lines from tube to each fiber row | **Fan legs** (**fan tail** + **fan top**); **fan junction** / **fan-out origin**; **fan zone** | STR-001, TUB-002 |
-| **Labels** | Square + letters + circuit text on each row | **Fiber label column**; **fiber swatch**; **fiber code** (SL, WH…); **circuit tag** `(CH 2004)` | TUB-007, FBR-* |
-| **Handle** | Colored dot where the splice path attaches; all handles on one side line up in one **handle column** | **Fiber handle**; **stem column** (`stemX`); fixed **handle column** at max label width | TUB-007 |
-| **Left leg** | Colored path from left **handle** to the dot | **Left leg**; `leftPath`; source-side color; **source handle** on left cable | EDGE-002, DOT-001 |
-| **Fusion splice dot** | Black dot where the two legs meet | **Fusion splice dot** / **fusion splice point**; `spliceX`, `spliceY` | DOT-001, DOT-002 |
-| **Right leg** | Colored path from the dot to right **handle** | **Right leg**; `rightPath`; target-side color; **target handle** on right cable | EDGE-002 |
+| **Cable** | Round body + cable name on the outside edge | **Cable node**; **cable sheath**; **SMFO label**; **cable name**; optional **cable stub** | **SDC-LAYOUT-001** |
+| **Buffer tube** | Thick colored line from cable toward the fan | **Buffer tube** / **tube stem**; **tube origin** (sheath end); **tube tip** (fan end); **tube label** at junction (e.g. BR) | **SDC-LAYOUT-002**, **SDC-ORDER-001** |
+| **Fan-out** | Curved thin lines from tube to each fiber row | **Fan legs** (**fan tail** + **fan top**); **fan junction** / **fan-out origin**; **fan zone** | **SDC-LAYOUT-002** |
+| **Labels** | Square + letters + circuit text on each row | **Fiber label column**; **fiber swatch**; **fiber code** (SL, WH…); **circuit tag** `(CH 2004)` | **SDC-LAYOUT-002**, **SDC-ORDER-002** |
+| **Handle** | Colored dot where the splice path attaches; all handles on one side line up in one **handle column** | **Fiber handle**; **stem column** (`stemX`); fixed **handle column** at max label width | **SDC-LAYOUT-002** |
+| **Left leg** | Colored path from left **handle** to the dot | **Left leg**; `leftPath`; source-side color; **source handle** on left cable | **SDC-ROUTE-004**, **SDC-UX-001** |
+| **Fusion splice dot** | Black dot where the two legs meet | **Fusion splice dot** / **fusion splice point**; `spliceX`, `spliceY` | **SDC-UX-001** |
+| **Right leg** | Colored path from the dot to right **handle** | **Right leg**; `rightPath`; target-side color; **target handle** on right cable | **SDC-ROUTE-004** |
 
 ### Left vs right cable (same words, mirrored)
 
@@ -77,7 +77,7 @@ A **corner** is a 90° turn on the **left leg** or **right leg** (horizontal ↔
 | **Corner on the left leg** | One 90° bend on the path from handle → dot |
 | **Corner on the right leg** | One 90° bend on the path from dot → handle |
 | **Straight leg** | That leg has **no corners** (one straight run) |
-| **Bend budget** | **2 corners total** for that splice — **left + right combined** | **SDC-ROUTE-003** |
+| **Bend budget** | **2 corners total** for that splice — **left + right combined** | **SDC-ROUTE-004** |
 
 **Important:** The limit is **not** 2 per leg. Count both legs together.
 
@@ -89,7 +89,7 @@ A **corner** is a 90° turn on the **left leg** or **right leg** (horizontal ↔
 | 1 + 1 | One corner each leg | ✓ |
 | 2 + 0 | Both corners on the **left leg** | ✓ |
 | 0 + 2 | Both corners on the **right leg** | ✓ |
-| 2 + 1 (or any sum **> 2**) | Over budget | ✗ **EDGE-004** |
+| 2 + 1 (or any sum **> 2**) | Over budget | ✗ **SDC-ROUTE-004** |
 
 **Example phrases:**
 
@@ -101,7 +101,7 @@ A **corner** is a 90° turn on the **left leg** or **right leg** (horizontal ↔
 | You say | Agent / code |
 |---------|--------------|
 | Corner / bend | **Bend**; `countOrthogonalBends(leftPath, rightPath)` |
-| Bend budget | **SDC-ROUTE-003**; `MAX_SPLICE_BENDS = 2` |
+| Bend budget | **SDC-ROUTE-004**; `MAX_SPLICE_BENDS = 2` |
 | Straight splice | 0 bends; rows aligned within ~12px |
 
 Fan-out curves on the **cable** side are **not** splice corners — only turns on **left leg** / **right leg** count toward the budget.

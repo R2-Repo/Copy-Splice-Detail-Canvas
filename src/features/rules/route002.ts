@@ -6,7 +6,7 @@ import { routingEngineMode } from "@/features/diagram/routingEngine";
 
 import type { SdcRule } from "./types";
 import { buildSdcContextFromLayout } from "./buildSdcContext";
-import { formatSdcFailureMessage } from "./legacyBridge";
+import { formatSdcFailureMessage } from "./ruleFailureMessages";
 import { fail, pass, warn } from "./helpers";
 
 /** SDC-ROUTE-002 — Hierarchy-aware nesting and lane bands. */

@@ -248,7 +248,7 @@ export type LayoutOverrides = {
    * Routing backend for this diagram. `nodes` (default) = current lane router;
    * `grid` = grid reservation router; `legacy` = pre-nodes composite edges.
    */
-  routingEngine?: "legacy" | "nodes" | "grid";
+  routingEngine?: "composite" | "nodes" | "grid" | "legacy";
   /** Grid-mode persisted routes keyed by connection id. */
   gridRoutes?: Record<
     string,

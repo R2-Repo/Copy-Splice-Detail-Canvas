@@ -19,6 +19,7 @@ export const SDC_RULE_IDS = [
   "SDC-ROUTE-001",
   "SDC-ROUTE-002",
   "SDC-ROUTE-003",
+  "SDC-ROUTE-004",
   "SDC-SCORE-001",
   "SDC-UX-001",
 ] as const;

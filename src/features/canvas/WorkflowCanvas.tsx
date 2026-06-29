@@ -156,7 +156,7 @@ import {
   type LayoutCandidate,
 } from "@/features/layoutSearch/layoutCandidate";
 import { LayoutSearchOverlay } from "@/features/layoutSearch/LayoutSearchOverlay";
-import { legacyImportLayoutEnabled, showLayoutModeToggle } from "@/features/layoutSearch/legacyImportLayout";
+import { heuristicImportLayoutEnabled, showLayoutModeToggle } from "@/features/layoutSearch/heuristicImportLayout";
 import {
   initialSearchProgress,
   layoutSearchViaWorker,
@@ -318,7 +318,7 @@ function attachDiagramOverlayNodes(
 }
 
 function hasOptimizedCandidate(reportKey: string | null): boolean {
-  if (!reportKey || legacyImportLayoutEnabled()) return false;
+  if (!reportKey || heuristicImportLayoutEnabled()) return false;
   return loadLayoutOverrides(reportKey)?.optimizedLayoutCandidate !== undefined;
 }
 
@@ -832,10 +832,10 @@ function WorkflowCanvasInner() {
 
       let layoutExpansion: LayoutExpansion =
         existing?.layoutExpansion ?? DEFAULT_LAYOUT_EXPANSION;
-      const useLegacyLayout = legacyImportLayoutEnabled();
+      const useHeuristicLayout = heuristicImportLayoutEnabled();
       const storedCandidate = existing?.optimizedLayoutCandidate;
       const useOptimizedCandidate =
-        !useLegacyLayout && storedCandidate !== undefined;
+        !useHeuristicLayout && storedCandidate !== undefined;
       const shouldResolveFeasibleLayout =
         !useOptimizedCandidate &&
         options?.layoutWidth === undefined &&
@@ -1042,7 +1042,7 @@ function WorkflowCanvasInner() {
     const existing = loadLayoutOverrides(reportKey);
     if (
       existing?.optimizedLayoutCandidate &&
-      !legacyImportLayoutEnabled()
+      !heuristicImportLayoutEnabled()
     ) {
       return;
     }
@@ -1513,7 +1513,7 @@ function WorkflowCanvasInner() {
 
         const shouldOptimize =
           options.optimizeLayout === true &&
-          !legacyImportLayoutEnabled() &&
+          !heuristicImportLayoutEnabled() &&
           !(savedCandidate && options.refreshLayout === false);
 
         if (shouldOptimize) {
@@ -1523,7 +1523,7 @@ function WorkflowCanvasInner() {
 
         if (
           savedCandidate &&
-          !legacyImportLayoutEnabled() &&
+          !heuristicImportLayoutEnabled() &&
           options.refreshLayout !== true
         ) {
           const verify = verifyLayoutCandidate(
