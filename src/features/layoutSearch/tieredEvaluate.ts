@@ -412,6 +412,7 @@ export function evaluateT1(
       visualCables: ctx.visualCables,
       overrides: ctx.overrides,
       reactFlow: { nodes: ctx.graphResult.nodes, edges: gridResult.edges },
+      placement: ctx.graphResult.placement,
       grid: gridResult.grid,
       gridRoutes: gridResult.routes,
       gridLanes,

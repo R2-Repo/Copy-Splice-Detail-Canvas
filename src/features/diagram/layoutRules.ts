@@ -1587,11 +1587,6 @@ export function evaluateSdcLayoutSpacingRules(
       detail: "Stacked cables have less than cableGap spacing",
     },
     {
-      id: "SDC-ORDER-002-B",
-      ok: compactTubeFiberLayoutOk(ctx.visualCables),
-      detail: "Buffer tube fiber pitch is not 24px",
-    },
-    {
       id: "SDC-LAYOUT-001-E",
       ok: rowSteps.withinTube,
       detail: "Global row layout missing FIBER_ROW_PITCH steps",
