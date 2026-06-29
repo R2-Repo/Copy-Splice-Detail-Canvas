@@ -4,30 +4,37 @@
 
 ## Last updated
 
-2026-06-29 — **SDC-LAYOUT-003 side assignment**
+2026-06-29 — **SDC-LAYOUT-003** merged with main **SDC-LAYOUT-002 quad fix** (#30)
 
-### Root cause
+### Root cause (shared)
 
-Import search evaluated quad (top/bottom) candidates with **horizontal placement context** rebuilt in `buildSdcContextFromLayout`, while React Flow nodes were quad-painted. That false-failed **SDC-LAYOUT-002** (stem alignment, fan direction) and drowned logs — not a missing rule ID.
+Import rule checks rebuilt a default 2-side layout but validated the optimizer's **quad** React Flow nodes → false `SDC-LAYOUT-002` failures in logs.
 
-### Done
+### This branch adds
 
 | Area | Change |
 |------|--------|
-| `layout003.ts` | New **SDC-LAYOUT-003** — stack/side consistency + rendered vs candidate edge check |
-| `buildSdcContext.ts` | Use painted node placement when `optimizedLayoutCandidate` or `layoutMode === quad` |
-| `layoutRules.ts` | Quad-aware stem alignment + fan checks; skip horizontal tube geometry on vertical edges |
-| `tieredEvaluate.ts` | Pass candidate into T0 rule context for LAYOUT-003 |
-| Rule pack | `17_SDC-LAYOUT-003_*.md` + index entry |
-| Tests | `layout003.test.ts` (5 tests) |
+| `layout003.ts` | **SDC-LAYOUT-003** — stack/side consistency + rendered vs candidate edge |
+| `tieredEvaluate.ts` | Candidate in T0 rule context for LAYOUT-003 |
+| Rule pack | `17_SDC-LAYOUT-003_*.md` + index |
+
+### From main (#30, kept)
+
+| Area | Change |
+|------|--------|
+| `buildSdcContext.ts` | `buildLayoutRuleContextFromEvaluated` — no layout rebuild |
+| `quadGeometry.ts` | `quadStemAlignCanvasValue`, `quadFansTowardCenter`, `quadSameSideStemColumnsAligned` |
+| `layoutRules.ts` | Quad-aware LAYOUT-002 checks; skip horizontal tube geometry for quad slim |
+| Tests | `quadGeometry.validation.test.ts`, `layout002Import.test.ts` |
 
 ### Gates
 
-- `npm run smoke` — pass
+- `npm run smoke` — pass after merge
+- `layout003.test.ts`, `layout002Import.test.ts`
 
 ### Manual QA
 
-Import **Left-STATE_OFFICE** with `VITE_DEBUG_IMPORT_OPTIMIZER=1` — quad finalists should show fewer spurious `SDC-LAYOUT-002` rejections; `ruleRejectCounts` may still include ROUTE failures on hard fixtures.
+Import Left-STATE_OFFICE with `VITE_DEBUG_IMPORT_OPTIMIZER=1`; quad finalists should not mass-fail LAYOUT-002; LAYOUT-003 catches stack/paint mismatches.
 
 ### Frozen
 

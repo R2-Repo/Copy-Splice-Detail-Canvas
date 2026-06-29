@@ -11,7 +11,9 @@ import {
 import type { VisualCable, VisualTube } from "@/features/diagram/visualCables";
 import type { QuadSide } from "@/types/splice";
 
-import { isVerticalSide } from "./quadTypes";
+import { inwardDirection, isVerticalSide } from "./quadTypes";
+
+const STEM_ALIGN_TOLERANCE = 2;
 
 /**
  * Quad geometry is built from one canonical "left" breakout (sheath at x≈0,
@@ -132,6 +134,114 @@ export function quadRenderTransform(
     };
   }
   return null;
+}
+
+/** Canvas coordinate of the shared stem / label column for one quad cable. */
+export function quadStemAlignCanvasValue(
+  nodePosition: { x: number; y: number },
+  tubes: VisualTube[],
+  quadSide: QuadSide,
+  scale: number,
+  alignedStemX?: number,
+): number {
+  const geo = leftGeo({ tubes } as VisualCable, scale, alignedStemX);
+  const stemLocal = mapLocalPoint(
+    geo.stemX,
+    0,
+    quadSide,
+    geo.viewWidth,
+    geo.viewHeight,
+  );
+  if (isVerticalSide(quadSide)) {
+    return nodePosition.y + stemLocal.y;
+  }
+  return nodePosition.x + stemLocal.x;
+}
+
+/** True when every fiber fan leg points inward from the sheath on this quad side. */
+export function quadFansTowardCenter(
+  nodePosition: { x: number; y: number },
+  tubes: VisualTube[],
+  quadSide: QuadSide,
+  scale: number,
+  alignedStemX?: number,
+): boolean {
+  const geo = leftGeo({ tubes } as VisualCable, scale, alignedStemX);
+  const inward = inwardDirection(quadSide);
+  const sheathCx = geo.sheath.x + geo.sheath.width / 2;
+  const sheathCy = geo.sheath.y + geo.sheath.height / 2;
+  const sheathMapped = mapLocalPoint(
+    sheathCx,
+    sheathCy,
+    quadSide,
+    geo.viewWidth,
+    geo.viewHeight,
+  );
+  const sheathCanvas = {
+    x: nodePosition.x + sheathMapped.x,
+    y: nodePosition.y + sheathMapped.y,
+  };
+
+  for (const tube of geo.tubes) {
+    for (const fiber of tube.fibers) {
+      const fanMapped = mapLocalPoint(
+        fiber.fanTo.x,
+        fiber.fanTo.y,
+        quadSide,
+        geo.viewWidth,
+        geo.viewHeight,
+      );
+      const fanCanvas = {
+        x: nodePosition.x + fanMapped.x,
+        y: nodePosition.y + fanMapped.y,
+      };
+      const dx = fanCanvas.x - sheathCanvas.x;
+      const dy = fanCanvas.y - sheathCanvas.y;
+      if (dx * inward.x + dy * inward.y <= STEM_ALIGN_TOLERANCE) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/** True when stacked cables on the same quad side share one stem / label column. */
+export function quadSameSideStemColumnsAligned(
+  nodes: Array<{
+    position: { x: number; y: number };
+    data: {
+      quadSide?: QuadSide;
+      tubes: VisualTube[];
+      diagramScale?: number;
+      alignedStemX?: number;
+    };
+  }>,
+): boolean {
+  const bySide = new Map<QuadSide, number[]>();
+  for (const node of nodes) {
+    const quadSide = node.data.quadSide;
+    if (!quadSide) continue;
+    const scale = node.data.diagramScale ?? 1;
+    const value = quadStemAlignCanvasValue(
+      node.position,
+      node.data.tubes,
+      quadSide,
+      scale,
+      node.data.alignedStemX,
+    );
+    const bucket = bySide.get(quadSide) ?? [];
+    bucket.push(value);
+    bySide.set(quadSide, bucket);
+  }
+
+  for (const values of bySide.values()) {
+    if (values.length <= 1) continue;
+    const expected = values[0]!;
+    for (const value of values.slice(1)) {
+      if (Math.abs(value - expected) > STEM_ALIGN_TOLERANCE) return false;
+    }
+  }
+  return true;
 }
 
 /** Max stem X per side so fiber label columns line up across stacked cables. */

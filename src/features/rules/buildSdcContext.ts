@@ -1,12 +1,21 @@
+import type { Node } from "@xyflow/react";
+
 import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
 import {
-  buildLayoutRuleContext,
-  placementFromReactFlowNodes,
   type LayoutRuleContext,
 } from "@/features/diagram/layoutRules";
+import type { CablePlacement } from "@/features/diagram/canvasPlacement";
+import {
+  type AlignedDiagramLayout,
+} from "@/features/diagram/spliceRowLayout";
+import { DEFAULT_LAYOUT_EXPANSION } from "@/features/diagram/layoutExpansion";
 import { routeAllOnGrid } from "@/features/grid/gridRouter";
 import type { SpliceRoutingLane } from "@/features/diagram/centerRouter";
+import type { CableNodeData } from "@/features/canvas/nodes/types";
+import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
+
+import type { SdcRuleContext } from "./types";
 
 function lanesByConnectionId(
   lanes: Map<string, SpliceRoutingLane>,
@@ -22,12 +31,6 @@ function lanesByConnectionId(
   }
   return byConn;
 }
-import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
-
-import { DEFAULT_LAYOUT_EXPANSION } from "@/features/diagram/layoutExpansion";
-import { computeAlignedLayout } from "@/features/diagram/spliceRowLayout";
-
-import type { SdcRuleContext } from "./types";
 
 export type BuildSdcRuleContextOptions = {
   layoutWidth?: number;
@@ -135,55 +138,85 @@ export function buildSdcRuleContext(
   return ctx;
 }
 
-/** Build layout rule context from an already-rendered search/import graph. */
-function buildLayoutRuleContextFromRender(
+/** Derive left/right placement from evaluated cable nodes (not a fresh layout rebuild). */
+function placementFromCableNodes(nodes: Node[]): Map<string, CablePlacement> {
+  const placement = new Map<string, CablePlacement>();
+  const orderBySide: Record<"left" | "right", number> = { left: 0, right: 0 };
+
+  const cableNodes = nodes
+    .filter((node) => node.type === "cable")
+    .sort((a, b) => a.position.y - b.position.y);
+
+  for (const node of cableNodes) {
+    const vcId = node.id.replace(/^cable-/, "");
+    const data = node.data as CableNodeData;
+    const side = data.side ?? "left";
+    const order = orderBySide[side];
+    orderBySide[side] = order + 1;
+    placement.set(vcId, { side, order });
+  }
+
+  return placement;
+}
+
+function minimalAlignedLayout(
+  nodes: Node[],
+  layoutWidth: number,
+): AlignedDiagramLayout {
+  const cablePositions = new Map<
+    string,
+    { x: number; y: number; height: number }
+  >();
+  for (const node of nodes) {
+    if (node.type !== "cable") continue;
+    const vcId = node.id.replace(/^cable-/, "");
+    cablePositions.set(vcId, {
+      x: node.position.x,
+      y: node.position.y,
+      height: node.height ?? 0,
+    });
+  }
+  return {
+    reportKey: "evaluated-layout",
+    rowYs: new Map(),
+    cablePositions,
+    layoutWidth,
+    alignmentLocked: new Set<string>(),
+  };
+}
+
+/** Build layout-rule context from the evaluated import/search graph — no rebuild. */
+function buildLayoutRuleContextFromEvaluated(
   ctx: SdcRuleContext,
 ): LayoutRuleContext {
   const visualCables =
-    ctx.visualCables ??
-    buildVisualCablesForLayout(ctx.graph).visualCables;
+    ctx.visualCables ?? buildVisualCablesForLayout(ctx.graph).visualCables;
   const layoutWidth = ctx.layoutWidth ?? 1920;
-  const placement = placementFromReactFlowNodes(ctx.reactFlow!.nodes);
+  const placement = placementFromCableNodes(ctx.reactFlow!.nodes);
+
+  for (const vc of visualCables) {
+    const p = placement.get(vc.id);
+    if (p) vc.side = p.side;
+  }
+
   return {
     graph: ctx.graph,
     visualCables,
     placement,
-    layout: computeAlignedLayout(
-      ctx.graph,
-      visualCables,
-      placement,
-      layoutWidth,
-    ),
+    layout: minimalAlignedLayout(ctx.reactFlow!.nodes, layoutWidth),
     reactFlow: ctx.reactFlow!,
     layoutWidth,
-    layoutExpansion:
-      ctx.overrides?.layoutExpansion ?? DEFAULT_LAYOUT_EXPANSION,
+    layoutExpansion: ctx.overrides?.layoutExpansion ?? DEFAULT_LAYOUT_EXPANSION,
   };
 }
 
-/** Bridge SDC context to layoutRules when React Flow data exists. */
+/** Bridge SDC context to layoutRules context when React Flow data exists. */
 export function buildSdcContextFromLayout(
   ctx: SdcRuleContext,
 ): LayoutRuleContext | undefined {
-  if (!ctx.reactFlow) return undefined;
+  if (!ctx.reactFlow || !ctx.graph) return undefined;
   try {
-    if (
-      ctx.overrides?.optimizedLayoutCandidate ||
-      ctx.overrides?.layoutMode === "quad"
-    ) {
-      return buildLayoutRuleContextFromRender(ctx);
-    }
-
-    const layoutCtx = buildLayoutRuleContext(
-      ctx.graph,
-      ctx.layoutWidth,
-      ctx.overrides,
-      { skipFeasibility: true },
-    );
-    return {
-      ...layoutCtx,
-      reactFlow: ctx.reactFlow,
-    };
+    return buildLayoutRuleContextFromEvaluated(ctx);
   } catch {
     return undefined;
   }
