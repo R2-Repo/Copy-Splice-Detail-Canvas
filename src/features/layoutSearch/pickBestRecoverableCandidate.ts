@@ -13,6 +13,7 @@ import { recordRecoverableSelection, recordWinner } from "./importDiagnostics";
 /** Weighted rule penalties for recoverable fallback ranking (lower is better). */
 export const RECOVERABLE_RULE_PENALTIES: Partial<Record<SdcRuleId, number>> = {
   "SDC-LAYOUT-002": 1000,
+  "SDC-LAYOUT-003": 900,
   "SDC-ROUTE-001": 800,
   "SDC-ROUTE-002": 500,
   "SDC-ROUTE-003": 300,

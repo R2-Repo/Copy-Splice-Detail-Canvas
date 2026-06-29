@@ -4,42 +4,38 @@
 
 ## Last updated
 
-2026-06-29 — **SDC-LAYOUT-002 import false failures** (merged with main routing-first docs)
+2026-06-29 — **SDC-LAYOUT-003** merged with main **SDC-LAYOUT-002 quad fix** (#30)
 
-### Root cause
+### Root cause (shared)
 
-Import rule checks rebuilt a default 2-side layout (`buildLayoutRuleContext`) but validated the optimizer's **quad** React Flow nodes. Stem-column alignment grouped cables by stale left/right placement, so quad finalists falsely failed `SDC-LAYOUT-002` ("shared label column misaligned").
+Import rule checks rebuilt a default 2-side layout but validated the optimizer's **quad** React Flow nodes → false `SDC-LAYOUT-002` failures in logs.
 
-### Fix
+### This branch adds
 
 | Area | Change |
 |------|--------|
-| `buildSdcContext.ts` | `buildSdcContextFromLayout` derives placement from evaluated cable nodes — no rebuild |
+| `layout003.ts` | **SDC-LAYOUT-003** — stack/side consistency + rendered vs candidate edge |
+| `tieredEvaluate.ts` | Candidate in T0 rule context for LAYOUT-003 |
+| Rule pack | `17_SDC-LAYOUT-003_*.md` + index |
+
+### From main (#30, kept)
+
+| Area | Change |
+|------|--------|
+| `buildSdcContext.ts` | `buildLayoutRuleContextFromEvaluated` — no layout rebuild |
 | `quadGeometry.ts` | `quadStemAlignCanvasValue`, `quadFansTowardCenter`, `quadSameSideStemColumnsAligned` |
-| `layoutRules.ts` | Quad-aware stem alignment + fan direction; skip horizontal-only tube geometry for quad slim; SDC check IDs (`SDC-LAYOUT-002-A` … `H`) |
-| Tests | `quadGeometry.validation.test.ts`, `layout002Import.test.ts` (STATE_OFFICE heuristic + quad seeds) |
+| `layoutRules.ts` | Quad-aware LAYOUT-002 checks; skip horizontal tube geometry for quad slim |
+| Tests | `quadGeometry.validation.test.ts`, `layout002Import.test.ts` |
 
 ### Gates
 
 - `npm run smoke` — pass after merge
-- `layout002Import.test.ts` — STATE_OFFICE quad seeds pass SDC-LAYOUT-002
+- `layout003.test.ts`, `layout002Import.test.ts`
 
 ### Manual QA
 
-Import Left-STATE_OFFICE with optimizer on; confirm optimizer finalists no longer all fail SDC-LAYOUT-002 in `VITE_DEBUG_IMPORT_RULES=1` console table.
+Import Left-STATE_OFFICE with `VITE_DEBUG_IMPORT_OPTIMIZER=1`; quad finalists should not mass-fail LAYOUT-002; LAYOUT-003 catches stack/paint mismatches.
 
 ### Frozen
 
-`spliceEdgeRouting.ts` drag hooks — not touched.
-
----
-
-## Prior session (main, 2026-06-29)
-
-**Routing-first side placement documentation** — SDC-CORE-001, rule pack, QUAD_LAYOUT.md, agent docs: top/bottom edges are optimizer outcomes, not a user mode toggle. Documentation-only; no code behavior change.
-
----
-
-## Prior session
-
-2026-06-28 — Recoverable import fallback. See git history.
+`spliceEdgeRouting.ts` — not touched.

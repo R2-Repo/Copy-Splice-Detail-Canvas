@@ -13,6 +13,9 @@ import { DEFAULT_LAYOUT_EXPANSION } from "@/features/diagram/layoutExpansion";
 import { routeAllOnGrid } from "@/features/grid/gridRouter";
 import type { SpliceRoutingLane } from "@/features/diagram/centerRouter";
 import type { CableNodeData } from "@/features/canvas/nodes/types";
+import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
+
+import type { SdcRuleContext } from "./types";
 
 function lanesByConnectionId(
   lanes: Map<string, SpliceRoutingLane>,
@@ -28,9 +31,6 @@ function lanesByConnectionId(
   }
   return byConn;
 }
-import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
-
-import type { SdcRuleContext } from "./types";
 
 export type BuildSdcRuleContextOptions = {
   layoutWidth?: number;

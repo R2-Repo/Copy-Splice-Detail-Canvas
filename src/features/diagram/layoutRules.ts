@@ -1,5 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 
+import type { CableNodeData } from "@/features/canvas/nodes/types";
 import { buildReactFlowGraph } from "@/features/diagram/buildReactFlowGraph";
 import {
   computeCableBreakout,
@@ -91,7 +92,6 @@ import {
 } from "@/features/canvas/edges/spliceEdgeRouting";
 import { orderedFiberConnections } from "@/features/diagram/buildConnectionGraph";
 import { visualCableIdFromNodeId } from "@/features/diagram/cableDisplaySide";
-import type { CableNodeData } from "@/features/canvas/nodes/types";
 import {
   cablePositionsFromNodePositions,
   crossSideTubePairsAligned,

@@ -4,6 +4,7 @@ import { sdcData002 } from "./data002";
 import { sdcGrid001 } from "./grid001";
 import { sdcLayout001 } from "./layout001";
 import { sdcLayout002 } from "./layout002";
+import { sdcLayout003 } from "./layout003";
 import { sdcOrder001 } from "./order001";
 import { sdcOrder002 } from "./order002";
 import { sdcRoute001 } from "./route001";
@@ -22,6 +23,7 @@ export const SDC_RULES: SdcRule[] = [
   sdcOrder001,
   sdcOrder002,
   sdcLayout002,
+  sdcLayout003,
   sdcLayout001,
   sdcRoute001,
   sdcGrid001,
