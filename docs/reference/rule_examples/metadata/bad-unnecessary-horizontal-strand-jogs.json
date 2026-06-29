@@ -1,0 +1,87 @@
+{
+  "id": "bad-unnecessary-horizontal-strand-jogs",
+  "verdict": "bad",
+  "source_image": "bad-unnecessary-horizontal-strand-jogs.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/Images/bad/bad-unnecessary-horizontal-strand-jogs.png",
+  "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/bad-unnecessary-horizontal-strand-jogs.json",
+  "title": "Unnecessary small jogs in otherwise straight horizontal strand routes",
+  "summary": "The image shows several fiber strand routes that could be drawn as straight horizontal runs, but instead include small vertical jogs before continuing horizontally. During automatic layout, cable and fan-out positions should be nudged enough for these near-horizontal strands to snap to straight lanes when doing so does not violate higher-priority routing rules.",
+  "classification": {
+    "example_type": "bad",
+    "confidence": "high",
+    "based_on_user_reported_issue": true
+  },
+  "visually_observable_issues": [
+    "Multiple colored fiber strand routes are nearly horizontal but include a small vertical step before continuing straight.",
+    "The jogs appear avoidable because the strand segments before and after the jog are parallel and aligned close to a valid straight horizontal lane.",
+    "The stepped shape makes the routing look less clean even though there is no visible obstacle forcing the detour in the cropped screenshot.",
+    "The repeated small jog pattern suggests the auto layout did not nudge the adjacent cable or fan-out positions enough to align route lanes."
+  ],
+  "likely_broken_rules": [
+    {
+      "rule_id": "SDC-LAYOUT-001",
+      "rule_name": "Spacing",
+      "related_file": "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md",
+      "broken_requirements": [
+        "During automatic layout, cable and fan-out positions should be nudged so near-horizontal or near-vertical strand runs become straight.",
+        "Tiny unnecessary jogs must not remain when a straight run is feasible without violating higher-priority hard rules.",
+        "Spacing should leave labels, fanouts, groups, and individual strands visually separated and traceable without avoidable congestion."
+      ],
+      "why_this_image_fails": "The visible strands have small stepped jogs even though the route intent appears to be a straight horizontal run. The layout should shift cable placement or fan-out positions just enough for the affected strands to align to straight lanes."
+    },
+    {
+      "rule_id": "SDC-ROUTE-001",
+      "rule_name": "Fiber Strand Routing Zone",
+      "related_file": "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "broken_requirements": [
+        "The routing engine should use available horizontal and vertical space.",
+        "The routing engine should avoid unnecessary congestion near splice dots and through the routing zone.",
+        "A route fails when it ignores available spacing and creates avoidable congestion."
+      ],
+      "why_this_image_fails": "The small jogs use extra route geometry in the routing zone where a cleaner straight horizontal run appears available."
+    },
+    {
+      "rule_id": "SDC-LAYOUT-002",
+      "rule_name": "Fiber Strand Fan Out",
+      "related_file": "splice_detail_canvas_rule_pack/08_SDC-LAYOUT-002_Fiber_Strand_Fan_Out.md",
+      "broken_requirements": [
+        "Fan-out exit points should align to valid grid lanes where possible.",
+        "Fan-out exit points must allow minimum bend clearance inside the routing zone.",
+        "The fan-out provides clean start points for the routing engine."
+      ],
+      "why_this_image_fails": "The user-described correction depends on nudging fiber fan-outs up or down so their exit points align with straight horizontal route lanes."
+    },
+    {
+      "rule_id": "SDC-ROUTE-003",
+      "rule_name": "Fiber Strand Overlap, Crossing, and Collision",
+      "related_file": "splice_detail_canvas_rule_pack/11_SDC-ROUTE-003_Fiber_Strand_Overlap_Crossing_Collision.md",
+      "broken_requirements": [
+        "Routes must remain visually traceable from fan-out exit to fusion splice dot.",
+        "Routes must avoid unnecessary crossing and route interference.",
+        "A path fails when it ignores an available cleaner path."
+      ],
+      "why_this_image_fails": "Even without visible overlap in this crop, the stepped routes are lower-quality than available straight paths and make strand routing less visually direct."
+    }
+  ],
+  "expected_correction": [
+    "When a strand can be routed horizontally in a straight line, draw it as a straight horizontal run.",
+    "Auto layout should shift the fiber cables on either side or nudge the fiber fan-outs up or down just enough that the affected strands snap to straight lanes.",
+    "Keep the correction subordinate to hard constraints such as label avoidance, fan-out clearance, reserved routing zones, strand spacing, and collision avoidance."
+  ],
+  "notes": [
+    "This should be treated as a bad example of avoidable route geometry rather than a CSV data-shape issue.",
+    "The screenshot is cropped, so any hidden off-crop obstacle cannot be ruled out from the image alone. The user-reported defect and the visible repeated jog pattern support high confidence that the jogs are unnecessary.",
+    "This example is closely tied to the near-straight alignment requirement in SDC-LAYOUT-001."
+  ],
+  "grounding": {
+    "primary_rule_files": [
+      "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md"
+    ],
+    "supporting_rule_files": [
+      "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "splice_detail_canvas_rule_pack/08_SDC-LAYOUT-002_Fiber_Strand_Fan_Out.md",
+      "splice_detail_canvas_rule_pack/11_SDC-ROUTE-003_Fiber_Strand_Overlap_Crossing_Collision.md"
+    ],
+    "reference_library_location": "docs/reference/rule_examples"
+  }
+}
