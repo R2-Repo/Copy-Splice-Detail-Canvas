@@ -11,7 +11,8 @@
 ## Active build track
 
 - SDC docs + failure messages (Tier 1 done)
-- Dropped-rule code migration — see [`DROPPED_RULE_ENFORCEMENT.md`](./DROPPED_RULE_ENFORCEMENT.md) (DOM, CBL-005, bundle/nest — frozen routing needs approval)
+- Dropped-rule **enforcement** removed (Q3/Q4/Q7/Q8) — see [`DROPPED_RULE_ENFORCEMENT.md`](./DROPPED_RULE_ENFORCEMENT.md)
+- Remaining: rename internal check IDs in `layoutRules.ts` → SDC subcodes
 - Import optimizer / routing-first layout
 
 ## Q&A decisions (rule cleanup)

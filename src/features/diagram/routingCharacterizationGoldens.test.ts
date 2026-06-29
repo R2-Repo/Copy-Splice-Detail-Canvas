@@ -24,7 +24,6 @@ describe("routing characterization goldens (B0)", () => {
       expect(actual.uniqueCables).toBe(expected.uniqueCables);
       expect(actual.legCount).toBe(expected.legCount);
       expect(actual.legs).toEqual(expected.legs);
-      expect(actual.dominant).toEqual(expected.dominant);
       expect(actual.routing).toEqual(expected.routing);
     });
   }
@@ -43,7 +42,6 @@ describe("routing characterization goldens (grid default)", () => {
       expect(actual.uniqueCables).toBe(expected.uniqueCables);
       expect(actual.legCount).toBe(expected.legCount);
       expect(actual.legs).toEqual(expected.legs);
-      expect(actual.dominant).toEqual(expected.dominant);
       expect(actual.routing).toEqual(expected.routing);
     });
   }

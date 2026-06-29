@@ -1,5 +1,3 @@
-import type { DominantCablePair } from "@/features/diagram/dominantCablePair";
-
 import type { LayoutSide } from "../layoutCandidate";
 
 /** Cross-cable connection stats for one unordered pair. */
@@ -21,7 +19,7 @@ export type ProxyBundleGroup = {
   representativeId: string;
 };
 
-export type DominantPairLock = {
+export type PrimaryPairLock = {
   cableA: string;
   cableB: string;
   sideA: LayoutSide;
@@ -36,7 +34,8 @@ export type TopologyConstraints = {
   hubCables: string[];
   satelliteCables: string[];
   proxyBundleGroups: ProxyBundleGroup[];
-  dominantPairLock?: DominantPairLock;
+  /** High-affinity or through-cable pair pinned to opposite sides. */
+  primaryPairLock?: PrimaryPairLock;
   lockedCableCount: number;
 };
 
@@ -44,7 +43,6 @@ export type TopologyAnalysis = {
   cableKeys: string[];
   affinities: CableAffinity[];
   constraints: TopologyConstraints;
-  dominantPair: DominantCablePair | null;
   throughCableConfidence: Record<string, number>;
 };
 
@@ -53,3 +51,6 @@ export const LOCK_OPPOSITE_MIN_COUNT = 24;
 export const PROXY_BUNDLE_MIN_SIZE = 4;
 /** Pairs with same-side rate below this are forbidden on the same layout side. */
 export const FORBID_SAME_SIDE_MAX_RATE = 0.15;
+
+/** @deprecated Use `PrimaryPairLock`. */
+export type DominantPairLock = PrimaryPairLock;

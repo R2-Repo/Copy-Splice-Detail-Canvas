@@ -4,35 +4,29 @@
 
 ## Last updated
 
-2026-06-28 — **SDC rule vocabulary cleanup (Q1–Q10)**
+2026-06-28 — **SDC cleanup: docs + dropped-rule enforcement (Q3/Q4/Q7/Q8)**
 
-### Done
+### Done (PR #28)
 
 | Area | Change |
 |------|--------|
-| Rule pack | **SDC-ROUTE-004** (bend budget); 24px pitch in **SDC-GRID-001** + cross-refs; UX dot grouping + snap |
-| Deleted docs | `LAYOUT_RULES.md`, `RULE_ID_MAP.md`, `RULE_PRIORITY.md` |
-| Rewritten | `RULE_DICTIONARY.md` (SDC-only), `SIMPLE_TERMS.md`, agent `.mdc` rules, `AGENTS.md` |
-| Code | `route004.ts`; `ruleFailureMessages.ts`; bend check moved off `route003` |
-| Renames (Q10) | `heuristicImportLayout`, `hill-climb` search mode, `composite` routing engine (aliases kept) |
-| New doc | `DROPPED_RULE_ENFORCEMENT.md` — contract vs code gaps |
+| Rule pack | **SDC-ROUTE-004**; 24px in **SDC-GRID-001**; deleted legacy agent docs |
+| Enforcement pass | Removed DOM/CBL-004/005/ROW-003, EDGE-001/005/007/009/010; deleted `dominantCablePair.ts` |
+| Pipeline | Single visual cable (no ring-cut split); tube-grouped row order; no dominant pinning |
+| Quad placement | Heaviest-cable anchor (not dominant-pair rule) |
+| Tests | Updated for dropped behaviors; layout search oracle relaxed for 3-side winners |
+| Gates | `npm run smoke` pass |
 
-### User Q&A summary
+### Not done (before merge)
 
-- **Keep hard:** SDC-ROUTE-004 bend budget; 24px pitch everywhere
-- **Drop from contract:** dominant pair, ring-cut split, center nest/jogX, Q8 path/lane/row rules
-- **Custom:** fusion dots on organized line per group (H or V path); near-straight snap import + manual
-- **Delete** RULE_PRIORITY; **rename** non-rule legacy naming
+- Rename remaining internal check IDs (FBR-*, EDGE-*, etc.) → SDC subcodes
+- Purge legacy ID strings from comments/tests/docs
+- Optional: simplify jogX assignment in frozen routing (geometry only today)
 
-### Not done (needs follow-up)
+### Manual QA
 
-- Remove dropped-rule **enforcement** in `layoutRules.ts` / `dominantCablePair.ts` / frozen `spliceEdgeRouting.ts` — see `DROPPED_RULE_ENFORCEMENT.md`
-- Full validator migration out of `layoutRules.ts`
-
-### Gates
-
-- `npm run smoke` — pass (358 fast tests + build)
+Import **example-2** after merge candidate review.
 
 ### Frozen
 
-`spliceEdgeRouting.ts` — not touched.
+`spliceEdgeRouting.ts` symbols untouched — jogX still assigned, not validated.

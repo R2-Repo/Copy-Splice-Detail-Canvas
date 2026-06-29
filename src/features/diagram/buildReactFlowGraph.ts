@@ -235,11 +235,11 @@ export function buildReactFlowGraph(
     layoutWidth ?? CABLE_LAYOUT.width;
   const centerX = effectiveWidth / 2;
 
-  const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-  const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
+  const { visualCables } = buildVisualCablesForLayout(graph);
+  const rowIndex = connectionRowIndexMap(graph, visualCables);
   const placement =
     buildOptions?.fixedPlacement ??
-    computeCanvasPlacement(graph, visualCables, dominant, rowIndex);
+    computeCanvasPlacement(graph, visualCables, rowIndex);
   applyCableSideOverrides(placement, visualCables, overrides?.cableSides);
   applyPlacementToLegs(graph, visualCables, placement);
 
@@ -265,17 +265,12 @@ export function buildReactFlowGraph(
   const diagramScale = computeDiagramScale(rowCount);
 
   const rowOffsets = connectionRowOffsets(
-    graph,
-    visualCables,
-    dominant,
-    hiddenPairIds.size > 0 ? hiddenPairIds : undefined,
-  );
+    graph, visualCables);
 
   const layout = computeDiagramLayout(
     graph,
     visualCables,
     placement,
-    dominant,
     layoutWidth,
     hiddenPairIds.size > 0 ? hiddenPairIds : undefined,
   );

@@ -17,8 +17,7 @@ import type { CablePlacement } from "@/features/diagram/canvasPlacement";
 import {
   parentVisualGroupKey,
   visualGroupForConnection,
-  type DominantCablePair,
-} from "@/features/diagram/dominantCablePair";
+} from "@/features/diagram/visualCables";
 import { orderedFiberConnections } from "@/features/diagram/buildConnectionGraph";
 import {
   computeNearStraightShift,
@@ -172,7 +171,6 @@ type CablePairGroup = {
 function findCablePairGroups(
   graph: ConnectionGraph,
   visualCables: VisualCable[],
-  dominant?: DominantCablePair | null,
   minCount = HIGH_COUNT_PAIR_THRESHOLD,
 ): CablePairGroup[] {
   const counts = new Map<string, CablePairGroup>();
@@ -190,14 +188,7 @@ function findCablePairGroups(
     counts.set(key, entry);
   }
   return [...counts.values()]
-    .filter(
-      (g) =>
-        g.connectionCount >= minCount ||
-        (dominant !== undefined &&
-          dominant !== null &&
-          g.leftGroupKey === dominant.leftGroupKey &&
-          g.rightGroupKey === dominant.rightGroupKey),
-    )
+    .filter((g) => g.connectionCount >= minCount)
     .sort((a, b) => b.connectionCount - a.connectionCount);
 }
 
@@ -475,7 +466,6 @@ export function computeAlignedLayout(
   graph: ConnectionGraph,
   visualCables: VisualCable[],
   placement: Map<string, CablePlacement>,
-  dominant?: DominantCablePair | null,
   layoutWidth?: number,
   excludeConnectionIds?: ReadonlySet<string>,
 ): AlignedDiagramLayout {
@@ -488,13 +478,11 @@ export function computeAlignedLayout(
   const sorted = connectionsInRowLayoutOrder(
     graph,
     visualCables,
-    dominant,
     excludeConnectionIds,
   );
   const rowOffsets = connectionRowOffsets(
     graph,
     visualCables,
-    dominant,
     excludeConnectionIds,
   );
 
@@ -560,7 +548,7 @@ export function computeAlignedLayout(
     cablePositions,
   );
 
-  const cablePairGroups = findCablePairGroups(graph, visualCables, dominant);
+  const cablePairGroups = findCablePairGroups(graph, visualCables);
   let locked: ReadonlySet<string> = new Set<string>();
   if (cablePairGroups.length > 0) {
     locked = applyCablePairAlignment(

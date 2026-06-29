@@ -44,17 +44,6 @@ function ruleApplies(id: LayoutRuleId, exampleNum: number): boolean {
     case "FBR-004":
     case "ROW-002":
       return exampleNum === 3;
-    case "CBL-005":
-    case "ROW-003":
-      return exampleNum === 1;
-    case "DOM-001":
-    case "DOM-002":
-    case "DOM-003":
-      return exampleNum === 2;
-    case "DOM-004":
-      return exampleNum === 2;
-    case "CBL-004":
-      return exampleNum !== 1;
     case "TUB-004":
       return true;
     default:

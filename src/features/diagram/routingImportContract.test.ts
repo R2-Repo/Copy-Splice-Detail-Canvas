@@ -17,14 +17,9 @@ const STAGE_WIDTH = 1920;
 
 /** Rules governing fiber-strand routing on import (grid engine default). */
 const ROUTING_RULE_IDS = [
-  "EDGE-001",
   "EDGE-004",
-  "EDGE-005",
   "EDGE-006",
-  "EDGE-007",
   "EDGE-008",
-  "EDGE-009",
-  "EDGE-010",
   "EDGE-011",
   "EDGE-012",
   "EDGE-013",

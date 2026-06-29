@@ -6,9 +6,7 @@ import { computeCanvasPlacement } from "./canvasPlacement";
 import { connectionRowIndexMap } from "./connectionRowOrder";
 import {
   checkLayoutRule,
-  findCenterLaneGroupingViolations,
   findSpliceOverlapPair,
-  packedMidXViolationsForContext,
   type LayoutRuleContext,
 } from "./layoutRules";
 import { DEFAULT_LAYOUT_EXPANSION } from "./layoutExpansion";
@@ -21,13 +19,12 @@ function ctxFromBuild(
   graph: ReturnType<typeof buildConnectionGraph>,
   built: ReturnType<typeof buildReactFlowGraph>,
 ): LayoutRuleContext {
-  const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-  const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
-  const placement = computeCanvasPlacement(graph, visualCables, dominant, rowIndex);
+  const { visualCables } = buildVisualCablesForLayout(graph);
+  const rowIndex = connectionRowIndexMap(graph, visualCables);
+  const placement = computeCanvasPlacement(graph, visualCables, rowIndex);
   return {
     graph,
     visualCables,
-    dominant,
     placement,
     layout: built.layout as LayoutRuleContext["layout"],
     reactFlow: { nodes: built.nodes, edges: built.edges },
@@ -63,7 +60,6 @@ function alignedRightPositions(): LayoutOverrides["positions"] {
 function misalignedRightPositions(): LayoutOverrides["positions"] {
   return {
     ...alignedRightPositions(),
-    // Pull 258.96 cable up — breaks tube-row pairing vs 72-SMF / 6-DROP partners.
     "cable-144-SMF I-15 DIST: MP 258.96 - 4800 S": { x: 1380, y: 80 },
     "cable-144-SMF I-15 DIST: 4800 S - MP 259.46": { x: 1380, y: 500 },
   };
@@ -86,9 +82,8 @@ describe("SP flipped-right vertical stack alignment", () => {
     });
     const ctx = ctxFromBuild(graph, built);
     expect(findSpliceOverlapPair(ctx)).toBeNull();
-    expect(packedMidXViolationsForContext(ctx)).toEqual([]);
-    expect(checkLayoutRule("EDGE-005", ctx).ok).toBe(true);
-    expect(checkLayoutRule("EDGE-007", ctx).ok).toBe(true);
+    expect(checkLayoutRule("EDGE-011", ctx).ok).toBe(true);
+    expect(checkLayoutRule("EDGE-012", ctx).ok).toBe(true);
   });
 
   it("misaligned right stack should still pass routing rules", () => {
@@ -106,21 +101,8 @@ describe("SP flipped-right vertical stack alignment", () => {
       refreshColumnX: true,
     });
     const ctx = ctxFromBuild(graph, built);
-    const edge005 = findCenterLaneGroupingViolations(
-      ctx,
-      new Map(
-        ctx.reactFlow.edges
-          .filter((e) => e.type === "splice")
-          .map((e) => {
-            const connId = e.id.replace(/^splice-(?:left-|right-)?/, "");
-            const d = (e.data ?? {}) as { routingMidX?: number; midX?: number };
-            return [connId, Number(d.routingMidX ?? d.midX)] as const;
-          }),
-      ),
-    );
-    expect(findSpliceOverlapPair(ctx), edge005.join("; ")).toBeNull();
-    expect(packedMidXViolationsForContext(ctx), edge005.join("; ")).toEqual([]);
-    expect(checkLayoutRule("EDGE-005", ctx).ok, edge005.join("; ")).toBe(true);
-    expect(checkLayoutRule("EDGE-007", ctx).ok).toBe(true);
+    expect(findSpliceOverlapPair(ctx)).toBeNull();
+    expect(checkLayoutRule("EDGE-011", ctx).ok).toBe(true);
+    expect(checkLayoutRule("EDGE-012", ctx).ok).toBe(true);
   });
 });

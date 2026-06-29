@@ -72,7 +72,7 @@ describe("importLayoutWidthForGraph", () => {
 
     for (const collapse of [false, true] as const) {
       const laneCount = activeSpliceLaneCount(graph, collapse);
-      const { visualCables, dominant } = buildVisualCablesForLayout(graph);
+      const { visualCables } = buildVisualCablesForLayout(graph);
       const hidden = collapse
         ? collapsedPairIdsFromButtSplices(
             resolveFullButtSpliceVisuals(
@@ -84,7 +84,6 @@ describe("importLayoutWidthForGraph", () => {
       const rowOffsets = connectionRowOffsets(
         graph,
         visualCables,
-        dominant,
         hidden,
       );
       const maxTubes = Math.max(1, ...visualCables.map((vc) => vc.tubes.length));
@@ -97,12 +96,9 @@ describe("importLayoutWidthForGraph", () => {
       const width = importLayoutWidthForGraph(graph, { collapse });
       expect(width).toBeGreaterThanOrEqual(minWidth);
 
-      const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
+      const rowIndex = connectionRowIndexMap(graph, visualCables);
       const placement = computeCanvasPlacement(
-        graph,
-        visualCables,
-        dominant,
-        rowIndex,
+        graph, visualCables, rowIndex,
       );
       const bounds = computeCableXBounds(visualCables, placement, width);
       const centerGap = bounds.rightX - bounds.leftX - nodeWidth;

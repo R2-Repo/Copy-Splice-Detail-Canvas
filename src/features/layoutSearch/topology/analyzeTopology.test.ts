@@ -17,7 +17,7 @@ describe("analyzeTopology", () => {
   it("example-2 locks two dominant through cables on opposite sides", () => {
     const graph = example2Graph();
     const analysis = analyzeTopology(graph);
-    const lock = analysis.constraints.dominantPairLock;
+    const lock = analysis.constraints.primaryPairLock;
 
     expect(lock).toBeDefined();
     expect(lock!.sideA).not.toBe(lock!.sideB);

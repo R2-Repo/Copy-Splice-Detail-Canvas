@@ -469,7 +469,6 @@ function evaluateCandidate(
   evalCache?: {
     visualCables: ReturnType<typeof buildVisualCablesForLayout>["visualCables"];
     rowIndex: Map<string, number>;
-    dominant: ReturnType<typeof buildVisualCablesForLayout>["dominant"];
   },
   scoreMemo?: ScoreMemo,
 ): CandidateEvalOutcome {
@@ -899,7 +898,6 @@ function runBeamSearch(
   evalCache: {
     visualCables: ReturnType<typeof buildVisualCablesForLayout>["visualCables"];
     rowIndex: Map<string, number>;
-    dominant: ReturnType<typeof buildVisualCablesForLayout>["dominant"];
   },
   scoreMemo: ScoreMemo,
   emitProgress: ReturnType<typeof createProgressTracker>,
@@ -1214,7 +1212,6 @@ function runBruteForce(
   evalCache: {
     visualCables: ReturnType<typeof buildVisualCablesForLayout>["visualCables"];
     rowIndex: Map<string, number>;
-    dominant: ReturnType<typeof buildVisualCablesForLayout>["dominant"];
   },
   scoreMemo: ScoreMemo,
   emitProgress: ReturnType<typeof createProgressTracker>,
@@ -1285,7 +1282,6 @@ function runGuidedSearch(
   evalCache: {
     visualCables: ReturnType<typeof buildVisualCablesForLayout>["visualCables"];
     rowIndex: Map<string, number>;
-    dominant: ReturnType<typeof buildVisualCablesForLayout>["dominant"];
   },
   scoreMemo: ScoreMemo,
   emitProgress: ReturnType<typeof createProgressTracker>,
@@ -1393,7 +1389,6 @@ async function runGuidedSearchAsync(
   evalCache: {
     visualCables: ReturnType<typeof buildVisualCablesForLayout>["visualCables"];
     rowIndex: Map<string, number>;
-    dominant: ReturnType<typeof buildVisualCablesForLayout>["dominant"];
   },
   scoreMemo: ScoreMemo,
   emitProgress: ReturnType<typeof createProgressTracker>,
@@ -1527,9 +1522,9 @@ function runLayoutSearchCore(
   const maxRounds = adaptiveMaxRounds(constraints, requestedMaxRounds);
   const widths = widthStepsForGraph(graph);
   const expansionIters = expansionIterations();
-  const { visualCables, dominant } = buildVisualCablesForLayout(graph);
-  const rowIndex = connectionRowIndexMap(graph, visualCables, dominant);
-  const evalCache = { visualCables, rowIndex, dominant };
+  const { visualCables } = buildVisualCablesForLayout(graph);
+  const rowIndex = connectionRowIndexMap(graph, visualCables);
+  const evalCache = { visualCables, rowIndex };
   const scoreMemo: ScoreMemo = new Map();
   let winnerEvaluation: LayoutWinnerEvaluation | undefined;
 

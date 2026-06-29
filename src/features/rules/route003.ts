@@ -87,12 +87,7 @@ export const sdcRoute003: SdcRule = {
       return [warn("SDC-ROUTE-003", "Could not build layout rule context")];
     }
 
-    const collisionIds = [
-      "EDGE-001",
-      "EDGE-011",
-      "EDGE-012",
-      "EDGE-007",
-    ] as const;
+    const collisionIds = ["EDGE-011", "EDGE-012"] as const;
     const failures: string[] = [];
     for (const r of evaluateSdcRouteCollisionRules(layoutCtx)) {
       if (!r.ok && (collisionIds as readonly string[]).includes(r.id)) {
