@@ -4,23 +4,19 @@
 
 ## Last updated
 
-2026-06-30 — **docs/agent cleanup** (`cursor/docs-agent-cleanup-d89b`)
+2026-06-30 — **Left-SP-3254.5 fix attempt rolled back** (`cursor/left-sp-3254-import-qa-7a31`)
 
 ### This session
 
-- Moved completed build plans to `docs/archive/agent/`:
-  - `STABILIZATION_BUILD.md`, `STABILIZATION_PLAN.md`
-  - `IMPORT_FINISH_PLAN.md`, `IMPORT_PERF_PLAN.md`, `IMPORT_OPTIMIZER_BUILD.md`
-- Added `docs/archive/README.md` index.
-- Rewrote `ROUTING_FIRST_LAYOUT.md` as **shipped** architecture reference (removed stale phase gates / “first session”).
-- Updated `AGENTS.md`, `ARCHITECTURE.md`, `SCOPE.md` (MVP status, quality gates), `CONTEXT.md`.
-- Trimmed `KNOWN_ISSUES.md`; minor `QUAD_LAYOUT.md` history/QA touch-up.
+- User confirmed post-fix import was **worse**, not improved — correct.
+- Root cause: layout pair-alignment + W1400 tie-break regressed center routing (vertical chimney, zoomed-out paint).
+- **Reverted** `spliceRowLayout.ts`, `horizontalAlign.ts`, layout scorer wiring, tie-break, and sp3254 tests to `main` baseline.
+- Re-import with reverted code → **W1133** winner, visual matches original QA screenshot.
+- QA artifacts + honest assessment kept: `Left-SP-3254.5-assessment.md`.
 
-**Gate:** docs-only — no code change.
+**PR #42 should not merge as a fix** — branch is QA + failed experiment documentation only unless user wants a different approach.
 
-### Manual QA
-
-None required (reference docs only).
+**Still broken (unchanged from baseline):** `bad-missed-straight-horizontal-splice-routing`, center ATMS congestion.
 
 ### Frozen
 

@@ -125,31 +125,4 @@ describe("pickBestRecoverableCandidate", () => {
       breakdownRecoverableFailures(lowPenalty.violations).weightedPenalty,
     );
   });
-
-  it("chooses heuristic only when it ranks better than failed finalists", () => {
-    const graph = buildConnectionGraph(
-      parseBentleyCsv(readReferenceCsv("CSV Splice Detail Example #2.csv")),
-    );
-    const candidate = heuristicBaselineCandidate(graph);
-
-    const worseFinalist = toRecoverableCandidate(
-      candidate,
-      mockEval([
-        failRule("SDC-LAYOUT-002"),
-        failRule("SDC-ROUTE-001"),
-        failRule("SDC-ROUTE-002"),
-        failRule("SDC-ROUTE-003"),
-      ]),
-      "optimizer-finalist",
-    );
-    const betterHeuristic = toRecoverableCandidate(
-      candidate,
-      mockEval([failRule("SDC-LAYOUT-002"), failRule("SDC-ROUTE-002")]),
-      "heuristic",
-    );
-
-    const result = pickBestRecoverableCandidate([worseFinalist, betterHeuristic]);
-    expect(result?.picked.source).toBe("heuristic");
-    expect(result?.selectionKind).toBe("heuristic-best");
-  });
 });

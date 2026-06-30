@@ -4,22 +4,14 @@
 
 ## Focus (2026-06-30)
 
-**Docs cleanup** — archived completed build plans to `docs/archive/`; `ROUTING_FIRST_LAYOUT.md` is the live import architecture reference.
-
-**Import optimizer (shipped)** — routing-first search, beam + tiered T0/T1/T2, finalist fallback, worker, diagnostics.
-
-**Quad / top-bottom** — four-edge placement + render adapters; see [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md).
-
-**SDC-LAYOUT-003** — side assignment rule (stack/side consistency + paint vs candidate).
-
-**Rule example library** — `docs/reference/rule_examples/` (SDC metadata + `index.json`).
+**Left-SP-3254.5** — layout fix attempt on PR #42 **failed** (visual regression). Code reverted to main; QA artifacts + assessment doc retained. Original issues remain: **SDC-LAYOUT-001** straight-run, **SDC-ROUTE-001** center congestion.
 
 ## Active build track
 
 - Smart manual adjustment (SDC-UX-001)
 - PDF export polish
-- Manual QA: import Left-SP-3254.5; `VITE_DEBUG_IMPORT_OPTIMIZER=1` when debugging import
+- Left-SP-3254.5 routing (needs new approach — not macro pair Y + width forcing)
 
 ## Branch
 
-- `main` — docs cleanup on `cursor/docs-agent-cleanup-d89b`
+- `cursor/left-sp-3254-import-qa-7a31` — QA artifacts only after revert; **do not merge as fix**
