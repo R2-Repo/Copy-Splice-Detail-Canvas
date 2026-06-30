@@ -44,7 +44,7 @@ export const DEFAULT_SOFT_SCORE_WEIGHTS: SoftScoreWeights = {
   heightImbalance: 10,
   pathLength: 0.1,
   nearStraightBends: 250,
-  handleMisalignment: 8,
+  handleMisalignment: 15,
 };
 
 export type SoftScoreBreakdown = {

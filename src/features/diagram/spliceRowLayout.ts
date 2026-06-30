@@ -16,9 +16,9 @@ import { connectionRowOffsets, connectionsInRowLayoutOrder } from "@/features/di
 import type { CablePlacement } from "@/features/diagram/canvasPlacement";
 import {
   parentVisualGroupKey,
-  visualGroupForConnection,
 } from "@/features/diagram/visualCables";
-import { orderedFiberConnections } from "@/features/diagram/buildConnectionGraph";
+import { orderedFiberConnections, pairEndpointsForSide } from "@/features/diagram/buildConnectionGraph";
+import { cableNameKey } from "@/features/import/cableLegIdentity";
 import {
   computeNearStraightShift,
   type AlignConnection,
@@ -26,8 +26,8 @@ import {
 import type { VisualCable } from "@/features/diagram/visualCables";
 import type { ConnectionGraph } from "@/types/splice";
 
-/** Align Y for dominant pair and high-count cross-side pairs. */
-const HIGH_COUNT_PAIR_THRESHOLD = 4;
+/** Align Y for cross-side pairs with at least this many splices (inclusive). */
+const HIGH_COUNT_PAIR_THRESHOLD = 2;
 
 export type AlignedDiagramLayout = {
   reportKey: string;
@@ -99,6 +99,7 @@ export function resolveSameSideStackCollisions(
   cablePositions: Map<string, { x: number; y: number; height: number }>,
   heightFor: (vc: VisualCable) => number = (vc) => cableNodeLayoutHeight(vc),
   minGap = effectiveCableGap(),
+  lockedIds?: ReadonlySet<string>,
 ): void {
   for (const side of ["left", "right"] as const) {
     const cables = visualCables
@@ -117,6 +118,10 @@ export function resolveSameSideStackCollisions(
       const pos = cablePositions.get(vc.id);
       if (!pos) continue;
       const h = heightFor(vc);
+      if (lockedIds?.has(vc.id)) {
+        stackBottom = pos.y + h + minGap;
+        continue;
+      }
       const nodeY = Math.max(pos.y, stackBottom);
       cablePositions.set(vc.id, { ...pos, y: nodeY, height: h });
       stackBottom = nodeY + h + minGap;
@@ -163,10 +168,33 @@ export function resolveSameSideNodeCollisions(
 }
 
 type CablePairGroup = {
-  leftGroupKey: string;
-  rightGroupKey: string;
+  sideA: { groupKey: string; canvasSide: "left" | "right" };
+  sideB: { groupKey: string; canvasSide: "left" | "right" };
   connectionCount: number;
 };
+
+function connectionBelongsToPairGroup(
+  visualCables: VisualCable[],
+  connectionId: string,
+  group: CablePairGroup,
+  sideOf: (vc: VisualCable) => "left" | "right",
+): boolean {
+  const groupA = visualGroupForConnectionOnSide(
+    visualCables,
+    connectionId,
+    group.sideA.canvasSide,
+    sideOf,
+  );
+  const groupB = visualGroupForConnectionOnSide(
+    visualCables,
+    connectionId,
+    group.sideB.canvasSide,
+    sideOf,
+  );
+  return (
+    groupA === group.sideA.groupKey && groupB === group.sideB.groupKey
+  );
+}
 
 function findCablePairGroups(
   graph: ConnectionGraph,
@@ -175,34 +203,72 @@ function findCablePairGroups(
   minCount = HIGH_COUNT_PAIR_THRESHOLD,
 ): CablePairGroup[] {
   const sideOf = (vc: VisualCable) => placement.get(vc.id)?.side ?? vc.side;
+  const byCable = new Map<string, VisualCable>();
+  for (const vc of visualCables) {
+    const key = cableNameKey(vc.cable);
+    if (!byCable.has(key)) byCable.set(key, vc);
+  }
 
   const counts = new Map<string, CablePairGroup>();
   for (const conn of orderedFiberConnections(graph)) {
-    const leftGroup = visualGroupForConnectionOnSide(
+    const { left, right } = pairEndpointsForSide(conn.pair, graph);
+    const vcLeft = byCable.get(cableNameKey(left.cable));
+    const vcRight = byCable.get(cableNameKey(right.cable));
+    if (!vcLeft || !vcRight) continue;
+
+    const canvasLeft = sideOf(vcLeft);
+    const canvasRight = sideOf(vcRight);
+    if (canvasLeft === canvasRight) continue;
+
+    const groupLeft = visualGroupForConnectionOnSide(
       visualCables,
       conn.id,
-      "left",
+      canvasLeft,
       sideOf,
     );
-    const rightGroup = visualGroupForConnectionOnSide(
+    const groupRight = visualGroupForConnectionOnSide(
       visualCables,
       conn.id,
-      "right",
+      canvasRight,
       sideOf,
     );
-    if (!leftGroup || !rightGroup) continue;
-    const key = `${leftGroup}\0${rightGroup}`;
+    if (!groupLeft || !groupRight) continue;
+
+    let sideA = { groupKey: groupLeft, canvasSide: canvasLeft };
+    let sideB = { groupKey: groupRight, canvasSide: canvasRight };
+    if (
+      sideA.canvasSide > sideB.canvasSide ||
+      (sideA.canvasSide === sideB.canvasSide &&
+        sideA.groupKey > sideB.groupKey)
+    ) {
+      [sideA, sideB] = [sideB, sideA];
+    }
+
+    const key = `${sideA.canvasSide}:${sideA.groupKey}\0${sideB.canvasSide}:${sideB.groupKey}`;
     const entry = counts.get(key) ?? {
-      leftGroupKey: leftGroup,
-      rightGroupKey: rightGroup,
+      sideA,
+      sideB,
       connectionCount: 0,
     };
     entry.connectionCount += 1;
     counts.set(key, entry);
   }
+
   return [...counts.values()]
     .filter((g) => g.connectionCount >= minCount)
-    .sort((a, b) => b.connectionCount - a.connectionCount);
+    .sort(
+      (a, b) =>
+        a.connectionCount - b.connectionCount ||
+        pairGroupPriority(a) - pairGroupPriority(b),
+    );
+}
+
+/** Prefer small/drop cable pairs before bulk 72↔144 alignment (SP-3254.5 CH straight-run). */
+function pairGroupPriority(group: CablePairGroup): number {
+  const label = `${group.sideA.groupKey} ${group.sideB.groupKey}`;
+  if (/6 DROP/i.test(label)) return 0;
+  if (/72-SMF/i.test(label)) return 2;
+  return 1;
 }
 
 function visualGroupForConnectionOnSide(
@@ -310,65 +376,55 @@ function applyCablePairAlignment(
   groups: CablePairGroup[],
 ): Set<string> {
   const locked = new Set<string>();
+  const sideOf = (vc: VisualCable) => placement.get(vc.id)?.side ?? vc.side;
 
   for (const group of groups) {
-    const leftCandidates = visualCables.filter(
+    const vcA = visualCables.filter(
       (v) =>
-        parentVisualGroupKey(v.id) === group.leftGroupKey &&
-        (placement.get(v.id)?.side ?? v.side) === "left",
+        parentVisualGroupKey(v.id) === group.sideA.groupKey &&
+        sideOf(v) === group.sideA.canvasSide,
     );
-    const rightCandidates = visualCables.filter(
+    const vcB = visualCables.filter(
       (v) =>
-        parentVisualGroupKey(v.id) === group.rightGroupKey &&
-        (placement.get(v.id)?.side ?? v.side) === "right",
+        parentVisualGroupKey(v.id) === group.sideB.groupKey &&
+        sideOf(v) === group.sideB.canvasSide,
     );
-    if (leftCandidates.length !== 1 || rightCandidates.length !== 1) continue;
+    if (vcA.length !== 1 || vcB.length !== 1) continue;
 
-    const leftVc = leftCandidates[0]!;
-    const rightVc = rightCandidates[0]!;
-    if (locked.has(leftVc.id) || locked.has(rightVc.id)) continue;
+    const cableA = vcA[0]!;
+    const cableB = vcB[0]!;
+    if (locked.has(cableA.id) || locked.has(cableB.id)) continue;
 
     const pairConnIds = orderedFiberConnections(graph)
-      .filter((conn) => {
-        const lg = visualGroupForConnection(visualCables, conn.id, "left");
-        const rg = visualGroupForConnection(visualCables, conn.id, "right");
-        return lg === group.leftGroupKey && rg === group.rightGroupKey;
-      })
+      .filter((conn) =>
+        connectionBelongsToPairGroup(visualCables, conn.id, group, sideOf),
+      )
       .map((conn) => conn.id);
     if (pairConnIds.length === 0) continue;
 
     const anchorConnId = pickBestPairAlignmentAnchor(
       pairConnIds,
-      leftVc,
-      rightVc,
+      cableA,
+      cableB,
       rowYs,
     );
     if (!anchorConnId) continue;
     const rowY = rowYs.get(anchorConnId);
     if (rowY === undefined) continue;
 
-    const leftPos = cablePositions.get(leftVc.id);
-    const rightPos = cablePositions.get(rightVc.id);
-    if (!leftPos || !rightPos) continue;
+    const posA = cablePositions.get(cableA.id);
+    const posB = cablePositions.get(cableB.id);
+    if (!posA || !posB) continue;
 
-    const leftOffset = fiberRowOffsetInCable(leftVc, anchorConnId);
-    const rightOffset = fiberRowOffsetInCable(rightVc, anchorConnId);
-    const targetLeftY = rowY - leftOffset;
-    const targetRightY = rowY - rightOffset;
+    const offsetA = fiberRowOffsetInCable(cableA, anchorConnId);
+    const offsetB = fiberRowOffsetInCable(cableB, anchorConnId);
+    const targetAY = rowY - offsetA;
+    const targetBY = rowY - offsetB;
 
-    cablePositions.set(leftVc.id, { ...leftPos, y: targetLeftY });
-    cablePositions.set(rightVc.id, { ...rightPos, y: targetRightY });
-    const straight = straightLegCountAfterPairAlignment(
-      pairConnIds,
-      leftVc,
-      rightVc,
-      targetLeftY,
-      targetRightY,
-    );
-    if (straight === pairConnIds.length) {
-      locked.add(leftVc.id);
-      locked.add(rightVc.id);
-    }
+    cablePositions.set(cableA.id, { ...posA, y: targetAY });
+    cablePositions.set(cableB.id, { ...posB, y: targetBY });
+    locked.add(cableA.id);
+    locked.add(cableB.id);
   }
 
   return locked;
@@ -555,21 +611,6 @@ export function maxNearStraightResidual(
   return residual;
 }
 
-/** Re-stack same-side cables without resetting Y to row-derived anchors. */
-function reflowStackPreservingY(
-  cables: VisualCable[],
-  cablePositions: Map<string, { x: number; y: number; height: number }>,
-): void {
-  let stackBottom = Number.NEGATIVE_INFINITY;
-  for (const vc of cables) {
-    const pos = cablePositions.get(vc.id);
-    if (!pos) continue;
-    const nodeY = Math.max(pos.y, stackBottom);
-    cablePositions.set(vc.id, { ...pos, y: nodeY });
-    stackBottom = nodeY + pos.height + effectiveCableGap();
-  }
-}
-
 export function computeAlignedLayout(
   graph: ConnectionGraph,
   visualCables: VisualCable[],
@@ -671,14 +712,22 @@ export function computeAlignedLayout(
       visualCables,
       placement,
       cablePositions,
+      (vc) => cableNodeLayoutHeight(vc),
+      effectiveCableGap(),
+      locked,
     );
   }
 
   // SDC-UX-001-A horizontal leg alignment — snap near-straight legs to a flat line.
   snapNearStraightCables(visualCables, placement, cablePositions, locked);
-  reflowStackPreservingY(leftCables, cablePositions);
-  reflowStackPreservingY(rightCables, cablePositions);
-  resolveSameSideStackCollisions(visualCables, placement, cablePositions);
+  resolveSameSideStackCollisions(
+    visualCables,
+    placement,
+    cablePositions,
+    (vc) => cableNodeLayoutHeight(vc),
+    effectiveCableGap(),
+    locked,
+  );
 
   return {
     reportKey: "",

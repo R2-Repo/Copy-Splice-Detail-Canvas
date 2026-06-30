@@ -128,30 +128,28 @@ describe("pickBestRecoverableCandidate", () => {
     );
   });
 
-  it("chooses heuristic only when it ranks better than failed finalists", () => {
-    const graph = buildConnectionGraph(
-      parseBentleyCsv(readReferenceCsv("CSV Splice Detail Example #2.csv")),
-    );
-    const candidate = heuristicBaselineCandidate(graph);
+  it("prefers default canvas width when soft scores differ only by center-width noise", () => {
+    const stackOrder = { left: [], right: [], top: [], bottom: [] };
+    const expansion = { left: 0, right: 0, top: 0, bottom: 0 };
+    const heuristic = {
+      cableSides: {},
+      stackOrder,
+      layoutWidth: 1400,
+      layoutExpansion: expansion,
+    };
+    const narrow = { ...heuristic, layoutWidth: 1133 };
 
-    const worseFinalist = toRecoverableCandidate(
-      candidate,
-      mockEval([
-        failRule("SDC-LAYOUT-002"),
-        failRule("SDC-ROUTE-001"),
-        failRule("SDC-ROUTE-002"),
-        failRule("SDC-ROUTE-003"),
-      ]),
-      "optimizer-finalist",
-    );
-    const betterHeuristic = toRecoverableCandidate(
-      candidate,
-      mockEval([failRule("SDC-LAYOUT-002"), failRule("SDC-ROUTE-002")]),
-      "heuristic",
-    );
+    const narrowEval = mockEval([]);
+    narrowEval.softScore!.total = 6380.8;
+    const wideEval = mockEval([]);
+    wideEval.softScore!.total = 6647.8;
 
-    const result = pickBestRecoverableCandidate([worseFinalist, betterHeuristic]);
+    const result = pickBestRecoverableCandidate([
+      toRecoverableCandidate(narrow, narrowEval, "search-best"),
+      toRecoverableCandidate(heuristic, wideEval, "heuristic"),
+    ]);
+
+    expect(result?.picked.candidate.layoutWidth).toBe(1400);
     expect(result?.picked.source).toBe("heuristic");
-    expect(result?.selectionKind).toBe("heuristic-best");
   });
 });
