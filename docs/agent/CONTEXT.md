@@ -4,7 +4,7 @@
 
 ## Focus (2026-06-30)
 
-**Left-SP-3254.5 import QA** — fresh headless import + full optimizer logs + fit-view screenshot in `docs/reference/rule_examples/Screenshots from Cursor Agent/`. Next: map visual issues to rule_examples bad library.
+**Left-SP-3254.5 import QA (PR #42)** — layout pair alignment + default-width tie-break landed; re-import selects W1400. CH 3254 straight-run unit test passes; center ATMS congestion deferred. See `docs/reference/import-diagnostics/Left-SP-3254.5-assessment.md`.
 
 **Docs cleanup** — archived completed build plans to `docs/archive/`; `ROUTING_FIRST_LAYOUT.md` is the live import architecture reference.
 
@@ -20,8 +20,9 @@
 
 - Smart manual adjustment (SDC-UX-001)
 - PDF export polish
+- Center ATMS routing congestion on Left-SP-3254.5 (deferred)
 - Manual QA: import Left-SP-3254.5; `VITE_DEBUG_IMPORT_OPTIMIZER=1` when debugging import
 
 ## Branch
 
-- `main` — docs cleanup on `cursor/docs-agent-cleanup-d89b`
+- `cursor/left-sp-3254-import-qa-7a31` — SP-3254.5 fixes + QA artifacts (open PR #42)

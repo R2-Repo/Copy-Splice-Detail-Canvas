@@ -8,6 +8,7 @@ import { readReferenceCsv } from "@/testHelpers/layoutContractCsvPaths";
 import { evaluateLayoutCandidate } from "./evaluateCandidate";
 import type { LayoutEvaluationResult } from "./evaluateCandidate";
 import { heuristicBaselineCandidate } from "./layoutCandidate";
+import { DEFAULT_LAYOUT_EXPANSION } from "@/features/diagram/layoutExpansion";
 import {
   breakdownRecoverableFailures,
   compareRecoverableCandidates,
@@ -130,12 +131,11 @@ describe("pickBestRecoverableCandidate", () => {
 
   it("prefers default canvas width when soft scores differ only by center-width noise", () => {
     const stackOrder = { left: [], right: [], top: [], bottom: [] };
-    const expansion = { left: 0, right: 0, top: 0, bottom: 0 };
     const heuristic = {
       cableSides: {},
       stackOrder,
       layoutWidth: 1400,
-      layoutExpansion: expansion,
+      layoutExpansion: DEFAULT_LAYOUT_EXPANSION,
     };
     const narrow = { ...heuristic, layoutWidth: 1133 };
 

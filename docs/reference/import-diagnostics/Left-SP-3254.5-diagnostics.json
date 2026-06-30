@@ -1,67 +1,67 @@
 {
   "importId": "import-1",
   "reportKey": "splice-detail-layout:SP-3254.5",
-  "startedAt": 849.3000000007451,
+  "startedAt": 749.5,
   "phaseTimings": [
     {
       "phase": "parse",
-      "startMs": 849.4000000003725,
-      "endMs": 851.6000000014901,
+      "startMs": 749.5,
+      "endMs": 751.5999999996275,
       "durationMs": 2
     },
     {
       "phase": "buildGraph",
-      "startMs": 851.6000000014901,
-      "endMs": 859.4000000003725,
-      "durationMs": 8
+      "startMs": 751.7000000011176,
+      "endMs": 757.7000000011176,
+      "durationMs": 6
     },
     {
       "phase": "importRules",
-      "startMs": 860.3000000007451,
-      "endMs": 860.7000000011176,
+      "startMs": 758.5999999996275,
+      "endMs": 759,
       "durationMs": 0
     },
     {
       "phase": "heuristicCandidate",
-      "startMs": 870.1000000014901,
-      "endMs": 871.4000000003725,
-      "durationMs": 1
+      "startMs": 767,
+      "endMs": 768.5,
+      "durationMs": 2
     },
     {
       "phase": "heuristicPaint",
-      "startMs": 871.4000000003725,
-      "endMs": 905.4000000003725,
-      "durationMs": 34
+      "startMs": 768.5,
+      "endMs": 1084.0999999996275,
+      "durationMs": 316
     },
     {
       "phase": "finalRuleValidation",
-      "startMs": 905.4000000003725,
-      "endMs": 912.8000000007451,
-      "durationMs": 7
+      "startMs": 1084.0999999996275,
+      "endMs": 1121.4000000003725,
+      "durationMs": 37
     },
     {
       "phase": "topology",
-      "startMs": 86.19999999925494,
-      "endMs": 88.69999999925494,
-      "durationMs": 3
+      "startMs": 79.19999999925494,
+      "endMs": 81.5,
+      "durationMs": 2
     },
     {
       "phase": "fallback",
-      "startMs": 1524.7000000011176,
-      "endMs": 1525,
+      "startMs": 3220.4000000003725,
+      "endMs": 3220.7000000011176,
       "durationMs": 0
     },
     {
       "phase": "applyWinner",
-      "startMs": 1525.1000000014901,
-      "endMs": 1539.9000000003725,
-      "durationMs": 15
+      "startMs": 3220.800000000745,
+      "endMs": 3427.800000000745,
+      "durationMs": 207
     }
   ],
   "searchStats": {
     "generated": 54,
     "evaluatedT0": 54,
-    "evaluatedT1": 39,
+    "evaluatedT1": 54,
     "evaluatedT2": 0,
     "finalists": 0,
     "cacheHits": 0,
@@ -71,32 +71,35 @@
     "bottomGenerated": 24,
     "topOrBottomGenerated": 42,
     "topOrBottomReachedT0": 42,
-    "topOrBottomReachedT1": 36,
+    "topOrBottomReachedT1": 42,
     "topOrBottomReachedT2": 0,
     "topOrBottomFinalists": 0,
-    "bestHorizontalScore": 1940.8,
+    "bestHorizontalScore": 2580,
     "bestTopBottomScore": -13150
   },
   "evalSubPhaseMs": {
-    "buildReactFlowGraph": 33.09999999962747,
-    "routeAllOnGrid": 12.200000004842877,
-    "runRules": 11.400000000372529,
-    "scoreLayoutEvaluation": 1.4999999962747097,
-    "evaluateT0": 5.599999999627471,
-    "evaluateT1": 61.5,
+    "buildReactFlowGraph": 536.6999999992549,
+    "routeAllOnGrid": 16.300000000745058,
+    "runRules": 12.200000002980232,
+    "scoreLayoutEvaluation": 1.4999999981373549,
+    "evaluateT0": 6.900000000372529,
+    "evaluateT1": 571.2999999988824,
     "evaluateT2": 0
   },
   "evalSubPhaseCounts": {
-    "buildReactFlowGraph": 39,
-    "routeAllOnGrid": 39,
-    "runRules": 57,
-    "scoreLayoutEvaluation": 39,
+    "buildReactFlowGraph": 48,
+    "routeAllOnGrid": 48,
+    "runRules": 66,
+    "scoreLayoutEvaluation": 48,
     "evaluateT0": 54,
-    "evaluateT1": 39,
+    "evaluateT1": 54,
     "evaluateT2": 0
   },
   "ruleRejectCounts": {
-    "SDC-ROUTE-003": 27
+    "SDC-LAYOUT-001": 9,
+    "SDC-ROUTE-003": 33,
+    "SDC-LAYOUT-002": 6,
+    "SDC-ROUTE-002": 6
   },
   "topCandidates": [
     {
@@ -112,6 +115,8 @@
         "centerWidth": 0,
         "heightImbalance": 160,
         "pathLength": 0,
+        "nearStraightBends": 0,
+        "handleMisalignment": 0,
         "sidePairPenalty": 100,
         "topBottomRelief": -16000,
         "total": -13150
@@ -134,6 +139,8 @@
         "centerWidth": 0,
         "heightImbalance": 160,
         "pathLength": 0,
+        "nearStraightBends": 0,
+        "handleMisalignment": 0,
         "sidePairPenalty": 100,
         "topBottomRelief": -16000,
         "total": -13150
@@ -156,6 +163,8 @@
         "centerWidth": 0,
         "heightImbalance": 160,
         "pathLength": 0,
+        "nearStraightBends": 0,
+        "handleMisalignment": 0,
         "sidePairPenalty": 100,
         "topBottomRelief": -16000,
         "total": -13150
@@ -178,6 +187,8 @@
         "centerWidth": 0,
         "heightImbalance": 160,
         "pathLength": 0,
+        "nearStraightBends": 0,
+        "handleMisalignment": 0,
         "sidePairPenalty": 100,
         "topBottomRelief": -16000,
         "total": -13150
@@ -200,6 +211,8 @@
         "centerWidth": 0,
         "heightImbalance": 160,
         "pathLength": 0,
+        "nearStraightBends": 0,
+        "handleMisalignment": 0,
         "sidePairPenalty": 100,
         "topBottomRelief": -16000,
         "total": -13150
@@ -222,6 +235,8 @@
         "centerWidth": 0,
         "heightImbalance": 160,
         "pathLength": 0,
+        "nearStraightBends": 0,
+        "handleMisalignment": 0,
         "sidePairPenalty": 100,
         "topBottomRelief": -16000,
         "total": -13150
@@ -244,6 +259,8 @@
         "centerWidth": 0,
         "heightImbalance": 48,
         "pathLength": 0,
+        "nearStraightBends": 0,
+        "handleMisalignment": 0,
         "sidePairPenalty": 100,
         "topBottomRelief": -4000,
         "total": -3220
@@ -266,6 +283,8 @@
         "centerWidth": 0,
         "heightImbalance": 48,
         "pathLength": 0,
+        "nearStraightBends": 0,
+        "handleMisalignment": 0,
         "sidePairPenalty": 100,
         "topBottomRelief": -4000,
         "total": -3220
@@ -278,7 +297,7 @@
   ],
   "finalists": [],
   "notes": [
-    "Worker search wall: 605ms"
+    "Worker search wall: 1092ms"
   ],
   "graphStats": {
     "cableCount": 4,
@@ -287,9 +306,9 @@
   },
   "recoverableSelection": {
     "selectionKind": "fully-passing",
-    "selectedCandidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1133",
-    "isHeuristic": false,
-    "reason": "search candidate fully passes rules",
+    "selectedCandidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1400",
+    "isHeuristic": true,
+    "reason": "heuristic baseline fully passes rules",
     "weightedFallbackScore": 0,
     "hardFailureCount": 0,
     "routeZoneFailures": 0,
@@ -301,14 +320,14 @@
       "pickedPenalty": 0,
       "heuristicHardFails": 0,
       "pickedHardFails": 0,
-      "heuristicWon": false
+      "heuristicWon": true
     },
     "rejected": [
       {
-        "candidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1400",
-        "source": "heuristic",
-        "isHeuristic": true,
-        "whyLost": "worse soft score (2207.8 vs 1940.8)",
+        "candidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1133",
+        "source": "search-best",
+        "isHeuristic": false,
+        "whyLost": "deterministic tie-breaker",
         "weightedFallbackScore": 0,
         "hardFailureCount": 0,
         "routeZoneFailures": 0,
@@ -317,25 +336,27 @@
     ]
   },
   "selected": {
-    "candidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1133",
+    "candidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1400",
     "tier": "winner",
     "feasible": true,
-    "score": 1940.8,
+    "score": 6647.8,
     "softScore": {
       "crossings": 0,
       "bendsOverBudget": 0,
       "sameSideLoopbacks": 2,
       "sidesUsed": 2,
-      "centerWidth": 360.79999999999995,
+      "centerWidth": 627.8,
       "heightImbalance": 48,
       "pathLength": 0,
-      "total": 1940.8
+      "nearStraightBends": 0,
+      "handleMisalignment": 296,
+      "total": 6647.8
     },
     "failedRules": [],
-    "reason": "search candidate fully passes rules",
+    "reason": "heuristic baseline fully passes rules",
     "usesTop": false,
     "usesBottom": false
   },
-  "finishedAt": 1540.1000000014901,
-  "totalMs": 691
+  "finishedAt": 3428,
+  "totalMs": 2679
 }

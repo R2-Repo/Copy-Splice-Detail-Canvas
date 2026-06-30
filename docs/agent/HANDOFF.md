@@ -4,26 +4,25 @@
 
 ## Last updated
 
-2026-06-30 — **Left-SP-3254.5 visual analysis + layout fix WIP** (`cursor/left-sp-3254-import-qa-7a31`)
+2026-06-30 — **Left-SP-3254.5 layout fixes + re-import QA** (`cursor/left-sp-3254-import-qa-7a31`, PR #42)
 
 ### This session
 
-- User confirmed import matches `bad-missed-straight-horizontal-splice-routing` + center congestion rules (**SDC-LAYOUT-001**, **SDC-ROUTE-001/002/003**, **SDC-GRID-001**).
-- Root causes traced in code (not frozen routing):
-  - Import search favored **W1133** (min width) over **W1400** — `centerWidth` soft term only; no handle-alignment term.
-  - **6 DROP ↔ 144 MP 258.96** CH 3254 pairs still ~**96px** handle-Y off after layout — pair alignment anchor/reflow order.
-  - `findCablePairGroups` used static `vc.side` instead of **placement** side.
-  - Post-alignment **reflow** can undo pair Y targets.
-- WIP (same branch): `handleMisalignment` + `nearStraightBends` soft score; pair anchor picks min max-gap; conditional lock; placement-aware pair groups.
+- Fixed **SDC-LAYOUT-001** straight-run root causes (not frozen routing):
+  - Placement-aware pair groups; 6 DROP ↔ 144 MP 258.96 runs before 72↔144 bulk.
+  - Pair anchor maximizes straight legs; lock + locked collision resolve (no reflow undo).
+  - `handleMisalignment` / `nearStraightBends` soft score; default **W1400** tie-break over W1133.
+- Re-import QA: winner **W1400 heuristic** (was W1133); `handleMisalignment: 296` remains (ATMS center congestion).
+- Artifacts: `docs/reference/import-diagnostics/Left-SP-3254.5-*`, assessment md, rule_examples screenshots.
+- Test: `horizontalAlign.sp3254.test.ts` — CH 3254 gaps ≤ 12px.
 
-**Next:** finish CH 3254 straight alignment (6 DROP BL/OR ↔ 144 GR SL/WH), re-import screenshot, prefer default width when misalignment lower.
+**Deferred:** center ATMS vertical chimney (**SDC-ROUTE-001/002/003**) — needs separate pass (possibly routing-first lane assignment, not macro Y).
 
-**Gate:** typecheck passes; full smoke blocked by missing legacy example CSVs in VM (pre-existing).
+**Gate:** `npm run check` + targeted vitest pass; full `npm run smoke` blocked by missing legacy example CSVs in VM.
 
 ### Manual QA
 
-- Import `Left-SP-3254.5` — baseline screenshot in `rule_examples/Screenshots from Cursor Agent/`.
-- Visual fix verification — **pending** after layout pass lands.
+- Import `Left-SP-3254.5` — compare screenshot vs `bad-missed-straight-horizontal-splice-routing` + `bad-center-routing-congestion-overlap`.
 
 ### Frozen
 

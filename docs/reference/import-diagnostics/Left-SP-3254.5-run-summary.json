@@ -1,74 +1,74 @@
 {
-  "capturedAt": "2026-06-30T02:45:14.180Z",
+  "capturedAt": "2026-06-30T03:23:12.217Z",
   "csv": "Left-SP-3254.5.csv",
   "csvPath": "/workspace/docs/reference/examples/Left-SP-3254.5.csv",
-  "heuristic": "1.4 s",
-  "total": "4.2 s",
+  "heuristic": "1.6 s",
+  "total": "6.7 s",
   "nodes": 35,
   "edges": 20,
   "banner": null,
   "screenshot": "/workspace/docs/reference/import-diagnostics/Left-SP-3254.5-screenshot.png",
-  "diagnosticsTotalMs": 691,
+  "diagnosticsTotalMs": 2679,
   "phaseTimings": [
     {
       "phase": "parse",
-      "startMs": 849.4000000003725,
-      "endMs": 851.6000000014901,
+      "startMs": 749.5,
+      "endMs": 751.5999999996275,
       "durationMs": 2
     },
     {
       "phase": "buildGraph",
-      "startMs": 851.6000000014901,
-      "endMs": 859.4000000003725,
-      "durationMs": 8
+      "startMs": 751.7000000011176,
+      "endMs": 757.7000000011176,
+      "durationMs": 6
     },
     {
       "phase": "importRules",
-      "startMs": 860.3000000007451,
-      "endMs": 860.7000000011176,
+      "startMs": 758.5999999996275,
+      "endMs": 759,
       "durationMs": 0
     },
     {
       "phase": "heuristicCandidate",
-      "startMs": 870.1000000014901,
-      "endMs": 871.4000000003725,
-      "durationMs": 1
+      "startMs": 767,
+      "endMs": 768.5,
+      "durationMs": 2
     },
     {
       "phase": "heuristicPaint",
-      "startMs": 871.4000000003725,
-      "endMs": 905.4000000003725,
-      "durationMs": 34
+      "startMs": 768.5,
+      "endMs": 1084.0999999996275,
+      "durationMs": 316
     },
     {
       "phase": "finalRuleValidation",
-      "startMs": 905.4000000003725,
-      "endMs": 912.8000000007451,
-      "durationMs": 7
+      "startMs": 1084.0999999996275,
+      "endMs": 1121.4000000003725,
+      "durationMs": 37
     },
     {
       "phase": "topology",
-      "startMs": 86.19999999925494,
-      "endMs": 88.69999999925494,
-      "durationMs": 3
+      "startMs": 79.19999999925494,
+      "endMs": 81.5,
+      "durationMs": 2
     },
     {
       "phase": "fallback",
-      "startMs": 1524.7000000011176,
-      "endMs": 1525,
+      "startMs": 3220.4000000003725,
+      "endMs": 3220.7000000011176,
       "durationMs": 0
     },
     {
       "phase": "applyWinner",
-      "startMs": 1525.1000000014901,
-      "endMs": 1539.9000000003725,
-      "durationMs": 15
+      "startMs": 3220.800000000745,
+      "endMs": 3427.800000000745,
+      "durationMs": 207
     }
   ],
   "searchStats": {
     "generated": 54,
     "evaluatedT0": 54,
-    "evaluatedT1": 39,
+    "evaluatedT1": 54,
     "evaluatedT2": 0,
     "finalists": 0,
     "cacheHits": 0,
@@ -78,17 +78,17 @@
     "bottomGenerated": 24,
     "topOrBottomGenerated": 42,
     "topOrBottomReachedT0": 42,
-    "topOrBottomReachedT1": 36,
+    "topOrBottomReachedT1": 42,
     "topOrBottomReachedT2": 0,
     "topOrBottomFinalists": 0,
-    "bestHorizontalScore": 1940.8,
+    "bestHorizontalScore": 2580,
     "bestTopBottomScore": -13150
   },
   "recoverableSelection": {
     "selectionKind": "fully-passing",
-    "selectedCandidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1133",
-    "isHeuristic": false,
-    "reason": "search candidate fully passes rules",
+    "selectedCandidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1400",
+    "isHeuristic": true,
+    "reason": "heuristic baseline fully passes rules",
     "weightedFallbackScore": 0,
     "hardFailureCount": 0,
     "routeZoneFailures": 0,
@@ -100,14 +100,14 @@
       "pickedPenalty": 0,
       "heuristicHardFails": 0,
       "pickedHardFails": 0,
-      "heuristicWon": false
+      "heuristicWon": true
     },
     "rejected": [
       {
-        "candidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1400",
-        "source": "heuristic",
-        "isHeuristic": true,
-        "whyLost": "worse soft score (2207.8 vs 1940.8)",
+        "candidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1133",
+        "source": "search-best",
+        "isHeuristic": false,
+        "whyLost": "deterministic tie-breaker",
         "weightedFallbackScore": 0,
         "hardFailureCount": 0,
         "routeZoneFailures": 0,
@@ -116,6 +116,9 @@
     ]
   },
   "ruleRejectCounts": {
-    "SDC-ROUTE-003": 27
+    "SDC-LAYOUT-001": 9,
+    "SDC-ROUTE-003": 33,
+    "SDC-LAYOUT-002": 6,
+    "SDC-ROUTE-002": 6
   }
 }
