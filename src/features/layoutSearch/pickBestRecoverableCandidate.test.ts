@@ -33,6 +33,8 @@ function mockEval(violations: RuleResult[]): LayoutEvaluationResult {
       centerWidth: 0,
       heightImbalance: 0,
       pathLength: 0,
+      nearStraightBends: 0,
+      handleMisalignment: 0,
       total: 5000,
     },
     tieBreak: { sidesUsed: 2, candidateId: "mock" },

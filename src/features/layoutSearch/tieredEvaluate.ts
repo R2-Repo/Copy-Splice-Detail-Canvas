@@ -92,6 +92,8 @@ function infeasibleT0(candidate: LayoutCandidate): TieredEvalResult {
       centerWidth: 0,
       heightImbalance: 0,
       pathLength: 0,
+      nearStraightBends: 0,
+      handleMisalignment: 0,
       total: INFEASIBLE_LAYOUT_SCORE,
     },
     tieBreak: { sidesUsed: 0, candidateId: candidate.id ?? "" },
@@ -459,6 +461,9 @@ export function evaluateT1(
       ctx.visualCables,
       ctx.width,
       ctx.appliedGraph,
+      undefined,
+      ctx.graphResult.layout.cablePositions,
+      ctx.graphResult.placement,
     );
     if (diag) {
       recordEvalSubPhase(

@@ -171,12 +171,25 @@ type CablePairGroup = {
 function findCablePairGroups(
   graph: ConnectionGraph,
   visualCables: VisualCable[],
+  placement: Map<string, CablePlacement>,
   minCount = HIGH_COUNT_PAIR_THRESHOLD,
 ): CablePairGroup[] {
+  const sideOf = (vc: VisualCable) => placement.get(vc.id)?.side ?? vc.side;
+
   const counts = new Map<string, CablePairGroup>();
   for (const conn of orderedFiberConnections(graph)) {
-    const leftGroup = visualGroupForConnection(visualCables, conn.id, "left");
-    const rightGroup = visualGroupForConnection(visualCables, conn.id, "right");
+    const leftGroup = visualGroupForConnectionOnSide(
+      visualCables,
+      conn.id,
+      "left",
+      sideOf,
+    );
+    const rightGroup = visualGroupForConnectionOnSide(
+      visualCables,
+      conn.id,
+      "right",
+      sideOf,
+    );
     if (!leftGroup || !rightGroup) continue;
     const key = `${leftGroup}\0${rightGroup}`;
     const entry = counts.get(key) ?? {
@@ -192,16 +205,100 @@ function findCablePairGroups(
     .sort((a, b) => b.connectionCount - a.connectionCount);
 }
 
-function medianRowY(
+function visualGroupForConnectionOnSide(
+  visualCables: VisualCable[],
+  connectionId: string,
+  side: "left" | "right",
+  sideOf: (vc: VisualCable) => "left" | "right",
+): string | undefined {
+  const vc = visualCables.find(
+    (v) =>
+      sideOf(v) === side &&
+      v.tubes.some((t) =>
+        t.fibers.some(
+          (f) =>
+            f.connectionId === connectionId ||
+            f.spliceConnectionIds?.includes(connectionId),
+        ),
+      ),
+  );
+  return vc ? parentVisualGroupKey(vc.id) : undefined;
+}
+
+const PAIR_ALIGN_EPS = 0.5;
+
+/** Count cross-side legs that would be flat after aligning both cables to target Ys. */
+function straightLegCountAfterPairAlignment(
+  pairConnIds: string[],
+  leftVc: VisualCable,
+  rightVc: VisualCable,
+  targetLeftY: number,
+  targetRightY: number,
+): number {
+  let count = 0;
+  for (const connId of pairConnIds) {
+    const leftY = targetLeftY + fiberRowOffsetInCable(leftVc, connId);
+    const rightY = targetRightY + fiberRowOffsetInCable(rightVc, connId);
+    if (Math.abs(leftY - rightY) <= PAIR_ALIGN_EPS) count += 1;
+  }
+  return count;
+}
+
+/**
+ * Pick the anchor connection that maximizes straight legs after pair Y alignment,
+ * then minimizes the worst remaining handle gap (SDC-LAYOUT-001 straight-run nudge).
+ */
+function pickBestPairAlignmentAnchor(
+  pairConnIds: string[],
+  leftVc: VisualCable,
+  rightVc: VisualCable,
   rowYs: Map<string, number>,
-  connectionIds: string[],
-): number | undefined {
-  const values = connectionIds
-    .map((id) => rowYs.get(id))
-    .filter((y): y is number => y !== undefined)
-    .sort((a, b) => a - b);
-  if (values.length === 0) return undefined;
-  return values[Math.floor(values.length / 2)]!;
+): string | undefined {
+  if (pairConnIds.length === 0) return undefined;
+
+  let bestId = pairConnIds[0]!;
+  let bestStraight = -1;
+  let bestMaxGap = Number.POSITIVE_INFINITY;
+  let bestResidual = Number.POSITIVE_INFINITY;
+
+  for (const connId of pairConnIds) {
+    const rowY = rowYs.get(connId);
+    if (rowY === undefined) continue;
+    const leftOffset = fiberRowOffsetInCable(leftVc, connId);
+    const rightOffset = fiberRowOffsetInCable(rightVc, connId);
+    const targetLeftY = rowY - leftOffset;
+    const targetRightY = rowY - rightOffset;
+    const straight = straightLegCountAfterPairAlignment(
+      pairConnIds,
+      leftVc,
+      rightVc,
+      targetLeftY,
+      targetRightY,
+    );
+    let residual = 0;
+    let maxGap = 0;
+    for (const id of pairConnIds) {
+      const ly = targetLeftY + fiberRowOffsetInCable(leftVc, id);
+      const ry = targetRightY + fiberRowOffsetInCable(rightVc, id);
+      const gap = Math.abs(ly - ry);
+      maxGap = Math.max(maxGap, gap);
+      residual += gap;
+    }
+    if (
+      straight > bestStraight ||
+      (straight === bestStraight && maxGap < bestMaxGap) ||
+      (straight === bestStraight &&
+        maxGap === bestMaxGap &&
+        residual < bestResidual)
+    ) {
+      bestStraight = straight;
+      bestMaxGap = maxGap;
+      bestResidual = residual;
+      bestId = connId;
+    }
+  }
+
+  return bestId;
 }
 
 function applyCablePairAlignment(
@@ -240,13 +337,15 @@ function applyCablePairAlignment(
       .map((conn) => conn.id);
     if (pairConnIds.length === 0) continue;
 
-    const rowY = medianRowY(rowYs, pairConnIds);
+    const anchorConnId = pickBestPairAlignmentAnchor(
+      pairConnIds,
+      leftVc,
+      rightVc,
+      rowYs,
+    );
+    if (!anchorConnId) continue;
+    const rowY = rowYs.get(anchorConnId);
     if (rowY === undefined) continue;
-
-    const anchorConnId = pairConnIds.reduce((best, id) => {
-      const y = rowYs.get(id)!;
-      return Math.abs(y - rowY) < Math.abs(rowYs.get(best)! - rowY) ? id : best;
-    }, pairConnIds[0]!);
 
     const leftPos = cablePositions.get(leftVc.id);
     const rightPos = cablePositions.get(rightVc.id);
@@ -259,8 +358,17 @@ function applyCablePairAlignment(
 
     cablePositions.set(leftVc.id, { ...leftPos, y: targetLeftY });
     cablePositions.set(rightVc.id, { ...rightPos, y: targetRightY });
-    locked.add(leftVc.id);
-    locked.add(rightVc.id);
+    const straight = straightLegCountAfterPairAlignment(
+      pairConnIds,
+      leftVc,
+      rightVc,
+      targetLeftY,
+      targetRightY,
+    );
+    if (straight === pairConnIds.length) {
+      locked.add(leftVc.id);
+      locked.add(rightVc.id);
+    }
   }
 
   return locked;
@@ -548,7 +656,7 @@ export function computeAlignedLayout(
     cablePositions,
   );
 
-  const cablePairGroups = findCablePairGroups(graph, visualCables);
+  const cablePairGroups = findCablePairGroups(graph, visualCables, placement);
   let locked: ReadonlySet<string> = new Set<string>();
   if (cablePairGroups.length > 0) {
     locked = applyCablePairAlignment(
@@ -559,8 +667,6 @@ export function computeAlignedLayout(
       cablePositions,
       cablePairGroups,
     );
-    reflowStackPreservingY(leftCables, cablePositions);
-    reflowStackPreservingY(rightCables, cablePositions);
     resolveSameSideStackCollisions(
       visualCables,
       placement,

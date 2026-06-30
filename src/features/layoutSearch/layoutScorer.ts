@@ -5,6 +5,7 @@ import {
   CABLE_LAYOUT,
   compactVisualCableHeight,
 } from "@/features/diagram/cableLayoutMetrics";
+import { HORIZONTAL_ALIGN_TOLERANCE, sumCrossSideHandleMisalignment } from "@/features/diagram/horizontalAlign";
 import type { GridMap, GridPoint, GridRoute } from "@/features/grid/gridTypes";
 import type { RuleResult } from "@/features/rules/types";
 import type { VisualCable } from "@/features/diagram/visualCables";
@@ -28,6 +29,10 @@ export type SoftScoreWeights = {
   centerWidth: number;
   heightImbalance: number;
   pathLength: number;
+  /** Routes with bends when handle Ys are within straight snap tolerance (SDC-LAYOUT-001). */
+  nearStraightBends: number;
+  /** Cross-side handle Y gap above straight tolerance — layout placement quality. */
+  handleMisalignment: number;
 };
 
 export const DEFAULT_SOFT_SCORE_WEIGHTS: SoftScoreWeights = {
@@ -38,6 +43,8 @@ export const DEFAULT_SOFT_SCORE_WEIGHTS: SoftScoreWeights = {
   centerWidth: 1,
   heightImbalance: 10,
   pathLength: 0.1,
+  nearStraightBends: 250,
+  handleMisalignment: 8,
 };
 
 export type SoftScoreBreakdown = {
@@ -48,6 +55,8 @@ export type SoftScoreBreakdown = {
   centerWidth: number;
   heightImbalance: number;
   pathLength: number;
+  nearStraightBends: number;
+  handleMisalignment: number;
   total: number;
 };
 
@@ -380,6 +389,26 @@ export function countBendsOverBudget(
   return total;
 }
 
+/**
+ * Count routes whose endpoints are within straight snap tolerance on Y but still
+ * use corners — avoidable jogs per SDC-LAYOUT-001 / bad-missed-straight-horizontal.
+ */
+export function countNearStraightBends(
+  routes: Map<string, GridRoute>,
+  tolerance = HORIZONTAL_ALIGN_TOLERANCE,
+): number {
+  let count = 0;
+  for (const route of routes.values()) {
+    const pts = route.points;
+    if (pts.length < 2) continue;
+    const start = pts[0]!;
+    const end = pts[pts.length - 1]!;
+    if (Math.abs(start.y - end.y) > tolerance) continue;
+    if (bendCountFromPoints(pts) > 0) count += 1;
+  }
+  return count;
+}
+
 /** Route-geometry loopbacks — prefer `countSameSideLoopbacksFromCandidate` for screening. */
 export function countSameSideLoopbacks(
   routes: Map<string, GridRoute>,
@@ -497,6 +526,8 @@ export function scoreCandidateScreen(
     centerWidth: 0,
     heightImbalance,
     pathLength: 0,
+    nearStraightBends: 0,
+    handleMisalignment: 0,
     sidePairPenalty,
     topBottomRelief,
     total,
@@ -511,9 +542,21 @@ export function computeSoftScore(
   graph: ConnectionGraph | undefined,
   centerX: number,
   weights: SoftScoreWeights = DEFAULT_SOFT_SCORE_WEIGHTS,
+  cablePositions?: Map<string, { x: number; y: number; height: number }>,
+  placement?: Map<string, { side: "left" | "right"; order: number }>,
 ): SoftScoreBreakdown {
   const crossings = countRouteCrossings(routes);
   const bendsOverBudget = countBendsOverBudget(routes);
+  const nearStraightBends = countNearStraightBends(routes);
+  const handleMisalignment =
+    graph && visualCables && cablePositions
+      ? sumCrossSideHandleMisalignment(
+          graph,
+          visualCables,
+          cablePositions,
+          placement,
+        )
+      : 0;
   const sameSideLoopbacks =
     graph && visualCables
       ? countSameSideLoopbacksFromCandidate(candidate, graph)
@@ -529,6 +572,8 @@ export function computeSoftScore(
   const total =
     crossings * weights.crossings +
     bendsOverBudget * weights.bendsOverBudget +
+    nearStraightBends * weights.nearStraightBends +
+    handleMisalignment * weights.handleMisalignment +
     sameSideLoopbacks * weights.sameSideLoopbacks +
     sidesUsed * weights.sidesUsed +
     centerWidth * weights.centerWidth +
@@ -543,6 +588,8 @@ export function computeSoftScore(
     centerWidth,
     heightImbalance,
     pathLength,
+    nearStraightBends,
+    handleMisalignment,
     total,
   };
 }
@@ -557,6 +604,8 @@ export function scoreLayoutEvaluation(
   layoutWidth: number,
   graph?: ConnectionGraph,
   weights: SoftScoreWeights = DEFAULT_SOFT_SCORE_WEIGHTS,
+  cablePositions?: Map<string, { x: number; y: number; height: number }>,
+  placement?: Map<string, { side: "left" | "right"; order: number }>,
 ): LayoutScoreResult {
   const hasFail = violations.some((r) => !r.ok && r.severity === "fail");
   const centerX = layoutWidth / 2;
@@ -568,6 +617,8 @@ export function scoreLayoutEvaluation(
     graph,
     centerX,
     weights,
+    cablePositions,
+    placement,
   );
   const candidateId = candidate.id ?? candidateStableId(candidate);
   const tieBreak = {

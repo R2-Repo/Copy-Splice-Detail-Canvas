@@ -4,26 +4,26 @@
 
 ## Last updated
 
-2026-06-30 — **Left-SP-3254.5 import QA** (`cursor/left-sp-3254-import-qa-7a31`)
+2026-06-30 — **Left-SP-3254.5 visual analysis + layout fix WIP** (`cursor/left-sp-3254-import-qa-7a31`)
 
 ### This session
 
-- Headless import of `Left-SP-3254.5.csv` with all `VITE_DEBUG_IMPORT_*` flags enabled (`.env.local`).
-- Captured full optimizer diagnostics → `docs/reference/import-diagnostics/Left-SP-3254.5-*`.
-- Screenshots saved to `docs/reference/rule_examples/Screenshots from Cursor Agent/`:
-  - `Left-SP-3254.5-import-2026-06-30.png` (fit view)
-  - `Left-SP-3254.5-import-viewport-2026-06-30.png` (default viewport)
+- User confirmed import matches `bad-missed-straight-horizontal-splice-routing` + center congestion rules (**SDC-LAYOUT-001**, **SDC-ROUTE-001/002/003**, **SDC-GRID-001**).
+- Root causes traced in code (not frozen routing):
+  - Import search favored **W1133** (min width) over **W1400** — `centerWidth` soft term only; no handle-alignment term.
+  - **6 DROP ↔ 144 MP 258.96** CH 3254 pairs still ~**96px** handle-Y off after layout — pair alignment anchor/reflow order.
+  - `findCablePairGroups` used static `vc.side` instead of **placement** side.
+  - Post-alignment **reflow** can undo pair Y targets.
+- WIP (same branch): `handleMisalignment` + `nearStraightBends` soft score; pair anchor picks min max-gap; conditional lock; placement-aware pair groups.
 
-**Import summary:** 35 nodes, 20 edges, 4.2 s total, search picked non-heuristic candidate (W1133 vs heuristic W1400). Rule rejects during search: **SDC-ROUTE-003 × 27**. Top/bottom candidates all scored poorly (best −13150); horizontal winner used.
+**Next:** finish CH 3254 straight alignment (6 DROP BL/OR ↔ 144 GR SL/WH), re-import screenshot, prefer default width when misalignment lower.
 
-**Next:** Compare import screenshot vs `docs/reference/rule_examples/` bad examples (likely overlap, loopback, jogs, fan-out clearance).
-
-**Gate:** import QA only — no code change.
+**Gate:** typecheck passes; full smoke blocked by missing legacy example CSVs in VM (pre-existing).
 
 ### Manual QA
 
-- Import `Left-SP-3254.5` — done (headless + screenshots).
-- Visual review against rule_examples — **pending user review**.
+- Import `Left-SP-3254.5` — baseline screenshot in `rule_examples/Screenshots from Cursor Agent/`.
+- Visual fix verification — **pending** after layout pass lands.
 
 ### Frozen
 
