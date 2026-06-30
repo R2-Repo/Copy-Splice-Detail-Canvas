@@ -2,6 +2,17 @@
 
 ## Last session (2026-06-30)
 
+**deep-search KeyError fix (`run-deep.bat`)**
+
+- **`tools/sdc-sidecar/sdc/engine/coordinator.py`** — T2 candidate filter used `_[2]` on the eval dict (KeyError `2` surfaced as stderr `2`). Fixed to `ev.get("feasible")` like the T1 filter above it.
+- Ray missing is OK — sidecar falls back to sequential batch eval; not the failure cause.
+
+### Manual QA
+
+- `sdc-workspace\run-deep.bat` (or `run.bat --deep`) should pass deep-search and export `rank-*.sdc.json`.
+
+---
+
 **sdc-workspace — latest rules parity on `run.bat`**
 
 ### Shipped

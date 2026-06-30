@@ -159,7 +159,7 @@ class SearchCoordinator:
                 t1_input = [c for _, c, _ in t0_scored]
 
             t1_scored = self._tier_eval_batch(t1_input, "T1", self.t1_max) if t1_input else []
-            t2_input = [c for _, c, _ in t1_scored if _[2].get("feasible")] if t1_scored else []
+            t2_input = [c for _, c, ev in t1_scored if ev.get("feasible")] if t1_scored else []
             if not t2_input:
                 t2_input = [c for _, c, _ in t1_scored]
 

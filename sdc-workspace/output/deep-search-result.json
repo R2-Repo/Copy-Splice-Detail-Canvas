@@ -1,0 +1,116 @@
+{
+  "csvPath": "C:\\Users\\User\\Documents\\GitHub\\Copy-Splice-Detail-Canvas\\sdc-workspace\\input\\Left-SP-3254.5.csv",
+  "strategy": "EvolutionaryStrategy",
+  "generations": 15,
+  "evaluations": 3240,
+  "wallMs": 7255,
+  "bestScore": -13300.0,
+  "best": {
+    "candidate": {
+      "cableSides": {
+        "144-SMF I-15 DIST: 4800 S - MP 259.46": "right",
+        "144-SMF I-15 DIST: MP 258.96 - 4800 S": "right",
+        "6 DROP (TSC): I-15 NB & 1600 S": "bottom",
+        "72-SMF 4800 S DIST: MAIN ST - I-15": "left"
+      },
+      "stackOrder": {
+        "left": [
+          "72-SMF 4800 S DIST: MAIN ST - I-15"
+        ],
+        "right": [
+          "144-SMF I-15 DIST: MP 258.96 - 4800 S",
+          "144-SMF I-15 DIST: 4800 S - MP 259.46"
+        ],
+        "top": [],
+        "bottom": [
+          "6 DROP (TSC): I-15 NB & 1600 S"
+        ]
+      },
+      "layoutWidth": 1200.0,
+      "layoutExpansion": {
+        "centerGapPadding": 0,
+        "cableGapExtra": 0,
+        "tubeGroupGapExtra": 0
+      },
+      "id": "mut-stack-418373"
+    },
+    "evaluation": {
+      "tier": "T0",
+      "feasible": true,
+      "score": -13300,
+      "softScore": {
+        "crossings": 1,
+        "bendsOverBudget": 0,
+        "bendZeroCount": 0,
+        "bendOneCount": 0,
+        "bendTwoCount": 0,
+        "topBottomSingleBendCredit": 0,
+        "topBottomRelief": -16000,
+        "sameSideLoopbacks": 0,
+        "sidesUsed": 3,
+        "centerWidth": 0,
+        "heightImbalance": 160,
+        "pathLength": 0,
+        "sidePairPenalty": 100,
+        "total": -13300
+      },
+      "tieBreak": {
+        "totalBends": 0,
+        "candidateId": "mut-stack-418373"
+      },
+      "violations": [
+        {
+          "id": "SDC-CORE-001",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-DATA-001",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-DATA-002",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-ORDER-001",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-ORDER-002",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-LAYOUT-003",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        }
+      ],
+      "ruleRejectCounts": {},
+      "failedRuleIds": []
+    },
+    "tier": "T0"
+  },
+  "incumbent": {
+    "bestScore": -13300,
+    "feasible": true,
+    "wallMs": 296.031799999997,
+    "evaluations": 54
+  },
+  "comparison": {
+    "pythonScore": -13300.0,
+    "incumbentScore": -13300,
+    "pythonWins": false,
+    "scoreDelta": 0.0
+  }
+}
