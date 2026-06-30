@@ -4,6 +4,8 @@
 
 ## Focus (2026-06-30)
 
+**4-side cable drag fix** — `detectSideFromEdgeProximity` excludes current side so left-column drags can reach top/bottom; fitView after side flip; `VITE_DEBUG_SIDE_DRAG=1` logging; same-side Y clamp prevents off-canvas drift.
+
 **4-side cable drag (post-import)** — any routing-first import can drag cables to L/R/T/B with full flip/reroute via `applyCableSideDragCommit`; L/R-only imports promote to quad on first top/bottom placement; live preview during drag; manual mode skips lock.
 
 **SDC-ROUTE-001 routing box** — two-case zone docs (L/R-only vs four-sided); quad anchors use cable `quadSide`; horizontal vertical bounds from L/R fibers only.
