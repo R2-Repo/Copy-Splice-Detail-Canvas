@@ -14,7 +14,7 @@
 
 **Routing-first side placement** — optimizer assigns L/R/T/B [SDC-CORE-001], [SDC-SCORE-001].
 
-**Rule example library** — `docs/reference/rule_examples/` (SDC metadata + `index.json`); supersedes `routing-examples/`. Glossary PNG crops removed — use live app + CSV import.
+**Rule example library** — `docs/reference/rule_examples/` (SDC metadata + `index.json`). Glossary PNG crops removed — use live app + CSV import.
 
 ## Active build track
 

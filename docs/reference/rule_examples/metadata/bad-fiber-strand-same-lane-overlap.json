@@ -92,8 +92,7 @@
     "This should be treated as a hard bad example because route overlap and same-lane routing make the strand relationships ambiguous.",
     "Expected correction: each fiber strand should keep its own grid lane, preserve 24px pitch where applicable, and remain visually separate from neighboring strands.",
     "Expected correction: nested fiber groups should preserve standard strand color order while using adjacent readable lanes, only breaking order when required to solve a higher-priority routing conflict.",
-    "The visible issue is concentrated in the routed strand lines; CSV import correctness still depends on the imported cable, buffer tube, strand, color, and connection hierarchy.",
-    "Related legacy example: docs/reference/routing-examples/bad-02-coincident-vertical-lanes.png (same failure class — coincident vertical lanes)."
+    "The visible issue is concentrated in the routed strand lines; CSV import correctness still depends on the imported cable, buffer tube, strand, color, and connection hierarchy."
   ],
   "grounding": {
     "primary_rule_files": [

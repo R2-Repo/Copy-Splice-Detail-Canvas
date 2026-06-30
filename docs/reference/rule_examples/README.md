@@ -62,6 +62,16 @@ Optional fields: `legacy_rule_mapping`, `classification.migrated_from`, `expecte
 
 Full list and rule IDs: [`index.json`](./index.json).
 
-## Legacy migration
+## Legacy R-label migration
 
-Examples formerly in [`docs/reference/routing-examples/`](../routing-examples/README.md) are **superseded** by this library. Good examples were migrated with SDC metadata; legacy bad PNGs cross-link to canonical entries here (see metadata `notes`).
+Examples migrated from the retired `routing-examples/` library use legacy **R1–R6** labels from [`docs/REFACTOR_PLAN.md`](../../REFACTOR_PLAN.md) section 4. Canonical entries:
+
+| Legacy filename | Canonical entry |
+|-----------------|-----------------|
+| `good-01-grouping-spacing-order.png` | [`good-grouping-spacing-order`](./metadata/good-grouping-spacing-order.json) |
+| `good-02-shared-plane-staggered-turns.png` | [`good-shared-plane-staggered-turns`](./metadata/good-shared-plane-staggered-turns.json) |
+| `good-03-concentric-nesting-45deg.png` | [`good-concentric-nesting-45deg`](./metadata/good-concentric-nesting-45deg.json) |
+| `good-04-mixed-color-merge-by-destination.png` | [`good-mixed-color-merge-by-destination`](./metadata/good-mixed-color-merge-by-destination.json) |
+| `good-05-grouping-and-splitting.png` | [`good-grouping-and-splitting`](./metadata/good-grouping-and-splitting.json) |
+| `bad-01-avoidable-crossings-same-direction.png` | [`bad-avoidable-crossings-same-direction-bend`](./metadata/bad-avoidable-crossings-same-direction-bend.json) |
+| `bad-02-coincident-vertical-lanes.png` | [`bad-fiber-strand-same-lane-overlap`](./metadata/bad-fiber-strand-same-lane-overlap.json) |

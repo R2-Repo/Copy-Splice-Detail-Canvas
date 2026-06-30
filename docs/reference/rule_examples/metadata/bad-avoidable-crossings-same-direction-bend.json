@@ -82,8 +82,7 @@
   "notes": [
     "Use this as a bad reference for avoidable crossings inside a same-direction bend group.",
     "This example contrasts with good nested-bend examples where strand lanes preserve color order and bend as a clean bundle.",
-    "The screenshot is cropped; the full CSV-derived cable, buffer tube, fan-out, and splice-dot context is not visible, so the same-side loopback exception is recorded as a possible but unsupported exception rather than as the likely cause.",
-    "Supersedes legacy docs/reference/routing-examples/bad-01-avoidable-crossings-same-direction.png (identical image bytes)."
+    "The screenshot is cropped; the full CSV-derived cable, buffer tube, fan-out, and splice-dot context is not visible, so the same-side loopback exception is recorded as a possible but unsupported exception rather than as the likely cause."
   ],
   "grounding": {
     "primary_rule_files": [
