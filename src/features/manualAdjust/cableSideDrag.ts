@@ -65,8 +65,8 @@ export function detectSideFromEdgeProximity(
     { side: "right", dist: bounds.layoutWidth - x },
   ];
   if (allowVertical) {
-    candidates.push({ side: "top", dist: y - bounds.minY });
-    candidates.push({ side: "bottom", dist: bounds.maxY - y });
+    candidates.push({ side: "top", dist: Math.max(0, y - bounds.minY) });
+    candidates.push({ side: "bottom", dist: Math.max(0, bounds.maxY - y) });
   }
 
   // Ignore the current side — a cable already on left stays ~24px from the left
@@ -127,7 +127,7 @@ export function stackCoordForSide(
   return side === "top" || side === "bottom" ? position.x : position.y;
 }
 
-/** After a side flip, keep stack-axis drag coord; cross-axis comes from auto placement. */
+/** After a side flip, use auto placement; cross-axis drag coords are unreliable mid-rebuild. */
 export function resolveSideDragCablePosition(
   newSide: LayoutSide,
   sideChanged: boolean,
@@ -136,7 +136,7 @@ export function resolveSideDragCablePosition(
 ): { x: number; y: number } {
   if (!sideChanged) return dragPosition;
   if (newSide === "top" || newSide === "bottom") {
-    return { x: dragPosition.x, y: builtPosition.y };
+    return builtPosition;
   }
   return { x: builtPosition.x, y: dragPosition.y };
 }
@@ -328,14 +328,23 @@ export function applyCableSideDragCommit(
     };
   }
 
-  const positionsForBuild = { ...args.overrides.positions };
+  const prevLayoutMode = deriveLayoutMode(baseCandidate);
+  const stackCoord = stackCoordForSide(args.newSide, args.position);
+  let positionsForBuild = { ...args.overrides.positions };
   if (sideChanged) {
-    delete positionsForBuild[args.nodeId];
+    const entersOrInQuad =
+      prevLayoutMode === "quad" ||
+      args.newSide === "top" ||
+      args.newSide === "bottom";
+    if (entersOrInQuad) {
+      positionsForBuild = {};
+    } else {
+      delete positionsForBuild[args.nodeId];
+    }
   } else {
     positionsForBuild[args.nodeId] = args.position;
   }
 
-  const stackCoord = stackCoordForSide(args.newSide, args.position);
   const candidate = sideChanged
     ? moveCableInCandidate(
         baseCandidate,
