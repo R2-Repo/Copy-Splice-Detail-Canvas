@@ -1,0 +1,62 @@
+{
+  "id": "good-mixed-color-merge-by-destination",
+  "verdict": "good",
+  "source_image": "good-04-mixed-color-merge-by-destination.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/Images/good/good-mixed-color-merge-by-destination.png",
+  "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/good-mixed-color-merge-by-destination.json",
+  "title": "Mixed-color merge grouped by destination",
+  "summary": "Fibers from different tubes or cables turn vertical and converge onto a shared horizontal group of mixed colors. Group membership is defined by shared path and destination, not tube color.",
+  "classification": {
+    "example_type": "good",
+    "confidence": "high",
+    "based_on_user_reported_issue": false,
+    "migrated_from": "docs/reference/routing-examples/good-04-mixed-color-merge-by-destination.png"
+  },
+  "visually_observable_good_behavior": [
+    "Strands from different source colors merge onto a shared horizontal run.",
+    "The merged group is organized by destination fan-in order, not source tube color.",
+    "Mixed colors remain nested and readable after the merge.",
+    "Disorder at the merge is absorbed without avoidable crossings."
+  ],
+  "likely_followed_rules": [
+    {
+      "rule_id": "SDC-ROUTE-002",
+      "rule_name": "Fiber Strand Nesting",
+      "related_file": "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "followed_requirements": [
+        "Groups are defined by shared path and destination.",
+        "Members are nested by destination fan-in order.",
+        "Lane bands keep related strand lanes adjacent while preserving readable separation."
+      ],
+      "why_this_image_passes": "Mixed-color strands converge into a destination-defined nested group."
+    },
+    {
+      "rule_id": "SDC-ROUTE-001",
+      "rule_name": "Fiber Strand Routing Zone",
+      "related_file": "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "followed_requirements": [
+        "The routing engine uses available horizontal and vertical space.",
+        "Routes remain traceable through merge transitions."
+      ],
+      "why_this_image_passes": "The merge uses center-zone space cleanly without congestion."
+    }
+  ],
+  "legacy_rule_mapping": {
+    "refactor_plan_rules": ["R5"],
+    "note": "Migrated from docs/reference/routing-examples/; legacy D10 destination-merge concept maps to SDC-ROUTE-002."
+  },
+  "notes": [
+    "Migrated from docs/reference/routing-examples/good-04-mixed-color-merge-by-destination.png.",
+    "Positive reference for destination-based grouping across tube boundaries."
+  ],
+  "grounding": {
+    "primary_rule_files": [
+      "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md"
+    ],
+    "supporting_rule_files": [
+      "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "splice_detail_canvas_rule_pack/05_SDC-ORDER-002_Fiber_Strand_Color_Order.md"
+    ],
+    "reference_library_location": "docs/reference/rule_examples"
+  }
+}

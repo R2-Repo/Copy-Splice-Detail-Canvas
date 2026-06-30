@@ -1,0 +1,71 @@
+{
+  "id": "good-concentric-nesting-45deg",
+  "verdict": "good",
+  "source_image": "good-03-concentric-nesting-45deg.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/Images/good/good-concentric-nesting-45deg.png",
+  "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/good-concentric-nesting-45deg.json",
+  "title": "Concentric nested bundle with 45-degree bend march",
+  "summary": "A multi-strand bundle turns a 90-degree corner as concentric parallel corners. Bend points march diagonally at 45 degrees while a separate strand below keeps a larger inter-bundle gap.",
+  "classification": {
+    "example_type": "good",
+    "confidence": "high",
+    "based_on_user_reported_issue": false,
+    "migrated_from": "docs/reference/routing-examples/good-03-concentric-nesting-45deg.png"
+  },
+  "visually_observable_good_behavior": [
+    "A ~10-strand bundle turns as concentric parallel 90-degree corners.",
+    "Bend points march diagonally at 45 degrees with consistent intra-bundle pitch.",
+    "A separate strand below maintains a larger gap from the main bundle.",
+    "Intra-bundle spacing stays fixed while inter-bundle gap varies appropriately."
+  ],
+  "likely_followed_rules": [
+    {
+      "rule_id": "SDC-ROUTE-002",
+      "rule_name": "Fiber Strand Nesting",
+      "related_file": "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "followed_requirements": [
+        "Related fiber strands stay visually grouped through bends.",
+        "Nested strands use adjacent routing lanes as an organized group."
+      ],
+      "why_this_image_passes": "The bundle preserves concentric nested bend geometry through the corner."
+    },
+    {
+      "rule_id": "SDC-LAYOUT-001",
+      "rule_name": "Spacing",
+      "related_file": "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md",
+      "followed_requirements": [
+        "Individual fiber strand routes maintain the 24px grid pitch.",
+        "Spacing applies around bends and between strand groups."
+      ],
+      "why_this_image_passes": "Intra-bundle pitch is consistent; inter-bundle gap is visibly larger."
+    },
+    {
+      "rule_id": "SDC-GRID-001",
+      "rule_name": "Canvas Grid System",
+      "related_file": "splice_detail_canvas_rule_pack/06_SDC-GRID-001_Canvas_Grid_System.md",
+      "followed_requirements": [
+        "Fiber strands route on grid lines with approved bend points.",
+        "Bend points align to grid intersections."
+      ],
+      "why_this_image_passes": "Bend points march on a consistent 45-degree diagonal grid rhythm."
+    }
+  ],
+  "legacy_rule_mapping": {
+    "refactor_plan_rules": ["R3", "R5"],
+    "note": "Migrated from docs/reference/routing-examples/; spacing constants 4.2 referenced in legacy README."
+  },
+  "notes": [
+    "Migrated from docs/reference/routing-examples/good-03-concentric-nesting-45deg.png.",
+    "Positive reference for center-nest / concentric corner behavior."
+  ],
+  "grounding": {
+    "primary_rule_files": [
+      "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md"
+    ],
+    "supporting_rule_files": [
+      "splice_detail_canvas_rule_pack/06_SDC-GRID-001_Canvas_Grid_System.md"
+    ],
+    "reference_library_location": "docs/reference/rule_examples"
+  }
+}

@@ -2,7 +2,7 @@
 
 Status: **Approved for build** (decisions locked; routing rules confirmed against reference screenshots; no code changed yet)
 Scope: center-routing rewrite, node model expansion, CSV/identity changes.
-Routing visual reference: [`docs/reference/routing-examples/`](reference/routing-examples/README.md).
+Routing visual reference: [`docs/reference/rule_examples/`](reference/rule_examples/README.md).
 
 ---
 
@@ -92,7 +92,7 @@ computeSpliceLayout(graph, options) -> { nodePositions, edgeRoutes }
 ## 4. Center routing spec — the oracle
 
 The whole center between the left and right fan-outs is the routing field. Rules below were
-confirmed against annotated reference screenshots (see `docs/reference/routing-examples/`).
+confirmed against annotated reference screenshots (see `docs/reference/rule_examples/`).
 The router MUST satisfy all of them.
 
 ### 4.1 Core rules (R1–R7)
@@ -266,7 +266,7 @@ Flag keeps `main` renderable throughout. Report at each checkpoint.
 | B0 goldens | Updated for §4.4 F2 parity (STATE_OFFICE / SPI-215); minor SP-3254.5 `routingMidX` shifts after `CableLeg.role` row layout |
 | `useRoutingLaneIndex` | No-op registry path when nodes engine; precomputed edges skip hook entirely |
 | `CableLeg.role` | `connectionRowOrder`, `dominantCablePair`, `visualCables` use `isThroughCable(cable, graph)` |
-| Manual D4 | **Still required** — visual compare `Left-*.csv` against `docs/reference/routing-examples/` in running app |
+| Manual D4 | **Still required** — visual compare `Left-*.csv` against `docs/reference/rule_examples/` in running app |
 
 **Remaining:** manual D4 visual parity only.
 

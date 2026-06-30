@@ -1,0 +1,62 @@
+{
+  "id": "good-grouping-and-splitting",
+  "verdict": "good",
+  "source_image": "good-05-grouping-and-splitting.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/Images/good/good-grouping-and-splitting.png",
+  "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/good-grouping-and-splitting.json",
+  "title": "Full-diagram grouping, travel, and split by destination",
+  "summary": "Routing spreads across the full vertical extent into stacked regions. Groups form, travel together, and split when destinations diverge. Mixed colors nest by destination across the diagram.",
+  "classification": {
+    "example_type": "good",
+    "confidence": "high",
+    "based_on_user_reported_issue": false,
+    "migrated_from": "docs/reference/routing-examples/good-05-grouping-and-splitting.png"
+  },
+  "visually_observable_good_behavior": [
+    "Routing uses the full vertical extent of the center zone in stacked regions.",
+    "Strand groups form, travel together, and split when destinations diverge.",
+    "Mixed colors remain nested by destination rather than by source tube alone.",
+    "The full diagram reads as organized groups with clean peel-off transitions."
+  ],
+  "likely_followed_rules": [
+    {
+      "rule_id": "SDC-ROUTE-002",
+      "rule_name": "Fiber Strand Nesting",
+      "related_file": "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "followed_requirements": [
+        "Related fiber strands stay visually grouped until destinations diverge.",
+        "The routing engine spreads groups apart across the center routing zone.",
+        "Lane bands keep related strand lanes adjacent while preserving readable separation."
+      ],
+      "why_this_image_passes": "Groups travel together and split cleanly when destinations diverge."
+    },
+    {
+      "rule_id": "SDC-ROUTE-001",
+      "rule_name": "Fiber Strand Routing Zone",
+      "related_file": "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md",
+      "followed_requirements": [
+        "The routing engine uses the full available routing zone.",
+        "Routes spread strand groups apart instead of collapsing into one cluster."
+      ],
+      "why_this_image_passes": "The diagram uses vertical extent instead of compressing routes into the center."
+    }
+  ],
+  "legacy_rule_mapping": {
+    "refactor_plan_rules": ["R1", "R5"],
+    "note": "Migrated from docs/reference/routing-examples/."
+  },
+  "notes": [
+    "Migrated from docs/reference/routing-examples/good-05-grouping-and-splitting.png.",
+    "Full-diagram positive reference for group travel and destination-based splitting."
+  ],
+  "grounding": {
+    "primary_rule_files": [
+      "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md"
+    ],
+    "supporting_rule_files": [
+      "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md"
+    ],
+    "reference_library_location": "docs/reference/rule_examples"
+  }
+}
