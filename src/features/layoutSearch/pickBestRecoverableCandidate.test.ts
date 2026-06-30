@@ -8,7 +8,6 @@ import { readReferenceCsv } from "@/testHelpers/layoutContractCsvPaths";
 import { evaluateLayoutCandidate } from "./evaluateCandidate";
 import type { LayoutEvaluationResult } from "./evaluateCandidate";
 import { heuristicBaselineCandidate } from "./layoutCandidate";
-import { DEFAULT_LAYOUT_EXPANSION } from "@/features/diagram/layoutExpansion";
 import {
   breakdownRecoverableFailures,
   compareRecoverableCandidates,
@@ -34,8 +33,6 @@ function mockEval(violations: RuleResult[]): LayoutEvaluationResult {
       centerWidth: 0,
       heightImbalance: 0,
       pathLength: 0,
-      nearStraightBends: 0,
-      handleMisalignment: 0,
       total: 5000,
     },
     tieBreak: { sidesUsed: 2, candidateId: "mock" },
@@ -127,29 +124,5 @@ describe("pickBestRecoverableCandidate", () => {
     expect(breakdown.weightedPenalty).toBeGreaterThan(
       breakdownRecoverableFailures(lowPenalty.violations).weightedPenalty,
     );
-  });
-
-  it("prefers default canvas width when soft scores differ only by center-width noise", () => {
-    const stackOrder = { left: [], right: [], top: [], bottom: [] };
-    const heuristic = {
-      cableSides: {},
-      stackOrder,
-      layoutWidth: 1400,
-      layoutExpansion: DEFAULT_LAYOUT_EXPANSION,
-    };
-    const narrow = { ...heuristic, layoutWidth: 1133 };
-
-    const narrowEval = mockEval([]);
-    narrowEval.softScore!.total = 6380.8;
-    const wideEval = mockEval([]);
-    wideEval.softScore!.total = 6647.8;
-
-    const result = pickBestRecoverableCandidate([
-      toRecoverableCandidate(narrow, narrowEval, "search-best"),
-      toRecoverableCandidate(heuristic, wideEval, "heuristic"),
-    ]);
-
-    expect(result?.picked.candidate.layoutWidth).toBe(1400);
-    expect(result?.picked.source).toBe("heuristic");
   });
 });

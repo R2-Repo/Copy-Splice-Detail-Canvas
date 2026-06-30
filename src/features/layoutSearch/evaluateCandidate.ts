@@ -165,9 +165,6 @@ export function evaluateLayoutCandidate(
       visualCables,
       width,
       appliedGraph,
-      undefined,
-      graphResult.layout.cablePositions,
-      graphResult.placement,
     );
     if (diag) {
       recordEvalSubPhase(

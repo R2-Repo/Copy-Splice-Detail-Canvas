@@ -2,59 +2,42 @@
 
 Branch: `cursor/left-sp-3254-import-qa-7a31`
 
-## Reference library mapping
+## Verdict: post-fix import was **worse**, not improved
 
-| Observed issue | Rule example | SDC rules |
+Visual comparison (baseline vs last re-import):
+
+| | Baseline (pre-fix, W1133) | Post-fix (W1400 tie-break) |
 |---|---|---|
-| Missed straight horizontal for CH 3254 (6 DROP BL/OR ↔ 144 MP SL/WH) | `bad-missed-straight-horizontal-splice-routing` | **SDC-LAYOUT-001**, **SDC-ROUTE-004** |
-| Center vertical chimney / crowded lanes (ATMS 72↔144) | `bad-center-routing-congestion-overlap` | **SDC-ROUTE-001**, **SDC-ROUTE-002**, **SDC-ROUTE-003**, **SDC-GRID-001** |
+| Winner | W1133 search-best | W1400 heuristic (forced) |
+| Center routing | Crowded but contained | **Vertical chimney** — strands shoot far above cables |
+| Soft score (pre handleMisalignment term) | 1940.8 | 6647.8 |
 
-## Fixes applied (this PR)
+The PR incorrectly labeled W1400 selection as “improved.” For this CSV, **W1133 routes cleaner** in the center zone. Forcing default width via tie-break was a regression.
 
-1. **Placement-aware cable pair groups** — `findCablePairGroups` uses canvas side from import placement, not static `vc.side`.
-2. **6 DROP pair priority** — small/drop pairs align before bulk 72↔144 alignment; threshold lowered 4 → 2 connections.
-3. **Pair anchor + lock** — best straight-leg anchor; lock both cables after align; collision resolve respects locks (no reflow undo).
-4. **Soft score** — `handleMisalignment` (×15) and `nearStraightBends` (×250) in import search scoring.
-5. **Default-width tie-break** — when soft scores differ only by `centerWidth` noise, prefer W1400 over min-width W1133.
+## What still matches the bad rule library (baseline too)
 
-## Re-import results (post-fix)
+Both baseline and post-fix still exhibit issues from:
 
-Artifacts: `Left-SP-3254.5-{console.log,diagnostics.json,run-summary.json,screenshot.png}`
+- `bad-missed-straight-horizontal-splice-routing` — **SDC-LAYOUT-001**
+- `bad-center-routing-congestion-overlap` — **SDC-ROUTE-001/002/003**
 
-| Metric | Before fix | After fix |
-|---|---|---|
-| Winner | W1133 (search-best) | **W1400 (heuristic)** |
-| Soft total | 6380.8 | 6647.8 (same heuristic; tie-break picks default width) |
-| `handleMisalignment` | — | **296** (cross-side gaps above 12px tolerance) |
-| Import time | ~38.7 s (debug) | **6.7 s** |
-| Rule rejects (search) | LAYOUT-001×9, ROUTE-003×33 | unchanged counts |
+Neither state is merge-ready for “fix everything.”
 
-Regression test `horizontalAlign.sp3254.test.ts`: CH 3254 BL/OR ↔ 144 MP SL/WH handle gaps **≤ 12px**; total misalignment **< 350**.
+## Code changes attempted (this branch)
 
-## Visual QA (honest)
+1. Placement-aware cable pair groups
+2. 6 DROP pair priority; threshold 4 → 2
+3. Pair anchor + lock; locked collision resolve
+4. `handleMisalignment` / `nearStraightBends` soft score terms
+5. ~~Default W1400 tie-break~~ — **reverted** (caused visual regression)
 
-**Improved**
+Unit test `horizontalAlign.sp3254.test.ts` passes (CH 3254 handle gaps ≤ 12px in `computeAlignedLayout`), but **import paint does not visibly improve** — metrics ≠ user-visible routing.
 
-- Import selects **default W1400** canvas (more center routing room vs W1133).
-- CH 3254 straight-run alignment passes unit test (macro cable Y shift for 6 DROP ↔ 144 MP 258.96).
+## Next steps (not done)
 
-**Still visible / deferred**
+- Do **not** merge PR #42 as success
+- Re-import after tie-break revert; confirm W1133 restores baseline-level routing
+- Re-evaluate whether pair-alignment macro Y shifts help or hurt at search-selected width
+- Center ATMS chimney needs routing/lane work, not width forcing
 
-- Center **ATMS** (72-SMF ↔ 144) vertical chimney and lane stacking — not fully resolved; contributes most of remaining `handleMisalignment: 296`.
-- `sameSideLoopbacks: 2` in winner soft score.
-- Full rule-passing layout; search still rejects many candidates for **SDC-ROUTE-003** (×33) during beam search.
-
-Frozen routing (`spliceEdgeRouting.ts`) was **not** modified.
-
-## Screenshots
-
-- Viewport: `docs/reference/rule_examples/Screenshots from Cursor Agent/Left-SP-3254.5-import-viewport-2026-06-30.png`
-- Fit (same capture after auto fit-view): `Left-SP-3254.5-import-2026-06-30.png`
-
-## Manual re-run
-
-```bash
-npm run dev   # with .env.local debug flags optional
-node scripts/import-diagnostics-qa.mjs docs/reference/examples/Left-SP-3254.5.csv \
-  --out-dir docs/reference/import-diagnostics --basename Left-SP-3254.5
-```
+Frozen routing (`spliceEdgeRouting.ts`) was not modified.

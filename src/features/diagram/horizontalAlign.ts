@@ -3,9 +3,6 @@ import {
   fiberRowOffsetInCable,
 } from "@/features/diagram/cableLayoutMetrics";
 import type { VisualCable } from "@/features/diagram/visualCables";
-import { orderedFiberConnections, pairEndpointsForSide } from "@/features/diagram/buildConnectionGraph";
-import { cableNameKey } from "@/features/import/cableLegIdentity";
-import type { ConnectionGraph } from "@/types/splice";
 
 /**
  * Horizontal leg alignment (SDC-UX-001-A).
@@ -26,7 +23,7 @@ export const HORIZONTAL_ALIGN_TOLERANCE = FIBER_ROW_PITCH / 2;
 export const MANUAL_ALIGN_SNAP_TOLERANCE = Math.round(FIBER_ROW_PITCH * 0.75);
 
 /** Sub-pixel noise floor — gaps below this are already flat. */
-export const ALIGN_EPS = 0.5;
+const ALIGN_EPS = 0.5;
 
 export type AlignConnection = {
   /** Offset from this cable's node top to the fiber/tube handle center. */
@@ -130,42 +127,4 @@ export function nearStraightCableShift(
   }
 
   return computeNearStraightShift(cableY, conns, partnerCableY, tolerance);
-}
-
-/**
- * Sum of cross-side handle Y gaps above straight tolerance — penalizes layouts
- * where cable placement missed a flat horizontal run (SDC-LAYOUT-001).
- */
-export function sumCrossSideHandleMisalignment(
-  graph: ConnectionGraph,
-  visualCables: VisualCable[],
-  cablePositions: Map<string, { x: number; y: number; height: number }>,
-  placement?: Map<string, { side: "left" | "right"; order: number }>,
-  tolerance = HORIZONTAL_ALIGN_TOLERANCE,
-): number {
-  const sideOf = (vc: VisualCable) => placement?.get(vc.id)?.side ?? vc.side;
-  const byId = new Map(visualCables.map((vc) => [vc.id, vc]));
-  let sum = 0;
-
-  for (const conn of orderedFiberConnections(graph)) {
-    const { left, right } = pairEndpointsForSide(conn.pair, graph);
-    const leftVc = [...byId.values()].find(
-      (vc) => cableNameKey(vc.cable) === cableNameKey(left.cable),
-    );
-    const rightVc = [...byId.values()].find(
-      (vc) => cableNameKey(vc.cable) === cableNameKey(right.cable),
-    );
-    if (!leftVc || !rightVc) continue;
-    if (sideOf(leftVc) === sideOf(rightVc)) continue;
-    const leftPos = cablePositions.get(leftVc.id);
-    const rightPos = cablePositions.get(rightVc.id);
-    if (!leftPos || !rightPos) continue;
-
-    const leftY = leftPos.y + fiberRowOffsetInCable(leftVc, conn.id);
-    const rightY = rightPos.y + fiberRowOffsetInCable(rightVc, conn.id);
-    const gap = Math.abs(leftY - rightY);
-    if (gap > tolerance) sum += gap - tolerance;
-  }
-
-  return sum;
 }

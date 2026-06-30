@@ -3,14 +3,10 @@ import type { RuleResult, SdcRuleId } from "@/features/rules/types";
 import type { LayoutEvaluationResult } from "./evaluateCandidate";
 import {
   candidateStableId,
-  defaultLayoutWidth,
   type LayoutCandidate,
 } from "./layoutCandidate";
 import type { RankedFinalist } from "./layoutSearchTypes";
-import {
-  DEFAULT_SOFT_SCORE_WEIGHTS,
-  type SoftScoreBreakdown,
-} from "./layoutScorer";
+import type { SoftScoreBreakdown } from "./layoutScorer";
 import type { ImportDiagnostics } from "./importDiagnostics";
 import { recordRecoverableSelection, recordWinner } from "./importDiagnostics";
 
@@ -162,19 +158,7 @@ export function compareRecoverableCandidates(
   }
 
   const softDiff = softScoreTotal(a) - softScoreTotal(b);
-  if (softDiff !== 0) {
-    // Prefer default canvas width when scores are within center-width noise (SDC-LAYOUT-001).
-    const widthNoise =
-      Math.abs(a.candidate.layoutWidth - b.candidate.layoutWidth) *
-      DEFAULT_SOFT_SCORE_WEIGHTS.centerWidth;
-    if (Math.abs(softDiff) <= widthNoise + 1) {
-      const defaultW = defaultLayoutWidth();
-      const aDist = Math.abs(a.candidate.layoutWidth - defaultW);
-      const bDist = Math.abs(b.candidate.layoutWidth - defaultW);
-      if (aDist !== bDist) return aDist - bDist;
-    }
-    return softDiff;
-  }
+  if (softDiff !== 0) return softDiff;
 
   return candidateId(a).localeCompare(candidateId(b));
 }

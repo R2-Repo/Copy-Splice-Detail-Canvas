@@ -4,25 +4,19 @@
 
 ## Last updated
 
-2026-06-30 — **Left-SP-3254.5 layout fixes + re-import QA** (`cursor/left-sp-3254-import-qa-7a31`, PR #42)
+2026-06-30 — **Left-SP-3254.5 fix attempt rolled back** (`cursor/left-sp-3254-import-qa-7a31`)
 
 ### This session
 
-- Fixed **SDC-LAYOUT-001** straight-run root causes (not frozen routing):
-  - Placement-aware pair groups; 6 DROP ↔ 144 MP 258.96 runs before 72↔144 bulk.
-  - Pair anchor maximizes straight legs; lock + locked collision resolve (no reflow undo).
-  - `handleMisalignment` / `nearStraightBends` soft score; default **W1400** tie-break over W1133.
-- Re-import QA: winner **W1400 heuristic** (was W1133); `handleMisalignment: 296` remains (ATMS center congestion).
-- Artifacts: `docs/reference/import-diagnostics/Left-SP-3254.5-*`, assessment md, rule_examples screenshots.
-- Test: `horizontalAlign.sp3254.test.ts` — CH 3254 gaps ≤ 12px.
+- User confirmed post-fix import was **worse**, not improved — correct.
+- Root cause: layout pair-alignment + W1400 tie-break regressed center routing (vertical chimney, zoomed-out paint).
+- **Reverted** `spliceRowLayout.ts`, `horizontalAlign.ts`, layout scorer wiring, tie-break, and sp3254 tests to `main` baseline.
+- Re-import with reverted code → **W1133** winner, visual matches original QA screenshot.
+- QA artifacts + honest assessment kept: `Left-SP-3254.5-assessment.md`.
 
-**Deferred:** center ATMS vertical chimney (**SDC-ROUTE-001/002/003**) — needs separate pass (possibly routing-first lane assignment, not macro Y).
+**PR #42 should not merge as a fix** — branch is QA + failed experiment documentation only unless user wants a different approach.
 
-**Gate:** `npm run check` + targeted vitest pass; full `npm run smoke` blocked by missing legacy example CSVs in VM.
-
-### Manual QA
-
-- Import `Left-SP-3254.5` — compare screenshot vs `bad-missed-straight-horizontal-splice-routing` + `bad-center-routing-congestion-overlap`.
+**Still broken (unchanged from baseline):** `bad-missed-straight-horizontal-splice-routing`, center ATMS congestion.
 
 ### Frozen
 

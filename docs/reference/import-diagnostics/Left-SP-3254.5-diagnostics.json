@@ -1,67 +1,67 @@
 {
   "importId": "import-1",
   "reportKey": "splice-detail-layout:SP-3254.5",
-  "startedAt": 749.5,
+  "startedAt": 836.7000000011176,
   "phaseTimings": [
     {
       "phase": "parse",
-      "startMs": 749.5,
-      "endMs": 751.5999999996275,
+      "startMs": 836.8000000007451,
+      "endMs": 838.9000000003725,
       "durationMs": 2
     },
     {
       "phase": "buildGraph",
-      "startMs": 751.7000000011176,
-      "endMs": 757.7000000011176,
+      "startMs": 838.9000000003725,
+      "endMs": 844.8000000007451,
       "durationMs": 6
     },
     {
       "phase": "importRules",
-      "startMs": 758.5999999996275,
-      "endMs": 759,
+      "startMs": 845.5999999996275,
+      "endMs": 846,
       "durationMs": 0
     },
     {
       "phase": "heuristicCandidate",
-      "startMs": 767,
-      "endMs": 768.5,
-      "durationMs": 2
+      "startMs": 854.2000000011176,
+      "endMs": 855.4000000003725,
+      "durationMs": 1
     },
     {
       "phase": "heuristicPaint",
-      "startMs": 768.5,
-      "endMs": 1084.0999999996275,
-      "durationMs": 316
+      "startMs": 855.4000000003725,
+      "endMs": 890.0999999996275,
+      "durationMs": 35
     },
     {
       "phase": "finalRuleValidation",
-      "startMs": 1084.0999999996275,
-      "endMs": 1121.4000000003725,
-      "durationMs": 37
+      "startMs": 890.0999999996275,
+      "endMs": 897.3000000007451,
+      "durationMs": 7
     },
     {
       "phase": "topology",
-      "startMs": 79.19999999925494,
-      "endMs": 81.5,
+      "startMs": 92.30000000074506,
+      "endMs": 94.70000000111759,
       "durationMs": 2
     },
     {
       "phase": "fallback",
-      "startMs": 3220.4000000003725,
-      "endMs": 3220.7000000011176,
+      "startMs": 1523.0999999996275,
+      "endMs": 1523.300000000745,
       "durationMs": 0
     },
     {
       "phase": "applyWinner",
-      "startMs": 3220.800000000745,
-      "endMs": 3427.800000000745,
-      "durationMs": 207
+      "startMs": 1523.5,
+      "endMs": 1539.300000000745,
+      "durationMs": 16
     }
   ],
   "searchStats": {
     "generated": 54,
     "evaluatedT0": 54,
-    "evaluatedT1": 54,
+    "evaluatedT1": 39,
     "evaluatedT2": 0,
     "finalists": 0,
     "cacheHits": 0,
@@ -71,35 +71,32 @@
     "bottomGenerated": 24,
     "topOrBottomGenerated": 42,
     "topOrBottomReachedT0": 42,
-    "topOrBottomReachedT1": 42,
+    "topOrBottomReachedT1": 36,
     "topOrBottomReachedT2": 0,
     "topOrBottomFinalists": 0,
-    "bestHorizontalScore": 2580,
+    "bestHorizontalScore": 1940.8,
     "bestTopBottomScore": -13150
   },
   "evalSubPhaseMs": {
-    "buildReactFlowGraph": 536.6999999992549,
-    "routeAllOnGrid": 16.300000000745058,
-    "runRules": 12.200000002980232,
-    "scoreLayoutEvaluation": 1.4999999981373549,
-    "evaluateT0": 6.900000000372529,
-    "evaluateT1": 571.2999999988824,
+    "buildReactFlowGraph": 34.89999999664724,
+    "routeAllOnGrid": 12.900000002235174,
+    "runRules": 11.799999998882413,
+    "scoreLayoutEvaluation": 1,
+    "evaluateT0": 6.1999999936670065,
+    "evaluateT1": 63.80000000819564,
     "evaluateT2": 0
   },
   "evalSubPhaseCounts": {
-    "buildReactFlowGraph": 48,
-    "routeAllOnGrid": 48,
-    "runRules": 66,
-    "scoreLayoutEvaluation": 48,
+    "buildReactFlowGraph": 39,
+    "routeAllOnGrid": 39,
+    "runRules": 57,
+    "scoreLayoutEvaluation": 39,
     "evaluateT0": 54,
-    "evaluateT1": 54,
+    "evaluateT1": 39,
     "evaluateT2": 0
   },
   "ruleRejectCounts": {
-    "SDC-LAYOUT-001": 9,
-    "SDC-ROUTE-003": 33,
-    "SDC-LAYOUT-002": 6,
-    "SDC-ROUTE-002": 6
+    "SDC-ROUTE-003": 27
   },
   "topCandidates": [
     {
@@ -115,8 +112,6 @@
         "centerWidth": 0,
         "heightImbalance": 160,
         "pathLength": 0,
-        "nearStraightBends": 0,
-        "handleMisalignment": 0,
         "sidePairPenalty": 100,
         "topBottomRelief": -16000,
         "total": -13150
@@ -139,8 +134,6 @@
         "centerWidth": 0,
         "heightImbalance": 160,
         "pathLength": 0,
-        "nearStraightBends": 0,
-        "handleMisalignment": 0,
         "sidePairPenalty": 100,
         "topBottomRelief": -16000,
         "total": -13150
@@ -163,8 +156,6 @@
         "centerWidth": 0,
         "heightImbalance": 160,
         "pathLength": 0,
-        "nearStraightBends": 0,
-        "handleMisalignment": 0,
         "sidePairPenalty": 100,
         "topBottomRelief": -16000,
         "total": -13150
@@ -187,8 +178,6 @@
         "centerWidth": 0,
         "heightImbalance": 160,
         "pathLength": 0,
-        "nearStraightBends": 0,
-        "handleMisalignment": 0,
         "sidePairPenalty": 100,
         "topBottomRelief": -16000,
         "total": -13150
@@ -211,8 +200,6 @@
         "centerWidth": 0,
         "heightImbalance": 160,
         "pathLength": 0,
-        "nearStraightBends": 0,
-        "handleMisalignment": 0,
         "sidePairPenalty": 100,
         "topBottomRelief": -16000,
         "total": -13150
@@ -235,8 +222,6 @@
         "centerWidth": 0,
         "heightImbalance": 160,
         "pathLength": 0,
-        "nearStraightBends": 0,
-        "handleMisalignment": 0,
         "sidePairPenalty": 100,
         "topBottomRelief": -16000,
         "total": -13150
@@ -259,8 +244,6 @@
         "centerWidth": 0,
         "heightImbalance": 48,
         "pathLength": 0,
-        "nearStraightBends": 0,
-        "handleMisalignment": 0,
         "sidePairPenalty": 100,
         "topBottomRelief": -4000,
         "total": -3220
@@ -283,8 +266,6 @@
         "centerWidth": 0,
         "heightImbalance": 48,
         "pathLength": 0,
-        "nearStraightBends": 0,
-        "handleMisalignment": 0,
         "sidePairPenalty": 100,
         "topBottomRelief": -4000,
         "total": -3220
@@ -297,7 +278,7 @@
   ],
   "finalists": [],
   "notes": [
-    "Worker search wall: 1092ms"
+    "Worker search wall: 618ms"
   ],
   "graphStats": {
     "cableCount": 4,
@@ -306,9 +287,9 @@
   },
   "recoverableSelection": {
     "selectionKind": "fully-passing",
-    "selectedCandidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1400",
-    "isHeuristic": true,
-    "reason": "heuristic baseline fully passes rules",
+    "selectedCandidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1133",
+    "isHeuristic": false,
+    "reason": "search candidate fully passes rules",
     "weightedFallbackScore": 0,
     "hardFailureCount": 0,
     "routeZoneFailures": 0,
@@ -320,14 +301,14 @@
       "pickedPenalty": 0,
       "heuristicHardFails": 0,
       "pickedHardFails": 0,
-      "heuristicWon": true
+      "heuristicWon": false
     },
     "rejected": [
       {
-        "candidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1133",
-        "source": "search-best",
-        "isHeuristic": false,
-        "whyLost": "deterministic tie-breaker",
+        "candidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1400",
+        "source": "heuristic",
+        "isHeuristic": true,
+        "whyLost": "worse soft score (2207.8 vs 1940.8)",
         "weightedFallbackScore": 0,
         "hardFailureCount": 0,
         "routeZoneFailures": 0,
@@ -336,27 +317,25 @@
     ]
   },
   "selected": {
-    "candidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1400",
+    "candidateId": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1133",
     "tier": "winner",
     "feasible": true,
-    "score": 6647.8,
+    "score": 1940.8,
     "softScore": {
       "crossings": 0,
       "bendsOverBudget": 0,
       "sameSideLoopbacks": 2,
       "sidesUsed": 2,
-      "centerWidth": 627.8,
+      "centerWidth": 360.79999999999995,
       "heightImbalance": 48,
       "pathLength": 0,
-      "nearStraightBends": 0,
-      "handleMisalignment": 296,
-      "total": 6647.8
+      "total": 1940.8
     },
     "failedRules": [],
-    "reason": "heuristic baseline fully passes rules",
+    "reason": "search candidate fully passes rules",
     "usesTop": false,
     "usesBottom": false
   },
-  "finishedAt": 3428,
-  "totalMs": 2679
+  "finishedAt": 1539.4000000003725,
+  "totalMs": 703
 }
