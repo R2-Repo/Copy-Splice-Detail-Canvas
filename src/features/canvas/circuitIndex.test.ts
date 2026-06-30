@@ -9,7 +9,7 @@ import {
 } from "@/features/canvas/circuitIndex";
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
-import { resolveReferenceCsvPath } from "@/testHelpers/layoutContractCsvPaths";
+import { resolveReferenceCsvPath, referenceCsvAvailable } from "@/testHelpers/layoutContractCsvPaths";
 
 describe("normalizeCircuitName", () => {
   it("trims and collapses whitespace", () => {
@@ -37,7 +37,9 @@ describe("buildCircuitIndex", () => {
     expect(pairCountForCircuit(index, "CH 2090")).toBe(6);
   });
 
-  it("3161.4 CSV: multiple distinct circuits", () => {
+  it.skipIf(!referenceCsvAvailable("3161.4.csv"))(
+    "3161.4 CSV: multiple distinct circuits",
+    () => {
     const graph = buildConnectionGraph(
       parseBentleyCsv(
         readFileSync(resolveReferenceCsvPath("3161.4.csv"), "utf8"),

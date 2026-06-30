@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { Node } from "@xyflow/react";
@@ -10,19 +8,13 @@ import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
 import type { CableNodeData } from "@/features/canvas/nodes/types";
 
-import { fiberAnchorCenter, fiberAnchorNodePosition } from "./handleCoords";
+import { readReferenceCsv } from "@/testHelpers/layoutContractCsvPaths";
 
-const legacyExamples = join(
-  process.cwd(),
-  "docs/reference/examples/old csv examples",
-);
+import { fiberAnchorCenter, fiberAnchorNodePosition } from "./handleCoords";
 
 describe("fiberAnchorCenter", () => {
   it("matches buildNodesEngineGraph anchor positions for scaled cables", () => {
-    const csv = readFileSync(
-      join(legacyExamples, "CSV Splice Detail Example #2.csv"),
-      "utf8",
-    );
+    const csv = readReferenceCsv("CSV Splice Detail Example #2.csv");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const { nodes } = buildReactFlowGraph(graph);
     const { visualCables } = buildVisualCablesForLayout(graph);
@@ -71,10 +63,7 @@ describe("fiberAnchorCenter", () => {
 
 describe("fiberAnchorNodePosition", () => {
   it("matches rendered fiberAnchor node top-left", () => {
-    const csv = readFileSync(
-      join(legacyExamples, "CSV Splice Detail Example #2.csv"),
-      "utf8",
-    );
+    const csv = readReferenceCsv("CSV Splice Detail Example #2.csv");
     const graph = buildConnectionGraph(parseBentleyCsv(csv));
     const { nodes } = buildReactFlowGraph(graph);
     const anchor = nodes.find((n) => n.type === "fiberAnchor");

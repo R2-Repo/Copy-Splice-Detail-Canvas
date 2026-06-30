@@ -14,7 +14,7 @@
 ### Manual QA
 
 - Import example-2 — confirm top/bottom cables win when they reduce bends/crossings
-- `npm run check` + `npx vitest run src/features/layoutSearch/layoutScorer.test.ts`
+- `npm run smoke` — CI gate (check + test:fast + build)
 
 ### Notes
 
