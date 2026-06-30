@@ -4,15 +4,12 @@
 
 ## Last updated
 
-2026-06-30 — **rule_examples reference library** (`cursor/rule-examples-docs-2676`)
+2026-06-30 — **remove glossary image crops** (`cursor/rule-examples-docs-2676`)
 
 ### This session
 
-- Filled `docs/reference/rule_examples/README.md` + `index.json` (16 examples).
-- Fixed image path mismatches (`bad-center-routing-congestion-overlap.png`, `bad-fiber-strand-same-lane-overlap.json`).
-- Normalized metadata observation field: bad → `visually_observable_issues`.
-- Migrated 5 good examples from `routing-examples/` with SDC metadata; cross-linked legacy bad PNGs.
-- Updated `docs/reference/README.md`, `AGENTS.md`, `REFACTOR_PLAN.md`; marked `routing-examples/` superseded.
+- Deleted `docs/reference/images/glossary/` and `scripts/crop-glossary-shots.ps1`.
+- Updated `CANVAS_GLOSSARY.md`, `SCOPE.md`, `docs/reference/README.md`, `AGENTS.md`, `rule_examples/README.md` — live app + CSV import for anatomy; `rule_examples/` for routing pass/fail.
 
 **Gate:** docs-only — no code change.
 

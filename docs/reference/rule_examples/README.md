@@ -30,9 +30,7 @@ Optional fields: `legacy_rule_mapping`, `classification.migrated_from`, `expecte
 1. Start with [`index.json`](./index.json) to find examples by **SDC rule ID** or verdict.
 2. Read the matching **`metadata/<id>.json`** for detailed failure/pass analysis.
 3. Cite **SDC rule IDs** in chat (see [`docs/agent/RULE_DICTIONARY.md`](../../agent/RULE_DICTIONARY.md)).
-4. Do **not** confuse this library with:
-   - [`docs/reference/images/glossary/`](../images/glossary/) — anatomy/part-name crops for [`CANVAS_GLOSSARY.md`](../../agent/CANVAS_GLOSSARY.md)
-   - [`docs/reference/examples/`](../examples/) — Bentley CSVs for import QA
+4. Do **not** confuse this library with [`docs/reference/examples/`](../examples/) — Bentley CSVs for import QA.
 
 ## Examples (quick index)
 

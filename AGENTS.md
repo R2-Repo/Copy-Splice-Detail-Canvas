@@ -22,7 +22,7 @@ Frontend-only React PWA: node/workflow canvas (React Flow). No backend unless th
 | `docs/agent/CHANGELOG.md` | Archived session history (not active requirements) |
 | `docs/reference/examples/README.md` | **Left-*** CSVs for user QA and testing (Import in app) |
 | `docs/reference/rule_examples/README.md` | **SDC good/bad routing screenshots** + JSON metadata ([`index.json`](../reference/rule_examples/index.json)) |
-| `docs/reference/` | Other reference assets (glossary crops, legacy routing-examples) |
+| `docs/reference/` | CSV examples, rule_examples library, import diagnostics |
 | `docs/agent/TESTING.md` | **Fast vs suspended gates**, manual QA |
 
 | `docs/agent/KNOWN_ISSUES.md` | **Deferred layout weak points** — for opt-in hardening only |

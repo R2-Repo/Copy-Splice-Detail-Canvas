@@ -11,7 +11,6 @@ This folder is **not** bundled into the production app unless you explicitly imp
 | [`examples/README.md`](./examples/README.md) | Bentley **Left-*** CSVs for user QA and testing |
 | [`rule_examples/README.md`](./rule_examples/README.md) | **SDC-grounded** good/bad routing screenshots + JSON metadata ([`index.json`](./rule_examples/index.json)) |
 | [`import-diagnostics/`](./import-diagnostics/) | Sample import optimizer console log + diagnostics JSON (300N&MAIN, Left-STATE_OFFICE) |
-| [`images/`](./images/) | Glossary/anatomy PNG crops (not rule pass/fail examples) |
 | [`routing-examples/`](./routing-examples/README.md) | **Superseded** — legacy R-label routing refs; see `rule_examples/` |
 | [`resources/`](./resources/) | Other assets |
 

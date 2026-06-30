@@ -1,7 +1,7 @@
 # Canvas component glossary
 
 > **Use this when talking to agents.** Say “the cable sheath” or “fusion splice dot” and we mean the same UI piece.  
-> Screenshots are from **live app** after importing a reference CSV (see `docs/reference/examples/README.md`).
+> Visual reference: import a **Left-*** CSV in the dev app (see [`docs/reference/examples/README.md`](../reference/examples/README.md)).
 
 ## Simple map — start here
 
@@ -54,9 +54,9 @@ For rule IDs and expanded part names, see [Detail reference](#detail-reference) 
 
 ## Full diagram
 
-![Full splice diagram — Example #2](../reference/images/glossary/00-full-diagram-example-2.png)
-
 Left = source cables. Center = splice lines + fusion dots. Right = target cables (mirror of left).
+
+Import a reference CSV in the running app to view the full diagram — see [Dev: live reference](#dev-live-reference) below.
 
 ---
 
@@ -113,8 +113,6 @@ flowchart LR
 ## Zone 1 — Cable (the “fiber cable”)
 
 **What it is:** One **cable leg** in this diagram (not always one physical cable — ring-cut can show two legs for one name).
-
-![Left cable node, labels, tubes, fibers](../reference/images/glossary/01-left-cable-and-labels.png)
 
 | What you see | Official name | Code / data |
 |--------------|---------------|-------------|
@@ -188,8 +186,6 @@ Each spliced fiber gets one **fiber row** at **24px pitch** (**SDC-ORDER-002-B**
 
 **What it is:** Center **routing line** connecting two fiber or collapsed tube handles — one **splice edge** per fiber pair.
 
-![Center splice zone — orthogonal paths and lanes](../reference/images/glossary/02-center-splice-zone.png)
-
 ### Endpoints — both sides of the strand
 
 | Term | Meaning |
@@ -243,8 +239,6 @@ flowchart LR
 ## Zone 5 — Far side (mirror of Zones 1–3)
 
 Same parts, mirrored (**SDC-LAYOUT-002-E**):
-
-![Target-side fiber labels and path endpoints](../reference/images/glossary/03-right-labels-and-handles.png)
 
 | Part | Description |
 |------|-------------|
@@ -306,9 +300,9 @@ Use **[`SIMPLE_TERMS.md`](./SIMPLE_TERMS.md)** for the canonical simple names. E
 
 ---
 
-## Dev: reload a reference CSV for screenshots
+## Dev: live reference {#dev-live-reference}
 
-Glossary PNG crops live under `docs/reference/images/glossary/`. If missing, capture from the live app then run the crop script.
+Part names in this glossary map to the live canvas. Import a reference CSV to inspect each zone:
 
 ```bash
 npm run dev
@@ -317,20 +311,7 @@ npm run dev
 
 See [`docs/reference/examples/README.md`](../reference/examples/README.md) for the canonical Left-* CSV list.
 
-**Regenerate crops** after retaking `00-full-diagram-example-2.png`:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/crop-glossary-shots.ps1
-```
-
-Expected files:
-
-| File | Content |
-|------|---------|
-| `00-full-diagram-example-2.png` | Full diagram |
-| `01-left-cable-and-labels.png` | Left cable node |
-| `02-center-splice-zone.png` | Center routing |
-| `03-right-labels-and-handles.png` | Right handles and labels |
+For **routing pass/fail** screenshots (SDC rules), use [`docs/reference/rule_examples/`](../reference/rule_examples/README.md) — not anatomy crops.
 
 ---
 

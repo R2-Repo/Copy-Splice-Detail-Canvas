@@ -47,8 +47,8 @@ Fiber/telecom designers and field engineers who export Bentley splice CSVs and n
 |--------|----------|------|
 | CSV examples | [`docs/reference/examples/*.csv`](../reference/examples/) | **Data** — connectivity, colors, metadata |
 | PDF examples | [`docs/reference/examples/Splice detail example #*.pdf`](../reference/examples/) | **Visual style** only (ignore PDF text for requirements) |
-| PNG screenshots | [`docs/reference/images/`](../reference/images/) | Primary visual spec (cable/tube/strand graphics) |
-| Color code chart | `144ct-fiber-color-code.png` in images | Fiber numbering 1–144 |
+| Routing/layout screenshots | [`docs/reference/rule_examples/`](../reference/rule_examples/) | **SDC good/bad** routing examples + metadata |
+| Color code charts | [`docs/reference/examples/`](../reference/examples/) (`6 Count…`, `288 Count…` PNGs) | Fiber / tube color numbering |
 
 **PDFs and CSVs are independent random examples** — do not map PDF #1 → CSV #1.
 
