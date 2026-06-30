@@ -19,7 +19,7 @@ On CSV import, the app runs a long search that:
 
 **No layout mode picker.** Two-sided diagrams are a valid *outcome*, not a user setting. Top/bottom sides are used only when routing score needs them.
 
-**Cable side drag:** `cableSideDrag.ts` updates `optimizedLayoutCandidate` on drag — no full `layoutSearch` rerun (SDC-UX-001).
+**Cable side drag:** `cableSideDrag.ts` updates `optimizedLayoutCandidate` on drag. **L↔R** flips use local rebuild; **T/B or quad** side changes run a short constrained `layoutSearch` re-optimize on drag-release (SDC-UX-001).
 
 ## Principles
 

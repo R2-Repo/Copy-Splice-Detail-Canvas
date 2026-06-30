@@ -65,8 +65,8 @@ export function detectSideFromEdgeProximity(
     { side: "right", dist: bounds.layoutWidth - x },
   ];
   if (allowVertical) {
-    candidates.push({ side: "top", dist: y - bounds.minY });
-    candidates.push({ side: "bottom", dist: bounds.maxY - y });
+    candidates.push({ side: "top", dist: Math.max(0, y - bounds.minY) });
+    candidates.push({ side: "bottom", dist: Math.max(0, bounds.maxY - y) });
   }
 
   // Ignore the current side — a cable already on left stays ~24px from the left
@@ -127,7 +127,7 @@ export function stackCoordForSide(
   return side === "top" || side === "bottom" ? position.x : position.y;
 }
 
-/** After a side flip, keep stack-axis drag coord; cross-axis comes from auto placement. */
+/** After a side flip, use auto placement; cross-axis drag coords are unreliable mid-rebuild. */
 export function resolveSideDragCablePosition(
   newSide: LayoutSide,
   sideChanged: boolean,
@@ -136,7 +136,7 @@ export function resolveSideDragCablePosition(
 ): { x: number; y: number } {
   if (!sideChanged) return dragPosition;
   if (newSide === "top" || newSide === "bottom") {
-    return { x: dragPosition.x, y: builtPosition.y };
+    return builtPosition;
   }
   return { x: builtPosition.x, y: dragPosition.y };
 }
@@ -272,6 +272,73 @@ export function warningsForSideDragLocks(
   return warnings;
 }
 
+/** True when side drag should run constrained layout re-search (T/B or quad involved). */
+export function needsReoptimizeAfterSideDrag(
+  prevLayoutMode: LayoutMode,
+  newSide: LayoutSide,
+  candidate: LayoutCandidate,
+): boolean {
+  if (newSide === "top" || newSide === "bottom") return true;
+  if (prevLayoutMode === "quad") return true;
+  if (deriveLayoutMode(candidate) === "quad") return true;
+  return false;
+}
+
+/** Lock dragged cable to new side; preserve sides of user-locked partner cables. */
+export function lockedSidesForSideDrag(
+  graph: ConnectionGraph,
+  overrides: LayoutOverrides,
+  visualId: string,
+  newSide: LayoutSide,
+): Record<string, LayoutSide> {
+  const { visualCables } = buildVisualCablesForLayout(graph);
+  const vc = visualCables.find((c) => c.id === visualId);
+  if (!vc) return {};
+
+  const candidate = candidateFromOverrides(graph, overrides);
+  const locked: Record<string, LayoutSide> = {
+    [cableNameKey(vc.cable)]: newSide,
+  };
+
+  const lockedCables = overrides.locks?.cables ?? {};
+  for (const [vid, isLocked] of Object.entries(lockedCables)) {
+    if (!isLocked || vid === visualId) continue;
+    const other = visualCables.find((c) => c.id === vid);
+    if (!other) continue;
+    const key = cableNameKey(other.cable);
+    const side = candidate?.cableSides[key];
+    if (side) locked[key] = side;
+  }
+
+  return locked;
+}
+
+/** Build seed candidate after moveCableInCandidate for re-optimize input. */
+export function prepareSideDragSeedCandidate(
+  graph: ConnectionGraph,
+  overrides: LayoutOverrides,
+  visualId: string,
+  newSide: LayoutSide,
+  stackCoord: number,
+  positions: Record<string, { x: number; y: number }>,
+): LayoutCandidate | null {
+  const baseCandidate = candidateFromOverrides(graph, overrides);
+  if (!baseCandidate) return null;
+
+  const { visualCables } = buildVisualCablesForLayout(graph);
+  const vc = visualCables.find((c) => c.id === visualId);
+  if (!vc) return null;
+
+  return moveCableInCandidate(
+    baseCandidate,
+    cableNameKey(vc.cable),
+    newSide,
+    stackCoord,
+    visualCables,
+    positions,
+  );
+}
+
 export type CableSideDragCommitArgs = {
   graph: ConnectionGraph;
   overrides: LayoutOverrides;
@@ -284,6 +351,8 @@ export type CableSideDragCommitArgs = {
   autoAdjustEnabled: boolean;
   /** Live preview during drag — skip lock-on-commit. */
   preview?: boolean;
+  /** When set (e.g. after re-optimize), skip moveCableInCandidate. */
+  finalCandidate?: LayoutCandidate;
 };
 
 export type CableSideDragCommitResult = {
@@ -328,24 +397,35 @@ export function applyCableSideDragCommit(
     };
   }
 
-  const positionsForBuild = { ...args.overrides.positions };
+  const prevLayoutMode = deriveLayoutMode(baseCandidate);
+  const stackCoord = stackCoordForSide(args.newSide, args.position);
+  let positionsForBuild = { ...args.overrides.positions };
   if (sideChanged) {
-    delete positionsForBuild[args.nodeId];
+    const entersOrInQuad =
+      prevLayoutMode === "quad" ||
+      args.newSide === "top" ||
+      args.newSide === "bottom";
+    if (entersOrInQuad) {
+      positionsForBuild = {};
+    } else {
+      delete positionsForBuild[args.nodeId];
+    }
   } else {
     positionsForBuild[args.nodeId] = args.position;
   }
 
-  const stackCoord = stackCoordForSide(args.newSide, args.position);
-  const candidate = sideChanged
-    ? moveCableInCandidate(
-        baseCandidate,
-        cableKey,
-        args.newSide,
-        stackCoord,
-        visualCables,
-        positionsForBuild,
-      )
-    : baseCandidate;
+  const candidate =
+    args.finalCandidate ??
+    (sideChanged
+      ? moveCableInCandidate(
+          baseCandidate,
+          cableKey,
+          args.newSide,
+          stackCoord,
+          visualCables,
+          positionsForBuild,
+        )
+      : baseCandidate);
 
   const flippedConnIds = sideChanged
     ? rerouteConnectionIdsForVisualCableDrag(visualCables, args.visualId)

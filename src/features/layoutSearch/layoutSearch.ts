@@ -106,6 +106,10 @@ export type LayoutSearchConfig = {
   disableTieredEval?: boolean;
   /** Full search vs reduced background refinement when heuristic already passes. */
   searchProfile?: "full" | "background";
+  /** Side-drag re-optimize — seed from post-flip candidate instead of heuristic baseline. */
+  seedCandidate?: LayoutCandidate;
+  /** User-locked cable sides merged into topology constraints. */
+  lockedCableSides?: Record<string, LayoutSide>;
 };
 
 /** Serializable subset for worker postMessage — skips duplicate final T2 on main thread. */
@@ -429,6 +433,23 @@ function adaptiveMaxRounds(
 }
 
 export { adaptiveMaxRounds };
+
+function mergeUserLockedSides(
+  constraints: TopologyConstraints,
+  userLocks?: Record<string, LayoutSide>,
+): TopologyConstraints {
+  if (!userLocks || Object.keys(userLocks).length === 0) return constraints;
+  const lockedCableSides = { ...constraints.lockedCableSides, ...userLocks };
+  const searchableCables = constraints.searchableCables.filter(
+    (c) => !(c in lockedCableSides),
+  );
+  return {
+    ...constraints,
+    lockedCableSides,
+    searchableCables,
+    lockedCableCount: Object.keys(lockedCableSides).length,
+  };
+}
 
 function winnerEvalFromOutcome(
   outcome: CandidateEvalOutcome,
@@ -1491,17 +1512,20 @@ function runLayoutSearchCore(
   const topology = timePhase(searchDiag, "topology", () =>
     analyzeTopology(graph),
   );
-  const constraints = config.disableTopologyConstraints
-    ? ({
-        lockedCableSides: {},
-        forbiddenSameSidePairs: [],
-        searchableCables: cableKeysFromGraph(graph),
-        hubCables: [],
-        satelliteCables: cableKeysFromGraph(graph),
-        proxyBundleGroups: [],
-        lockedCableCount: 0,
-      } satisfies TopologyConstraints)
-    : topology.constraints;
+  const constraints = mergeUserLockedSides(
+    config.disableTopologyConstraints
+      ? ({
+          lockedCableSides: {},
+          forbiddenSameSidePairs: [],
+          searchableCables: cableKeysFromGraph(graph),
+          hubCables: [],
+          satelliteCables: cableKeysFromGraph(graph),
+          proxyBundleGroups: [],
+          lockedCableCount: 0,
+        } satisfies TopologyConstraints)
+      : topology.constraints,
+    config.lockedCableSides,
+  );
   const tieredEvalEnabled = config.disableTieredEval !== true;
 
   const cableKeys = cableKeysFromGraph(graph);
@@ -1544,8 +1568,10 @@ function runLayoutSearchCore(
     currentTier: "T0",
   });
 
+  const baselineSeed =
+    config.seedCandidate ?? heuristicBaselineCandidate(graph);
   let baseline = normalizeCandidate(
-    applyConstraintLocks(heuristicBaselineCandidate(graph), constraints),
+    applyConstraintLocks(baselineSeed, constraints),
   );
   const seedEval = evaluateCandidate(
     graph,

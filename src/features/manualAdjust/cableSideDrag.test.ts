@@ -10,6 +10,7 @@ import {
   layoutOverridesFromConfig,
 } from "@/features/export/restoreDiagramConfig";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
+import { cableNameKey } from "@/features/import/cableLegIdentity";
 import {
   deriveLayoutMode,
 } from "@/features/layoutSearch/layoutCandidate";
@@ -114,6 +115,16 @@ describe("detectSideFromEdgeProximity", () => {
     ).toBe("left");
   });
 
+  it("bottom detection fails when maxY follows the dragged cable (moving target)", () => {
+    const frozen = { ...EDGE_BOUNDS, minY: 72, maxY: 688 };
+    expect(detectSideFromEdgeProximity(40, 650, frozen, "left")).toBe(
+      "bottom",
+    );
+
+    const moving = { ...EDGE_BOUNDS, minY: 72, maxY: 810 };
+    expect(detectSideFromEdgeProximity(40, 650, moving, "left")).toBe("left");
+  });
+
   it("does not promote to top/bottom on a small diagonal nudge from center", () => {
     expect(
       detectSideFromEdgeProximity(120, 120, EDGE_BOUNDS, "left"),
@@ -190,7 +201,7 @@ describe("moveCableInCandidate", () => {
 });
 
 describe("resolveSideDragCablePosition", () => {
-  it("uses built Y when flipping to top", () => {
+  it("uses built placement when flipping to top", () => {
     expect(
       resolveSideDragCablePosition(
         "top",
@@ -198,7 +209,7 @@ describe("resolveSideDragCablePosition", () => {
         { x: 515, y: 472 },
         { x: 500, y: 72 },
       ),
-    ).toEqual({ x: 515, y: 72 });
+    ).toEqual({ x: 500, y: 72 });
   });
 
   it("uses built X when flipping to right", () => {
@@ -376,6 +387,84 @@ describe("applyCableSideDragCommit", () => {
       if (node.type !== "cable") continue;
       expect(node.position.y).toBeGreaterThanOrEqual(0);
       expect(node.position.y).toBeLessThan(900);
+    }
+  });
+
+  it("quad side flip clears stale horizontal positions so cables stay grouped", () => {
+    const graph = buildConnectionGraph(
+      parseBentleyCsv(readContractCsv("Left-SP-3254.5.csv")),
+    );
+    const { visualCables } = buildVisualCablesForLayout(graph);
+    const cableSides: Record<string, import("@/features/layoutSearch/layoutCandidate").LayoutSide> = {};
+    const stackOrder = {
+      left: [] as string[],
+      right: [] as string[],
+      top: [] as string[],
+      bottom: [] as string[],
+    };
+    for (const vc of visualCables) {
+      const key = cableNameKey(vc.cable);
+      const side = vc.side as import("@/features/layoutSearch/layoutCandidate").LayoutSide;
+      cableSides[key] = side;
+      stackOrder[side].push(key);
+    }
+    const snapshot = {
+      cableSides,
+      stackOrder,
+      layoutWidth: 1400,
+      layoutExpansion: {
+        centerGapPadding: 0,
+        cableGapExtra: 0,
+        tubeGroupGapExtra: 0,
+      },
+    };
+    const stalePositions: Record<string, { x: number; y: number }> = {};
+    for (const vc of visualCables) {
+      stalePositions[`cable-${vc.id}`] = {
+        x: vc.side === "left" ? 115 : 997,
+        y: 300 + stackOrder[vc.side as "left" | "right"].indexOf(cableNameKey(vc.cable)) * 180,
+      };
+    }
+    const leftVc = visualCables.find((v) => v.side === "left")!;
+
+    const commit = applyCableSideDragCommit({
+      graph,
+      overrides: {
+        reportKey: "left-sp-quad",
+        positions: stalePositions,
+        optimizedLayoutCandidate: snapshot,
+      },
+      visualId: leftVc.id,
+      nodeId: `cable-${leftVc.id}`,
+      position: { x: 400, y: 40 },
+      newSide: "top",
+      bounds: { centerX: 700, centerY: 400 },
+      collapseFullButtSplices: false,
+      autoAdjustEnabled: true,
+    });
+
+    expect(commit!.layoutMode).toBe("quad");
+    const cables = commit!.nodes.filter((n) => n.type === "cable");
+    expect(cables.length).toBe(visualCables.length);
+    const xs = cables.map((n) => n.position.x);
+    const ys = cables.map((n) => n.position.y);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeLessThan(1100);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeLessThan(700);
+    expect(commit!.edges.length).toBeGreaterThan(10);
+    expect(cables.some((n) => (n.data as { quadSide?: string }).quadSide === "top")).toBe(
+      true,
+    );
+    const topCable = cables.find((n) => (n.data as { quadSide?: string }).quadSide === "top")!;
+    expect(topCable.position.y).toBeLessThan(200);
+    for (const n of cables) {
+      if ((n.data as { quadSide?: string }).quadSide === "right") {
+        expect(n.position.x).toBeGreaterThan(600);
+        expect(n.position.x).toBeLessThan(1100);
+      }
+    }
+    for (const pos of Object.values(commit!.overrides.positions ?? {})) {
+      expect(pos.x).not.toBe(997);
+      expect(pos.x).not.toBe(115);
     }
   });
 
