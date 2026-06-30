@@ -11,7 +11,7 @@
     "confidence": "high",
     "based_on_user_reported_issue": true
   },
-  "visually_observable_bad_behavior": [
+  "visually_observable_issues": [
     "Multiple same-direction strands make staggered 90-degree bends that cause the routes to pass through or over nearby strand lanes.",
     "The strand group does not remain nested as an organized adjacent lane band through the bend area.",
     "The visible strand order changes through the bend instead of preserving the standard Blue, Orange, Green, Brown sequence for this visible group.",
@@ -82,7 +82,8 @@
   "notes": [
     "Use this as a bad reference for avoidable crossings inside a same-direction bend group.",
     "This example contrasts with good nested-bend examples where strand lanes preserve color order and bend as a clean bundle.",
-    "The screenshot is cropped; the full CSV-derived cable, buffer tube, fan-out, and splice-dot context is not visible, so the same-side loopback exception is recorded as a possible but unsupported exception rather than as the likely cause."
+    "The screenshot is cropped; the full CSV-derived cable, buffer tube, fan-out, and splice-dot context is not visible, so the same-side loopback exception is recorded as a possible but unsupported exception rather than as the likely cause.",
+    "Supersedes legacy docs/reference/routing-examples/bad-01-avoidable-crossings-same-direction.png (identical image bytes)."
   ],
   "grounding": {
     "primary_rule_files": [

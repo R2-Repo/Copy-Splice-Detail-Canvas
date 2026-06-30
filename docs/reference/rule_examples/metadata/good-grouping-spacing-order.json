@@ -1,0 +1,71 @@
+{
+  "id": "good-grouping-spacing-order",
+  "verdict": "good",
+  "source_image": "good-01-grouping-spacing-order.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/Images/good/good-grouping-spacing-order.png",
+  "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/good-grouping-spacing-order.json",
+  "title": "Grouped strands with consistent spacing and clean order",
+  "summary": "Fiber strands route together as groups until their destinations diverge, then peel off. Shows consistent spacing between groups, clean nesting, and overall order through the routing zone.",
+  "classification": {
+    "example_type": "good",
+    "confidence": "high",
+    "based_on_user_reported_issue": false,
+    "migrated_from": "docs/reference/routing-examples/good-01-grouping-spacing-order.png"
+  },
+  "visually_observable_good_behavior": [
+    "Related fiber strands stay grouped until their destinations diverge.",
+    "Adjacent groups maintain readable spacing without lane collapse.",
+    "Strand groups remain nested and organized through horizontal runs.",
+    "Overall route order is easy to trace across the visible routing zone."
+  ],
+  "likely_followed_rules": [
+    {
+      "rule_id": "SDC-ROUTE-002",
+      "rule_name": "Fiber Strand Nesting",
+      "related_file": "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "followed_requirements": [
+        "Related fiber strands stay visually grouped as they move through the splice detail diagram.",
+        "Nested strands use adjacent routing lanes and move through the routing zone as an organized group."
+      ],
+      "why_this_image_passes": "Strands travel together as groups and peel off only when destinations diverge."
+    },
+    {
+      "rule_id": "SDC-LAYOUT-001",
+      "rule_name": "Spacing",
+      "related_file": "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md",
+      "followed_requirements": [
+        "Individual fiber strand routes maintain the 24px grid pitch.",
+        "Groups and individual strands remain visually separated and traceable."
+      ],
+      "why_this_image_passes": "Spacing between groups stays consistent and readable."
+    },
+    {
+      "rule_id": "SDC-ORDER-002",
+      "rule_name": "Fiber Strand Color Order",
+      "related_file": "splice_detail_canvas_rule_pack/05_SDC-ORDER-002_Fiber_Strand_Color_Order.md",
+      "followed_requirements": [
+        "Fiber strands display in standard fiber optic color-code order inside each buffer tube and nested route group."
+      ],
+      "why_this_image_passes": "Visible strand order stays organized within each group."
+    }
+  ],
+  "legacy_rule_mapping": {
+    "refactor_plan_rules": ["R1", "R3", "R5", "R6"],
+    "note": "Migrated from docs/reference/routing-examples/; legacy R-labels superseded by SDC IDs above."
+  },
+  "notes": [
+    "Migrated from docs/reference/routing-examples/good-01-grouping-spacing-order.png.",
+    "Use as a positive reference for group travel, peel-off, spacing, and order."
+  ],
+  "grounding": {
+    "primary_rule_files": [
+      "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md",
+      "splice_detail_canvas_rule_pack/05_SDC-ORDER-002_Fiber_Strand_Color_Order.md"
+    ],
+    "supporting_rule_files": [
+      "splice_detail_canvas_rule_pack/09_SDC-ROUTE-001_Fiber_Strand_Routing_Zone.md"
+    ],
+    "reference_library_location": "docs/reference/rule_examples"
+  }
+}

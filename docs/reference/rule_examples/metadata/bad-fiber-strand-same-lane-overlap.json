@@ -2,7 +2,7 @@
   "id": "bad-fiber-strand-same-lane-overlap",
   "verdict": "bad",
   "source_image": "01-3.png",
-  "suggested_repo_image_path": "docs/reference/rule_examples/bad/bad-fiber-strand-same-lane-overlap.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/Images/bad/bad-fiber-strand-same-lane-overlap.png",
   "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/bad-fiber-strand-same-lane-overlap.json",
   "title": "Fiber strands route in the same grid lane and lose nesting/color order",
   "summary": "Multiple fiber strands are routed through the same lane or nearly the same lane, causing the lines to stack on top of each other. The route grouping also fails to preserve nested strand organization and standard fiber color order, and the strand spacing is too tight to remain readable.",
@@ -92,7 +92,8 @@
     "This should be treated as a hard bad example because route overlap and same-lane routing make the strand relationships ambiguous.",
     "Expected correction: each fiber strand should keep its own grid lane, preserve 24px pitch where applicable, and remain visually separate from neighboring strands.",
     "Expected correction: nested fiber groups should preserve standard strand color order while using adjacent readable lanes, only breaking order when required to solve a higher-priority routing conflict.",
-    "The visible issue is concentrated in the routed strand lines; CSV import correctness still depends on the imported cable, buffer tube, strand, color, and connection hierarchy."
+    "The visible issue is concentrated in the routed strand lines; CSV import correctness still depends on the imported cable, buffer tube, strand, color, and connection hierarchy.",
+    "Related legacy example: docs/reference/routing-examples/bad-02-coincident-vertical-lanes.png (same failure class — coincident vertical lanes)."
   ],
   "grounding": {
     "primary_rule_files": [

@@ -1,0 +1,61 @@
+{
+  "id": "good-shared-plane-staggered-turns",
+  "verdict": "good",
+  "source_image": "good-02-shared-plane-staggered-turns.png",
+  "suggested_repo_image_path": "docs/reference/rule_examples/Images/good/good-shared-plane-staggered-turns.png",
+  "suggested_repo_metadata_path": "docs/reference/rule_examples/metadata/good-shared-plane-staggered-turns.json",
+  "title": "Shared horizontal plane with staggered vertical turns",
+  "summary": "Two fiber strands share the same horizontal plane and route in the same direction without stacking. Each takes its own vertical lane and turns at staggered X before horizontal segments would overlap.",
+  "classification": {
+    "example_type": "good",
+    "confidence": "high",
+    "based_on_user_reported_issue": false,
+    "migrated_from": "docs/reference/routing-examples/good-02-shared-plane-staggered-turns.png"
+  },
+  "visually_observable_good_behavior": [
+    "Two strands share a horizontal run without collapsing into the same lane.",
+    "Each strand turns vertical at a distinct X before paths would overlap.",
+    "Horizontal segments remain separated and traceable.",
+    "Staggered turn order prevents coincident vertical lanes."
+  ],
+  "likely_followed_rules": [
+    {
+      "rule_id": "SDC-ROUTE-003",
+      "rule_name": "Fiber Strand Overlap, Crossing, and Collision",
+      "related_file": "splice_detail_canvas_rule_pack/11_SDC-ROUTE-003_Fiber_Strand_Overlap_Crossing_Collision.md",
+      "followed_requirements": [
+        "Two strands must not share the same horizontal or vertical route lane.",
+        "Routes must use separate lanes when separate lanes are available."
+      ],
+      "why_this_image_passes": "Staggered vertical turns assign distinct lanes before horizontal overlap would occur."
+    },
+    {
+      "rule_id": "SDC-ROUTE-002",
+      "rule_name": "Fiber Strand Nesting",
+      "related_file": "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md",
+      "followed_requirements": [
+        "Related strands use adjacent routing lanes as an organized group.",
+        "Lane bands preserve readable separation while keeping related strands nearby."
+      ],
+      "why_this_image_passes": "The pair stays visually related while each retains its own lane through the turn."
+    }
+  ],
+  "legacy_rule_mapping": {
+    "refactor_plan_rules": ["R3", "R4"],
+    "note": "Migrated from docs/reference/routing-examples/; legacy R-labels superseded by SDC IDs above."
+  },
+  "notes": [
+    "Migrated from docs/reference/routing-examples/good-02-shared-plane-staggered-turns.png.",
+    "Which line turns first is unconstrained as long as lane separation holds."
+  ],
+  "grounding": {
+    "primary_rule_files": [
+      "splice_detail_canvas_rule_pack/11_SDC-ROUTE-003_Fiber_Strand_Overlap_Crossing_Collision.md",
+      "splice_detail_canvas_rule_pack/10_SDC-ROUTE-002_Fiber_Strand_Nesting.md"
+    ],
+    "supporting_rule_files": [
+      "splice_detail_canvas_rule_pack/07_SDC-LAYOUT-001_Spacing.md"
+    ],
+    "reference_library_location": "docs/reference/rule_examples"
+  }
+}

@@ -1,0 +1,263 @@
+{
+  "version": 1,
+  "library": "docs/reference/rule_examples",
+  "schema": {
+    "observation_fields": {
+      "bad": "visually_observable_issues",
+      "good": "visually_observable_good_behavior"
+    },
+    "metadata_per_example": "metadata/<id>.json",
+    "images": "Images/<verdict>/<id>.png"
+  },
+  "counts": {
+    "good": 6,
+    "bad": 10,
+    "total": 16
+  },
+  "examples": [
+    {
+      "id": "bad-avoidable-crossings-same-direction-bend",
+      "verdict": "bad",
+      "title": "Avoidable same-direction strand crossings inside a bend group",
+      "image": "Images/bad/bad-avoidable-crossings-same-direction-bend.png",
+      "metadata": "metadata/bad-avoidable-crossings-same-direction-bend.json",
+      "rule_ids": [
+        "SDC-LAYOUT-001",
+        "SDC-ORDER-002",
+        "SDC-ROUTE-001",
+        "SDC-ROUTE-002",
+        "SDC-ROUTE-003"
+      ],
+      "observation_field": "visually_observable_issues",
+      "migrated_from": null
+    },
+    {
+      "id": "bad-buffer-tubes-not-centered-origin",
+      "verdict": "bad",
+      "title": "Buffer tubes do not share a centered cable origin",
+      "image": "Images/bad/bad-buffer-tubes-not-centered-origin.png",
+      "metadata": "metadata/bad-buffer-tubes-not-centered-origin.json",
+      "rule_ids": [
+        "SDC-GRID-001",
+        "SDC-LAYOUT-001",
+        "SDC-LAYOUT-002",
+        "SDC-ORDER-001",
+        "SDC-ROUTE-002"
+      ],
+      "observation_field": "visually_observable_issues",
+      "migrated_from": null
+    },
+    {
+      "id": "bad-center-routing-congestion-overlap",
+      "verdict": "bad",
+      "title": "Fiber strands collapse into the center instead of using available routing space",
+      "image": "Images/bad/bad-center-routing-congestion-overlap.png",
+      "metadata": "metadata/bad-center-routing-congestion-overlap.json",
+      "rule_ids": [
+        "SDC-LAYOUT-001",
+        "SDC-ROUTE-001",
+        "SDC-ROUTE-002",
+        "SDC-ROUTE-003"
+      ],
+      "observation_field": "visually_observable_issues",
+      "migrated_from": null
+    },
+    {
+      "id": "bad-fanout-routing-clearance",
+      "verdict": "bad",
+      "title": "Routing bends too close to fan-out and crosses reserved label/fan-out areas",
+      "image": "Images/bad/bad-fanout-routing-clearance.png",
+      "metadata": "metadata/bad-fanout-routing-clearance.json",
+      "rule_ids": [
+        "SDC-LAYOUT-001",
+        "SDC-LAYOUT-002",
+        "SDC-ROUTE-001",
+        "SDC-ROUTE-003"
+      ],
+      "observation_field": "visually_observable_issues",
+      "migrated_from": null
+    },
+    {
+      "id": "bad-fiber-strand-diagonal-routing",
+      "verdict": "bad",
+      "title": "Fiber strands route diagonally instead of staying on horizontal and vertical grid lanes",
+      "image": "Images/bad/bad-fiber-strand-diagonal-routing.png",
+      "metadata": "metadata/bad-fiber-strand-diagonal-routing.json",
+      "rule_ids": [
+        "SDC-GRID-001",
+        "SDC-LAYOUT-001",
+        "SDC-ROUTE-001",
+        "SDC-ROUTE-003"
+      ],
+      "observation_field": "visually_observable_issues",
+      "migrated_from": null
+    },
+    {
+      "id": "bad-fiber-strand-same-lane-overlap",
+      "verdict": "bad",
+      "title": "Fiber strands route in the same grid lane and lose nesting/color order",
+      "image": "Images/bad/bad-fiber-strand-same-lane-overlap.png",
+      "metadata": "metadata/bad-fiber-strand-same-lane-overlap.json",
+      "rule_ids": [
+        "SDC-LAYOUT-001",
+        "SDC-LAYOUT-002",
+        "SDC-ORDER-002",
+        "SDC-ROUTE-001",
+        "SDC-ROUTE-002",
+        "SDC-ROUTE-003"
+      ],
+      "observation_field": "visually_observable_issues",
+      "migrated_from": null
+    },
+    {
+      "id": "bad-green-brown-reverse-loopback-spacing",
+      "verdict": "bad",
+      "title": "Green and Brown strands reverse direction, overlap Slate and White, and crowd Black",
+      "image": "Images/bad/bad-green-brown-reverse-loopback-spacing.png",
+      "metadata": "metadata/bad-green-brown-reverse-loopback-spacing.json",
+      "rule_ids": [
+        "SDC-GRID-001",
+        "SDC-LAYOUT-001",
+        "SDC-ROUTE-001",
+        "SDC-ROUTE-002",
+        "SDC-ROUTE-003",
+        "SDC-ROUTE-004"
+      ],
+      "observation_field": "visually_observable_issues",
+      "migrated_from": null
+    },
+    {
+      "id": "bad-missed-straight-horizontal-splice-routing",
+      "verdict": "bad",
+      "title": "Right-side cable placement misses straight horizontal splice routing",
+      "image": "Images/bad/bad-missed-straight-horizontal-splice-routing.png",
+      "metadata": "metadata/bad-missed-straight-horizontal-splice-routing.json",
+      "rule_ids": [
+        "SDC-GRID-001",
+        "SDC-LAYOUT-001",
+        "SDC-ROUTE-001",
+        "SDC-ROUTE-002",
+        "SDC-ROUTE-003",
+        "SDC-ROUTE-004"
+      ],
+      "observation_field": "visually_observable_issues",
+      "migrated_from": null
+    },
+    {
+      "id": "bad-strand-loopback-bend-spacing",
+      "verdict": "bad",
+      "title": "Strand loopback bend and broken grouped strand spacing",
+      "image": "Images/bad/bad-strand-loopback-bend-spacing.png",
+      "metadata": "metadata/bad-strand-loopback-bend-spacing.json",
+      "rule_ids": [
+        "SDC-GRID-001",
+        "SDC-LAYOUT-001",
+        "SDC-ORDER-002",
+        "SDC-ROUTE-002",
+        "SDC-ROUTE-003",
+        "SDC-ROUTE-004"
+      ],
+      "observation_field": "visually_observable_issues",
+      "migrated_from": null
+    },
+    {
+      "id": "bad-unnecessary-horizontal-strand-jogs",
+      "verdict": "bad",
+      "title": "Unnecessary small jogs in otherwise straight horizontal strand routes",
+      "image": "Images/bad/bad-unnecessary-horizontal-strand-jogs.png",
+      "metadata": "metadata/bad-unnecessary-horizontal-strand-jogs.json",
+      "rule_ids": [
+        "SDC-LAYOUT-001",
+        "SDC-LAYOUT-002",
+        "SDC-ROUTE-001",
+        "SDC-ROUTE-003"
+      ],
+      "observation_field": "visually_observable_issues",
+      "migrated_from": null
+    },
+    {
+      "id": "good-concentric-nesting-45deg",
+      "verdict": "good",
+      "title": "Concentric nested bundle with 45-degree bend march",
+      "image": "Images/good/good-concentric-nesting-45deg.png",
+      "metadata": "metadata/good-concentric-nesting-45deg.json",
+      "rule_ids": [
+        "SDC-GRID-001",
+        "SDC-LAYOUT-001",
+        "SDC-ROUTE-002"
+      ],
+      "observation_field": "visually_observable_good_behavior",
+      "migrated_from": "docs/reference/routing-examples/good-03-concentric-nesting-45deg.png"
+    },
+    {
+      "id": "good-grouping-and-splitting",
+      "verdict": "good",
+      "title": "Full-diagram grouping, travel, and split by destination",
+      "image": "Images/good/good-grouping-and-splitting.png",
+      "metadata": "metadata/good-grouping-and-splitting.json",
+      "rule_ids": [
+        "SDC-ROUTE-001",
+        "SDC-ROUTE-002"
+      ],
+      "observation_field": "visually_observable_good_behavior",
+      "migrated_from": "docs/reference/routing-examples/good-05-grouping-and-splitting.png"
+    },
+    {
+      "id": "good-grouping-spacing-order",
+      "verdict": "good",
+      "title": "Grouped strands with consistent spacing and clean order",
+      "image": "Images/good/good-grouping-spacing-order.png",
+      "metadata": "metadata/good-grouping-spacing-order.json",
+      "rule_ids": [
+        "SDC-LAYOUT-001",
+        "SDC-ORDER-002",
+        "SDC-ROUTE-002"
+      ],
+      "observation_field": "visually_observable_good_behavior",
+      "migrated_from": "docs/reference/routing-examples/good-01-grouping-spacing-order.png"
+    },
+    {
+      "id": "good-mixed-color-merge-by-destination",
+      "verdict": "good",
+      "title": "Mixed-color merge grouped by destination",
+      "image": "Images/good/good-mixed-color-merge-by-destination.png",
+      "metadata": "metadata/good-mixed-color-merge-by-destination.json",
+      "rule_ids": [
+        "SDC-ROUTE-001",
+        "SDC-ROUTE-002"
+      ],
+      "observation_field": "visually_observable_good_behavior",
+      "migrated_from": "docs/reference/routing-examples/good-04-mixed-color-merge-by-destination.png"
+    },
+    {
+      "id": "good-nested-color-order-spacing-90-bend",
+      "verdict": "good",
+      "title": "Nested strand bundle with ordered colors, even spacing, and clean 90-degree bends",
+      "image": "Images/good/good-nested-color-order-spacing-90-bend.png",
+      "metadata": "metadata/good-nested-color-order-spacing-90-bend.json",
+      "rule_ids": [
+        "SDC-GRID-001",
+        "SDC-LAYOUT-001",
+        "SDC-ORDER-002",
+        "SDC-ROUTE-001",
+        "SDC-ROUTE-002",
+        "SDC-ROUTE-004"
+      ],
+      "observation_field": "visually_observable_good_behavior",
+      "migrated_from": null
+    },
+    {
+      "id": "good-shared-plane-staggered-turns",
+      "verdict": "good",
+      "title": "Shared horizontal plane with staggered vertical turns",
+      "image": "Images/good/good-shared-plane-staggered-turns.png",
+      "metadata": "metadata/good-shared-plane-staggered-turns.json",
+      "rule_ids": [
+        "SDC-ROUTE-002",
+        "SDC-ROUTE-003"
+      ],
+      "observation_field": "visually_observable_good_behavior",
+      "migrated_from": "docs/reference/routing-examples/good-02-shared-plane-staggered-turns.png"
+    }
+  ]
+}
