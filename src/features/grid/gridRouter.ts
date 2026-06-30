@@ -16,6 +16,8 @@ import type { LayoutEndpointSync } from "@/features/diagram/spliceCenterLanes";
 import type { VisualCable } from "@/features/diagram/visualCables";
 import type { LayoutMode, LayoutOverrides } from "@/types/splice";
 
+import type { CableNodeData } from "@/features/canvas/nodes/types";
+
 import { assignGridLanes, gridRouteFromPaths } from "./gridLaneAssign";
 import { cachedLanesFromEdges, priorRoutesFromEdges } from "./gridDragCache";
 import { buildGridMap } from "./gridMap";
@@ -63,13 +65,40 @@ export type GridRouterResult = {
   packedLanes: Map<string, SpliceRoutingLane>;
 };
 
+function layoutSideForCableNode(
+  nodes: GridRouterInput["nodes"],
+  nodeId: string,
+): GridAnchorRef["side"] {
+  const node = nodes.find((n) => n.id === nodeId);
+  if (!node) return "left";
+  const data = node.data as CableNodeData;
+  if (
+    data.quadSide === "top" ||
+    data.quadSide === "bottom" ||
+    data.quadSide === "left" ||
+    data.quadSide === "right"
+  ) {
+    return data.quadSide;
+  }
+  return data.side === "right" ? "right" : "left";
+}
+
 function anchorsFromEntries(
   entries: ReturnType<typeof buildSpliceHandleEntries>,
+  nodes: GridRouterInput["nodes"],
 ): GridAnchorRef[] {
   const anchors: GridAnchorRef[] = [];
   for (const e of entries) {
-    anchors.push({ x: e.sourceX, y: e.sourceY, side: e.sourceX < e.targetX ? "left" : "right" });
-    anchors.push({ x: e.targetX, y: e.targetY, side: e.targetX > e.sourceX ? "right" : "left" });
+    anchors.push({
+      x: e.sourceX,
+      y: e.sourceY,
+      side: layoutSideForCableNode(nodes, e.sourceNodeId),
+    });
+    anchors.push({
+      x: e.targetX,
+      y: e.targetY,
+      side: layoutSideForCableNode(nodes, e.targetNodeId),
+    });
   }
   return anchors;
 }
@@ -132,7 +161,7 @@ export function routeAllOnGrid(input: GridRouterInput): GridRouterResult {
   }
 
   const baseline = packedBaselineLanes(handleEntries);
-  const anchors = anchorsFromEntries(handleEntries);
+  const anchors = anchorsFromEntries(handleEntries, input.nodes);
   const grid = buildGridMap({
     anchors,
     bounds: {

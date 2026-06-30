@@ -15,7 +15,7 @@
 | **SDC-GRID-001** | Internal routing grid — **24px pitch**, lanes, occupancy, four sides |
 | **SDC-LAYOUT-001** | Spacing, stacking, near-straight import alignment |
 | **SDC-LAYOUT-002** | Fan-out geometry from tube to handles |
-| **SDC-ROUTE-001** | Valid center routing zone and clearance |
+| **SDC-ROUTE-001** | **Routing box** — splice legs stay inside the open center; two-sided vs four-sided vertical bounds |
 | **SDC-ROUTE-002** | Strand group nesting and lane bands |
 | **SDC-ROUTE-003** | No overlap, collision, or illegal shared lanes |
 | **SDC-ROUTE-004** | **Max 2 corners** per splice (both legs combined) — hard rule; 0→1→2 preference in soft score |
@@ -29,6 +29,7 @@
 | Wrong fiber colors or order in a tube | **SDC-ORDER-002** |
 | Fibers too far apart or uneven inside a tube | **SDC-ORDER-002**, **SDC-GRID-001** |
 | Cables overlap on same side | **SDC-LAYOUT-001** |
+| Strands route above/below cable content or over labels | **SDC-ROUTE-001** |
 | Two splices on same lane / paths merge | **SDC-ROUTE-003** |
 | More than 2 corners on one splice | **SDC-ROUTE-004** |
 | Fusion dots scattered in a tube group | **SDC-UX-001** |

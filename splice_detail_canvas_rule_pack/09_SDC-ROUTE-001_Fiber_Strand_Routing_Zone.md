@@ -26,12 +26,31 @@ All reserved areas outside the routing zone should become blocked grid areas [SD
 
 ## Routing Zone Shape
 
-The routing zone is the open center area bounded by populated cable edges and their fan-out regions.
+The routing zone is the open **routing box** in the center of the diagram — bounded by the inner edges of cable fan-outs, not the canvas edge.
 
-- When only left and right edges hold cables, the zone spans horizontally between the left and right fan-out areas.
-- When top and/or bottom edges are also populated (optimizer outcome), the zone expands to include all four fan-out boundaries. Strands from every populated edge share the same center routing zone [SDC-CORE-001], [SDC-GRID-001].
+There is no separate two-sided vs four-sided user mode. Edge population is whatever the import routing search selects [SDC-LAYOUT-003], [SDC-SCORE-001]. The routing box shape follows whichever edges hold cables.
 
-There is no separate two-sided vs four-sided mode. Edge population is whatever the import routing search selects [SDC-SCORE-001].
+### Valid center zone — two cases
+
+**Case A — Two-sided (left and right only)**
+
+- **Horizontal bounds:** between the inner edges of the left and right fan-out / handle columns.
+- **Vertical bounds:** from the **topmost fiber row** to the **bottommost fiber row** on the left and right cables.
+- Strands must not route above the highest left/right fiber or below the lowest left/right fiber.
+
+**Case B — Four-sided (includes top and/or bottom cables)**
+
+- **Horizontal bounds:** still between the inner edges of the left and right fan-out regions (when populated).
+- **Vertical bounds:** between the **inner edge of the top cable fan-out/label band** and the **inner edge of the bottom cable fan-out/label band** — i.e. inward from the top/bottom cable content (between fan-out labels and fiber color abbreviations), not the outer canvas edge.
+- Strands must not shoot above the top cable band or below the bottom cable band and loop back through empty space.
+
+Strands from every populated edge share the same center routing box [SDC-CORE-001], [SDC-GRID-001]. See [`docs/agent/QUAD_LAYOUT.md`](../docs/agent/QUAD_LAYOUT.md) for top/bottom render geometry.
+
+### Never allowed
+
+- Leaving the routing box to dodge congestion [SDC-ROUTE-003].
+- Running over cable bodies, buffer tubes, fan-outs, or labels [SDC-LAYOUT-002].
+- Taking a long arc above or below the cable content and looping back.
 
 ## Boundary Rule
 
