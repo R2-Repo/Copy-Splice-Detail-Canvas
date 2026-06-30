@@ -4,23 +4,26 @@
 
 ## Last updated
 
-2026-06-30 — **docs/agent cleanup** (`cursor/docs-agent-cleanup-d89b`)
+2026-06-30 — **Left-SP-3254.5 import QA** (`cursor/left-sp-3254-import-qa-7a31`)
 
 ### This session
 
-- Moved completed build plans to `docs/archive/agent/`:
-  - `STABILIZATION_BUILD.md`, `STABILIZATION_PLAN.md`
-  - `IMPORT_FINISH_PLAN.md`, `IMPORT_PERF_PLAN.md`, `IMPORT_OPTIMIZER_BUILD.md`
-- Added `docs/archive/README.md` index.
-- Rewrote `ROUTING_FIRST_LAYOUT.md` as **shipped** architecture reference (removed stale phase gates / “first session”).
-- Updated `AGENTS.md`, `ARCHITECTURE.md`, `SCOPE.md` (MVP status, quality gates), `CONTEXT.md`.
-- Trimmed `KNOWN_ISSUES.md`; minor `QUAD_LAYOUT.md` history/QA touch-up.
+- Headless import of `Left-SP-3254.5.csv` with all `VITE_DEBUG_IMPORT_*` flags enabled (`.env.local`).
+- Captured full optimizer diagnostics → `docs/reference/import-diagnostics/Left-SP-3254.5-*`.
+- Screenshots saved to `docs/reference/rule_examples/Screenshots from Cursor Agent/`:
+  - `Left-SP-3254.5-import-2026-06-30.png` (fit view)
+  - `Left-SP-3254.5-import-viewport-2026-06-30.png` (default viewport)
 
-**Gate:** docs-only — no code change.
+**Import summary:** 35 nodes, 20 edges, 4.2 s total, search picked non-heuristic candidate (W1133 vs heuristic W1400). Rule rejects during search: **SDC-ROUTE-003 × 27**. Top/bottom candidates all scored poorly (best −13150); horizontal winner used.
+
+**Next:** Compare import screenshot vs `docs/reference/rule_examples/` bad examples (likely overlap, loopback, jogs, fan-out clearance).
+
+**Gate:** import QA only — no code change.
 
 ### Manual QA
 
-None required (reference docs only).
+- Import `Left-SP-3254.5` — done (headless + screenshots).
+- Visual review against rule_examples — **pending user review**.
 
 ### Frozen
 

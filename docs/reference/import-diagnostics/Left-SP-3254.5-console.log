@@ -2,49 +2,45 @@
 [debug] [vite] connected.
 [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
 [info] [layoutSearch] evaluations=54 top-5: [Object, Object, Object, Object, Object]
-[startGroupCollapsed] [import optimizer] splice-detail-layout:SP-3254.5 683ms
+[startGroupCollapsed] [import optimizer] splice-detail-layout:SP-3254.5 691ms
 [log] Phase timings:
-[table] {parse: 2, buildGraph: 6, importRules: 1, heuristicCandidate: 1, heuristicPaint: 32, finalRuleValidation: 9, topology: 2, fallback: 0, applyWinner: 14}
+[table] {parse: 2, buildGraph: 8, importRules: 0, heuristicCandidate: 1, heuristicPaint: 34, finalRuleValidation: 7, topology: 3, fallback: 0, applyWinner: 15}
 [log] Search stats:
-[table] {generated: 0, evaluatedT0: 54, evaluatedT1: 39, evaluatedT2: 0, finalists: 0, cacheHits: 0, cacheMisses: 0, horizontalOnlyGenerated: 0, topGenerated: 0, bottomGenerated: 0, topOrBottomGenerated: 0, topOrBottomReachedT0: 42, topOrBottomReachedT1: 36, topOrBottomReachedT2: 0, topOrBottomFinalists: 0, bestHorizontalScore: 1940.8, bestTopBottomScore: -13150}
+[table] {generated: 54, evaluatedT0: 54, evaluatedT1: 39, evaluatedT2: 0, finalists: 0, cacheHits: 0, cacheMisses: 0, horizontalOnlyGenerated: 12, topGenerated: 24, bottomGenerated: 24, topOrBottomGenerated: 42, topOrBottomReachedT0: 42, topOrBottomReachedT1: 36, topOrBottomReachedT2: 0, topOrBottomFinalists: 0, bestHorizontalScore: 1940.8, bestTopBottomScore: -13150}
 [log] Evaluation cost:
-[table] {evaluateT0: 6ms total, avg 0.1ms (n=54), evaluateT1: 60ms total, avg 1.5ms (n=39), buildReactFlowGraph: 30ms total, avg 0.8ms (n=39), routeAllOnGrid: 14ms total, avg 0.4ms (n=39), runRules: 11ms total, avg 0.2ms (n=57), scoreLayoutEvaluation: 2ms total, avg 0.0ms (n=39)}
+[table] {evaluateT0: 6ms total, avg 0.1ms (n=54), evaluateT1: 62ms total, avg 1.6ms (n=39), buildReactFlowGraph: 33ms total, avg 0.8ms (n=39), routeAllOnGrid: 12ms total, avg 0.3ms (n=39), runRules: 11ms total, avg 0.2ms (n=57), scoreLayoutEvaluation: 1ms total, avg 0.0ms (n=39)}
 [log] [import optimizer] top/bottom summary
-[table] {horizontal only generated: 0, uses top generated: 0, uses bottom generated: 0, uses top or bottom generated: 0, top/bottom reached T0: 42, top/bottom reached T1: 36, top/bottom reached T2: 0, top/bottom finalists: 0, best horizontal score: 1940.8, best top/bottom score: -13150, winner uses top: false, winner uses bottom: false, winner reason: heuristic baseline fully passes rules}
+[table] {horizontal only generated: 12, uses top generated: 24, uses bottom generated: 24, uses top or bottom generated: 42, top/bottom reached T0: 42, top/bottom reached T1: 36, top/bottom reached T2: 0, top/bottom finalists: 0, best horizontal score: 1940.8, best top/bottom score: -13150, winner uses top: false, winner uses bottom: false, winner reason: search candidate fully passes rules}
 [log] Rule reject counts:
-[table] {SDC-LAYOUT-001: 36, SDC-ROUTE-003: 27}
-[log] Top candidates:
+[table] {SDC-ROUTE-003: 27}
+[log] Best-scoring candidates (not top-edge only):
 [table] [Object, Object, Object, Object, Object, Object, Object, Object]
 [log] [import optimizer] recoverable selection:
-[table] {kind: fully-passing, candidate: T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800…t|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1132.4, heuristic: true, reason: heuristic baseline fully passes rules, penalty: 0, hardFails: 0}
-[log] vs heuristic: {heuristicCandidateId: T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800…t|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1132.4, heuristicPenalty: 0, pickedPenalty: 0, heuristicHardFails: 0, pickedHardFails: 0}
+[table] {kind: fully-passing, candidate: T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800…eft|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1133, heuristic: false, reason: search candidate fully passes rules, penalty: 0, hardFails: 0}
+[log] vs heuristic: {heuristicCandidateId: T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800…eft|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1400, heuristicPenalty: 0, pickedPenalty: 0, heuristicHardFails: 0, pickedHardFails: 0}
 [log] Rejected candidates:
 [table] [Object]
-[log] Worker search wall: 603ms
-[log] WARNING: no top/bottom candidates generated.
-[log] WARNING: no top/bottom candidates generated.
-[log] Full diagnostics: {importId: import-1, reportKey: splice-detail-layout:SP-3254.5, startedAt: 840.1999999880791, phaseTimings: Array(9), searchStats: Object}
+[log] Worker search wall: 605ms
+[log] Full diagnostics: {importId: import-1, reportKey: splice-detail-layout:SP-3254.5, startedAt: 849.3000000007451, phaseTimings: Array(9), searchStats: Object}
 [endGroup]
-[startGroupCollapsed] [import optimizer] splice-detail-layout:SP-3254.5 683ms
+[startGroupCollapsed] [import optimizer] splice-detail-layout:SP-3254.5 691ms
 [log] Phase timings:
-[table] {parse: 2, buildGraph: 6, importRules: 1, heuristicCandidate: 1, heuristicPaint: 32, finalRuleValidation: 9, topology: 2, fallback: 0, applyWinner: 14}
+[table] {parse: 2, buildGraph: 8, importRules: 0, heuristicCandidate: 1, heuristicPaint: 34, finalRuleValidation: 7, topology: 3, fallback: 0, applyWinner: 15}
 [log] Search stats:
-[table] {generated: 0, evaluatedT0: 54, evaluatedT1: 39, evaluatedT2: 0, finalists: 0, cacheHits: 0, cacheMisses: 0, horizontalOnlyGenerated: 0, topGenerated: 0, bottomGenerated: 0, topOrBottomGenerated: 0, topOrBottomReachedT0: 42, topOrBottomReachedT1: 36, topOrBottomReachedT2: 0, topOrBottomFinalists: 0, bestHorizontalScore: 1940.8, bestTopBottomScore: -13150}
+[table] {generated: 54, evaluatedT0: 54, evaluatedT1: 39, evaluatedT2: 0, finalists: 0, cacheHits: 0, cacheMisses: 0, horizontalOnlyGenerated: 12, topGenerated: 24, bottomGenerated: 24, topOrBottomGenerated: 42, topOrBottomReachedT0: 42, topOrBottomReachedT1: 36, topOrBottomReachedT2: 0, topOrBottomFinalists: 0, bestHorizontalScore: 1940.8, bestTopBottomScore: -13150}
 [log] Evaluation cost:
-[table] {evaluateT0: 6ms total, avg 0.1ms (n=54), evaluateT1: 60ms total, avg 1.5ms (n=39), buildReactFlowGraph: 30ms total, avg 0.8ms (n=39), routeAllOnGrid: 14ms total, avg 0.4ms (n=39), runRules: 11ms total, avg 0.2ms (n=57), scoreLayoutEvaluation: 2ms total, avg 0.0ms (n=39)}
+[table] {evaluateT0: 6ms total, avg 0.1ms (n=54), evaluateT1: 62ms total, avg 1.6ms (n=39), buildReactFlowGraph: 33ms total, avg 0.8ms (n=39), routeAllOnGrid: 12ms total, avg 0.3ms (n=39), runRules: 11ms total, avg 0.2ms (n=57), scoreLayoutEvaluation: 1ms total, avg 0.0ms (n=39)}
 [log] [import optimizer] top/bottom summary
-[table] {horizontal only generated: 0, uses top generated: 0, uses bottom generated: 0, uses top or bottom generated: 0, top/bottom reached T0: 42, top/bottom reached T1: 36, top/bottom reached T2: 0, top/bottom finalists: 0, best horizontal score: 1940.8, best top/bottom score: -13150, winner uses top: false, winner uses bottom: false, winner reason: heuristic baseline fully passes rules}
+[table] {horizontal only generated: 12, uses top generated: 24, uses bottom generated: 24, uses top or bottom generated: 42, top/bottom reached T0: 42, top/bottom reached T1: 36, top/bottom reached T2: 0, top/bottom finalists: 0, best horizontal score: 1940.8, best top/bottom score: -13150, winner uses top: false, winner uses bottom: false, winner reason: search candidate fully passes rules}
 [log] Rule reject counts:
-[table] {SDC-LAYOUT-001: 36, SDC-ROUTE-003: 27}
-[log] Top candidates:
+[table] {SDC-ROUTE-003: 27}
+[log] Best-scoring candidates (not top-edge only):
 [table] [Object, Object, Object, Object, Object, Object, Object, Object]
 [log] [import optimizer] recoverable selection:
-[table] {kind: fully-passing, candidate: T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800…t|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1132.4, heuristic: true, reason: heuristic baseline fully passes rules, penalty: 0, hardFails: 0}
-[log] vs heuristic: {heuristicCandidateId: T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800…t|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1132.4, heuristicPenalty: 0, pickedPenalty: 0, heuristicHardFails: 0, pickedHardFails: 0}
+[table] {kind: fully-passing, candidate: T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800…eft|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1133, heuristic: false, reason: search candidate fully passes rules, penalty: 0, hardFails: 0}
+[log] vs heuristic: {heuristicCandidateId: T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800…eft|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1400, heuristicPenalty: 0, pickedPenalty: 0, heuristicHardFails: 0, pickedHardFails: 0}
 [log] Rejected candidates:
 [table] [Object]
-[log] Worker search wall: 603ms
-[log] WARNING: no top/bottom candidates generated.
-[log] WARNING: no top/bottom candidates generated.
-[log] Full diagnostics: {importId: import-1, reportKey: splice-detail-layout:SP-3254.5, startedAt: 840.1999999880791, phaseTimings: Array(9), searchStats: Object}
+[log] Worker search wall: 605ms
+[log] Full diagnostics: {importId: import-1, reportKey: splice-detail-layout:SP-3254.5, startedAt: 849.3000000007451, phaseTimings: Array(9), searchStats: Object}
 [endGroup]
