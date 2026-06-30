@@ -491,6 +491,10 @@ function WorkflowCanvasInner() {
   const pendingEngineCableNodeRef = useRef<Node | null>(null);
   const candidateCableDragRafRef = useRef<number | null>(null);
   const pendingCandidateCableNodeRef = useRef<Node | null>(null);
+  /** Frozen at drag start — maxY/minY must not follow the cable being dragged. */
+  const sideDragBoundsAtDragStartRef = useRef<ReturnType<
+    typeof sideDragBounds
+  > | null>(null);
 
   collapseRef.current = collapseFullButtSplices;
   calloutsVisibleRef.current = calloutsVisible;
@@ -668,7 +672,9 @@ function WorkflowCanvasInner() {
 
       const cableData = draggedNode.data as CableNodeData;
       const currentSide = effectiveCableSide(cableData);
-      const dragBounds = sideDragBounds(layoutWidthRef.current, getNodes());
+      const dragBounds =
+        sideDragBoundsAtDragStartRef.current ??
+        sideDragBounds(layoutWidthRef.current, getNodes());
       const newSide = detectSideFromEdgeProximity(
         draggedNode.position.x,
         draggedNode.position.y,
@@ -2148,7 +2154,14 @@ function WorkflowCanvasInner() {
         return;
       }
       if (node.type !== "cable") return;
+      const graph = graphRef.current;
       const reportKey = reportKeyRef.current;
+      if (graph && reportKey && useCandidateSideDrag(reportKey, graph)) {
+        sideDragBoundsAtDragStartRef.current = sideDragBounds(
+          layoutWidthRef.current,
+          getNodes(),
+        );
+      }
       if (reportKey && useGridRoutingEngine(loadLayoutOverrides(reportKey) ?? undefined)) {
         gridRoutesDragRef.current = gridRoutesFromEdges(
           getEdges(),
@@ -2157,7 +2170,7 @@ function WorkflowCanvasInner() {
       }
       refreshDragRouting(node);
     },
-    [manualAdjustEngine, refreshDragRouting, getEdges],
+    [manualAdjustEngine, refreshDragRouting, getEdges, getNodes],
   );
 
   const onNodeDragStop: OnNodeDrag<Node> = useCallback(
@@ -2193,7 +2206,9 @@ function WorkflowCanvasInner() {
 
         const cableData = node.data as CableNodeData;
         const currentSide = effectiveCableSide(cableData);
-        const dragBounds = sideDragBounds(layoutWidthRef.current, nodes);
+        const dragBounds =
+          sideDragBoundsAtDragStartRef.current ??
+          sideDragBounds(layoutWidthRef.current, nodes);
         const newSide = detectSideFromEdgeProximity(
           node.position.x,
           node.position.y,
@@ -2711,6 +2726,7 @@ function WorkflowCanvasInner() {
       } finally {
         if (node.type === "cable") {
           gridRoutesDragRef.current = null;
+          sideDragBoundsAtDragStartRef.current = null;
         }
       }
     },

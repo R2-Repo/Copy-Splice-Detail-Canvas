@@ -114,6 +114,16 @@ describe("detectSideFromEdgeProximity", () => {
     ).toBe("left");
   });
 
+  it("bottom detection fails when maxY follows the dragged cable (moving target)", () => {
+    const frozen = { ...EDGE_BOUNDS, minY: 72, maxY: 688 };
+    expect(detectSideFromEdgeProximity(40, 650, frozen, "left")).toBe(
+      "bottom",
+    );
+
+    const moving = { ...EDGE_BOUNDS, minY: 72, maxY: 810 };
+    expect(detectSideFromEdgeProximity(40, 650, moving, "left")).toBe("left");
+  });
+
   it("does not promote to top/bottom on a small diagonal nudge from center", () => {
     expect(
       detectSideFromEdgeProximity(120, 120, EDGE_BOUNDS, "left"),
