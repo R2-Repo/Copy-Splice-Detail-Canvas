@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sdc-eval-export-top-request",
+  "title": "ExportTopRequest",
+  "type": "object",
+  "required": ["outDir"],
+  "properties": {
+    "csvPath": { "type": "string" },
+    "csvText": { "type": "string" },
+    "graph": { "$ref": "connection-graph.json" },
+    "outDir": { "type": "string" },
+    "top": { "type": "integer", "minimum": 1, "default": 5 },
+    "sourceFileName": { "type": "string" },
+    "config": { "$ref": "search-request.schema.json#/properties/config" }
+  },
+  "oneOf": [
+    { "required": ["csvPath", "outDir"] },
+    { "required": ["csvText", "outDir"] },
+    { "required": ["graph", "outDir"] }
+  ]
+}

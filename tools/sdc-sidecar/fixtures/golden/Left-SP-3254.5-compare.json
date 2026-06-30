@@ -1,0 +1,480 @@
+{
+  "csvPath": "../../docs/reference/examples/Left-SP-3254.5.csv",
+  "iterations": 16,
+  "validateTop": 2,
+  "useProxy": true,
+  "experimentalBest": {
+    "candidate": {
+      "cableSides": {
+        "144-SMF I-15 DIST: 4800 S - MP 259.46": "left",
+        "144-SMF I-15 DIST: MP 258.96 - 4800 S": "left",
+        "6 DROP (TSC): I-15 NB & 1600 S": "right",
+        "72-SMF 4800 S DIST: MAIN ST - I-15": "right"
+      },
+      "stackOrder": {
+        "left": [
+          "144-SMF I-15 DIST: 4800 S - MP 259.46",
+          "144-SMF I-15 DIST: MP 258.96 - 4800 S"
+        ],
+        "right": [
+          "6 DROP (TSC): I-15 NB & 1600 S",
+          "72-SMF 4800 S DIST: MAIN ST - I-15"
+        ],
+        "top": [],
+        "bottom": []
+      },
+      "layoutWidth": 1200,
+      "layoutExpansion": {
+        "centerGapPadding": 0,
+        "cableGapExtra": 0,
+        "tubeGroupGapExtra": 0
+      },
+      "id": "py-mut-532342"
+    },
+    "evaluation": {
+      "feasible": true,
+      "score": 1999.6,
+      "softScore": {
+        "crossings": 0,
+        "bendsOverBudget": 0,
+        "sameSideLoopbacks": 2,
+        "sidesUsed": 2,
+        "centerWidth": 419.59999999999997,
+        "heightImbalance": 48,
+        "pathLength": 0,
+        "total": 1999.6
+      },
+      "tieBreak": {
+        "sidesUsed": 2,
+        "candidateId": "py-mut-532342"
+      },
+      "violations": [
+        {
+          "id": "SDC-CORE-001",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-DATA-001",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-DATA-002",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-ORDER-001",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-ORDER-002",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-LAYOUT-002",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-LAYOUT-003",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-LAYOUT-001",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-ROUTE-001",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-GRID-001",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-UX-001",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-ROUTE-002",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-ROUTE-003",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-ROUTE-004",
+          "severity": "info",
+          "ok": true,
+          "detail": "ok"
+        },
+        {
+          "id": "SDC-SCORE-001",
+          "severity": "info",
+          "ok": true,
+          "detail": "soft=1999.6 crossings=0 bendsOver=0 loopbacks=2 sides=2 centerW=419.59999999999997 imbalance=48 pathLen=0"
+        }
+      ],
+      "ruleRejectCounts": {},
+      "failedRuleIds": []
+    },
+    "wallMs": 40.099300000000085
+  },
+  "experimentalTop": [
+    {
+      "candidate": {
+        "cableSides": {
+          "144-SMF I-15 DIST: 4800 S - MP 259.46": "left",
+          "144-SMF I-15 DIST: MP 258.96 - 4800 S": "left",
+          "6 DROP (TSC): I-15 NB & 1600 S": "right",
+          "72-SMF 4800 S DIST: MAIN ST - I-15": "right"
+        },
+        "stackOrder": {
+          "left": [
+            "144-SMF I-15 DIST: 4800 S - MP 259.46",
+            "144-SMF I-15 DIST: MP 258.96 - 4800 S"
+          ],
+          "right": [
+            "6 DROP (TSC): I-15 NB & 1600 S",
+            "72-SMF 4800 S DIST: MAIN ST - I-15"
+          ],
+          "top": [],
+          "bottom": []
+        },
+        "layoutWidth": 1200,
+        "layoutExpansion": {
+          "centerGapPadding": 0,
+          "cableGapExtra": 0,
+          "tubeGroupGapExtra": 0
+        },
+        "id": "py-mut-532342"
+      },
+      "evaluation": {
+        "feasible": true,
+        "score": 1999.6,
+        "softScore": {
+          "crossings": 0,
+          "bendsOverBudget": 0,
+          "sameSideLoopbacks": 2,
+          "sidesUsed": 2,
+          "centerWidth": 419.59999999999997,
+          "heightImbalance": 48,
+          "pathLength": 0,
+          "total": 1999.6
+        },
+        "tieBreak": {
+          "sidesUsed": 2,
+          "candidateId": "py-mut-532342"
+        },
+        "violations": [
+          {
+            "id": "SDC-CORE-001",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-DATA-001",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-DATA-002",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-ORDER-001",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-ORDER-002",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-LAYOUT-002",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-LAYOUT-003",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-LAYOUT-001",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-ROUTE-001",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-GRID-001",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-UX-001",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-ROUTE-002",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-ROUTE-003",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-ROUTE-004",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-SCORE-001",
+            "severity": "info",
+            "ok": true,
+            "detail": "soft=1999.6 crossings=0 bendsOver=0 loopbacks=2 sides=2 centerW=419.59999999999997 imbalance=48 pathLen=0"
+          }
+        ],
+        "ruleRejectCounts": {},
+        "failedRuleIds": []
+      },
+      "wallMs": 40.099300000000085
+    },
+    {
+      "candidate": {
+        "cableSides": {
+          "144-SMF I-15 DIST: 4800 S - MP 259.46": "right",
+          "144-SMF I-15 DIST: MP 258.96 - 4800 S": "right",
+          "6 DROP (TSC): I-15 NB & 1600 S": "bottom",
+          "72-SMF 4800 S DIST: MAIN ST - I-15": "bottom"
+        },
+        "stackOrder": {
+          "left": [],
+          "right": [
+            "144-SMF I-15 DIST: 4800 S - MP 259.46",
+            "144-SMF I-15 DIST: MP 258.96 - 4800 S"
+          ],
+          "top": [],
+          "bottom": [
+            "6 DROP (TSC): I-15 NB & 1600 S",
+            "72-SMF 4800 S DIST: MAIN ST - I-15"
+          ]
+        },
+        "layoutWidth": 1200,
+        "layoutExpansion": {
+          "centerGapPadding": 0,
+          "cableGapExtra": 0,
+          "tubeGroupGapExtra": 0
+        },
+        "id": "py-exp-283060"
+      },
+      "evaluation": {
+        "feasible": false,
+        "score": 9007199254740991,
+        "softScore": {
+          "crossings": 11,
+          "bendsOverBudget": 2,
+          "sameSideLoopbacks": 2,
+          "sidesUsed": 2,
+          "centerWidth": 1040,
+          "heightImbalance": 48,
+          "pathLength": 2567.2,
+          "total": 14076.72
+        },
+        "tieBreak": {
+          "sidesUsed": 2,
+          "candidateId": "py-exp-283060"
+        },
+        "violations": [
+          {
+            "id": "SDC-CORE-001",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-DATA-001",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-DATA-002",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-ORDER-001",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-ORDER-002",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-LAYOUT-002",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-LAYOUT-003",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-LAYOUT-001",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-ROUTE-001",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-GRID-001",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-UX-001",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-ROUTE-002",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-ROUTE-003",
+            "severity": "fail",
+            "ok": false,
+            "detail": "SDC-ROUTE-003: Parallel route segments closer than lane pitch",
+            "objectIds": [
+              "Parallel route segments closer than lane pitch"
+            ]
+          },
+          {
+            "id": "SDC-ROUTE-004",
+            "severity": "info",
+            "ok": true,
+            "detail": "ok"
+          },
+          {
+            "id": "SDC-SCORE-001",
+            "severity": "info",
+            "ok": true,
+            "detail": "soft=14076.72 crossings=11 bendsOver=2 loopbacks=2 sides=2 centerW=1040 imbalance=48 pathLen=2567.2"
+          }
+        ],
+        "ruleRejectCounts": {
+          "SDC-ROUTE-003": 1
+        },
+        "failedRuleIds": [
+          "SDC-ROUTE-003"
+        ]
+      },
+      "wallMs": 19.342499999999973
+    }
+  ],
+  "incumbent": {
+    "bestScore": 1940.8,
+    "feasible": true,
+    "evaluations": 54,
+    "wallMs": 145.88039999999995,
+    "best": {
+      "cableSides": {
+        "144-SMF I-15 DIST: 4800 S - MP 259.46": "right",
+        "144-SMF I-15 DIST: MP 258.96 - 4800 S": "right",
+        "6 DROP (TSC): I-15 NB & 1600 S": "left",
+        "72-SMF 4800 S DIST: MAIN ST - I-15": "left"
+      },
+      "stackOrder": {
+        "left": [
+          "6 DROP (TSC): I-15 NB & 1600 S",
+          "72-SMF 4800 S DIST: MAIN ST - I-15"
+        ],
+        "right": [
+          "144-SMF I-15 DIST: MP 258.96 - 4800 S",
+          "144-SMF I-15 DIST: 4800 S - MP 259.46"
+        ],
+        "top": [],
+        "bottom": []
+      },
+      "layoutWidth": 1133,
+      "layoutExpansion": {
+        "centerGapPadding": 0,
+        "cableGapExtra": 0,
+        "tubeGroupGapExtra": 0
+      },
+      "id": "T[]B[]L[6 DROP (TSC): I-15 NB & 1600 S,72-SMF 4800 S DIST: MAIN ST - I-15]R[144-SMF I-15 DIST: MP 258.96 - 4800 S,144-SMF I-15 DIST: 4800 S - MP 259.46]S{144-SMF I-15 DIST: 4800 S - MP 259.46:right|144-SMF I-15 DIST: MP 258.96 - 4800 S:right|6 DROP (TSC): I-15 NB & 1600 S:left|72-SMF 4800 S DIST: MAIN ST - I-15:left}W1133"
+    }
+  },
+  "comparison": {
+    "experimentalScore": 1999.6,
+    "incumbentScore": 1940.8,
+    "experimentalWins": false,
+    "scoreDelta": 58.799999999999955
+  }
+}

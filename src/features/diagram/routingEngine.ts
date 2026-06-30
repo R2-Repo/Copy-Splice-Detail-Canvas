@@ -23,7 +23,7 @@ export function routingEngineMode(
   overrides?: { routingEngine?: LegacyRoutingEngineMode },
 ): RoutingEngineMode {
   const env = normalizeRoutingEngineMode(
-    import.meta.env.VITE_ROUTING_ENGINE as string | undefined,
+    import.meta.env?.VITE_ROUTING_ENGINE as string | undefined,
   );
   return (
     normalizeRoutingEngineMode(overrides?.routingEngine) ?? env ?? ROUTING_ENGINE

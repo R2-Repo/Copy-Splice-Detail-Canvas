@@ -15,3 +15,9 @@ coverage
 *.tsbuildinfo
 dev-dist
 .playwright-mcp
+sdc-workspace/output/*.sdc.json
+sdc-workspace/output/search-summary.json
+.sdc-cache
+tools/sdc-sidecar/.sdc-cache
+tools/sdc-sidecar/**/*.egg-info
+tools/sdc-sidecar/.venv

@@ -1,0 +1,29 @@
+{
+  "csvPath": "docs/reference/examples/Left-SP-3254.5.csv",
+  "candidate": {
+    "cableSides": {
+      "144-SMF I-15 DIST: 4800 S - MP 259.46": "right",
+      "144-SMF I-15 DIST: MP 258.96 - 4800 S": "right",
+      "6 DROP (TSC): I-15 NB & 1600 S": "left",
+      "72-SMF 4800 S DIST: MAIN ST - I-15": "left"
+    },
+    "stackOrder": {
+      "left": [
+        "6 DROP (TSC): I-15 NB & 1600 S",
+        "72-SMF 4800 S DIST: MAIN ST - I-15"
+      ],
+      "right": [
+        "144-SMF I-15 DIST: MP 258.96 - 4800 S",
+        "144-SMF I-15 DIST: 4800 S - MP 259.46"
+      ],
+      "top": [],
+      "bottom": []
+    },
+    "layoutWidth": 1133,
+    "layoutExpansion": {
+      "centerGapPadding": 0,
+      "cableGapExtra": 0,
+      "tubeGroupGapExtra": 0
+    }
+  }
+}

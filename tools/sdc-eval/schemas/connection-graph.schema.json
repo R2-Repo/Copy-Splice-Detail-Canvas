@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sdc-eval-connection-graph",
+  "title": "ConnectionGraph",
+  "type": "object",
+  "required": ["report", "legs", "connections", "cableSides"],
+  "properties": {
+    "report": { "type": "object" },
+    "legs": { "type": "array" },
+    "connections": { "type": "array" },
+    "cableSides": {
+      "type": "object",
+      "additionalProperties": { "enum": ["left", "right"] }
+    }
+  }
+}

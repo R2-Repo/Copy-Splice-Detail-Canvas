@@ -27,7 +27,12 @@
     "smoke": "npm run check && npm run test:fast && npm run build",
     "test:hardening": "npm run test:rules",
     "verify": "npm run smoke",
-    "verify:full": "npm run check && npm run test:full && npm run build"
+    "verify:full": "npm run check && npm run test:full && npm run build",
+    "sdc:eval": "tsx --tsconfig tools/sdc-eval/tsconfig.json tools/sdc-eval/cli.ts",
+    "sdc:sidecar": "node scripts/sdc-sidecar-run.mjs",
+    "sdc:verify": "node scripts/sdc-verify.mjs",
+    "sdc:workspace": "node scripts/sdc-workspace-run.mjs",
+    "sdc:setup": "node scripts/sdc-verify.mjs"
   },
   "dependencies": {
     "@xyflow/react": "^12.6.0",
@@ -48,6 +53,7 @@
     "globals": "^16.0.0",
     "jsdom": "^26.1.0",
     "typescript": "~5.8.3",
+    "tsx": "^4.19.4",
     "typescript-eslint": "^8.30.1",
     "vite": "^6.3.5",
     "vite-plugin-pwa": "^1.0.0",

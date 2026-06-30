@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sdc-eval-evaluate-request",
+  "title": "EvaluateRequest",
+  "type": "object",
+  "required": ["candidate"],
+  "properties": {
+    "csvPath": { "type": "string" },
+    "csvText": { "type": "string" },
+    "graph": { "$ref": "connection-graph.json" },
+    "candidate": { "$ref": "layout-candidate.json" }
+  },
+  "oneOf": [
+    { "required": ["csvPath", "candidate"] },
+    { "required": ["csvText", "candidate"] },
+    { "required": ["graph", "candidate"] }
+  ]
+}

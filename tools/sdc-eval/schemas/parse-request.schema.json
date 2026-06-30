@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sdc-eval-parse-request",
+  "title": "ParseRequest",
+  "type": "object",
+  "properties": {
+    "csvPath": { "type": "string" },
+    "csvText": { "type": "string" },
+    "graph": { "$ref": "connection-graph.json" },
+    "includeGraph": { "type": "boolean" }
+  },
+  "oneOf": [
+    { "required": ["csvPath"] },
+    { "required": ["csvText"] },
+    { "required": ["graph"] }
+  ]
+}

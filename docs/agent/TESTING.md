@@ -69,6 +69,58 @@ node scripts/import-diagnostics-qa.mjs docs/reference/examples/Left-STATE_OFFICE
 
 Prints heuristic/total wall time, `searchStats`, `ruleRejectCounts`, and `fallback` from the last import.
 
+### SDC workspace (drop-in layouts)
+
+Folder: [`sdc-workspace/`](../../sdc-workspace/)
+
+1. Put one Bentley CSV in `sdc-workspace/input/`
+2. Double-click `sdc-workspace/run.bat` (or `npm run sdc:workspace`)
+3. Import `sdc-workspace/output/rank-1.sdc.json` in the app (**Import file**)
+
+Writes up to **5** feasible `.sdc.json` files (same format as **Export workspace**).
+
+### Headless import/search (dev sidecar — no browser)
+
+Runs the **same TypeScript** import search + routing + rules path as the PWA, from the terminal:
+
+```bash
+# Parse summary
+echo '{"csvPath":"docs/reference/examples/Left-SP-3254.5.csv"}' | npm run sdc:eval -- parse
+
+# Layout search (optional config: maxRounds, timeBudgetMs, seed)
+echo '{"csvPath":"docs/reference/examples/Left-SP-3254.5.csv","config":{"maxRounds":500}}' | npm run sdc:eval -- search
+
+# Evaluate one candidate / run rules on a CSV
+npm run sdc:eval -- evaluate --file tools/sdc-sidecar/fixtures/evaluate-request.example.json
+```
+
+JSON schemas: [`tools/sdc-eval/schemas/`](../../tools/sdc-eval/schemas/). **Not part of `npm run smoke`.**
+
+**Python sidecar** (batch runs, reports, experimental search) — see [`tools/sdc-sidecar/README.md`](../../tools/sdc-sidecar/README.md):
+
+```bash
+cd tools/sdc-sidecar
+python -m sdc search ../../docs/reference/examples/Left-SP-3254.5.csv
+python -m sdc batch --preset qa
+```
+
+Requires Python 3.11+ and `npm install` (uses `tsx` devDependency for `npm run sdc:eval`).
+
+**Setup + verify (from repo root):**
+
+```bash
+npm install
+npm run sdc:verify          # smoke-test TS + Python sidecar
+```
+
+Windows one-shot: `.\scripts\setup-sidecar.ps1` (npm install, pip install -e, verify).
+
+**Run Python from repo root (no cd):**
+
+```bash
+npm run sdc:sidecar -- search docs/reference/examples/Left-SP-3254.5.csv
+```
+
 ## Re-enabling intense validation
 
 When the user says to harden layout/rules:

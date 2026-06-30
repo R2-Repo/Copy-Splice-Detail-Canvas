@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sdc-eval-search-request",
+  "title": "SearchRequest",
+  "type": "object",
+  "properties": {
+    "csvPath": { "type": "string" },
+    "csvText": { "type": "string" },
+    "graph": { "$ref": "connection-graph.json" },
+    "config": {
+      "type": "object",
+      "properties": {
+        "maxRounds": { "type": "integer", "minimum": 1 },
+        "seed": { "type": "integer" },
+        "timeBudgetMs": { "type": "integer", "minimum": 1 },
+        "bruteForceMaxCables": { "type": "integer" },
+        "restartInterval": { "type": "integer" },
+        "plateauRounds": { "type": "integer" },
+        "debug": { "type": "boolean" },
+        "debugTopN": { "type": "integer" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "oneOf": [
+    { "required": ["csvPath"] },
+    { "required": ["csvText"] },
+    { "required": ["graph"] }
+  ]
+}

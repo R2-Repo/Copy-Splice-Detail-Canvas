@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sdc-eval-rules-request",
+  "title": "RulesRequest",
+  "type": "object",
+  "properties": {
+    "csvPath": { "type": "string" },
+    "csvText": { "type": "string" },
+    "graph": { "$ref": "connection-graph.json" },
+    "candidate": { "$ref": "layout-candidate.json" },
+    "skipReactFlow": { "type": "boolean" },
+    "layoutWidth": { "type": "number" }
+  },
+  "oneOf": [
+    { "required": ["csvPath"] },
+    { "required": ["csvText"] },
+    { "required": ["graph"] }
+  ]
+}

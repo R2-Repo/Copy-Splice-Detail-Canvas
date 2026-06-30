@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sdc-eval-layout-candidate",
+  "title": "LayoutCandidate",
+  "type": "object",
+  "required": ["cableSides", "stackOrder", "layoutWidth", "layoutExpansion"],
+  "properties": {
+    "cableSides": {
+      "type": "object",
+      "additionalProperties": {
+        "enum": ["left", "right", "top", "bottom"]
+      }
+    },
+    "stackOrder": {
+      "type": "object",
+      "required": ["left", "right", "top", "bottom"],
+      "properties": {
+        "left": { "type": "array", "items": { "type": "string" } },
+        "right": { "type": "array", "items": { "type": "string" } },
+        "top": { "type": "array", "items": { "type": "string" } },
+        "bottom": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "layoutWidth": { "type": "number" },
+    "layoutExpansion": { "type": "object" },
+    "id": { "type": "string" }
+  }
+}
