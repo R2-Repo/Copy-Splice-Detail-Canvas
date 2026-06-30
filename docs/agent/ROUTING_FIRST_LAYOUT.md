@@ -1,8 +1,10 @@
-# Routing-first auto layout — build plan
+# Routing-first auto layout — reference
 
-> **Status (2026-06-29):** **Active.** Auto import picks the best layout via routing-first search; **no 2-side / 4-side user toggle.** Cable edge assignment is a search output [SDC-CORE-001], [SDC-SCORE-001].
+> **Status (2026-06-30):** **Shipped.** Auto import picks the best layout via routing-first search; **no 2-side / 4-side user toggle.** Cable edge assignment is a search output [SDC-CORE-001], [SDC-SCORE-001].
 >
 > **Supersedes for auto placement:** side heuristics in `computeCableCanvasSides`, `computeCanvasPlacement` barycenter flow, and the horizontal vs quad **mode fork** on import. Top/bottom render adapters live in `diagram/quad/` — see [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md).
+>
+> **Build history:** phased delivery notes in [`docs/archive/agent/`](../archive/README.md).
 >
 > **Frozen:** `.cursor/rules/frozen-routing.mdc` — search **calls** routing; does not edit frozen symbols without user approval.
 
@@ -17,7 +19,7 @@ On CSV import, the app runs a long search that:
 
 **No layout mode picker.** Two-sided diagrams are a valid *outcome*, not a user setting. Top/bottom sides are used only when routing score needs them.
 
-Manual drag of cables to any side is **out of scope for v1** — planned after auto search is stable (SDC-UX-001 locks).
+**Cable side drag:** `cableSideDrag.ts` updates `optimizedLayoutCandidate` on drag — no full `layoutSearch` rerun (SDC-UX-001).
 
 ## Principles
 
@@ -45,7 +47,8 @@ See [`SIMPLE_TERMS.md`](./SIMPLE_TERMS.md). Optimizer optimizes:
 flowchart TD
   CSV[Bentley CSV] --> Parse[parseBentleyCsv]
   Parse --> Graph[buildConnectionGraph]
-  Graph --> Search[layoutSearch]
+  Graph --> Worker[layoutSearch.worker]
+  Worker --> Search[layoutSearch beam + tiered T0/T1/T2]
   Search --> Cand[LayoutCandidate]
   Cand --> Eval[evaluateLayoutCandidate]
   Eval --> Place[placeCables + handles]
@@ -53,44 +56,48 @@ flowchart TD
   Route --> Rules[runSdcRules]
   Rules --> Score[hard gate + soft score]
   Score --> Search
-  Search --> Best[best candidate]
-  Best --> Render[buildCanvasFromCandidate]
+  Search --> Best[best candidate / finalists]
+  Best --> Render[candidateToGraph / buildReactFlowGraph]
   Render --> Canvas[WorkflowCanvas]
+  Worker -->|progress| UI[LayoutSearchOverlay]
 ```
 
-### New module: `src/features/layoutSearch/`
+### Module: `src/features/layoutSearch/`
 
 | File | Role |
 |------|------|
-| `layoutCandidate.ts` | Encodes per-cable side (L/R/T/B), stack index on that side, `layoutWidth`, `layoutExpansion` |
+| `layoutCandidate.ts` | Per-cable side (L/R/T/B), stack index, `layoutWidth`, `layoutExpansion` |
 | `evaluateCandidate.ts` | Build nodes/edges → grid route → rule context → `{ feasible, score, violations }` |
-| `layoutSearch.ts` | Search loop (seed, mutate, hill-climb, restarts); returns best candidate |
+| `layoutSearch.ts` | Beam search, memo, time budget, finalist selection |
+| `layoutSearch.worker.ts` | Off-main-thread search + tiered eval |
+| `tieredEvaluate.ts` | T0 placement screen → T1 proxy route → T2 full route + rules |
 | `candidateToGraph.ts` | Apply winning candidate to placement + React Flow graph |
-| `layoutScorer.ts` | Composite soft score + `SDC-SCORE-001` weights (document in rule pack) |
-| `layoutSearch.test.ts` | Brute-force oracle on tiny fixtures; regression on reference CSVs |
+| `layoutScorer.ts` | Composite soft score + `SDC-SCORE-001` weights |
+| `importSearchConfig.ts` | Env flags, time budget, search mode |
+| `importDiagnostics.ts` | Dev diagnostics (`VITE_DEBUG_IMPORT_OPTIMIZER=1`) |
 
 **Do not rewrite** `spliceEdgeRouting.ts` frozen symbols. Evaluation calls existing `routeAllOnGrid`, `buildSpliceHandleEntries`, `attachPrecomputedPaths`, and SDC rule runners.
 
-### Unified render path (replaces mode fork on import)
+### Unified render path (shipped)
 
-Today: `buildReactFlowGraph` early-returns to `buildQuadReactFlowGraph` when `layoutMode === "quad"`.
+Import is driven by the winning candidate's side assignment:
 
-Target: **one builder** driven by candidate side assignment:
+- Cables on **left/right** — horizontal breakout geometry.
+- Cables on **top/bottom** — quad geometry (`orientTubesForQuadSide`, `quadRenderTransform`) as **render adapters** — see [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md).
+- Grid `layoutMode` derived from populated sides (horizontal channel vs quad frontiers — `gridMap.ts`).
 
-- Cables on **left/right** — existing horizontal breakout geometry.
-- Cables on **top/bottom** — quad geometry (`orientTubesForQuadSide`, `quadRenderTransform`) reused as **render adapters**, not a separate import pipeline.
-- Routing uses grid with `layoutMode` derived from which sides are populated (horizontal channel vs quad frontiers — see `gridMap.ts`).
+`layoutMode` user toggle: **removed from import**; field may remain in saved config for backward compat.
 
-`layoutMode` toolbar toggle: **removed from import path**; field may remain in saved config for backward compat until migration.
+Legacy `buildQuadReactFlowGraph` remains for tests and `.sdc.json` restore paths.
 
 ## What each candidate controls
 
 | Knob | Search? | Notes |
 |------|---------|-------|
 | Per-cable side (L/R/T/B) | **Yes** | Core search dimension |
-| Stack order per side | **Yes** | Permute / swap / anneal |
+| Stack order per side | **Yes** | Permute / swap / beam mutations |
 | Canvas width | **Yes** | Steps from content min → viewport fill → expanded |
-| `layoutExpansion` (center/cable/tube gaps) | **Yes** | Absorbs `resolveFeasibleImportLayout` loop |
+| `layoutExpansion` (center/cable/tube gaps) | **Yes** | Absorbs former `resolveFeasibleImportLayout` loop |
 | Row order inside diagram | **No (v1)** | Keep `connectionsInRowLayoutOrder` + dominant pair |
 | TIA fiber/tube order inside cable | **No** | SDC-ORDER hard constraint |
 | CSV data / pair graph | **No** | SDC-DATA hard constraint |
@@ -99,34 +106,32 @@ Target: **one builder** driven by candidate side assignment:
 
 Align with [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md) conflict priority section.
 
-### Tier 1 — Reject candidate (`feasible: false`)
+### Hard gate — reject candidate (`feasible: false`)
 
-Run full rule set (or import + route + layout subset) via `buildSdcRuleContext` + `runRules`:
+Run full rule set via `buildSdcRuleContext` + `runRules`:
 
 - `SDC-DATA-001`, `SDC-DATA-002`
 - `SDC-ORDER-001`, `SDC-ORDER-002`
-- `SDC-LAYOUT-001`, `SDC-LAYOUT-002`
+- `SDC-LAYOUT-001`, `SDC-LAYOUT-002`, `SDC-LAYOUT-003`
 - `SDC-GRID-001`
 - `SDC-ROUTE-001`, `SDC-ROUTE-002`, `SDC-ROUTE-003`
-- Legacy SDC-ROUTE-004-A (≤2 bends per strand)
+- SDC-ROUTE-004-A (≤2 bends per strand)
 
-Any `severity: "fail"` → discard.
+Any `severity: "fail"` → discard (or demote to finalist fallback chain).
 
-### Tier 2 — Soft score (minimize among feasible)
+### Soft score (minimize among feasible)
 
 | Term | Weight (initial) | Source |
 |------|------------------|--------|
 | Strand crossings | High | Grid route / lane overlap |
 | Bend count over budget headroom | High | Prefer 0–1 bends when possible |
-| Same-side loopback paths | High | Quad router “same side” class |
+| Same-side loopback paths | High | Candidate side pairs + quad router |
 | Sides used | Medium | Penalize top/bottom unless they help |
 | Center width used | Low | Prefer compact |
-| Side height imbalance | Low | Existing `layoutScoring` terms |
+| Side height imbalance | Low | `layoutScorer` terms |
 | Path length | Low | Grid route segment sum |
 
-Document composite as **`SDC-SCORE-001`** in rule pack (step 11 in rule index).
-
-Tie-break order: lower soft score → fewer sides used → lexicographic stable candidate id.
+Document composite as **`SDC-SCORE-001`** in rule pack. Tie-break: lower soft score → fewer sides used → stable candidate id.
 
 ## Search strategy
 
@@ -134,121 +139,68 @@ Tie-break order: lower soft score → fewer sides used → lexicographic stable 
 
 ```ts
 {
-  maxRounds: 2000,        // user OK with long import
-  bruteForceMaxCables: 8, // full enumeration below this
-  seed: hash(reportKey),  // determinism
-  timeBudgetMs?: optional // optional cap; return best-so-far
+  maxRounds: 2000,
+  bruteForceMaxCables: 8,
+  seed: hash(reportKey),
+  timeBudgetMs: importTimeBudgetMs(strandCount),
 }
 ```
 
-### Algorithm
+### Algorithm (shipped)
 
-1. **Seed** — current heuristic layout (today’s sides + barycenter) evaluated once.
-2. **Brute force** (tiny splices) — enumerate side assignments × stack perms × width steps; use as test oracle.
-3. **Guided search** (production):
-   - Mutations: flip cable side, swap stack neighbors, bump width/expansion, move cable to empty side.
-   - Hill-climb: accept improvements.
-   - Random restarts every N rounds.
-4. **Early exit** — all hard rules pass and soft score plateaus.
-5. **Return best-so-far** — always, even on cancel/time budget.
+1. **Heuristic paint** — baseline candidate on canvas immediately.
+2. **Worker search** — beam search with T0 → T1 → T2 tiered evaluation.
+3. **Finalists** — ranked candidates; first full-rule-passing winner selected.
+4. **Fallback** — heuristic or best-so-far with diagnostics banner.
+5. **Return best-so-far** on cancel/time budget.
 
-Optional later: Web Worker for UI responsiveness (`layoutSearch.worker.ts`).
+Env overrides: see [`TESTING.md`](./TESTING.md) (`VITE_DEBUG_IMPORT_OPTIMIZER`, `VITE_USE_HEURISTIC_IMPORT`, `VITE_DISABLE_OPTIMIZED_IMPORT`).
 
-## Import UX
+## Import UX (shipped)
 
-- Replace silent heuristic layout with **“Optimizing layout…”** progress (round / best score).
+- **“Optimizing layout…”** overlay with phase labels, eval count, elapsed time.
 - **Cancel** → apply best-so-far.
-- Persist winning `LayoutCandidate` snapshot in layout overrides (`optimizedLayoutCandidate`) for reproducibility and export.
-- Failed import (no feasible candidate after budget) → show rule failures; optional fallback to seed layout with warning banner.
+- Winning `LayoutCandidate` in layout overrides (`optimizedLayoutCandidate`).
+- Failed search → rule failure list + optional heuristic fallback with warning.
 
-## Phased delivery
+## Delivery status
 
-### Phase 1 — Evaluation harness (horizontal sides only)
+| Phase | Scope | Status |
+|-------|-------|--------|
+| 1 | Evaluation harness (L/R) | ✅ Shipped |
+| 2 | Search engine + determinism | ✅ Shipped |
+| 3 | Four-side candidates + quad eval | ✅ Shipped |
+| 4 | Import wire + unified render | ✅ Shipped |
+| 5 | Rule hardening (`test:rules` on reference set) | ⏸ Suspended — user opt-in |
+| 6 | Cable side drag | ✅ Shipped (`cableSideDrag.ts`) |
 
-- `evaluateLayoutCandidate` with sides restricted to L/R.
-- Reuse `routeAllOnGrid` + `enrichSdcContextWithGrid` + `runRules`.
-- Tests: 3-cable fixture brute force beats `computeCableCanvasSides` proxy score.
+## Retired on import
 
-**Gate:** `npm run test:fast` + new `layoutSearch.test.ts`.
-
-### Phase 2 — Search engine
-
-- `layoutSearch()` with round budget and determinism.
-- Logging for top-N candidates (dev only).
-
-**Gate:** Example #2 search finds feasible layout with ≤ crossings than current heuristic (metric in test).
-
-### Phase 3 — Four-side candidates
-
-- Extend `LayoutCandidate` to L/R/T/B.
-- Wire quad geometry + grid quad channels for top/bottom cables in evaluate path.
-- Soft penalty for sides used.
-
-**Gate:** `Left-SPI-215_I-80.csv` and busy multi-cable CSVs improve vs L/R-only search.
-
-### Phase 4 — Import wire + unified render
-
-- `loadFromCsv` / `activateDiagram` call `layoutSearch` instead of `computeCanvasPlacement` + `resolveFeasibleImportLayout`.
-- Single `buildCanvasFromCandidate` replaces mode fork on fresh import.
-- **Done:** Layout mode toggle removed — import always uses routing-first search [SDC-CORE-001].
-- Saved `.sdc.json`: store candidate snapshot; restore runs evaluate once to verify.
-
-**Gate:** `npm run smoke`; manual QA on example-2 + touched Left CSVs.
-
-### Phase 5 — Rule hardening
-
-- Re-enable `npm run test:rules` for reference fixtures using search-produced layouts.
-- Add `SDC-SCORE-001` to rule pack + `sdcLayoutContract.test.ts` extension.
-
-**Gate:** `npm run test:rules` green on reference set (user-scheduled hardening session).
-
-### Phase 6 — Manual side drag (later)
-
-- Drag cable to any side; re-run local reroute; lock on commit (SDC-UX-001).
-- **Done (2026-06-28):** `cableSideDrag.ts` + WorkflowCanvas; updates `optimizedLayoutCandidate`; no `layoutSearch` on drag.
-
-## What we retire (after phases 1–4 stable)
-
-| Current | Fate |
-|---------|------|
+| Former | Now |
+|--------|-----|
 | `computeCableCanvasSides` on import | Search seed only |
 | `computeCanvasPlacement` barycenter | Search seed only |
-| `resolveFeasibleImportLayout` width loop | Inside candidate `layoutWidth` / `layoutExpansion` |
-| `layoutMode` user toggle | Removed (import always optimized) |
-| Separate `buildQuadReactFlowGraph` import entry | Merged into unified builder |
+| `resolveFeasibleImportLayout` width loop | Candidate `layoutWidth` / `layoutExpansion` |
+| `layoutMode` user toggle | Removed |
+| Separate quad import fork | Unified `candidateToGraph` |
 
-Keep fallbacks behind `VITE_USE_HEURISTIC_IMPORT=1` until reference CSVs pass.
+Heuristic fallback: `VITE_USE_HEURISTIC_IMPORT=1`.
 
-## Relationship to existing docs
+## Related docs
 
-| Doc | Relationship |
-|-----|----------------|
-| [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md) | Geometry/routing reference for top/bottom; auto mode fork section superseded by this plan |
-| [`00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md) | Scoring tier order |
-| [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md) | Re-evaluate after Phase 5 |
-| [`TESTING.md`](./TESTING.md) | Add search fixtures to manual QA checklist after Phase 4 |
+| Doc | Role |
+|-----|------|
+| [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md) | Top/bottom geometry when optimizer picks T/B |
+| [`TESTING.md`](./TESTING.md) | Gates, manual QA, import diagnostics |
+| [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md) | Deferred hardening (KI-003 SPI) |
+| [`docs/archive/agent/`](../archive/README.md) | Historical build plans |
 
 ## Risks and guardrails
 
 | Risk | Mitigation |
 |------|------------|
-| Import time minutes on large CSVs | Progress UI, best-so-far, optional worker |
-| Frozen routing drift | Search calls frozen APIs only; golden tests on route output |
-| Non-determinism | Fixed seed; sort ties |
-| No feasible layout | Clear banner + rule list; seed fallback with warning |
-| Quad geometry bugs | Phase 3 isolated; reuse existing quad tests |
-
-## Success criteria
-
-1. Fresh CSV import — **no user layout mode**; canvas shows optimizer result.
-2. Reference CSVs (Example #2, Left-SP-3254.5, Left-SPI-215_I-80, SPI-215) — all hard rules pass without manual nudge.
-3. Strand crossings and bend violations **≤** current heuristic import on same fixtures.
-4. Simple 2–3 cable splices — optimizer uses **two sides only** (tie-break).
-5. Same CSV + settings → **identical** layout across runs.
-6. Manual side drag not required for MVP acceptance.
-
-## First implementation session
-
-1. Create `src/features/layoutSearch/evaluateCandidate.ts` (L/R only).
-2. Brute-force test on synthetic 3-cable graph.
-3. Do **not** wire import until Phase 1 gate passes.
+| Import time on large CSVs | Worker, tiered eval, time budget, progress UI |
+| Frozen routing drift | Search calls frozen APIs only |
+| Non-determinism | Fixed seed; stable tie-breaks |
+| No feasible layout | Finalist chain + diagnostics + heuristic fallback |
+| Quad geometry bugs | Isolated in `diagram/quad/`; see [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md) |

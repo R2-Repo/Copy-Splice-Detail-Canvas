@@ -1,7 +1,6 @@
 # Import finish plan — one-pass execution
 
-> **Created:** 2026-06-28. Canonical checklist for completing remaining import perf work after P0+P1+P2.
-> **Status:** In progress — see `HANDOFF.md` for latest results.
+> **Archived (2026-06-30).** Moved from `docs/agent/`. **Completed 2026-06-28** — all success criteria met.
 
 ## Goal
 

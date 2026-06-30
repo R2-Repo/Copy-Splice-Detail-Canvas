@@ -250,26 +250,31 @@ Instead, show **thick buffer tube line → thick buffer tube line** (tube-to-tub
 
 ---
 
-## MVP (phased)
+## MVP status (2026-06-30)
 
-**Locked choices:** visual/layout parity (not text); auto-layout + manual edit.
+**Shipped:** CSV parse + graph builder, routing-first import optimizer, canvas nodes/edges, tube collapse, fiber color codes (12/144/striped), manual adjust, cable side drag, diagram config export/restore, PWA shell.
+
+**Remaining / polish:** PDF export parity, stripe tube graphics, manual dashed “existing” line toggle, full visual parity vs reference PDFs, 6-count tubes.
+
+<details>
+<summary>Original MVP phased checklist (historical)</summary>
 
 ### MVP-a — prove pipeline (target: screenshot #3 complexity)
 
-- [ ] **Full buffer tube collapse** — detect 12/12 same-color tube splices; render tube-to-tube (no fiber breakout)
-- [ ] Fiber color code lib (12 colors, 144 math, striped `*-BK` parse)
-- [ ] CSV parser (header, Left/Right, dedupe mirrors)
-- [ ] Spliced-pairs-only graph builder; mid-span cable legs
-- [ ] Side hints + basic layout optimizer
-- [ ] Custom nodes: cable circle, thick tube, thin strand
-- [ ] SpliceEdge with black dot + elbow routing
-- [ ] Import UI + canvas display
-- [ ] Test with **Example #2 CSV** (`SP-3022.4`, 4 pairs)
+- [x] **Full buffer tube collapse** — detect 12/12 same-color tube splices; render tube-to-tube (no fiber breakout)
+- [x] Fiber color code lib (12 colors, 144 math, striped `*-BK` parse)
+- [x] CSV parser (header, Left/Right, dedupe mirrors)
+- [x] Spliced-pairs-only graph builder; mid-span cable legs
+- [x] Side hints + routing-first layout optimizer
+- [x] Custom nodes: cable circle, thick tube, thin strand
+- [x] SpliceEdge with black dot + elbow routing
+- [x] Import UI + canvas display
+- [x] Test with **Example #2 CSV** (`SP-3022.4`, 4 pairs)
 
 ### MVP-b — scale
 
-- [ ] Example #1 CSV (large splice, striped tubes)
-- [ ] Performance tuning for many edges
+- [x] Example #1 CSV (large splice, striped tubes)
+- [x] Performance tuning for many edges (worker + tiered eval)
 - [ ] Pagination strategy for PDF
 - [ ] Manual dashed-line toggle
 
@@ -278,6 +283,8 @@ Instead, show **thick buffer tube line → thick buffer tube line** (tube-to-tub
 - [ ] Visual parity pass vs all 4 screenshot layouts
 - [ ] PDF export
 - [ ] Stripe tube graphic finalized
+
+</details>
 
 ---
 
@@ -320,4 +327,4 @@ npm run dev
 
 Open the URL Vite prints (usually `http://localhost:5173`) to view the app live.
 
-Quality gates: `npm run check`, `npm run test:ci`, `npm run build`.
+Quality gates: `npm run smoke` (default). See [`TESTING.md`](./TESTING.md).

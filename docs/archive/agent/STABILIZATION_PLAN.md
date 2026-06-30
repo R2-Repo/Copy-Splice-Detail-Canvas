@@ -1,6 +1,8 @@
 # Splice Detail Canvas — stabilization and fix plan
 
-> **Status: PAUSED (2026-06-25)** — Superseded by **build phase** in [`SCOPE.md`](./SCOPE.md). Layout hardening uses `npm run test:hardening` and [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md).
+> **Archived (2026-06-30).** Moved from `docs/agent/`. Superseded by **build phase** in [`SCOPE.md`](../../agent/SCOPE.md). Layout hardening: `npm run test:hardening` + [`KNOWN_ISSUES.md`](../../agent/KNOWN_ISSUES.md).
+>
+> **Broken links:** `RULE_PRIORITY.md` and `SDC_CHECKS.md` were removed — see [`RULE_DICTIONARY.md`](../../agent/RULE_DICTIONARY.md) and `src/features/rules/sdcCheckIds.ts`.
 
 > Canonical build plan (archived). Kickoff prompt: [`STABILIZATION_BUILD.md`](./STABILIZATION_BUILD.md)
 
