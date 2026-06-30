@@ -4,6 +4,8 @@
 
 ## Focus (2026-06-30)
 
+**Import soft score (SDC-SCORE-001)** — bend ladder (0→1→2 corners), single-bend top/bottom credit, `sidesUsed` removed from score total. Hard cap unchanged (**SDC-ROUTE-004** ≤2 corners).
+
 **Python sidecar v0.2** — TS eval daemon pool, `deep-search` / `compare` / `sweep`, topology-aware candidate gen, tiered eval pipeline, SQLite cache, PWA stub (`deepSearchClient.ts`). See [`tools/sdc-sidecar/README.md`](../../tools/sdc-sidecar/README.md).
 
 **Import optimizer (shipped)** — routing-first search, beam + tiered T0/T1/T2, finalist fallback, worker, diagnostics.

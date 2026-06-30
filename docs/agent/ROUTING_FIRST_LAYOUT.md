@@ -124,14 +124,18 @@ Any `severity: "fail"` → discard (or demote to finalist fallback chain).
 | Term | Weight (initial) | Source |
 |------|------------------|--------|
 | Strand crossings | High | Grid route / lane overlap |
-| Bend count over budget headroom | High | Prefer 0–1 bends when possible |
+| One-corner bend | Medium | Per strand with exactly 1 corner |
+| Two-corner bend | High | Per strand at 2-corner budget (still legal) |
+| Single-bend top/bottom credit | Medium | Subtracted per 1-corner strand with T/B endpoint |
 | Same-side loopback paths | High | Candidate side pairs + quad router |
-| Sides used | Medium | Penalize top/bottom unless they help |
+| Top/bottom placement relief | dynamic | Crossing/loopback delta vs L/R-only baseline |
 | Center width used | Low | Prefer compact |
 | Side height imbalance | Low | `layoutScorer` terms |
 | Path length | Low | Grid route segment sum |
 
-Document composite as **`SDC-SCORE-001`** in rule pack. Tie-break: lower soft score → fewer sides used → stable candidate id.
+Top/bottom canvas sides are **not** penalized via `sidesUsed`. Reward cleaner routing (fewer bends, fewer crossings/loopbacks) instead.
+
+Document composite as **`SDC-SCORE-001`** in rule pack. Tie-break: stable candidate id.
 
 ## Search strategy
 

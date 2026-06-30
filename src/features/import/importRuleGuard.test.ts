@@ -10,7 +10,11 @@ import {
   buildSdcRuleContext,
   runImportRules,
 } from "@/features/rules";
-import { readReferenceCsv, resolveReferenceCsvPath } from "@/testHelpers/layoutContractCsvPaths";
+import {
+  readReferenceCsv,
+  referenceCsvAvailable,
+  resolveReferenceCsvPath,
+} from "@/testHelpers/layoutContractCsvPaths";
 
 function parseSnapshot(report: ReturnType<typeof parseBentleyCsv>): string {
   const cables = [...new Set(report.pairs.flatMap((p) => [p.endpointA.cable, p.endpointB.cable]))]
@@ -47,7 +51,9 @@ const REFERENCE_CSVS = [
 ] as const;
 
 describe("import rule guard (SDC-DATA/ORDER after parse)", () => {
-  it.each(REFERENCE_CSVS)("%s passes import rules with stable snapshot", (file) => {
+  it.each(REFERENCE_CSVS.filter(referenceCsvAvailable))(
+    "%s passes import rules with stable snapshot",
+    (file) => {
     const csv = readReferenceCsv(file);
     const report = parseBentleyCsv(csv);
     const graph = buildConnectionGraph(report);

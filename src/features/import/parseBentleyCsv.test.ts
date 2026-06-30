@@ -8,7 +8,7 @@ import {
   parseLeftSectionRows,
 } from "./parseBentleyCsv";
 
-import { resolveReferenceCsvPath } from "@/testHelpers/layoutContractCsvPaths";
+import { resolveReferenceCsvPath, referenceCsvAvailable } from "@/testHelpers/layoutContractCsvPaths";
 
 const SAMPLE_ROW =
   "HUB3-8(BLUFFDALE_REDWOOD_RD),6-SMF DROP: MVC MP 3.1 & HARVEST MOON DR,   1,BL,BL,<->,144 DIST: 2100 N TO HARVEST HILLS,  17,OR,SL,HUB3-8(BLUFFDALE_REDWOOD_RD),CH 3022";
@@ -74,7 +74,9 @@ describe("parseBentleyCsv", () => {
     expect(report.pairs).toHaveLength(28);
   });
 
-  it("parses street/city/pole/desc from 3161.4 header", () => {
+  it.skipIf(!referenceCsvAvailable("3161.4.csv"))(
+    "parses street/city/pole/desc from 3161.4 header",
+    () => {
     const csv = readFileSync(resolveReferenceCsvPath("3161.4.csv"), "utf8");
     const report = parseBentleyCsv(csv);
     expect(report.header.street).toBe("PROVO - UNIVERSITY AVE & 1230N");

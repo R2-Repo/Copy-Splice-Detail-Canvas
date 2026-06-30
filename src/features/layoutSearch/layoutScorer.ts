@@ -1,5 +1,6 @@
 import { pairEndpointsForSide } from "@/features/diagram/buildConnectionGraph";
 import { stackOrderCrossingCount } from "@/features/diagram/canvasPlacement";
+import { connectionRowIndexMap } from "@/features/diagram/connectionRowOrder";
 import { MAX_SPLICE_BENDS } from "@/features/canvas/edges/splicePathGeometry";
 import {
   CABLE_LAYOUT,
@@ -22,9 +23,13 @@ import {
 /** SDC-SCORE-001 initial weights (see ROUTING_FIRST_LAYOUT.md). */
 export type SoftScoreWeights = {
   crossings: number;
-  bendsOverBudget: number;
+  /** Per-strand penalty when exactly one corner (SDC-ROUTE-004 preference). */
+  bendOneCorner: number;
+  /** Per-strand penalty at the two-corner budget (still legal). */
+  bendTwoCorner: number;
+  /** Credit per single-corner strand with a top/bottom endpoint. */
+  singleBendTopBottomCredit: number;
   sameSideLoopbacks: number;
-  sidesUsed: number;
   centerWidth: number;
   heightImbalance: number;
   pathLength: number;
@@ -32,18 +37,32 @@ export type SoftScoreWeights = {
 
 export const DEFAULT_SOFT_SCORE_WEIGHTS: SoftScoreWeights = {
   crossings: 1000,
-  bendsOverBudget: 100,
+  bendOneCorner: 30,
+  bendTwoCorner: 100,
+  singleBendTopBottomCredit: 20,
   sameSideLoopbacks: 500,
-  sidesUsed: 50,
   centerWidth: 1,
   heightImbalance: 10,
   pathLength: 0.1,
 };
 
+export type BendTierCounts = {
+  zero: number;
+  one: number;
+  two: number;
+};
+
 export type SoftScoreBreakdown = {
   crossings: number;
+  /** Total bend-preference penalty (0/1/2-corner tiers). */
   bendsOverBudget: number;
+  bendZeroCount: number;
+  bendOneCount: number;
+  bendTwoCount: number;
+  topBottomSingleBendCredit: number;
+  topBottomRelief: number;
   sameSideLoopbacks: number;
+  /** Populated for diagnostics only — not added to total. */
   sidesUsed: number;
   centerWidth: number;
   heightImbalance: number;
@@ -56,7 +75,7 @@ export type LayoutScoreResult = {
   score: number;
   softScore: SoftScoreBreakdown;
   tieBreak: {
-    sidesUsed: number;
+    totalBends: number;
     candidateId: string;
   };
 };
@@ -300,7 +319,7 @@ export function topBottomBenefit(
   );
 }
 
-function bendCountFromPoints(points: GridPoint[]): number {
+export function bendCountFromPoints(points: GridPoint[]): number {
   let bends = 0;
   for (let i = 2; i < points.length; i++) {
     const a = points[i - 2]!;
@@ -368,6 +387,66 @@ export function countRouteCrossings(routes: Map<string, GridRoute>): number {
   return crossings;
 }
 
+export function countBendTiers(routes: Map<string, GridRoute>): BendTierCounts {
+  const counts: BendTierCounts = { zero: 0, one: 0, two: 0 };
+  for (const route of routes.values()) {
+    const bends = bendCountFromPoints(route.points);
+    if (bends <= 0) counts.zero += 1;
+    else if (bends === 1) counts.one += 1;
+    else counts.two += 1;
+  }
+  return counts;
+}
+
+export function totalBendCount(routes: Map<string, GridRoute>): number {
+  let total = 0;
+  for (const route of routes.values()) {
+    total += bendCountFromPoints(route.points);
+  }
+  return total;
+}
+
+/** SDC-SCORE-001 bend ladder: 0 corners best, 1 small cost, 2 larger cost. */
+export function bendPreferencePenalty(
+  routes: Map<string, GridRoute>,
+  weights: SoftScoreWeights = DEFAULT_SOFT_SCORE_WEIGHTS,
+): number {
+  let penalty = 0;
+  for (const route of routes.values()) {
+    const bends = bendCountFromPoints(route.points);
+    if (bends === 1) penalty += weights.bendOneCorner;
+    else if (bends >= 2) penalty += weights.bendTwoCorner;
+  }
+  return penalty;
+}
+
+/** Credit single-corner splices that use top/bottom cable placement. */
+export function countSingleBendTopBottomCredit(
+  routes: Map<string, GridRoute>,
+  candidate: LayoutCandidate,
+  graph: ConnectionGraph,
+  weights: SoftScoreWeights = DEFAULT_SOFT_SCORE_WEIGHTS,
+): number {
+  let credit = 0;
+  for (const conn of graph.connections) {
+    if (conn.kind !== "fiber") continue;
+    const route = routes.get(conn.id);
+    if (!route) continue;
+    if (bendCountFromPoints(route.points) !== 1) continue;
+    const { sideA, sideB } = getConnectionEndpointSides(candidate, graph, conn);
+    const usesTopBottom =
+      sideA === "top" ||
+      sideA === "bottom" ||
+      sideB === "top" ||
+      sideB === "bottom";
+    if (usesTopBottom) {
+      credit += weights.singleBendTopBottomCredit;
+    }
+  }
+  return credit;
+}
+
+/** @deprecated Prefer `bendPreferencePenalty` — kept for transitional tests. */
 export function countBendsOverBudget(
   routes: Map<string, GridRoute>,
   headroom = 1,
@@ -449,7 +528,6 @@ export function heightImbalanceForCandidate(
 
 export type CandidateScreenScore = SoftScoreBreakdown & {
   sidePairPenalty: number;
-  topBottomRelief: number;
 };
 
 /** T0 cheap screen — four-side-aware, no grid route. */
@@ -486,19 +564,22 @@ export function scoreCandidateScreen(
     sameSideLoopbacks * weights.sameSideLoopbacks +
     sidePairPenalty +
     topBottomRelief +
-    sidesUsed * weights.sidesUsed +
     heightImbalance * weights.heightImbalance;
 
   return {
     crossings,
     bendsOverBudget: 0,
+    bendZeroCount: 0,
+    bendOneCount: 0,
+    bendTwoCount: 0,
+    topBottomSingleBendCredit: 0,
+    topBottomRelief,
     sameSideLoopbacks,
     sidesUsed,
     centerWidth: 0,
     heightImbalance,
     pathLength: 0,
     sidePairPenalty,
-    topBottomRelief,
     total,
   };
 }
@@ -513,7 +594,22 @@ export function computeSoftScore(
   weights: SoftScoreWeights = DEFAULT_SOFT_SCORE_WEIGHTS,
 ): SoftScoreBreakdown {
   const crossings = countRouteCrossings(routes);
-  const bendsOverBudget = countBendsOverBudget(routes);
+  const bendTiers = countBendTiers(routes);
+  const bendsOverBudget = bendPreferencePenalty(routes, weights);
+  const topBottomSingleBendCredit =
+    graph && routes.size > 0
+      ? countSingleBendTopBottomCredit(routes, candidate, graph, weights)
+      : 0;
+  const topBottomRelief =
+    graph && visualCables?.length
+      ? topBottomBenefit(
+          candidate,
+          graph,
+          visualCables,
+          connectionRowIndexMap(graph, visualCables),
+          weights,
+        )
+      : 0;
   const sameSideLoopbacks =
     graph && visualCables
       ? countSameSideLoopbacksFromCandidate(candidate, graph)
@@ -528,9 +624,10 @@ export function computeSoftScore(
 
   const total =
     crossings * weights.crossings +
-    bendsOverBudget * weights.bendsOverBudget +
+    bendsOverBudget +
     sameSideLoopbacks * weights.sameSideLoopbacks +
-    sidesUsed * weights.sidesUsed +
+    topBottomRelief -
+    topBottomSingleBendCredit +
     centerWidth * weights.centerWidth +
     heightImbalance * weights.heightImbalance +
     pathLength * weights.pathLength;
@@ -538,6 +635,11 @@ export function computeSoftScore(
   return {
     crossings,
     bendsOverBudget,
+    bendZeroCount: bendTiers.zero,
+    bendOneCount: bendTiers.one,
+    bendTwoCount: bendTiers.two,
+    topBottomSingleBendCredit,
+    topBottomRelief,
     sameSideLoopbacks,
     sidesUsed,
     centerWidth,
@@ -571,7 +673,7 @@ export function scoreLayoutEvaluation(
   );
   const candidateId = candidate.id ?? candidateStableId(candidate);
   const tieBreak = {
-    sidesUsed: sidesUsedCount(candidate),
+    totalBends: totalBendCount(routes),
     candidateId,
   };
 
