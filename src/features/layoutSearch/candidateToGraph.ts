@@ -18,6 +18,8 @@ export type BuildCanvasFromCandidateOptions = {
   refreshRowLayout?: boolean;
   skipTubeAutoAlign?: boolean;
   dragSync?: boolean;
+  rerouteConnectionIds?: string[];
+  dragCacheEdges?: import("@xyflow/react").Edge[];
 };
 
 /** Apply candidate side assignment + stack order to React Flow graph (unified L/R + quad). */
@@ -68,6 +70,8 @@ export function buildCanvasFromCandidate(
             refreshRowLayout: buildOptions?.refreshRowLayout,
             skipTubeAutoAlign: buildOptions?.skipTubeAutoAlign,
             dragSync: buildOptions?.dragSync,
+            rerouteConnectionIds: buildOptions?.rerouteConnectionIds,
+            dragCacheEdges: buildOptions?.dragCacheEdges,
           }
         : {
             fixedPlacement: candidateToPlacementMap(candidate, seedVisualCables),
@@ -76,6 +80,8 @@ export function buildCanvasFromCandidate(
             refreshRowLayout: buildOptions?.refreshRowLayout,
             skipTubeAutoAlign: buildOptions?.skipTubeAutoAlign,
             dragSync: buildOptions?.dragSync,
+            rerouteConnectionIds: buildOptions?.rerouteConnectionIds,
+            dragCacheEdges: buildOptions?.dragCacheEdges,
           },
     );
   });

@@ -5,6 +5,7 @@ import {
   fiberRowY,
   FIBER_ROW_PITCH,
   MIN_FIBER_LINE_GAP,
+  resolveCableDragStopStackX,
   resolveCableDragStopX,
   resolveCableDragStopY,
   SPLICE_LANE_SEP,
@@ -53,5 +54,24 @@ describe("resolveCableDragStopY", () => {
   it("keeps custom spread when released away from the band", () => {
     expect(resolveCableDragStopY(300, "top", yBounds)).toBe(300);
     expect(resolveCableDragStopY(500, "bottom", yBounds)).toBe(500);
+  });
+});
+
+describe("resolveCableDragStopStackX", () => {
+  const stackBounds = { minX: 72, maxX: 900 };
+
+  it("magnetically snaps when released near the auto stack column", () => {
+    expect(resolveCableDragStopStackX(510, 500, stackBounds)).toBe(500);
+    expect(resolveCableDragStopStackX(85, 72, stackBounds)).toBe(72);
+  });
+
+  it("keeps custom spread when released away from the column", () => {
+    expect(resolveCableDragStopStackX(600, 500, stackBounds)).toBe(600);
+    expect(resolveCableDragStopStackX(750, 500, stackBounds)).toBe(750);
+  });
+
+  it("clamps to horizontal envelope", () => {
+    expect(resolveCableDragStopStackX(950, 500, stackBounds)).toBe(900);
+    expect(resolveCableDragStopStackX(10, 500, stackBounds)).toBe(72);
   });
 });
