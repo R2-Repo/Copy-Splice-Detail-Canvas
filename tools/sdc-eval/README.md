@@ -13,6 +13,7 @@ Headless dev tool — same import/search/routing/rules code path as the PWA, no 
 | `evaluate-tier` | Tiered T0/T1/T2 eval with `maxTier` |
 | `evaluate-batch` | Batch tiered eval on many candidates |
 | `rules` | Run SDC rules (with optional candidate) |
+| `import-rules` | Run DATA/ORDER import rules after CSV parse (PWA parity) |
 | `export-top` | Search + write top N `.sdc.json` |
 
 ## Daemon

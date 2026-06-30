@@ -22,7 +22,8 @@ import {
 import { analyzeTopology } from "@/features/layoutSearch/topology/analyzeTopology";
 import type { TopologyAnalysis } from "@/features/layoutSearch/topology/topologyTypes";
 import { buildSdcRuleContext } from "@/features/rules/buildSdcContext";
-import { runRules } from "@/features/rules/runRules";
+import { allRulesPass, runImportRules, runRules } from "@/features/rules/runRules";
+import type { SdcRuleId } from "@/features/rules/types";
 import type { ConnectionGraph } from "@/types/splice";
 
 import { exportTopCandidates } from "./exportTopCandidates";
@@ -259,6 +260,32 @@ export function handleEvaluateBatch(
   };
 }
 
+const IMPORT_RULE_IDS: SdcRuleId[] = [
+  "SDC-CORE-001",
+  "SDC-DATA-001",
+  "SDC-DATA-002",
+  "SDC-ORDER-001",
+  "SDC-ORDER-002",
+];
+
+export function handleImportRules(input: GraphInput, store: SessionStore) {
+  const session = getOrCreateSession(store, input);
+  const start = performance.now();
+  const ctx = buildSdcRuleContext(session.graph, { skipReactFlow: true });
+  const violations = runImportRules(ctx);
+  return {
+    ok: true,
+    command: "import-rules" as const,
+    sessionKey: session.sessionKey,
+    summary: session.summary,
+    wallMs: performance.now() - start,
+    importRuleIds: IMPORT_RULE_IDS,
+    violations: serializeViolations(violations),
+    ruleRejectCounts: ruleRejectCounts(violations),
+    feasible: allRulesPass(violations),
+  };
+}
+
 export function handleRules(
   input: GraphInput & {
     candidate?: LayoutCandidate;
@@ -328,6 +355,7 @@ export type DaemonCommand =
   | "evaluate-tier"
   | "evaluate-batch"
   | "rules"
+  | "import-rules"
   | "export-top";
 
 export function dispatchCommand(
@@ -364,6 +392,11 @@ export function dispatchCommand(
       );
     case "rules":
       return handleRules(payload as Parameters<typeof handleRules>[0], store);
+    case "import-rules":
+      return handleImportRules(
+        payload as Parameters<typeof handleImportRules>[0],
+        store,
+      );
     case "export-top":
       return handleExportTop(
         payload as Parameters<typeof handleExportTop>[0],

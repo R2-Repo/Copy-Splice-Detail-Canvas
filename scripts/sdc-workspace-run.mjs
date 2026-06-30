@@ -1,17 +1,22 @@
 /**
  * Run sdc-workspace: find CSV in input/, export top N .sdc.json to output/.
- * Uses Python sidecar (daemon-accelerated export-top).
+ * Refreshes TS eval daemon, runs import-rules preflight, matches app time budget.
  *
  * Usage: node scripts/sdc-workspace-run.mjs [workspaceDir] [--deep]
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const defaultWorkspace = join(ROOT, "sdc-workspace");
 const pythonCmd = process.platform === "win32" ? "python" : "python3";
+
+/** Same formula as importTimeBudgetMs in src/features/layoutSearch/importSearchConfig.ts */
+function importTimeBudgetMs(strandCount) {
+  return Math.min(300_000, 90_000 + strandCount * 2_500);
+}
 
 function normalizeDir(arg) {
   if (!arg) return defaultWorkspace;
@@ -61,19 +66,62 @@ function findCsv(workspaceDir) {
   return candidates[0];
 }
 
-function runPython(args, label) {
+function runPython(args, label, { allowFailure = false } = {}) {
   const result = spawnSync(pythonCmd, args, {
     cwd: ROOT,
     encoding: "utf8",
     env: { ...process.env, SDC_REPO_ROOT: ROOT },
     shell: false,
   });
-  if (result.status !== 0) {
+  if (result.status !== 0 && !allowFailure) {
     console.error(`\n[FAIL] ${label}`);
     console.error(result.stderr || result.stdout || "unknown error");
     process.exit(result.status ?? 1);
   }
-  return result.stdout;
+  return result.stdout ?? "";
+}
+
+function parseJson(text, label) {
+  try {
+    return JSON.parse(text.trim());
+  } catch {
+    console.error(`[FAIL] ${label} — invalid JSON`);
+    process.exit(1);
+  }
+}
+
+function strandCountFromParseSummary(summary) {
+  if (!summary) return 0;
+  if (typeof summary.fiberConnections === "number") return summary.fiberConnections;
+  if (typeof summary.connectionCount === "number") return summary.connectionCount;
+  return (summary.fiberConnections ?? 0) + (summary.tubeConnections ?? 0);
+}
+
+function warnImportRules(importRules) {
+  if (importRules?.feasible !== false) {
+    console.log("Import rules: OK");
+    return;
+  }
+  console.warn("\n[WARN] Import validation failed (continuing — same as PWA banner):");
+  for (const v of importRules.violations ?? []) {
+    if (!v.ok) {
+      console.warn(`  ${v.id}: ${v.detail}`);
+    }
+  }
+  console.warn("");
+}
+
+function mergeSearchSummary(outDir, patch) {
+  const summaryPath = join(outDir, "search-summary.json");
+  let base = {};
+  if (existsSync(summaryPath)) {
+    try {
+      base = JSON.parse(readFileSync(summaryPath, "utf8"));
+    } catch {
+      base = {};
+    }
+  }
+  writeFileSync(summaryPath, `${JSON.stringify({ ...base, ...patch }, null, 2)}\n`, "utf8");
 }
 
 const argv = process.argv.slice(2);
@@ -89,7 +137,8 @@ const relCsv = csvPath.startsWith(ROOT)
 console.log("SDC workspace run");
 console.log(`  CSV:    ${csvPath}`);
 console.log(`  Output: ${outDir}`);
-console.log(`  Mode:   ${deep ? "deep-search (Python)" : "export-top"}`);
+console.log(`  Mode:   ${deep ? "deep-search + export-top" : "export-top"}`);
+console.log("  Rules:  src/features/rules (TS — fresh process each export-top)");
 console.log("");
 
 mkdirSync(outDir, { recursive: true });
@@ -99,15 +148,27 @@ if (!existsSync(join(ROOT, "node_modules", "tsx", "dist", "cli.mjs"))) {
   process.exit(1);
 }
 
-const sidecarCheck = spawnSync(
-  pythonCmd,
-  ["-m", "sdc", "daemon", "status"],
-  { cwd: ROOT, encoding: "utf8", env: { ...process.env, SDC_REPO_ROOT: ROOT } },
-);
-if (sidecarCheck.status !== 0) {
-  console.log("Starting TS eval daemon pool...");
-  runPython(["-m", "sdc", "daemon", "start", "--workers", "1"], "daemon start");
-}
+console.log("Refreshing TS eval daemon (latest rule code)...");
+runPython(["-m", "sdc", "daemon", "stop"], "daemon stop", { allowFailure: true });
+runPython(["-m", "sdc", "daemon", "start", "--workers", "1"], "daemon start");
+
+console.log("Parsing CSV...");
+const parseOut = runPython(["-m", "sdc", "parse", csvPath], "parse");
+const parsed = parseJson(parseOut, "parse");
+const strandCount = strandCountFromParseSummary(parsed.summary);
+const timeBudgetMs = importTimeBudgetMs(strandCount);
+console.log(`  Strands: ${strandCount}  Time budget: ${timeBudgetMs}ms`);
+
+console.log("Running import-rules preflight...");
+const importRulesOut = runPython(["-m", "sdc", "import-rules", csvPath], "import-rules");
+const importRulesResult = parseJson(importRulesOut, "import-rules");
+const importRules = {
+  feasible: importRulesResult.feasible,
+  violations: importRulesResult.violations ?? [],
+  ruleRejectCounts: importRulesResult.ruleRejectCounts ?? {},
+  importRuleIds: importRulesResult.importRuleIds ?? [],
+};
+warnImportRules(importRules);
 
 if (deep) {
   console.log("Running deep-search (may take several minutes)...");
@@ -131,23 +192,17 @@ if (deep) {
     "deep-search",
   );
   try {
-    const parsed = JSON.parse(deepOut);
-    writeFileSync(
-      join(outDir, "search-summary.json"),
-      JSON.stringify(
-        {
-          mode: "deep-search",
-          csvPath: relCsv,
-          bestScore: parsed.bestScore,
-          comparison: parsed.comparison,
-          incumbent: parsed.incumbent,
-          wallMs: parsed.wallMs,
-        },
-        null,
-        2,
-      ) + "\n",
-      "utf8",
-    );
+    const deepParsed = JSON.parse(deepOut);
+    mergeSearchSummary(outDir, {
+      deepSearch: {
+        mode: "deep-search",
+        csvPath: relCsv,
+        bestScore: deepParsed.bestScore,
+        comparison: deepParsed.comparison,
+        incumbent: deepParsed.incumbent,
+        wallMs: deepParsed.wallMs,
+      },
+    });
   } catch {
     /* deep-search stdout may be large */
   }
@@ -166,18 +221,27 @@ const exportOut = runPython(
     "5",
     "--max-rounds",
     "2000",
+    "--time-budget-ms",
+    String(timeBudgetMs),
   ],
   "export-top",
 );
 
-try {
-  const parsed = JSON.parse(exportOut);
-  console.log("");
-  console.log("Done. Import in the web app (Import file):");
-  for (const exp of parsed.exports ?? []) {
-    console.log(`  ${exp.fileName}  score=${exp.score}  feasible=${exp.feasible}`);
-  }
-  console.log(`\nSummary: ${join(outDir, "search-summary.json")}`);
-} catch {
-  console.log(exportOut.slice(0, 2000));
+const exportParsed = parseJson(exportOut, "export-top");
+
+mergeSearchSummary(outDir, {
+  mode: deep ? "deep-search + export-top" : "export-top",
+  rulesEngine: "src/features/rules (TS)",
+  csvPath: relCsv,
+  strandCount,
+  timeBudgetMs,
+  maxRounds: 2000,
+  importRulesPreflight: importRules,
+});
+
+console.log("");
+console.log("Done. Import in the web app (Import file):");
+for (const exp of exportParsed.exports ?? []) {
+  console.log(`  ${exp.fileName}  score=${exp.score}  feasible=${exp.fasible}`);
 }
+console.log(`\nSummary: ${join(outDir, "search-summary.json")}`);

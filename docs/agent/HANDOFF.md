@@ -2,6 +2,25 @@
 
 ## Last session (2026-06-30)
 
+**sdc-workspace — latest rules parity on `run.bat`**
+
+### Shipped
+
+- **`import-rules`** headless command (`tools/sdc-eval`) + `sdc import-rules` Python CLI — same DATA/ORDER pre-check as PWA CSV import
+- **`scripts/sdc-workspace-run.mjs`** — always restart TS daemon; parse → import-rules (warn + continue) → `export-top` with app `timeBudgetMs` and `--max-rounds 2000`
+- **`export-top`** writes `importRules` + rules engine metadata in `search-summary.json`
+- **`run.bat` / `run.ps1` / `sdc-workspace/README.md`** — document TS rules vs rule-pack docs
+- **`sdc:verify`** — smoke `import-rules` (TS + Python)
+
+### Manual QA
+
+- Put CSV in `sdc-workspace/input/`, double-click `run.bat`
+- Check console for import-rules + time budget; `output/search-summary.json` has `importRules` / `importRulesPreflight`
+- Import `rank-1.sdc.json` in PWA
+- After editing `src/features/rules/*.ts`, re-run `run.bat` (no manual daemon step)
+
+---
+
 **SDC-ROUTE-001 — routing box clarity + zone math**
 
 ### Shipped

@@ -17,6 +17,7 @@
         "evaluate-tier",
         "evaluate-batch",
         "rules",
+        "import-rules",
         "export-top"
       ]
     },

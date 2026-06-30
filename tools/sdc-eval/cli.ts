@@ -21,6 +21,7 @@ const COMMANDS: DaemonCommand[] = [
   "evaluate-batch",
   "analyze-topology",
   "rules",
+  "import-rules",
   "export-top",
 ];
 

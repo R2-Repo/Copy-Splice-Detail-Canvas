@@ -35,6 +35,11 @@ Write-Host "[2/2] Installing Python sidecar..."
 python -m pip install -e "tools/sdc-sidecar" -q
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+Write-Host ""
+Write-Host "Refreshing rules engine and running layout export..." -ForegroundColor Cyan
+Write-Host "  Rules: src/features/rules/*.ts (TypeScript — same as web app)"
+Write-Host ""
+
 $nodeArgs = @($WorkspaceDir)
 if ($Deep) { $nodeArgs += "--deep" }
 

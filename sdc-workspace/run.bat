@@ -45,6 +45,11 @@ if errorlevel 1 (
   exit /b 1
 )
 
+echo.
+echo Refreshing rules engine and running layout export...
+echo   Rules: src/features/rules/*.ts ^(TypeScript — same as web app^)
+echo.
+
 set "SDC_REPO_ROOT=%CD%"
 set "WORKSPACE_ARGS=%~dp0."
 if /I "%~1"=="--deep" set "WORKSPACE_ARGS=%~dp0. --deep"

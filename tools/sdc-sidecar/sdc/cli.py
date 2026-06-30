@@ -27,6 +27,12 @@ def _cmd_parse(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_import_rules(args: argparse.Namespace) -> int:
+    out = eval_command("import-rules", csv_path_payload(args.csv), timeout_s=args.timeout)
+    print(json.dumps(out, indent=2))
+    return 0
+
+
 def _cmd_topology(args: argparse.Namespace) -> int:
     out = eval_command("analyze-topology", csv_path_payload(args.csv), timeout_s=args.timeout)
     print(json.dumps(out, indent=2))
@@ -276,6 +282,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_parse.add_argument("csv")
     p_parse.add_argument("--include-graph", action="store_true")
     p_parse.set_defaults(func=_cmd_parse)
+
+    p_import_rules = sub.add_parser(
+        "import-rules",
+        help="Run DATA/ORDER import rules (same pre-check as PWA CSV import)",
+    )
+    p_import_rules.add_argument("csv")
+    p_import_rules.set_defaults(func=_cmd_import_rules)
 
     p_topo = sub.add_parser("topology", help="Analyze topology constraints")
     p_topo.add_argument("csv")

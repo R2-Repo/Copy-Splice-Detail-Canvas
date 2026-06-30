@@ -10,6 +10,8 @@
 
 **Python sidecar v0.2** — TS eval daemon pool, `deep-search` / `compare` / `sweep`, topology-aware candidate gen, tiered eval pipeline, SQLite cache, PWA stub (`deepSearchClient.ts`). See [`tools/sdc-sidecar/README.md`](../../tools/sdc-sidecar/README.md).
 
+**sdc-workspace (`run.bat`)** — one-click CSV → `rank-*.sdc.json`: daemon refresh, `import-rules` preflight (warn-only), app-matched `timeBudgetMs`, `export-top` with fresh TS rules from `src/features/rules/`.
+
 **Import optimizer (shipped)** — routing-first search, beam + tiered T0/T1/T2, finalist fallback, worker, diagnostics.
 
 **Quad / top-bottom** — four-edge placement + render adapters; see [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md).

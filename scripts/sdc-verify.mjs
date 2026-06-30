@@ -77,6 +77,7 @@ if (!parsed.ok || parsed.summary?.cableCount !== 4) {
 }
 
 runTsEval("TS analyze-topology", "analyze-topology", { csvPath: FIXTURE });
+runTsEval("TS import-rules", "import-rules", { csvPath: FIXTURE });
 
 const searchOut = runTsEval("TS search", "search", {
   csvPath: FIXTURE,
@@ -121,6 +122,7 @@ if (!evaluated.evaluation?.feasible) {
 runPython(["daemon", "start", "--workers", "1"], "Python daemon start");
 runPython(["topology", FIXTURE_ABS], "Python topology");
 runPython(["parse", FIXTURE_ABS], "Python parse");
+runPython(["import-rules", FIXTURE_ABS], "Python import-rules");
 runPython(["search", FIXTURE_ABS, "--max-rounds", "15"], "Python search");
 
 const calOut = runPython(

@@ -20,6 +20,8 @@ import {
   type LayoutCandidate,
 } from "@/features/layoutSearch/layoutCandidate";
 import { evaluateLayoutCandidate } from "@/features/layoutSearch/evaluateCandidate";
+import { buildSdcRuleContext } from "@/features/rules/buildSdcContext";
+import { allRulesPass, runImportRules } from "@/features/rules/runRules";
 import {
   INFEASIBLE_LAYOUT_SCORE,
   layoutSearch,
@@ -29,7 +31,7 @@ import type { SerializableLayoutSearchConfig } from "@/features/layoutSearch/lay
 import type { ConnectionGraph, LayoutOverrides } from "@/types/splice";
 
 import { graphSummary, loadGraphFromInput } from "./graphJson";
-import { serializeEvaluation } from "./serialize";
+import { ruleRejectCounts, serializeEvaluation, serializeViolations } from "./serialize";
 
 export type ExportTopCandidatesInput = {
   graph?: import("./graphJson").GraphJson;
@@ -269,6 +271,13 @@ export function exportTopCandidates(
   mkdirSync(outDir, { recursive: true });
 
   const graph = loadGraphFromInput(input);
+  const importCtx = buildSdcRuleContext(graph, { skipReactFlow: true });
+  const importViolations = runImportRules(importCtx);
+  const importRules = {
+    feasible: allRulesPass(importViolations),
+    violations: serializeViolations(importViolations),
+    ruleRejectCounts: ruleRejectCounts(importViolations),
+  };
   const seed =
     input.config?.seed ?? seedFromReportKey(reportStorageKey(graph));
   const sourceFileName =
@@ -320,9 +329,14 @@ export function exportTopCandidates(
 
   const summaryPayload = {
     exportedAt: new Date().toISOString(),
+    mode: "export-top",
+    rulesEngine: "src/features/rules (TS)",
     csvPath: input.csvPath,
     sourceFileName,
     top: topN,
+    timeBudgetMs: input.config?.timeBudgetMs ?? null,
+    maxRounds: input.config?.maxRounds ?? null,
+    importRules,
     searchWallMs,
     evaluations: searchResult.evaluations,
     bestScore: searchResult.bestScore,
