@@ -1,6 +1,6 @@
 import type { ConnectionGraph } from "@/types/splice";
 
-import type { LayoutCandidate } from "./layoutCandidate";
+import type { LayoutCandidate, LayoutSide } from "./layoutCandidate";
 import type { LayoutEvaluationResult } from "./evaluateCandidate";
 import type { LayoutSearchResult } from "./layoutSearch";
 
@@ -68,6 +68,13 @@ export type SerializableLayoutSearchConfig = {
   restartInterval?: number;
   plateauRounds?: number;
   debugTopN?: number;
+  /** Side-drag re-optimize — seed from post-flip candidate instead of heuristic baseline. */
+  seedCandidate?: LayoutCandidate;
+  /** User-locked cable sides merged into topology constraints. */
+  lockedCableSides?: Record<string, LayoutSide>;
+  disableTopologyConstraints?: boolean;
+  disableTieredEval?: boolean;
+  searchProfile?: "full" | "background";
 };
 
 export type LayoutSearchWorkerRequest =

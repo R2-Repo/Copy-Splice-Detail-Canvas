@@ -9,7 +9,7 @@ export function debugSideDragEnabled(): boolean {
 }
 
 export type SideDragLogContext = {
-  phase: "preview" | "commit" | "detect" | "bounds";
+  phase: "preview" | "commit" | "detect" | "bounds" | "preview-skipped";
   visualId?: string;
   nodeId?: string;
   drag?: { x: number; y: number };
