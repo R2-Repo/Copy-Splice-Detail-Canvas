@@ -4,7 +4,7 @@
 
 ## Focus (2026-06-30)
 
-**4-side cable drag (connected reroute)** — post-import side drag runs constrained layout re-search on T/B or quad transitions; L↔R stays local. Drag-release shows “Adjusting layout…” overlay; winner co-tunes partner sides/stacks.
+**4-side cable drag (connected reroute)** — post-import side drag runs constrained layout re-search on T/B or quad transitions; L↔R stays local. Drag-release shows “Adjusting layout…” overlay; winner co-tunes partner sides/stacks. Underlying plumbing: exclude current side from proximity detection, frozen drag bounds at drag start, stale position clear on quad entry.
 
 **SDC-ROUTE-001 routing box** — two-case zone docs (L/R-only vs four-sided); quad anchors use cable `quadSide`; horizontal vertical bounds from L/R fibers only.
 

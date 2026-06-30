@@ -38,6 +38,19 @@ VITE_DEBUG_SIDE_DRAG=1
 
 ## Previous session (2026-06-30)
 
-**4-side cable drag — top/bottom detection plumbing**
+**4-side cable drag — top/bottom detection plumbing (merged #45)**
 
-- Exclude current side from proximity detection; frozen drag bounds; stale position clear on quad entry
+- `detectSideFromEdgeProximity` excludes current side so left-column drags reach top/bottom
+- Frozen `sideDragBounds` at drag start; same-side Y clamp; fitView on side flip
+- `[side-drag]` logs via `debugSideDrag.ts`; `.env.example` documents `VITE_DEBUG_SIDE_DRAG=1`
+
+---
+
+## Previous session (2026-06-30)
+
+**4-side cable drag and flip (post-import manual adjust)**
+
+- **`cableSideDrag.ts`** — `canUseCandidateSideDrag`; manual mode skips lock; clear `quadCableSides` when demoted to horizontal
+- **Bugfix (bottom→top)** — on side flip, drop stale saved cable position from rebuild; `resolveSideDragCablePosition` uses auto-placed Y/X on cross-axis
+- **`WorkflowCanvas.tsx`** — unified candidate side-drag path; top/bottom Y snap on drag-stop
+- **Tests** — promotion/demotion, preview no-lock, manual no-lock
