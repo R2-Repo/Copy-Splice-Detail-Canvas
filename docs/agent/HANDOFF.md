@@ -1,27 +1,25 @@
 # Handoff
 
-> Agents: overwrite this section at the end of each session.
+## Last session (2026-06-30)
 
-## Last updated
+**Python Sidecar — Full Power Build** — implemented per plan.
 
-2026-06-30 — **SDC workspace + export-top**
+### Shipped
 
-### This session
-
-- **`sdc-workspace/`** — drop CSV in `input/`, double-click **`run.bat`**, get `output/rank-*.sdc.json` for web **Import file**.
-- **`export-top`** command on `npm run sdc:eval` — search + paint + write `.sdc.json` (same schema as Export workspace).
-- **`buildDiagramConfigFromOverrides.ts`** — headless config builder (no localStorage).
-- **`npm run sdc:workspace`** — runs workspace from repo root.
-- Python `sdc export-top` wired to TS CLI.
-
-**Gate:** `npm run check` pass; `npm run sdc:workspace` tested on Left-SP-3254.5 (2 feasible ranks on small fixture).
+- **TS:** `tools/sdc-eval/daemon.ts` (HTTP + NDJSON), `handlers.ts`, commands `analyze-topology`, `evaluate-tier`, `evaluate-batch`
+- **Python:** daemon pool, `deep-search`, `compare`, `topology`, `evaluate-batch`, `sweep`, `serve`, `cache`, `calibrate-t0`
+- **Engine:** topology-aware seeds/mutations, evolutionary + beam strategies, coordinator tiered pipeline, T0 mirror, SQLite cache, checkpoints
+- **PWA stub:** `src/features/layoutSearch/deepSearchClient.ts` (localhost only, no UI toggle)
+- **Verify:** `npm run sdc:verify` expanded (daemon, topology, T0 calibrate)
 
 ### Manual QA
 
-1. `npm run sdc:workspace` (or double-click `sdc-workspace/run.bat`).
-2. In app: **Import file** → `sdc-workspace/output/rank-1.sdc.json`.
-3. Confirm diagram loads; optionally export/import roundtrip from app.
+- `npm run sdc:verify`
+- `npm run sdc:sidecar -- deep-search docs/reference/examples/Left-SP-3254.5.csv --time-budget-ms 30000`
+- Import example-2 in app (unchanged default path)
 
-### Frozen
+### Notes
 
-`spliceEdgeRouting.ts` — not touched.
+- Ray optional (`pip install -e ".[ray]"`) — falls back to sequential/ProcessPool on Python 3.14+
+- Daemon ports: 18765+ (pool), serve: 18780
+- Winning Python strategy port to TS still follows `tools/sdc-sidecar/sdc/experimental/port_checklist.md`

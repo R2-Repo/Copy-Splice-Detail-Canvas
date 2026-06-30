@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sdc-eval-evaluate-tier-request",
+  "title": "EvaluateTierRequest",
+  "type": "object",
+  "required": ["candidate"],
+  "oneOf": [
+    { "required": ["csvPath", "candidate"] },
+    { "required": ["csvText", "candidate"] },
+    { "required": ["graph", "candidate"] },
+    { "required": ["sessionKey", "candidate"] }
+  ],
+  "properties": {
+    "csvPath": { "type": "string" },
+    "csvText": { "type": "string" },
+    "graph": { "$ref": "connection-graph.schema.json" },
+    "sessionKey": { "type": "string" },
+    "candidate": { "$ref": "layout-candidate.schema.json" },
+    "maxTier": { "enum": ["T0", "T1", "T2"] },
+    "bestScore": { "type": "number" }
+  }
+}

@@ -4,11 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sdc-sidecar"
-version = "0.1.0"
+version = "0.2.0"
 description = "Dev-only Python sidecar for Splice Detail Canvas import/routing/rules"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+  "numpy>=1.26",
+  "orjson>=3.9",
+]
+
+[project.optional-dependencies]
+ray = ["ray[default]>=2.9"]
 
 [project.scripts]
 sdc = "sdc.cli:main"

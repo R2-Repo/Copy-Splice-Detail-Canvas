@@ -1,86 +1,94 @@
 # SDC Python sidecar (dev-only)
 
-Local orchestration layer for import, routing, and rules development. **Not shipped in the PWA** and **not part of `npm run smoke`.**
+Local **search coordinator** for import, routing, and rules development. **Not shipped in the PWA** and **not part of `npm run smoke`.**
 
-TypeScript remains the source of truth — this package spawns `npm run sdc:eval` subprocesses.
+TypeScript remains the source of truth for routing, rules, and T2 evaluation. Python owns **strategy**, **parallelism**, and **dev-scale search**.
 
 ## Setup
 
 From repo root:
 
 ```bash
-npm install          # includes tsx for sdc-eval CLI
+npm install
 cd tools/sdc-sidecar
-python -m pip install -e .   # optional editable install for `sdc` script
-```
-
-Or run without install:
-
-```bash
-cd tools/sdc-sidecar
-python -m sdc search ../../docs/reference/examples/Left-SP-3254.5.csv
+python -m pip install -e .
+# Optional: Ray for multi-core batch eval (Python 3.11–3.12)
+python -m pip install -e ".[ray]"
 ```
 
 **Requirements:** Python 3.11+, Node 20+, npm.
 
-Set `SDC_REPO_ROOT` if auto-detection fails (optional — `npm run sdc:sidecar` sets it for you).
+## Architecture
+
+```
+Python sdc CLI (strategy + Ray/ProcessPool)
+  → DaemonPool (HTTP, persistent TS processes)
+    → tools/sdc-eval/daemon.ts
+      → tiered T0/T1/T2 eval, layoutSearch, rules
+```
+
+Optional PWA hook: `src/features/layoutSearch/deepSearchClient.ts` → `sdc serve` on `http://127.0.0.1:18780`.
 
 ## Commands
 
 | Command | Purpose |
 |---------|---------|
-| `sdc parse <csv>` | CSV summary via TS parser |
-| `sdc search <csv>` | Full `layoutSearch` headlessly |
-| `sdc batch --preset qa` | Parallel fixture sweep + HTML report |
-| `sdc experiment search <csv>` | Python candidate generator + TS validate top-K |
-| `sdc experiment compare <csv>` | Experimental vs incumbent search (golden JSON) |
+| `sdc daemon start\|stop\|status` | TS eval daemon pool |
+| `sdc deep-search <csv>` | Python-orchestrated tiered search |
+| `sdc compare <csv>` | Deep search vs TS incumbent + golden JSON |
+| `sdc topology <csv>` | Export topology constraints |
+| `sdc evaluate-batch <csv> <candidates.json>` | TS batch tier eval |
+| `sdc calibrate-t0 <csv>` | T0 mirror vs TS (zero false rejects) |
+| `sdc sweep --preset qa` | Hyperparam sweep |
+| `sdc serve` | HTTP API for PWA stub |
+| `sdc cache stats\|clear` | SQLite score cache |
+| `sdc parse`, `search`, `batch`, `export-top` | Same as before (daemon-accelerated) |
 
 ### Examples
 
 ```bash
-# Single search with report files
-python -m sdc search ../../docs/reference/examples/Left-SP-3254.5.csv \
-  --max-rounds 500 --out-dir ../../docs/reference/import-diagnostics
+# Start daemon pool (auto-started on first command)
+python -m sdc daemon start --workers 2
 
-# Batch QA preset (SP-3254.5, STATE_OFFICE, example-2)
-python -m sdc batch --preset qa --workers 1 --out-dir .sdc-cache/batch
+# Deep search with time budget
+python -m sdc deep-search ../../docs/reference/examples/Left-SP-3254.5.csv \
+  --strategy evolutionary --time-budget-ms 60000 --population-size 128
 
-# Compare experimental search to TS layoutSearch
-python -m sdc experiment compare ../../docs/reference/examples/Left-SP-3254.5.csv \
-  --validate-top 10 --iterations 128
+# Compare vs incumbent (writes fixtures/golden/)
+python -m sdc compare ../../docs/reference/examples/Left-SP-3254.5.csv \
+  --max-generations 10 --out-dir .sdc-cache/compare
+
+# HTTP API for PWA stub
+python -m sdc serve --port 18780
 ```
 
-## Architecture
+From repo root:
 
+```bash
+npm run sdc:sidecar -- deep-search docs/reference/examples/Left-SP-3254.5.csv
+npm run sdc:verify
+npm run sdc:daemon    # single TS daemon (NDJSON + HTTP)
+npm run sdc:serve     # Python HTTP API
 ```
-Python sdc CLI
-  → subprocess: npm run sdc:eval
-    → tools/sdc-eval/cli.ts (parse | search | evaluate | rules)
-      → src/features/layoutSearch, grid router, SDC rules
-```
 
-Experimental code lives under `sdc/experimental/`:
+## Strategies
 
-- `search.py` — random/mutate candidate generation; TS scores winners
-- `proxy.py` — optional T0/T1-style pre-filter (not authoritative)
-
-Before porting experiments to TypeScript, follow [`sdc/experimental/port_checklist.md`](sdc/experimental/port_checklist.md).
+| Name | Description |
+|------|-------------|
+| `evolutionary` | Topology seeds + mutations + tiered eval (default) |
+| `python_beam` | Beam-width limited expansion |
+| `hybrid` | Evolutionary population (TS refinement via compare) |
+| `incumbent` | Delegate to TS `layoutSearch` only |
 
 ## Reports
 
-Batch mode writes import-diagnostics-aligned artifacts:
-
-- `<stem>-run-summary.json`
-- `<stem>-search-response.json`
-- `batch-report.html`
-- `batch-summary.json`
-
-See [`docs/reference/import-diagnostics/`](../../docs/reference/import-diagnostics/) for browser-captured samples.
+Batch/deep-search writes import-diagnostics-aligned artifacts under `--out-dir` or `.sdc-cache/`.
 
 ## Direct TS CLI
 
 ```bash
-echo '{"csvPath":"docs/reference/examples/Left-SP-3254.5.csv"}' | npm run sdc:eval -- parse
+echo '{"csvPath":"docs/reference/examples/Left-SP-3254.5.csv"}' | npm run sdc:eval -- analyze-topology
+echo '{"csvPath":"...","candidates":[...],"maxTier":"T0"}' | npm run sdc:eval -- evaluate-batch
 ```
 
 Schemas: [`../sdc-eval/schemas/`](../sdc-eval/schemas/).

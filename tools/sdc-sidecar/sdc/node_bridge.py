@@ -25,8 +25,7 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
-def eval_command(command: str, payload: dict[str, Any], *, timeout_s: float | None = None) -> dict[str, Any]:
-    """Run tools/sdc-eval/cli.ts with JSON on stdin."""
+def _subprocess_eval(command: str, payload: dict[str, Any], *, timeout_s: float | None = None) -> dict[str, Any]:
     root = repo_root()
     tsx_name = "tsx.cmd" if sys.platform == "win32" else "tsx"
     tsx = root / "node_modules" / ".bin" / tsx_name
@@ -57,6 +56,26 @@ def eval_command(command: str, payload: dict[str, Any], *, timeout_s: float | No
         return json.loads(proc.stdout)
     except json.JSONDecodeError as exc:
         raise NodeBridgeError(f"Invalid JSON from sdc:eval: {exc}\n{proc.stdout[:500]}") from exc
+
+
+def eval_command(
+    command: str,
+    payload: dict[str, Any],
+    *,
+    timeout_s: float | None = None,
+    use_daemon: bool = True,
+) -> dict[str, Any]:
+    """Run sdc-eval via daemon pool when available, else subprocess."""
+    if use_daemon and command not in ("export-top",):
+        try:
+            from sdc.daemon.pool import get_pool
+
+            pool = get_pool(auto_start=True)
+            if pool is not None:
+                return pool.call(command, payload, timeout_s=timeout_s or 600)
+        except Exception:
+            pass
+    return _subprocess_eval(command, payload, timeout_s=timeout_s)
 
 
 def csv_path_payload(csv_path: str | Path) -> dict[str, str]:

@@ -96,15 +96,16 @@ npm run sdc:eval -- evaluate --file tools/sdc-sidecar/fixtures/evaluate-request.
 
 JSON schemas: [`tools/sdc-eval/schemas/`](../../tools/sdc-eval/schemas/). **Not part of `npm run smoke`.**
 
-**Python sidecar** (batch runs, reports, experimental search) — see [`tools/sdc-sidecar/README.md`](../../tools/sdc-sidecar/README.md):
+**Python sidecar** (daemon pool, deep-search, batch) — see [`tools/sdc-sidecar/README.md`](../../tools/sdc-sidecar/README.md):
 
 ```bash
-cd tools/sdc-sidecar
-python -m sdc search ../../docs/reference/examples/Left-SP-3254.5.csv
-python -m sdc batch --preset qa
+npm run sdc:sidecar -- daemon start --workers 2
+npm run sdc:sidecar -- deep-search docs/reference/examples/Left-SP-3254.5.csv --time-budget-ms 60000
+npm run sdc:sidecar -- compare docs/reference/examples/Left-SP-3254.5.csv
+npm run sdc:serve   # HTTP API for PWA deep-search stub (port 18780)
 ```
 
-Requires Python 3.11+ and `npm install` (uses `tsx` devDependency for `npm run sdc:eval`).
+Requires Python 3.11+ and `pip install -e tools/sdc-sidecar`. Optional: `pip install -e "tools/sdc-sidecar[ray]"` on supported Python versions.
 
 **Setup + verify (from repo root):**
 

@@ -93,6 +93,18 @@ Vite dev server — typically http://localhost:5173
 | Drag stop (grid auto) | yes | yes | reuse drag snapshot + reroute dragged cable only |
 | Drag stop (manual) | yes | skipped (`skipTubeAutoAlign`) | manual leg paths preserved |
 
+## Dev sidecar (Python coordinator + TS daemon)
+
+Not shipped in the PWA. Used for headless search iteration and batch QA.
+
+```
+tools/sdc-eval/     TS CLI + daemon (authoritative T0/T1/T2, rules, layoutSearch)
+tools/sdc-sidecar/  Python strategy, daemon pool, deep-search, sweep, SQLite cache
+```
+
+- **`deepSearchClient.ts`** — optional localhost hook (`VITE_DEEP_SEARCH_URL`, default `http://127.0.0.1:18780`). Default import unchanged.
+- Verify: `npm run sdc:verify` (not part of `npm run smoke`).
+
 ## Manual overrides (v14)
 
 - **`connectionOverrides` / `bundleOverrides`** — parameter-based routing offsets (Phase 5). `connectionOverrides` keyed by connection id (`laneOffsetX`, `dotOffsetX`, `spliceRowOffsetY`); `bundleOverrides` keyed by `tubeBundleKey`.

@@ -5,16 +5,20 @@ Use this before merging any experimental search or proxy logic into `src/`.
 ## Preconditions
 
 1. Change is scoped to **search strategy** or **tiered eval hooks** — not frozen routing symbols (see `.cursor/rules/frozen-routing.mdc`).
-2. Python prototype has a recorded `sdc experiment compare` run on the target CSV(s).
+2. Python prototype has a recorded `sdc compare` run on the target CSV(s).
 
 ## Validation steps
 
 1. **Golden compare** — run from repo root:
    ```bash
-   cd tools/sdc-sidecar
-   python -m sdc experiment compare ../../docs/reference/examples/Left-SP-3254.5.csv --validate-top 10
+   npm run sdc:sidecar -- compare docs/reference/examples/Left-SP-3254.5.csv --max-generations 10
    ```
    Save JSON to `tools/sdc-sidecar/fixtures/golden/` for regression.
+
+2. **T0 calibration** — zero false rejects:
+   ```bash
+   npm run sdc:sidecar -- calibrate-t0 docs/reference/examples/Left-SP-3254.5.csv
+   ```
 
 2. **TS authority** — incumbent `layoutSearch` score must be matched or beaten on the same fixture after port (same seed / config).
 

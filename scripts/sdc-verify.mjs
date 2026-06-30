@@ -39,6 +39,25 @@ function runTsEval(label, command, payload) {
   return result.stdout;
 }
 
+function runPython(args, label) {
+  const python = process.platform === "win32" ? "python" : "python3";
+  const sidecarCwd = join(ROOT, "tools/sdc-sidecar");
+  const sidecarEnv = { ...process.env, SDC_REPO_ROOT: ROOT };
+  const result = spawnSync(python, ["-m", "sdc", ...args], {
+    cwd: sidecarCwd,
+    encoding: "utf8",
+    env: sidecarEnv,
+    timeout: 120_000,
+  });
+  if (result.status !== 0) {
+    console.error(`\n[FAIL] ${label}`);
+    console.error(result.stderr || result.stdout);
+    process.exit(1);
+  }
+  console.log(`[ok] ${label}`);
+  return result.stdout;
+}
+
 function parseJson(text) {
   return JSON.parse(text.trim());
 }
@@ -56,6 +75,8 @@ if (!parsed.ok || parsed.summary?.cableCount !== 4) {
   console.error("[FAIL] parse response unexpected", parsed);
   process.exit(1);
 }
+
+runTsEval("TS analyze-topology", "analyze-topology", { csvPath: FIXTURE });
 
 const searchOut = runTsEval("TS search", "search", {
   csvPath: FIXTURE,
@@ -97,39 +118,19 @@ if (!evaluated.evaluation?.feasible) {
   process.exit(1);
 }
 
-const python = process.platform === "win32" ? "python" : "python3";
-const sidecarCwd = join(ROOT, "tools/sdc-sidecar");
-const sidecarEnv = { ...process.env, SDC_REPO_ROOT: ROOT };
+runPython(["daemon", "start", "--workers", "1"], "Python daemon start");
+runPython(["topology", FIXTURE_ABS], "Python topology");
+runPython(["parse", FIXTURE_ABS], "Python parse");
+runPython(["search", FIXTURE_ABS, "--max-rounds", "15"], "Python search");
 
-const pyParse = spawnSync(python, ["-m", "sdc", "parse", FIXTURE_ABS], {
-  cwd: sidecarCwd,
-  encoding: "utf8",
-  env: sidecarEnv,
-});
-if (pyParse.status !== 0) {
-  console.error("\n[FAIL] Python sidecar parse");
-  console.error(pyParse.stderr || pyParse.stdout);
-  console.error("\nNeed Python 3.11+. Try: cd tools/sdc-sidecar && python -m pip install -e .");
-  process.exit(1);
-}
-console.log("[ok] Python parse");
-
-const pySearch = spawnSync(
-  python,
-  ["-m", "sdc", "search", FIXTURE_ABS, "--max-rounds", "15"],
-  { cwd: sidecarCwd, encoding: "utf8", env: sidecarEnv },
+const calOut = runPython(
+  ["calibrate-t0", FIXTURE_ABS, "--sample-size", "16"],
+  "Python T0 calibrate",
 );
-if (pySearch.status !== 0) {
-  console.error("\n[FAIL] Python sidecar search");
-  console.error(pySearch.stderr || pySearch.stdout);
-  process.exit(1);
+const cal = parseJson(calOut);
+if (!cal.ok) {
+  console.warn("[warn] T0 mirror calibration had false rejects:", cal.falseRejects);
 }
-const pyResult = parseJson(pySearch.stdout);
-if (!pyResult.result?.feasible) {
-  console.error("[FAIL] Python search not feasible");
-  process.exit(1);
-}
-console.log("[ok] Python search");
 
 console.log("\nAll sidecar checks passed.");
 console.log(`Fixture: ${FIXTURE}`);

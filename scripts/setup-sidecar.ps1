@@ -28,6 +28,7 @@ if (-not $python) {
     Set-Location (Join-Path $Root "tools\sdc-sidecar")
     Write-Host "`nInstalling Python sidecar (editable)..."
     python -m pip install -e .
+    Write-Host "Optional Ray: python -m pip install -e `".[ray]`""
     Set-Location $Root
 }
 

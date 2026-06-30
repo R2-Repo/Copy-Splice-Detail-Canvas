@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sdc-eval-analyze-topology-request",
+  "title": "AnalyzeTopologyRequest",
+  "type": "object",
+  "oneOf": [
+    { "required": ["csvPath"] },
+    { "required": ["csvText"] },
+    { "required": ["graph"] },
+    { "required": ["sessionKey"] }
+  ],
+  "properties": {
+    "csvPath": { "type": "string" },
+    "csvText": { "type": "string" },
+    "graph": { "$ref": "connection-graph.schema.json" },
+    "sessionKey": { "type": "string" }
+  }
+}

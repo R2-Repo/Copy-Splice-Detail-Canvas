@@ -1,6 +1,8 @@
 import type { LayoutEvaluationResult } from "@/features/layoutSearch/evaluateCandidate";
 import type { LayoutCandidate } from "@/features/layoutSearch/layoutCandidate";
 import type { LayoutSearchResult } from "@/features/layoutSearch/layoutSearch";
+import type { TieredEvalResult } from "@/features/layoutSearch/tieredEvaluate";
+import type { TopologyAnalysis } from "@/features/layoutSearch/topology/topologyTypes";
 import type { RuleResult } from "@/features/rules/types";
 
 export function serializeViolations(violations: RuleResult[]) {
@@ -64,5 +66,51 @@ export function serializeSearchResult(
     winnerEvaluation: result.winnerEvaluation
       ? serializeEvaluation(result.winnerEvaluation)
       : undefined,
+  };
+}
+
+export function serializeTopologyAnalysis(analysis: TopologyAnalysis) {
+  return {
+    cableKeys: analysis.cableKeys,
+    affinities: analysis.affinities,
+    constraints: analysis.constraints,
+    throughCableConfidence: analysis.throughCableConfidence,
+  };
+}
+
+export function serializeTieredResult(result: TieredEvalResult) {
+  const base = {
+    tier: result.tier,
+    feasible: result.feasible,
+    score: result.score,
+    softScore: result.softScore,
+    tieBreak: result.tieBreak,
+    violations: serializeViolations(result.violations),
+    ruleRejectCounts: ruleRejectCounts(result.violations),
+    failedRuleIds: result.violations.filter((v) => !v.ok).map((v) => v.id),
+  };
+  if (result.fullResult) {
+    return {
+      ...base,
+      evaluation: serializeEvaluation(result.fullResult),
+    };
+  }
+  return base;
+}
+
+export type SerializedBatchItem = {
+  candidateId: string | undefined;
+  wallMs: number;
+  result: ReturnType<typeof serializeTieredResult>;
+};
+
+export function serializeEvaluateBatchResult(
+  results: SerializedBatchItem[],
+  wallMs: number,
+) {
+  return {
+    wallMs,
+    count: results.length,
+    results,
   };
 }

@@ -1,3 +1,7 @@
+param(
+  [switch]$Deep
+)
+
 $ErrorActionPreference = "Stop"
 $WorkspaceDir = $PSScriptRoot
 $RepoRoot = Split-Path -Parent $WorkspaceDir
@@ -6,19 +10,41 @@ Write-Host ""
 Write-Host "Splice Detail Canvas - auto layout workspace" -ForegroundColor Cyan
 Write-Host ""
 
-Set-Location $RepoRoot
-if (-not (Test-Path "node_modules\tsx\dist\cli.mjs")) {
-  Write-Host "Installing npm dependencies..."
-  npm install
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+  Write-Host "ERROR: Node.js not found. Install Node 20+ from https://nodejs.org" -ForegroundColor Red
+  exit 1
 }
 
-node scripts/sdc-workspace-run.mjs $WorkspaceDir
+if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
+  Write-Host "ERROR: Python not found. Install Python 3.11+ from https://www.python.org/downloads/" -ForegroundColor Red
+  exit 1
+}
+
+Set-Location $RepoRoot
+$env:SDC_REPO_ROOT = $RepoRoot
+
+if (-not (Test-Path "node_modules\tsx\dist\cli.mjs")) {
+  Write-Host "[1/2] Installing npm dependencies..."
+  npm install
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+} else {
+  Write-Host "[1/2] npm dependencies OK"
+}
+
+Write-Host "[2/2] Installing Python sidecar..."
+python -m pip install -e "tools/sdc-sidecar" -q
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+$nodeArgs = @($WorkspaceDir)
+if ($Deep) { $nodeArgs += "--deep" }
+
+node scripts/sdc-workspace-run.mjs @nodeArgs
 $code = $LASTEXITCODE
 
 Write-Host ""
 if ($code -ne 0) {
   Write-Host "FAILED" -ForegroundColor Red
 } else {
-  Write-Host "Import output\rank-*.sdc.json in the web app (Import file)." -ForegroundColor Green
+  Write-Host "SUCCESS - Import output\rank-*.sdc.json in the web app." -ForegroundColor Green
 }
 exit $code

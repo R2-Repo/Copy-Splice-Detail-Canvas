@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sdc-eval-daemon-request",
+  "title": "DaemonRequest",
+  "type": "object",
+  "required": ["id", "command"],
+  "properties": {
+    "id": { "type": "string" },
+    "command": {
+      "enum": [
+        "ping",
+        "shutdown",
+        "parse",
+        "analyze-topology",
+        "search",
+        "evaluate",
+        "evaluate-tier",
+        "evaluate-batch",
+        "rules",
+        "export-top"
+      ]
+    },
+    "payload": { "type": "object" }
+  }
+}
