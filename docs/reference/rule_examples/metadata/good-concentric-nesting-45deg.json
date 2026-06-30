@@ -9,8 +9,7 @@
   "classification": {
     "example_type": "good",
     "confidence": "high",
-    "based_on_user_reported_issue": false,
-    "migrated_from": "docs/reference/routing-examples/good-03-concentric-nesting-45deg.png"
+    "based_on_user_reported_issue": false
   },
   "visually_observable_good_behavior": [
     "A ~10-strand bundle turns as concentric parallel 90-degree corners.",
@@ -52,10 +51,9 @@
   ],
   "legacy_rule_mapping": {
     "refactor_plan_rules": ["R3", "R5"],
-    "note": "Migrated from docs/reference/routing-examples/; spacing constants 4.2 referenced in legacy README."
+    "note": "Spacing constants 4.2 referenced in legacy R-label README."
   },
   "notes": [
-    "Migrated from docs/reference/routing-examples/good-03-concentric-nesting-45deg.png.",
     "Positive reference for center-nest / concentric corner behavior."
   ],
   "grounding": {

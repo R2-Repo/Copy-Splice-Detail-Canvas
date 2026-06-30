@@ -187,7 +187,7 @@
         "SDC-ROUTE-002"
       ],
       "observation_field": "visually_observable_good_behavior",
-      "migrated_from": "docs/reference/routing-examples/good-03-concentric-nesting-45deg.png"
+      "migrated_from": null
     },
     {
       "id": "good-grouping-and-splitting",
@@ -200,7 +200,7 @@
         "SDC-ROUTE-002"
       ],
       "observation_field": "visually_observable_good_behavior",
-      "migrated_from": "docs/reference/routing-examples/good-05-grouping-and-splitting.png"
+      "migrated_from": null
     },
     {
       "id": "good-grouping-spacing-order",
@@ -214,7 +214,7 @@
         "SDC-ROUTE-002"
       ],
       "observation_field": "visually_observable_good_behavior",
-      "migrated_from": "docs/reference/routing-examples/good-01-grouping-spacing-order.png"
+      "migrated_from": null
     },
     {
       "id": "good-mixed-color-merge-by-destination",
@@ -227,7 +227,7 @@
         "SDC-ROUTE-002"
       ],
       "observation_field": "visually_observable_good_behavior",
-      "migrated_from": "docs/reference/routing-examples/good-04-mixed-color-merge-by-destination.png"
+      "migrated_from": null
     },
     {
       "id": "good-nested-color-order-spacing-90-bend",
@@ -257,7 +257,7 @@
         "SDC-ROUTE-003"
       ],
       "observation_field": "visually_observable_good_behavior",
-      "migrated_from": "docs/reference/routing-examples/good-02-shared-plane-staggered-turns.png"
+      "migrated_from": null
     }
   ]
 }

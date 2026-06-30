@@ -9,8 +9,7 @@
   "classification": {
     "example_type": "good",
     "confidence": "high",
-    "based_on_user_reported_issue": false,
-    "migrated_from": "docs/reference/routing-examples/good-05-grouping-and-splitting.png"
+    "based_on_user_reported_issue": false
   },
   "visually_observable_good_behavior": [
     "Routing uses the full vertical extent of the center zone in stacked regions.",
@@ -42,11 +41,9 @@
     }
   ],
   "legacy_rule_mapping": {
-    "refactor_plan_rules": ["R1", "R5"],
-    "note": "Migrated from docs/reference/routing-examples/."
+    "refactor_plan_rules": ["R1", "R5"]
   },
   "notes": [
-    "Migrated from docs/reference/routing-examples/good-05-grouping-and-splitting.png.",
     "Full-diagram positive reference for group travel and destination-based splitting."
   ],
   "grounding": {

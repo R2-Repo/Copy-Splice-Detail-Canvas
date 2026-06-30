@@ -9,8 +9,7 @@
   "classification": {
     "example_type": "good",
     "confidence": "high",
-    "based_on_user_reported_issue": false,
-    "migrated_from": "docs/reference/routing-examples/good-02-shared-plane-staggered-turns.png"
+    "based_on_user_reported_issue": false
   },
   "visually_observable_good_behavior": [
     "Two strands share a horizontal run without collapsing into the same lane.",
@@ -42,10 +41,9 @@
   ],
   "legacy_rule_mapping": {
     "refactor_plan_rules": ["R3", "R4"],
-    "note": "Migrated from docs/reference/routing-examples/; legacy R-labels superseded by SDC IDs above."
+    "note": "Legacy R-labels superseded by SDC IDs above."
   },
   "notes": [
-    "Migrated from docs/reference/routing-examples/good-02-shared-plane-staggered-turns.png.",
     "Which line turns first is unconstrained as long as lane separation holds."
   ],
   "grounding": {

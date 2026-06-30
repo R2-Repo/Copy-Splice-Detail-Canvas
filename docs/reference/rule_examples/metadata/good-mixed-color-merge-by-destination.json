@@ -9,8 +9,7 @@
   "classification": {
     "example_type": "good",
     "confidence": "high",
-    "based_on_user_reported_issue": false,
-    "migrated_from": "docs/reference/routing-examples/good-04-mixed-color-merge-by-destination.png"
+    "based_on_user_reported_issue": false
   },
   "visually_observable_good_behavior": [
     "Strands from different source colors merge onto a shared horizontal run.",
@@ -43,10 +42,9 @@
   ],
   "legacy_rule_mapping": {
     "refactor_plan_rules": ["R5"],
-    "note": "Migrated from docs/reference/routing-examples/; legacy D10 destination-merge concept maps to SDC-ROUTE-002."
+    "note": "Legacy D10 destination-merge concept maps to SDC-ROUTE-002."
   },
   "notes": [
-    "Migrated from docs/reference/routing-examples/good-04-mixed-color-merge-by-destination.png.",
     "Positive reference for destination-based grouping across tube boundaries."
   ],
   "grounding": {

@@ -9,8 +9,7 @@
   "classification": {
     "example_type": "good",
     "confidence": "high",
-    "based_on_user_reported_issue": false,
-    "migrated_from": "docs/reference/routing-examples/good-01-grouping-spacing-order.png"
+    "based_on_user_reported_issue": false
   },
   "visually_observable_good_behavior": [
     "Related fiber strands stay grouped until their destinations diverge.",
@@ -51,10 +50,9 @@
   ],
   "legacy_rule_mapping": {
     "refactor_plan_rules": ["R1", "R3", "R5", "R6"],
-    "note": "Migrated from docs/reference/routing-examples/; legacy R-labels superseded by SDC IDs above."
+    "note": "Legacy R-labels superseded by SDC IDs above."
   },
   "notes": [
-    "Migrated from docs/reference/routing-examples/good-01-grouping-spacing-order.png.",
     "Use as a positive reference for group travel, peel-off, spacing, and order."
   ],
   "grounding": {
