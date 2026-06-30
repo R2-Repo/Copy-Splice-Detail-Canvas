@@ -1,6 +1,6 @@
 # Import performance + progress UX — build plan
 
-> **Status (2026-06-28):** P0–P3 **shipped**. P4 (worker pool) optional. Builds on routing-first search (Phases 1–6 in [`ROUTING_FIRST_LAYOUT.md`](./ROUTING_FIRST_LAYOUT.md)).
+> **Archived (2026-06-30).** Moved from `docs/agent/`. **P0–P3 shipped (2026-06-28).** P4 (worker pool) optional. Live reference: [`ROUTING_FIRST_LAYOUT.md`](../../agent/ROUTING_FIRST_LAYOUT.md).
 >
 > **Problem:** Optimized import runs ~2000 full candidate evaluations on the **main thread**. Large CSVs take minutes; the browser shows “page unresponsive” dialogs; the overlay only updates between rounds so it feels frozen.
 >

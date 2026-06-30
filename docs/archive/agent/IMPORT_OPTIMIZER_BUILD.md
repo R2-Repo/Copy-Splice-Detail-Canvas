@@ -1,8 +1,6 @@
 # Import optimizer — one-pass build plan
 
-> **Created:** 2026-06-28  
-> **Status:** Approved for implementation — single-agent, one-pass build  
-> **Supersedes for next work:** ad-hoc ChatGPT scope doc; extends [`IMPORT_PERF_PLAN.md`](./IMPORT_PERF_PLAN.md) (P0–P3 shipped) and [`ROUTING_FIRST_LAYOUT.md`](./ROUTING_FIRST_LAYOUT.md)
+> **Archived (2026-06-30).** Moved from `docs/agent/`. **Shipped 2026-06-28** (beam search, four-side scoring, finalist fallback, diagnostics). Live reference: [`ROUTING_FIRST_LAYOUT.md`](../../agent/ROUTING_FIRST_LAYOUT.md).
 
 ## Goal
 
@@ -308,9 +306,8 @@ Checklist per fixture:
 
 ## References
 
-- [`ROUTING_FIRST_LAYOUT.md`](./ROUTING_FIRST_LAYOUT.md) — product intent, scoring weights
+- [`ROUTING_FIRST_LAYOUT.md`](../../agent/ROUTING_FIRST_LAYOUT.md) — product intent, scoring weights
 - [`IMPORT_PERF_PLAN.md`](./IMPORT_PERF_PLAN.md) — P0–P3 shipped architecture
 - [`IMPORT_FINISH_PLAN.md`](./IMPORT_FINISH_PLAN.md) — prior one-pass checklist
-- [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../splice_detail_canvas_rule_pack/00_Rule_Index.md) — conflict priority
-- [`SIMPLE_TERMS.md`](./SIMPLE_TERMS.md) — user vocabulary
-- [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../../splice_detail_canvas_rule_pack/00_Rule_Index.md) — canonical SDC rules
+- [`splice_detail_canvas_rule_pack/00_Rule_Index.md`](../../../splice_detail_canvas_rule_pack/00_Rule_Index.md) — conflict priority
+- [`SIMPLE_TERMS.md`](../../agent/SIMPLE_TERMS.md) — user vocabulary

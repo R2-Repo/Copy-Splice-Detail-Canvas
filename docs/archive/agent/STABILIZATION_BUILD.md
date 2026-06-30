@@ -1,6 +1,8 @@
 # Stabilization build — agent kickoff
 
-> **Status: PAUSED (2026-06-25).** Use **build phase** in [`SCOPE.md`](./SCOPE.md) and [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md) instead. Default gate: `npm run smoke`.
+> **Archived (2026-06-30).** Moved from `docs/agent/`. Superseded by routing-first import and build phase in [`SCOPE.md`](../../agent/SCOPE.md). Default gate: `npm run smoke`.
+>
+> **Broken links:** `RULE_PRIORITY.md` and `SDC_CHECKS.md` were removed — see [`RULE_DICTIONARY.md`](../../agent/RULE_DICTIONARY.md) and `src/features/rules/sdcCheckIds.ts`.
 
 > **Start here (archived).** This file was the handoff for stabilization — not active.
 

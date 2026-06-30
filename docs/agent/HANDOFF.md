@@ -4,13 +4,17 @@
 
 ## Last updated
 
-2026-06-30 — **remove routing-examples folder** (`cursor/remove-routing-examples-4a90`)
+2026-06-30 — **docs/agent cleanup** (`cursor/docs-agent-cleanup-d89b`)
 
 ### This session
 
-- Deleted `docs/reference/routing-examples/` (legacy PNGs + README).
-- Updated `docs/reference/README.md`, `rule_examples/README.md`, `index.json`, and migrated metadata JSON — all references now point to `docs/reference/rule_examples/`.
-- Moved legacy R-label migration map into `rule_examples/README.md`.
+- Moved completed build plans to `docs/archive/agent/`:
+  - `STABILIZATION_BUILD.md`, `STABILIZATION_PLAN.md`
+  - `IMPORT_FINISH_PLAN.md`, `IMPORT_PERF_PLAN.md`, `IMPORT_OPTIMIZER_BUILD.md`
+- Added `docs/archive/README.md` index.
+- Rewrote `ROUTING_FIRST_LAYOUT.md` as **shipped** architecture reference (removed stale phase gates / “first session”).
+- Updated `AGENTS.md`, `ARCHITECTURE.md`, `SCOPE.md` (MVP status, quality gates), `CONTEXT.md`.
+- Trimmed `KNOWN_ISSUES.md`; minor `QUAD_LAYOUT.md` history/QA touch-up.
 
 **Gate:** docs-only — no code change.
 

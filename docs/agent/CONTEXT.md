@@ -2,25 +2,24 @@
 
 > Agents: keep this file current-only. History lives in git log and [`CHANGELOG.md`](./CHANGELOG.md).
 
-## Focus (2026-06-29)
+## Focus (2026-06-30)
 
-**Quad LAYOUT-001 at T1** — four-edge `edgePlacement` + axis-aware spacing; top/bottom no longer false-fail at T1 proxy.
+**Docs cleanup** — archived completed build plans to `docs/archive/`; `ROUTING_FIRST_LAYOUT.md` is the live import architecture reference.
 
-**Top/bottom diagnostics** — `topOrBottomGenerated` on first T0 eval; warning uses `topOrBottomReachedT0`; duplicate worker note removed.
+**Import optimizer (shipped)** — routing-first search, beam + tiered T0/T1/T2, finalist fallback, worker, diagnostics.
 
-**Fixed layout + fit-to-view** — diagram geometry is content-driven only; viewport zoom/pan adapts to screen size.
+**Quad / top-bottom** — four-edge placement + render adapters; see [`QUAD_LAYOUT.md`](./QUAD_LAYOUT.md).
 
 **SDC-LAYOUT-003** — side assignment rule (stack/side consistency + paint vs candidate).
 
-**Routing-first side placement** — optimizer assigns L/R/T/B [SDC-CORE-001], [SDC-SCORE-001].
-
-**Rule example library** — `docs/reference/rule_examples/` (SDC metadata + `index.json`). Glossary PNG crops removed — use live app + CSV import.
+**Rule example library** — `docs/reference/rule_examples/` (SDC metadata + `index.json`).
 
 ## Active build track
 
-- Import optimizer / routing-first layout
-- Manual QA: import Left-SP-3254.5 with `VITE_DEBUG_IMPORT_OPTIMIZER=1` after T/B fixes
+- Smart manual adjustment (SDC-UX-001)
+- PDF export polish
+- Manual QA: import Left-SP-3254.5; `VITE_DEBUG_IMPORT_OPTIMIZER=1` when debugging import
 
 ## Branch
 
-- `cursor/quad-layout001-t1-fix-7c68` — combined diagnostics + LAYOUT-001 T1 fix
+- `main` — docs cleanup on `cursor/docs-agent-cleanup-d89b`

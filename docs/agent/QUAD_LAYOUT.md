@@ -113,7 +113,7 @@ Run: `npx vitest run src/features/diagram/quad/` or `npm run smoke`.
 2. Confirm: cables appear on the edges the optimizer chose — **no layout-mode toggle**.
 3. Confirm: top cable reads **BL** leftmost; left/right read BL topmost.
 4. Confirm: fusion dots spread in the open region.
-5. Drag a cable in **Auto** mode — legs reroute, position persists after reload/export.
+5. Drag a cable in **Auto** mode to another edge (`cableSideDrag`) — legs reroute; position persists after reload/export.
 
 ## History (compressed)
 
@@ -122,3 +122,4 @@ Run: `npx vitest run src/features/diagram/quad/` or `npm run smoke`.
 | 2026-06-14 | Quad geometry module: placement, channels, router, top blue-first order |
 | 2026-06-27 | Routing-first import approved — side assignment becomes search output |
 | 2026-06-29 | Docs updated — no user 2-side / 4-side toggle; quad module = top/bottom render reference |
+| 2026-06-29 | SDC-LAYOUT-001 T1 quad proxy false-fail fix |

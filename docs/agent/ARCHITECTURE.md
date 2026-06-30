@@ -15,8 +15,8 @@ src/
   types/             # Shared TS types (SplicePair, endpoints, etc.)
   styles/
 docs/agent/          # SCOPE, CONTEXT, HANDOFF, RULE_DICTIONARY, rule pack index
+docs/archive/        # Superseded build plans (stabilization, import perf/optimizer)
 docs/reference/      # User examples, images (not shipped)
-docs/archive/        # Superseded planning docs
 ```
 
 ## Data flow
@@ -46,7 +46,7 @@ Bentley CSV
 - `features/diagram/quad/` — **top/bottom edge geometry** (render adapters — see [`docs/agent/QUAD_LAYOUT.md`](./QUAD_LAYOUT.md))
   - `buildQuadReactFlowGraph.ts` — legacy quad pipeline (tests / config restore)
   - `quadPlacement.ts`, `quadGeometry.ts`, `quadChannels.ts`, `quadRouter.ts`, `quadTypes.ts`
-- `features/diagram/layoutRules.ts` — contract enforcement (31 rule IDs)
+- `features/diagram/layoutRules.ts` — contract enforcement (SDC rules via `src/features/rules/`)
 - `features/diagram/spliceRowLayout.ts` — row alignment and cable placement
 - `features/diagram/cableBreakoutGeometry.ts` — sheath/tube geometry
 - `features/diagram/tubeRowShift.ts` — cross-side tube handle alignment
@@ -60,8 +60,8 @@ Bentley CSV
 ## Quality gates
 
 ```bash
-npm run test:layout  # layout contract (Examples #1–#3)
-npm run verify       # layout + check + test:ci + build
+npm run smoke       # default gate (check + test:fast + build)
+npm run test:rules  # layout contracts — only when user asks
 ```
 
 ## PWA
