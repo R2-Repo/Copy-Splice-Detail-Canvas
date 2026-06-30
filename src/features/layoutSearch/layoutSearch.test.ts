@@ -15,7 +15,6 @@ import {
   compareCandidates,
   deriveLayoutMode,
   heuristicBaselineCandidate,
-  sidesUsedCount,
   type LayoutCandidate,
   type LayoutSide,
 } from "./layoutCandidate";
@@ -274,24 +273,21 @@ describe("layoutSearch Phase 3", () => {
     expect(result.bestScore).toBeLessThan(Number.MAX_SAFE_INTEGER);
   }, 30_000);
 
-  it("compareCandidates prefers fewer sides when scores tie", () => {
+  it("compareCandidates breaks ties by stable candidate id", () => {
     const graph = syntheticThreeCableGraph();
     const baseline = heuristicBaselineCandidate(graph);
     const candidates = enumerateCandidates(
       cableKeysFromGraph(graph),
       [...FAST_WIDTHS],
     );
-    const moreSides = candidates.find(
-      (c) => sidesUsedCount(c) > sidesUsedCount(baseline),
-    );
-    expect(moreSides).toBeDefined();
+    const other = candidates.find((c) => c.id !== baseline.id) ?? baseline;
 
     expect(
       compareCandidates(
         { score: 100, candidate: baseline },
-        { score: 100, candidate: moreSides! },
+        { score: 100, candidate: other },
       ),
-    ).toBeLessThan(0);
+    ).not.toBe(0);
   });
 
   it("candidateStableId encodes top/bottom stacks for tie-breaks", () => {

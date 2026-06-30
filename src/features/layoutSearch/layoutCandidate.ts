@@ -220,9 +220,6 @@ export function compareCandidates(
   b: { score: number; candidate: LayoutCandidate },
 ): number {
   if (a.score !== b.score) return a.score - b.score;
-  const sidesDiff =
-    sidesUsedCount(a.candidate) - sidesUsedCount(b.candidate);
-  if (sidesDiff !== 0) return sidesDiff;
   const idA = a.candidate.id ?? candidateStableId(a.candidate);
   const idB = b.candidate.id ?? candidateStableId(b.candidate);
   return idA.localeCompare(idB);

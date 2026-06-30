@@ -18,8 +18,8 @@
 | **SDC-ROUTE-001** | Valid center routing zone and clearance |
 | **SDC-ROUTE-002** | Strand group nesting and lane bands |
 | **SDC-ROUTE-003** | No overlap, collision, or illegal shared lanes |
-| **SDC-ROUTE-004** | **Max 2 corners** per splice (both legs combined) — hard rule |
-| **SDC-SCORE-001** | Soft score for import search winner (not a hard gate) |
+| **SDC-ROUTE-004** | **Max 2 corners** per splice (both legs combined) — hard rule; 0→1→2 preference in soft score |
+| **SDC-SCORE-001** | Soft score for import search winner — bend ladder, T/B credit, crossings |
 | **SDC-UX-001** | Manual locks, organized fusion-dot lines, drag snap |
 
 ## When to cite which rule

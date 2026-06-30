@@ -35,7 +35,7 @@ Strands may run horizontally (left↔right) or vertically (top↔bottom) dependi
 - Minimum lane spacing and grid pitch come from [SDC-GRID-001].
 - Overlap, collision, and lane sharing come from [SDC-ROUTE-003].
 - When resolving conflicts, satisfy this bend budget before adding extra lane offsets or vertical jogs that would exceed the limit.
-- Soft scoring may prefer fewer bends inside the budget [SDC-SCORE-001].
+- **Corner preference (soft only):** among layouts that pass this hard budget, [SDC-SCORE-001] ranks candidates by bend count: **0 corners best** (straight horizontal or vertical), **1 corner** next, **2 corners** last (still legal). Single-corner splices that use top/bottom cable placement may receive extra soft-score credit when that placement yields the cleaner route.
 
 ## Validation
 

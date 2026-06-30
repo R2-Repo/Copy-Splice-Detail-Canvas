@@ -2,24 +2,21 @@
 
 ## Last session (2026-06-30)
 
-**Python Sidecar — Full Power Build** — implemented per plan.
+**SDC-SCORE-001 bend preference + top/bottom scoring**
 
 ### Shipped
 
-- **TS:** `tools/sdc-eval/daemon.ts` (HTTP + NDJSON), `handlers.ts`, commands `analyze-topology`, `evaluate-tier`, `evaluate-batch`
-- **Python:** daemon pool, `deep-search`, `compare`, `topology`, `evaluate-batch`, `sweep`, `serve`, `cache`, `calibrate-t0`
-- **Engine:** topology-aware seeds/mutations, evolutionary + beam strategies, coordinator tiered pipeline, T0 mirror, SQLite cache, checkpoints
-- **PWA stub:** `src/features/layoutSearch/deepSearchClient.ts` (localhost only, no UI toggle)
-- **Verify:** `npm run sdc:verify` expanded (daemon, topology, T0 calibrate)
+- **T2 `computeSoftScore`:** 0-corner best, 1-corner small penalty, 2-corner larger penalty; single-bend top/bottom credit; `topBottomRelief` on full eval
+- **Removed** `sidesUsed` from soft-score total (T0 + T2); tie-break is stable candidate id only
+- **Docs:** `16_SDC-ROUTE-004` preference section → SCORE-001; `15_SDC-SCORE-001`, `ROUTING_FIRST_LAYOUT.md`, `RULE_DICTIONARY.md`
+- **Tests:** `layoutScorer.test.ts` bend ladder + T/B credit
 
 ### Manual QA
 
-- `npm run sdc:verify`
-- `npm run sdc:sidecar -- deep-search docs/reference/examples/Left-SP-3254.5.csv --time-budget-ms 30000`
-- Import example-2 in app (unchanged default path)
+- Import example-2 — confirm top/bottom cables win when they reduce bends/crossings
+- `npm run check` + `npx vitest run src/features/layoutSearch/layoutScorer.test.ts`
 
 ### Notes
 
-- Ray optional (`pip install -e ".[ray]"`) — falls back to sequential/ProcessPool on Python 3.14+
-- Daemon ports: 18765+ (pool), serve: 18780
-- Winning Python strategy port to TS still follows `tools/sdc-sidecar/sdc/experimental/port_checklist.md`
+- Hard bend cap **SDC-ROUTE-004** unchanged (≤2 corners)
+- `sidesUsed` still in diagnostics breakdown, not scored

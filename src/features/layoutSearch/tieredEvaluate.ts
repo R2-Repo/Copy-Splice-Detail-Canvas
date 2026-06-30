@@ -87,6 +87,11 @@ function infeasibleT0(candidate: LayoutCandidate): TieredEvalResult {
     softScore: {
       crossings: 0,
       bendsOverBudget: 0,
+      bendZeroCount: 0,
+      bendOneCount: 0,
+      bendTwoCount: 0,
+      topBottomSingleBendCredit: 0,
+      topBottomRelief: 0,
       sameSideLoopbacks: 0,
       sidesUsed: 0,
       centerWidth: 0,
@@ -94,7 +99,7 @@ function infeasibleT0(candidate: LayoutCandidate): TieredEvalResult {
       pathLength: 0,
       total: INFEASIBLE_LAYOUT_SCORE,
     },
-    tieBreak: { sidesUsed: 0, candidateId: candidate.id ?? "" },
+    tieBreak: { totalBends: 0, candidateId: candidate.id ?? "" },
     tier: "T0",
     violations: [],
   };
@@ -345,7 +350,7 @@ export function evaluateT0(
     score: hasFail ? INFEASIBLE_LAYOUT_SCORE : screen.total,
     softScore: screen,
     tieBreak: {
-      sidesUsed: screen.sidesUsed,
+      totalBends: 0,
       candidateId: candidate.id ?? "",
     },
     tier: "T0" as const,

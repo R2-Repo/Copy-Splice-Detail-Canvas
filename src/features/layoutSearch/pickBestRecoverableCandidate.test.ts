@@ -28,6 +28,11 @@ function mockEval(violations: RuleResult[]): LayoutEvaluationResult {
     softScore: {
       crossings: 0,
       bendsOverBudget: 0,
+      bendZeroCount: 0,
+      bendOneCount: 0,
+      bendTwoCount: 0,
+      topBottomSingleBendCredit: 0,
+      topBottomRelief: 0,
       sameSideLoopbacks: 0,
       sidesUsed: 2,
       centerWidth: 0,
@@ -35,7 +40,7 @@ function mockEval(violations: RuleResult[]): LayoutEvaluationResult {
       pathLength: 0,
       total: 5000,
     },
-    tieBreak: { sidesUsed: 2, candidateId: "mock" },
+    tieBreak: { totalBends: 0, candidateId: "mock" },
   };
 }
 

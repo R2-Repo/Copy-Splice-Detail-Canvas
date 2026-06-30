@@ -34,7 +34,7 @@ export const sdcScore001: SdcRule = {
     return [
       pass(
         "SDC-SCORE-001",
-        `soft=${soft.total} crossings=${soft.crossings} bendsOver=${soft.bendsOverBudget} loopbacks=${soft.sameSideLoopbacks} sides=${soft.sidesUsed} centerW=${soft.centerWidth} imbalance=${soft.heightImbalance} pathLen=${soft.pathLength}`,
+        `soft=${soft.total} crossings=${soft.crossings} bends=${soft.bendsOverBudget} bend0=${soft.bendZeroCount} bend1=${soft.bendOneCount} bend2=${soft.bendTwoCount} tb1bend=${soft.topBottomSingleBendCredit} tbRelief=${soft.topBottomRelief} loopbacks=${soft.sameSideLoopbacks} sides=${soft.sidesUsed} centerW=${soft.centerWidth} imbalance=${soft.heightImbalance} pathLen=${soft.pathLength}`,
       ),
     ];
   },
