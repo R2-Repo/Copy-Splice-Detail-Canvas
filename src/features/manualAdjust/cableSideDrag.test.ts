@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -88,6 +88,30 @@ describe("detectSideFromEdgeProximity", () => {
     expect(
       detectSideFromEdgeProximity(530, 770, EDGE_BOUNDS, "left"),
     ).toBe("bottom");
+  });
+
+  it("promotes left-column cable to bottom when dragged down (not blocked by left edge)", () => {
+    expect(
+      detectSideFromEdgeProximity(40, 770, EDGE_BOUNDS, "left"),
+    ).toBe("bottom");
+    expect(
+      detectSideFromEdgeProximity(40, 730, EDGE_BOUNDS, "left"),
+    ).toBe("bottom");
+    expect(
+      detectSideFromEdgeProximity(40, 710, EDGE_BOUNDS, "left"),
+    ).toBe("left");
+  });
+
+  it("promotes left-column cable to top when dragged up (not blocked by left edge)", () => {
+    expect(
+      detectSideFromEdgeProximity(40, 30, EDGE_BOUNDS, "left"),
+    ).toBe("top");
+    expect(
+      detectSideFromEdgeProximity(40, 70, EDGE_BOUNDS, "left"),
+    ).toBe("top");
+    expect(
+      detectSideFromEdgeProximity(40, 90, EDGE_BOUNDS, "left"),
+    ).toBe("left");
   });
 
   it("does not promote to top/bottom on a small diagonal nudge from center", () => {
@@ -313,6 +337,48 @@ describe("applyCableSideDragCommit", () => {
     expect(commit!.overrides.quadCableSides?.[vc.id]).toBe("top");
   });
 
+  it("promotes L/R-only import to quad when first cable moves to bottom", () => {
+    const graph = buildConnectionGraph(
+      parseBentleyCsv(readContractCsv("CSV Splice Detail Example #2.csv")),
+    );
+    const snapshot = loadSearchCandidateSnapshot("example-2");
+    const candidate = toLayoutCandidate(snapshot!);
+    const cableKey = Object.keys(candidate.cableSides).find(
+      (k) => candidate.cableSides[k] === "left",
+    )!;
+    const { visualCables } = buildVisualCablesForLayout(graph);
+    const vc = visualCables.find((c) => c.cable === cableKey)!;
+
+    const commit = applyCableSideDragCommit({
+      graph,
+      overrides: {
+        reportKey: "quad-bottom",
+        positions: {},
+        optimizedLayoutCandidate: snapshot,
+      },
+      visualId: vc.id,
+      nodeId: `cable-${vc.id}`,
+      position: { x: 400, y: 680 },
+      newSide: "bottom",
+      bounds: { centerX: candidate.layoutWidth / 2, centerY: 400 },
+      collapseFullButtSplices: false,
+      autoAdjustEnabled: true,
+    });
+
+    expect(commit!.layoutMode).toBe("quad");
+    expect(commit!.candidate.cableSides[cableKey]).toBe("bottom");
+    const cableNode = commit!.nodes.find((n) => n.id === `cable-${vc.id}`);
+    expect((cableNode!.data as { quadSide?: string }).quadSide).toBe("bottom");
+    expect(cableNode!.position.y).toBeGreaterThan(400);
+    expect(cableNode!.position.y).toBeLessThan(900);
+
+    for (const node of commit!.nodes) {
+      if (node.type !== "cable") continue;
+      expect(node.position.y).toBeGreaterThanOrEqual(0);
+      expect(node.position.y).toBeLessThan(900);
+    }
+  });
+
   it("promotes L/R-only import to quad when first cable moves to top", () => {
     const graph = buildConnectionGraph(
       parseBentleyCsv(readContractCsv("CSV Splice Detail Example #2.csv")),
@@ -460,7 +526,72 @@ describe("applyCableSideDragCommit", () => {
     expect(commit!.overrides.locks?.cables?.[vc.id]).toBeUndefined();
   });
 
-  it("rank-1 bottom cable to top stays on canvas (not stale bottom Y)", () => {
+  it("bottom cable to top stays on canvas (not stale bottom Y)", () => {
+    const graph = buildConnectionGraph(
+      parseBentleyCsv(readContractCsv("CSV Splice Detail Example #2.csv")),
+    );
+    const snapshot = loadSearchCandidateSnapshot("example-2");
+    const candidate = toLayoutCandidate(snapshot!);
+    const cableKey = Object.keys(candidate.cableSides).find(
+      (k) => candidate.cableSides[k] === "left",
+    )!;
+    const { visualCables } = buildVisualCablesForLayout(graph);
+    const vc = visualCables.find((c) => c.cable === cableKey)!;
+
+    const staleBottomY = 472;
+    const overrides: LayoutOverrides = {
+      reportKey: "stale-bottom-y",
+      positions: { [`cable-${vc.id}`]: { x: 515, y: staleBottomY } },
+      optimizedLayoutCandidate: {
+        ...snapshot!,
+        cableSides: { ...candidate.cableSides, [cableKey]: "bottom" },
+        stackOrder: {
+          left: candidate.stackOrder.left.filter((k) => k !== cableKey),
+          right: candidate.stackOrder.right,
+          top: candidate.stackOrder.top,
+          bottom: [...candidate.stackOrder.bottom, cableKey],
+        },
+      },
+      layoutMode: "quad",
+      quadCableSides: { [vc.id]: "bottom" },
+      layoutWidth: candidate.layoutWidth,
+    };
+
+    const commit = applyCableSideDragCommit({
+      graph,
+      overrides,
+      visualId: vc.id,
+      nodeId: `cable-${vc.id}`,
+      position: { x: 515, y: 40 },
+      newSide: "top",
+      bounds: {
+        centerX: candidate.layoutWidth / 2,
+        centerY: 400,
+      },
+      collapseFullButtSplices: false,
+      autoAdjustEnabled: true,
+    });
+
+    expect(commit).not.toBeNull();
+    expect(commit!.sideChanged).toBe(true);
+    const dragged = commit!.nodes.find((n) => n.id === `cable-${vc.id}`);
+    expect(dragged).toBeDefined();
+    expect((dragged!.data as { quadSide?: string }).quadSide).toBe("top");
+    expect(dragged!.position.y).toBeLessThan(200);
+    expect(dragged!.position.y).not.toBe(staleBottomY);
+
+    for (const node of commit!.nodes) {
+      if (node.type !== "cable") continue;
+      expect(node.position.y).toBeGreaterThanOrEqual(0);
+      expect(node.position.y).toBeLessThan(900);
+    }
+  });
+
+  it.skipIf(
+    !existsSync(
+      join(process.cwd(), "sdc-workspace/output/rank-1.sdc.json"),
+    ),
+  )("rank-1 bottom cable to top stays on canvas (fixture file)", () => {
     const configPath = join(
       process.cwd(),
       "sdc-workspace/output/rank-1.sdc.json",

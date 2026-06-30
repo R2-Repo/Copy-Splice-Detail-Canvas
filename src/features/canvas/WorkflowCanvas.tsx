@@ -131,6 +131,7 @@ import {
   detectSideFromEdgeProximity,
   effectiveCableSide,
 } from "@/features/manualAdjust/cableSideDrag";
+import { logSideDrag } from "@/features/manualAdjust/debugSideDrag";
 import {
   stripRoutingOverridesForConnections,
   syncConnectionOverridesFromLegs,
@@ -336,20 +337,36 @@ function sideDragBounds(
   minY: number;
   maxY: number;
 } {
-  let minY = 0;
-  let maxY = 400;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
   for (const n of nodes) {
     if (n.type !== "cable") continue;
+    const h = n.height ?? n.measured?.height ?? 160;
     minY = Math.min(minY, n.position.y);
-    maxY = Math.max(maxY, n.position.y + (n.height ?? 160));
+    maxY = Math.max(maxY, n.position.y + h);
   }
-  return {
+  if (!Number.isFinite(minY)) {
+    minY = 0;
+    maxY = 400;
+  }
+  const bounds = {
     centerX: layoutWidth / 2,
-    centerY: maxY / 2,
+    centerY: (minY + maxY) / 2,
     layoutWidth,
     minY,
     maxY,
   };
+  logSideDrag("sideDragBounds", {
+    phase: "bounds",
+    bounds: {
+      layoutWidth: bounds.layoutWidth,
+      minY: bounds.minY,
+      maxY: bounds.maxY,
+      centerY: bounds.centerY,
+    },
+    nodeCount: nodes.filter((n) => n.type === "cable").length,
+  });
+  return bounds;
 }
 
 function boundsForOutwardDrag(
@@ -677,6 +694,8 @@ function WorkflowCanvasInner() {
       if (commit.layoutMode !== layoutModeRef.current) {
         layoutModeRef.current = commit.layoutMode;
         setLayoutModeState(commit.layoutMode);
+        fitViewRequestRef.current += 1;
+        setFitViewTick((tick) => tick + 1);
       }
 
       const callouts = getNodes().filter((n) => n.type === "cableCallout");
@@ -812,6 +831,11 @@ function WorkflowCanvasInner() {
       });
     });
   }, [fitView]);
+
+  const requestDiagramFitView = useCallback(() => {
+    fitViewRequestRef.current += 1;
+    setFitViewTick((tick) => tick + 1);
+  }, []);
 
   type ApplyGraphOptions = {
     fitView?: boolean;
@@ -2224,6 +2248,29 @@ function WorkflowCanvasInner() {
           finalY = resolveCableDragStopY(node.position.y, newSide, yBounds);
         }
 
+        if (
+          !sideChanged &&
+          (currentSide === "left" || currentSide === "right")
+        ) {
+          const nodeHeight = node.height ?? node.measured?.height ?? 160;
+          finalY = Math.min(
+            Math.max(finalY, dragBounds.minY),
+            dragBounds.maxY - nodeHeight,
+          );
+        }
+
+        logSideDrag("onNodeDragStop", {
+          phase: "commit",
+          visualId,
+          nodeId: node.id,
+          drag: node.position,
+          currentSide,
+          newSide,
+          sideChanged,
+          resolved: { x: finalX, y: finalY },
+          layoutMode: layoutModeRef.current,
+        });
+
         if (!sideChanged) {
           const finalPositions = {
             ...(existing?.positions ?? {}),
@@ -2343,6 +2390,7 @@ function WorkflowCanvasInner() {
         requestAnimationFrame(() =>
           updateSpliceRoutingNodeInternals(merged, updateNodeInternals),
         );
+        requestDiagramFitView();
         return;
       }
       if (layoutModeRef.current === "quad") {
@@ -2678,6 +2726,7 @@ function WorkflowCanvasInner() {
       setNodes,
       updateManualWarnings,
       updateNodeInternals,
+      requestDiagramFitView,
     ],
   );
 

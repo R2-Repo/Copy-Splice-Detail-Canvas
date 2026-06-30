@@ -27,6 +27,7 @@ import type {
 } from "@/types/splice";
 
 import { stripRoutingOverridesForConnections } from "./connectionOverrides";
+import { logSideDrag } from "./debugSideDrag";
 
 export type SideDragBounds = {
   centerX: number;
@@ -68,13 +69,36 @@ export function detectSideFromEdgeProximity(
     candidates.push({ side: "bottom", dist: bounds.maxY - y });
   }
 
-  const nearest = candidates.reduce((best, c) =>
+  // Ignore the current side — a cable already on left stays ~24px from the left
+  // edge, which would otherwise always beat top/bottom when dragging vertically.
+  const eligible = candidates.filter((c) => c.side !== currentSide);
+  if (eligible.length === 0) return currentSide;
+
+  const nearest = eligible.reduce((best, c) =>
     c.dist < best.dist ? c : best,
   );
-  if (nearest.dist <= threshold) {
-    return nearest.side;
-  }
-  return currentSide;
+  const nextSide = nearest.dist <= threshold ? nearest.side : currentSide;
+
+  logSideDrag("detectSideFromEdgeProximity", {
+    phase: "detect",
+    drag: { x, y },
+    currentSide,
+    newSide: nextSide,
+    sideChanged: nextSide !== currentSide,
+    bounds: {
+      layoutWidth: bounds.layoutWidth,
+      minY: bounds.minY,
+      maxY: bounds.maxY,
+      threshold,
+      nearestDist: nearest.dist,
+    },
+    note:
+      nextSide !== currentSide
+        ? `nearest=${nearest.side} dist=${nearest.dist.toFixed(0)}`
+        : `within threshold keep ${currentSide}`,
+  });
+
+  return nextSide;
 }
 
 /** Nearest canvas edge from drag position (angle from diagram center). */
@@ -413,6 +437,20 @@ export function applyCableSideDragCommit(
     args.visualId,
     args.newSide === "right" ? "right" : "left",
   );
+
+  logSideDrag("applyCableSideDragCommit", {
+    phase: args.preview ? "preview" : "commit",
+    visualId: args.visualId,
+    nodeId: args.nodeId,
+    drag: args.position,
+    currentSide: prevSide,
+    newSide: args.newSide,
+    sideChanged,
+    layoutMode,
+    resolved: resolvedPosition,
+    nodeCount: nodes.length,
+    note: args.preview ? "preview" : sideChanged ? "side-flip" : "same-side",
+  });
 
   return {
     nodes,
