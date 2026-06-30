@@ -4,6 +4,8 @@
 
 ## Focus (2026-06-30)
 
+**4-side cable drag (post-import)** — any routing-first import can drag cables to L/R/T/B with full flip/reroute via `applyCableSideDragCommit`; L/R-only imports promote to quad on first top/bottom placement; live preview during drag; manual mode skips lock.
+
 **SDC-ROUTE-001 routing box** — two-case zone docs (L/R-only vs four-sided); quad anchors use cable `quadSide`; horizontal vertical bounds from L/R fibers only.
 
 **Import soft score (SDC-SCORE-001)** — bend ladder (0→1→2 corners), single-bend top/bottom credit, `sidesUsed` removed from score total. Hard cap unchanged (**SDC-ROUTE-004** ≤2 corners).

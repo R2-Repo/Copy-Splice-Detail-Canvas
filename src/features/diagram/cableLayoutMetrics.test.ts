@@ -6,6 +6,7 @@ import {
   FIBER_ROW_PITCH,
   MIN_FIBER_LINE_GAP,
   resolveCableDragStopX,
+  resolveCableDragStopY,
   SPLICE_LANE_SEP,
 } from "./cableLayoutMetrics";
 
@@ -38,5 +39,19 @@ describe("resolveCableDragStopX", () => {
 
   it("clamps to bounds", () => {
     expect(resolveCableDragStopX(9500, "right", bounds)).toBe(9000);
+  });
+});
+
+describe("resolveCableDragStopY", () => {
+  const yBounds = { topY: 100, bottomY: 700 };
+
+  it("magnetically snaps when released near the top/bottom band", () => {
+    expect(resolveCableDragStopY(110, "top", yBounds)).toBe(100);
+    expect(resolveCableDragStopY(690, "bottom", yBounds)).toBe(700);
+  });
+
+  it("keeps custom spread when released away from the band", () => {
+    expect(resolveCableDragStopY(300, "top", yBounds)).toBe(300);
+    expect(resolveCableDragStopY(500, "bottom", yBounds)).toBe(500);
   });
 });

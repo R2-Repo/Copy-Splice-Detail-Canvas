@@ -2,6 +2,32 @@
 
 ## Last session (2026-06-30)
 
+**4-side cable drag and flip (post-import manual adjust)**
+
+### Shipped
+
+- **`cableSideDrag.ts`** — `canUseCandidateSideDrag`; manual mode skips lock; clear `quadCableSides` when demoted to horizontal
+- **Bugfix (bottom→top)** — on side flip, drop stale saved cable position from rebuild; `resolveSideDragCablePosition` uses auto-placed Y/X on cross-axis (fixes rank-1 diagram flying off canvas)
+- **`WorkflowCanvas.tsx`** — unified candidate side-drag path (replaces quad-only Phase 6 gate); live flip preview via RAF-throttled `applyCableSideDragCommit({ preview: true })`; top/bottom Y snap on drag-stop
+- **`cableLayoutMetrics.ts`** — `resolveCableDragStopY` for top/bottom edge snap
+- **Tests** — promotion/demotion, preview no-lock, manual no-lock, `canUseCandidateSideDrag`
+
+### Manual QA
+
+1. Import **example-2** (L/R only) — drag a cable to top edge → full flip, legs reroute, reload/export persists side
+2. Import **Left-SPI-215_I-80.csv** — drag T/B cable to left/right and back
+3. Locked cable — unlock, then side-drag
+4. Grid hybrid — confirm reroute + warning when locks conflict
+
+### Gate
+
+- `npm run check` + `npm run build` + cableSideDrag tests pass
+- Full `npm run smoke`: 2 pre-existing Windows path failures in `layoutContractCsvPaths.test.ts` (unrelated)
+
+---
+
+## Previous session (2026-06-30)
+
 **deep-search KeyError fix (`run-deep.bat`)**
 
 - **`tools/sdc-sidecar/sdc/engine/coordinator.py`** — T2 candidate filter used `_[2]` on the eval dict (KeyError `2` surfaced as stderr `2`). Fixed to `ev.get("feasible")` like the T1 filter above it.

@@ -153,6 +153,37 @@ export function resolveCableDragStopX(
   return clamped;
 }
 
+export type CableYBounds = {
+  topY: number;
+  bottomY: number;
+};
+
+export function cableYForSide(
+  side: "top" | "bottom",
+  bounds?: CableYBounds,
+): number {
+  const topY = bounds?.topY ?? CABLE_LAYOUT.topY;
+  const bottomY = bounds?.bottomY ?? topY + 600;
+  return side === "top" ? topY : bottomY;
+}
+
+/**
+ * After drag: keep release Y unless near the top/bottom band (magnetic snap).
+ */
+export function resolveCableDragStopY(
+  draggedY: number,
+  side: "top" | "bottom",
+  bounds: CableYBounds,
+  snapThreshold = CABLE_LAYOUT.fiberRowH,
+): number {
+  const columnY = cableYForSide(side, bounds);
+  const clamped = Math.min(Math.max(draggedY, bounds.topY), bounds.bottomY);
+  if (Math.abs(clamped - columnY) <= snapThreshold) {
+    return columnY;
+  }
+  return clamped;
+}
+
 export function fiberRowY(rowIndex: number, baseTop = CABLE_LAYOUT.topY): number {
   const rowStart = baseTop + CABLE_LAYOUT.headerH;
   return rowStart + rowIndex * CABLE_LAYOUT.fiberRowH;

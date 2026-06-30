@@ -103,6 +103,20 @@ export function stackCoordForSide(
   return side === "top" || side === "bottom" ? position.x : position.y;
 }
 
+/** After a side flip, keep stack-axis drag coord; cross-axis comes from auto placement. */
+export function resolveSideDragCablePosition(
+  newSide: LayoutSide,
+  sideChanged: boolean,
+  dragPosition: { x: number; y: number },
+  builtPosition: { x: number; y: number },
+): { x: number; y: number } {
+  if (!sideChanged) return dragPosition;
+  if (newSide === "top" || newSide === "bottom") {
+    return { x: dragPosition.x, y: builtPosition.y };
+  }
+  return { x: builtPosition.x, y: dragPosition.y };
+}
+
 function visualIdForCableKey(
   visualCables: VisualCable[],
   cableKey: string,
@@ -149,6 +163,14 @@ export function moveCableInCandidate(
   };
   next.stackOrder = reconcileStackOrder(next);
   return next;
+}
+
+/** True when post-import cable drag can use the unified 4-side candidate commit path. */
+export function canUseCandidateSideDrag(
+  graph: ConnectionGraph,
+  overrides: LayoutOverrides,
+): boolean {
+  return candidateFromOverrides(graph, overrides) !== undefined;
 }
 
 export function candidateFromOverrides(
@@ -282,10 +304,12 @@ export function applyCableSideDragCommit(
     };
   }
 
-  const positions = {
-    ...args.overrides.positions,
-    [args.nodeId]: args.position,
-  };
+  const positionsForBuild = { ...args.overrides.positions };
+  if (sideChanged) {
+    delete positionsForBuild[args.nodeId];
+  } else {
+    positionsForBuild[args.nodeId] = args.position;
+  }
 
   const stackCoord = stackCoordForSide(args.newSide, args.position);
   const candidate = sideChanged
@@ -295,7 +319,7 @@ export function applyCableSideDragCommit(
         args.newSide,
         stackCoord,
         visualCables,
-        positions,
+        positionsForBuild,
       )
     : baseCandidate;
 
@@ -315,8 +339,15 @@ export function applyCableSideDragCommit(
     layoutMode,
     optimizedLayoutCandidate: candidate,
     cableSides: candidateToCableSidesRecord(candidate, visualCables),
-    quadCableSides: candidateToQuadCableSidesRecord(candidate, visualCables),
-    positions,
+    ...(layoutMode === "quad"
+      ? {
+          quadCableSides: candidateToQuadCableSidesRecord(
+            candidate,
+            visualCables,
+          ),
+        }
+      : { quadCableSides: undefined }),
+    positions: positionsForBuild,
     collapseFullButtSplices: args.collapseFullButtSplices,
     autoAdjustEnabled: args.autoAdjustEnabled,
     legOverrides: sideChanged
@@ -340,19 +371,40 @@ export function applyCableSideDragCommit(
     },
   );
 
+  const builtDragged = buildResult.nodes.find((node) => node.id === args.nodeId);
+  const resolvedPosition = builtDragged
+    ? resolveSideDragCablePosition(
+        args.newSide,
+        sideChanged,
+        args.position,
+        builtDragged.position,
+      )
+    : args.position;
+
   const nodes = buildResult.nodes.map((node) =>
-    node.id === args.nodeId ? { ...node, position: args.position } : node,
+    node.id === args.nodeId ? { ...node, position: resolvedPosition } : node,
   );
 
-  let nextOverrides = mergedOverrides;
-  if (!args.preview) {
-    nextOverrides = onEditLock(mergedOverrides, "cable", {
+  const persistedPositions = {
+    ...positionsForBuild,
+    ...(sideChanged || !args.preview ? { [args.nodeId]: resolvedPosition } : {}),
+  };
+
+  let nextOverrides = { ...mergedOverrides, positions: persistedPositions };
+  if (!args.preview && args.autoAdjustEnabled) {
+    nextOverrides = onEditLock(nextOverrides, "cable", {
       cableId: args.visualId,
-      position: args.position,
+      position: resolvedPosition,
     });
     nextOverrides = {
       ...nextOverrides,
-      positions: { ...nextOverrides.positions, [args.nodeId]: args.position },
+      positions: { ...nextOverrides.positions, [args.nodeId]: resolvedPosition },
+      optimizedLayoutCandidate: candidate,
+    };
+  } else if (!args.preview) {
+    nextOverrides = {
+      ...nextOverrides,
+      positions: { ...nextOverrides.positions, [args.nodeId]: resolvedPosition },
       optimizedLayoutCandidate: candidate,
     };
   }

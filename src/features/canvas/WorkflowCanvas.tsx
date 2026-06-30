@@ -88,6 +88,7 @@ import { spliceNodeTypes } from "@/features/canvas/nodeTypes";
 import {
   CABLE_LAYOUT,
   resolveCableDragStopX,
+  resolveCableDragStopY,
   type CableXBounds,
 } from "@/features/diagram/cableLayoutMetrics";
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
@@ -126,6 +127,7 @@ import { tubeKeyForFiberAnchor } from "@/features/manualAdjust/smartSelect";
 import { useManualAdjustEngine } from "@/features/manualAdjust/useManualAdjustEngine";
 import {
   applyCableSideDragCommit,
+  canUseCandidateSideDrag,
   detectSideFromEdgeProximity,
   effectiveCableSide,
 } from "@/features/manualAdjust/cableSideDrag";
@@ -314,16 +316,14 @@ function attachDiagramOverlayNodes(
   );
 }
 
-function hasOptimizedCandidate(reportKey: string | null): boolean {
-  if (!reportKey || heuristicImportLayoutEnabled()) return false;
-  return loadLayoutOverrides(reportKey)?.optimizedLayoutCandidate !== undefined;
-}
-
-/** Phase 6 side-drag — only for quad layouts with an optimized candidate snapshot. */
-function usePhase6SideDrag(reportKey: string | null): boolean {
-  if (!hasOptimizedCandidate(reportKey)) return false;
-  const snapshot = loadLayoutOverrides(reportKey!)!.optimizedLayoutCandidate!;
-  return deriveLayoutMode(toLayoutCandidate(snapshot)) === "quad";
+function useCandidateSideDrag(
+  reportKey: string | null,
+  graph: ConnectionGraph | null,
+): boolean {
+  if (!reportKey || !graph || heuristicImportLayoutEnabled()) return false;
+  const existing = loadLayoutOverrides(reportKey);
+  if (!existing) return false;
+  return canUseCandidateSideDrag(graph, existing);
 }
 
 function sideDragBounds(
@@ -472,6 +472,8 @@ function WorkflowCanvasInner() {
   const pendingManualCableNodeRef = useRef<Node | null>(null);
   const engineCableDragRafRef = useRef<number | null>(null);
   const pendingEngineCableNodeRef = useRef<Node | null>(null);
+  const candidateCableDragRafRef = useRef<number | null>(null);
+  const pendingCandidateCableNodeRef = useRef<Node | null>(null);
 
   collapseRef.current = collapseFullButtSplices;
   calloutsVisibleRef.current = calloutsVisible;
@@ -635,6 +637,69 @@ function WorkflowCanvasInner() {
     [applyEngineCableDrag],
   );
 
+  const applyCandidateCableDrag = useCallback(
+    (draggedNode: Node) => {
+      const graph = graphRef.current;
+      const reportKey = reportKeyRef.current;
+      if (!graph || !reportKey || draggedNode.type !== "cable") return;
+
+      const existing = loadLayoutOverrides(reportKey);
+      if (!existing || !canUseCandidateSideDrag(graph, existing)) return;
+
+      const visualId = visualCableIdFromNodeId(draggedNode.id);
+      if (!visualId) return;
+
+      const cableData = draggedNode.data as CableNodeData;
+      const currentSide = effectiveCableSide(cableData);
+      const dragBounds = sideDragBounds(layoutWidthRef.current, getNodes());
+      const newSide = detectSideFromEdgeProximity(
+        draggedNode.position.x,
+        draggedNode.position.y,
+        dragBounds,
+        currentSide,
+      );
+
+      const commit = applyCableSideDragCommit({
+        graph,
+        overrides: existing,
+        visualId,
+        nodeId: draggedNode.id,
+        position: draggedNode.position,
+        newSide,
+        bounds: dragBounds,
+        collapseFullButtSplices: collapseRef.current,
+        autoAdjustEnabled: autoAdjustRef.current,
+        preview: true,
+      });
+      if (!commit) return;
+
+      layoutWidthRef.current = commit.layoutWidth;
+      if (commit.layoutMode !== layoutModeRef.current) {
+        layoutModeRef.current = commit.layoutMode;
+        setLayoutModeState(commit.layoutMode);
+      }
+
+      const callouts = getNodes().filter((n) => n.type === "cableCallout");
+      setNodes([...commit.nodes, ...callouts]);
+      setEdges(commit.edges);
+    },
+    [getNodes, setEdges, setNodes],
+  );
+
+  const syncCandidateCableDrag = useCallback(
+    (draggedNode: Node) => {
+      pendingCandidateCableNodeRef.current = draggedNode;
+      if (candidateCableDragRafRef.current != null) return;
+      candidateCableDragRafRef.current = requestAnimationFrame(() => {
+        candidateCableDragRafRef.current = null;
+        const node = pendingCandidateCableNodeRef.current;
+        pendingCandidateCableNodeRef.current = null;
+        if (node) applyCandidateCableDrag(node);
+      });
+    },
+    [applyCandidateCableDrag],
+  );
+
   const syncQuadCableDrag = useCallback(
     (draggedNode: Node) => {
       const graph = graphRef.current;
@@ -671,7 +736,17 @@ function WorkflowCanvasInner() {
 
   const refreshDragRouting = useCallback(
     (draggedNode: Node) => {
-      // Additive quad guard — position-only live drag (Phase 6 commit happens on drag stop).
+      const graph = graphRef.current;
+      const reportKey = reportKeyRef.current;
+      if (
+        draggedNode.type === "cable" &&
+        graph &&
+        reportKey &&
+        useCandidateSideDrag(reportKey, graph)
+      ) {
+        syncCandidateCableDrag(draggedNode);
+        return;
+      }
       if (layoutModeRef.current === "quad") {
         syncQuadCableDrag(draggedNode);
         return;
@@ -682,7 +757,12 @@ function WorkflowCanvasInner() {
       }
       syncNodesEngineDrag(draggedNode);
     },
-    [syncManualCableDrag, syncNodesEngineDrag, syncQuadCableDrag],
+    [
+      syncCandidateCableDrag,
+      syncManualCableDrag,
+      syncNodesEngineDrag,
+      syncQuadCableDrag,
+    ],
   );
 
   const resolveLayoutWidth = useCallback(
@@ -2036,26 +2116,6 @@ function WorkflowCanvasInner() {
 
   const onNodeDragStart: OnNodeDrag<Node> = useCallback(
     (_, node) => {
-      if (layoutModeRef.current === "quad") {
-        if (!autoAdjustRef.current && node.type === "fiberAnchor") {
-          manualAdjustEngine.onFiberAnchorDragStart(
-            _ as React.MouseEvent,
-            node,
-          );
-          return;
-        }
-        if (node.type === "cable") {
-          const reportKey = reportKeyRef.current;
-          if (reportKey && useGridRoutingEngine(loadLayoutOverrides(reportKey) ?? undefined)) {
-            gridRoutesDragRef.current = gridRoutesFromEdges(
-              getEdges(),
-              layoutWidthRef.current,
-            );
-          }
-          refreshDragRouting(node);
-        }
-        return;
-      }
       if (!autoAdjustRef.current && node.type === "fiberAnchor") {
         manualAdjustEngine.onFiberAnchorDragStart(
           _ as React.MouseEvent,
@@ -2079,9 +2139,12 @@ function WorkflowCanvasInner() {
   const onNodeDragStop: OnNodeDrag<Node> = useCallback(
     (_, node) => {
       try {
-      if (usePhase6SideDrag(reportKeyRef.current) && node.type === "cable") {
-        const reportKey = reportKeyRef.current;
-        const graph = graphRef.current;
+      const graph = graphRef.current;
+      const reportKey = reportKeyRef.current;
+      if (
+        useCandidateSideDrag(reportKey, graph) &&
+        node.type === "cable"
+      ) {
         if (!reportKey || !graph) return;
 
         if (manualCableDragRafRef.current != null) {
@@ -2094,6 +2157,11 @@ function WorkflowCanvasInner() {
           engineCableDragRafRef.current = null;
         }
         pendingEngineCableNodeRef.current = null;
+        if (candidateCableDragRafRef.current != null) {
+          cancelAnimationFrame(candidateCableDragRafRef.current);
+          candidateCableDragRafRef.current = null;
+        }
+        pendingCandidateCableNodeRef.current = null;
 
         const existing = loadLayoutOverrides(reportKey);
         const visualId = visualCableIdFromNodeId(node.id);
@@ -2109,6 +2177,7 @@ function WorkflowCanvasInner() {
           currentSide,
         );
         const sideChanged = currentSide !== newSide;
+        const manualMode = !autoAdjustRef.current;
 
         let finalX = node.position.x;
         let finalY = node.position.y;
@@ -2133,22 +2202,58 @@ function WorkflowCanvasInner() {
           ));
           xBoundsRef.current = bounds;
           finalX = resolveCableDragStopX(node.position.x, newSide, bounds);
+
+          if (!sideChanged && manualMode) {
+            const { visualCables } = buildVisualCablesForLayout(graph);
+            const yByVc = new Map<string, number>();
+            for (const n of getNodes()) {
+              if (n.type !== "cable") continue;
+              const vid = visualCableIdFromNodeId(n.id);
+              if (vid && vid !== visualId) yByVc.set(vid, n.position.y);
+            }
+            const snapDelta = nearStraightCableShift(
+              visualCables,
+              visualId,
+              finalY,
+              (vid) => yByVc.get(vid),
+            );
+            if (Math.abs(snapDelta) > 0.5) finalY += snapDelta;
+          }
+        } else {
+          const yBounds = { topY: dragBounds.minY, bottomY: dragBounds.maxY };
+          finalY = resolveCableDragStopY(node.position.y, newSide, yBounds);
         }
 
         if (!sideChanged) {
-          const reportKeyForSave = reportKeyRef.current;
-          if (reportKeyForSave) {
+          const finalPositions = {
+            ...(existing?.positions ?? {}),
+            [node.id]: { x: finalX, y: finalY },
+          };
+          const layoutMode = layoutModeRef.current;
+          if (autoAdjustRef.current) {
             saveLayoutOverrides(
-              mergeLayoutOverrides(reportKeyForSave, {
-                layoutMode: "quad",
-                positions: {
-                  ...(existing?.positions ?? {}),
-                  [node.id]: { x: finalX, y: finalY },
-                },
+              onEditLock(
+                mergeLayoutOverrides(reportKey, {
+                  layoutMode,
+                  positions: finalPositions,
+                }),
+                "cable",
+                { cableId: visualId, position: { x: finalX, y: finalY } },
+              ),
+            );
+          } else {
+            saveLayoutOverrides(
+              mergeLayoutOverrides(reportKey, {
+                layoutMode,
+                positions: finalPositions,
               }),
             );
           }
-          refreshDragRouting(node);
+          layoutWidthRef.current = layoutWidth;
+          refreshDragRouting({
+            ...node,
+            position: { x: finalX, y: finalY },
+          });
           return;
         }
 
@@ -2208,6 +2313,32 @@ function WorkflowCanvasInner() {
             callouts: existing.callouts,
           }),
         );
+
+        if (manualMode) {
+          const touched = new Set<string>();
+          for (const edge of commit.edges) {
+            if (
+              edge.type === "splice" &&
+              (edge.source === node.id ||
+                edge.target === node.id ||
+                edge.id.startsWith("splice-left-") ||
+                edge.id.startsWith("splice-right-"))
+            ) {
+              if (edge.id.startsWith("splice-left-")) {
+                touched.add(
+                  `splice-${edge.id.slice("splice-left-".length)}`,
+                );
+              } else if (edge.id.startsWith("splice-right-")) {
+                touched.add(
+                  `splice-${edge.id.slice("splice-right-".length)}`,
+                );
+              } else {
+                touched.add(edge.id);
+              }
+            }
+          }
+          updateManualWarnings(graph, merged, commit.edges, touched);
+        }
 
         requestAnimationFrame(() =>
           updateSpliceRoutingNodeInternals(merged, updateNodeInternals),
@@ -2271,7 +2402,6 @@ function WorkflowCanvasInner() {
       const newSide = displaySideFromCanvasX(node.position.x, centerX);
       const prevSide = (node.data as CableNodeData).side;
       const sideChanged = newSide !== prevSide;
-      const graph = graphRef.current;
       const maxTubes =
         graph != null
           ? Math.max(
@@ -2539,10 +2669,12 @@ function WorkflowCanvasInner() {
     [
       edges,
       getEdges,
+      getNodes,
       manualAdjustEngine,
       nodes,
       persistLayout,
       refreshDragRouting,
+      setEdges,
       setNodes,
       updateManualWarnings,
       updateNodeInternals,
@@ -2551,19 +2683,24 @@ function WorkflowCanvasInner() {
 
   const onNodeDrag: OnNodeDrag<Node> = useCallback(
     (_, node) => {
-      if (layoutModeRef.current === "quad") {
-        if (!autoAdjustRef.current && node.type === "fiberAnchor") {
-          manualAdjustEngine.onNodeDrag(_, node, nodes);
-          return;
-        }
-        if (node.type === "cable") refreshDragRouting(node);
-        return;
-      }
       if (!autoAdjustRef.current && node.type === "fiberAnchor") {
         manualAdjustEngine.onNodeDrag(_, node, nodes);
         return;
       }
       if (node.type !== "cable") return;
+
+      const graph = graphRef.current;
+      const reportKey = reportKeyRef.current;
+      if (graph && reportKey && useCandidateSideDrag(reportKey, graph)) {
+        refreshDragRouting(node);
+        return;
+      }
+
+      if (layoutModeRef.current === "quad") {
+        refreshDragRouting(node);
+        return;
+      }
+
       const centerX = layoutWidthRef.current / 2;
       const nextSide = displaySideFromCanvasX(node.position.x, centerX);
       const prevSide = (node.data as CableNodeData).side;
