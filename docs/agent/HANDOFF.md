@@ -29,3 +29,4 @@ Prior bug: `anchorsFromEntries` inferred left/right from X only, so quad `topY`/
 ### Notes
 
 - Handles approximate inner fan-out edge; label-band geometry is future tightening if handles prove loose on T/B cables
+- **SDC-SCORE-001** (bend ladder + T/B credit, `sidesUsed` removed from score) merged via PR #43
