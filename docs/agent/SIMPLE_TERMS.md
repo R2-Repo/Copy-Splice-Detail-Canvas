@@ -108,6 +108,25 @@ Fan-out curves on the **cable** side are **not** splice corners — only turns o
 
 ---
 
+## Routing box (center zone)
+
+The **routing box** is the open middle where **left leg** and **right leg** paths may travel — not over cables, fan-outs, or labels.
+
+| You say | What it is | Agent / code |
+|---------|------------|--------------|
+| **Routing box** / **center zone** | Valid area for splice legs between fan-outs | **SDC-ROUTE-001**; `routingZone` on grid |
+| **Two-sided box** | Only left/right cables — box height = top→bottom fiber on those sides | Horizontal layout mode zone |
+| **Four-sided box** | Top/bottom cables too — box height = inner edge of top band to inner edge of bottom band | Quad frontiers; **SDC-ROUTE-001** Case B |
+
+**Example phrases:**
+
+- “That strand went **above the routing box** and looped back down.”
+- “Keep routes **inside the center zone** — not over the circuit labels.”
+
+See **SDC-ROUTE-004** for corner count inside the box; **SDC-ROUTE-003** for overlap inside the box.
+
+---
+
 ## Tube bundle & center nest
 
 When several fibers from the **same buffer tube** go to the **same target cable**, they travel together in the center before peeling off to their handles.

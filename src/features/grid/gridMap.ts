@@ -57,10 +57,15 @@ export function computeRoutingZoneFromAnchors(
   let bottomY = Number.NEGATIVE_INFINITY;
 
   for (const a of anchors) {
-    if (a.side === "left") leftX = Math.max(leftX, a.x);
-    else if (a.side === "right") rightX = Math.min(rightX, a.x);
-    topY = Math.min(topY, a.y);
-    bottomY = Math.max(bottomY, a.y);
+    if (a.side === "left") {
+      leftX = Math.max(leftX, a.x);
+      topY = Math.min(topY, a.y);
+      bottomY = Math.max(bottomY, a.y);
+    } else if (a.side === "right") {
+      rightX = Math.min(rightX, a.x);
+      topY = Math.min(topY, a.y);
+      bottomY = Math.max(bottomY, a.y);
+    }
   }
 
   const lx = Number.isFinite(leftX) ? leftX : fallbackMargin;
