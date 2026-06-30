@@ -127,7 +127,7 @@ export function stackCoordForSide(
   return side === "top" || side === "bottom" ? position.x : position.y;
 }
 
-/** After a side flip, use auto placement; cross-axis drag coords are unreliable mid-rebuild. */
+/** After a side flip, keep stack-axis drag coord; take cross-axis from auto placement. */
 export function resolveSideDragCablePosition(
   newSide: LayoutSide,
   sideChanged: boolean,
@@ -136,7 +136,7 @@ export function resolveSideDragCablePosition(
 ): { x: number; y: number } {
   if (!sideChanged) return dragPosition;
   if (newSide === "top" || newSide === "bottom") {
-    return builtPosition;
+    return { x: dragPosition.x, y: builtPosition.y };
   }
   return { x: builtPosition.x, y: dragPosition.y };
 }
@@ -397,19 +397,10 @@ export function applyCableSideDragCommit(
     };
   }
 
-  const prevLayoutMode = deriveLayoutMode(baseCandidate);
   const stackCoord = stackCoordForSide(args.newSide, args.position);
   let positionsForBuild = { ...args.overrides.positions };
   if (sideChanged) {
-    const entersOrInQuad =
-      prevLayoutMode === "quad" ||
-      args.newSide === "top" ||
-      args.newSide === "bottom";
-    if (entersOrInQuad) {
-      positionsForBuild = {};
-    } else {
-      delete positionsForBuild[args.nodeId];
-    }
+    delete positionsForBuild[args.nodeId];
   } else {
     positionsForBuild[args.nodeId] = args.position;
   }

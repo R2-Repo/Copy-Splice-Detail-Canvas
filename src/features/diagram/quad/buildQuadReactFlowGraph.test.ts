@@ -213,4 +213,42 @@ describe("buildQuadReactFlowGraph (4-side layout mode)", () => {
       expect(anchors[i]!.x).toBeGreaterThanOrEqual(anchors[i - 1]!.x - 0.5);
     }
   });
+
+  it("dragSync reuses prior splice paths for connections outside reroute set", () => {
+    const graph = graphFor("CSV Splice Detail Example #2.csv");
+    const { edges: fullEdges } = buildReactFlowGraph(graph, {
+      reportKey: "test",
+      positions: {},
+      layoutMode: "quad",
+    });
+    const sampleLeft = fullEdges.find((e) => e.id.startsWith("splice-left-"));
+    expect(sampleLeft).toBeDefined();
+    const connId = sampleLeft!.id.slice("splice-left-".length);
+    const priorData = sampleLeft!.data as Record<string, unknown>;
+
+    const { edges: syncedEdges } = buildReactFlowGraph(
+      graph,
+      {
+        reportKey: "test",
+        positions: {},
+        layoutMode: "quad",
+      },
+      undefined,
+      {
+        dragSync: true,
+        dragCacheEdges: fullEdges,
+        rerouteConnectionIds: [],
+      },
+    );
+
+    const syncedLeft = syncedEdges.find(
+      (e) => e.id === `splice-left-${connId}`,
+    );
+    expect(syncedLeft).toBeDefined();
+    const syncedData = syncedLeft!.data as Record<string, unknown>;
+    expect(syncedData.leftPath).toBe(priorData.leftPath);
+    expect(syncedData.rightPath).toBe(priorData.rightPath);
+    expect(syncedData.spliceX).toBe(priorData.spliceX);
+    expect(syncedData.spliceY).toBe(priorData.spliceY);
+  });
 });

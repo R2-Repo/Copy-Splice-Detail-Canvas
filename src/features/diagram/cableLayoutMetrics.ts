@@ -158,6 +158,12 @@ export type CableYBounds = {
   bottomY: number;
 };
 
+/** Horizontal envelope for top/bottom cable stack-axis drag. */
+export type CableStackXBounds = {
+  minX: number;
+  maxX: number;
+};
+
 export function cableYForSide(
   side: "top" | "bottom",
   bounds?: CableYBounds,
@@ -180,6 +186,23 @@ export function resolveCableDragStopY(
   const clamped = Math.min(Math.max(draggedY, bounds.topY), bounds.bottomY);
   if (Math.abs(clamped - columnY) <= snapThreshold) {
     return columnY;
+  }
+  return clamped;
+}
+
+/**
+ * After drag on top/bottom: keep release X unless near the auto stack column (magnetic snap).
+ * Clamps to the horizontal envelope so cables stay on the edge band.
+ */
+export function resolveCableDragStopStackX(
+  draggedX: number,
+  autoStackX: number,
+  bounds: CableStackXBounds,
+  snapThreshold = CABLE_LAYOUT.fiberRowH,
+): number {
+  const clamped = Math.min(Math.max(draggedX, bounds.minX), bounds.maxX);
+  if (Math.abs(clamped - autoStackX) <= snapThreshold) {
+    return autoStackX;
   }
   return clamped;
 }

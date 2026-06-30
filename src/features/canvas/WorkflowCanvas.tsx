@@ -87,8 +87,10 @@ import {
 import { spliceNodeTypes } from "@/features/canvas/nodeTypes";
 import {
   CABLE_LAYOUT,
+  resolveCableDragStopStackX,
   resolveCableDragStopX,
   resolveCableDragStopY,
+  type CableStackXBounds,
   type CableXBounds,
 } from "@/features/diagram/cableLayoutMetrics";
 import { buildConnectionGraph } from "@/features/diagram/buildConnectionGraph";
@@ -212,6 +214,7 @@ import {
 } from "@/features/layoutSearch/verifyLayoutCandidate";
 import { rerouteConnectionIdsForVisualCableDrag } from "@/features/diagram/connectionIdsForCable";
 import { syncNodesEngineDragLayout } from "@/features/diagram/syncNodesEngineDragLayout";
+import { syncQuadCandidateDragLayout } from "@/features/diagram/quad/syncQuadCandidateDragLayout";
 import { detectFullButtSpliceTubes } from "@/features/diagram/fullButtSplice";
 import {
   boundsFromFlowNodes,
@@ -342,18 +345,27 @@ function sideDragBounds(
   layoutWidth: number;
   minY: number;
   maxY: number;
+  minX: number;
+  maxX: number;
 } {
   let minY = Number.POSITIVE_INFINITY;
   let maxY = Number.NEGATIVE_INFINITY;
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
   for (const n of nodes) {
     if (n.type !== "cable") continue;
     const h = n.height ?? n.measured?.height ?? 160;
+    const w = n.width ?? n.measured?.width ?? 140;
     minY = Math.min(minY, n.position.y);
     maxY = Math.max(maxY, n.position.y + h);
+    minX = Math.min(minX, n.position.x);
+    maxX = Math.max(maxX, n.position.x + w);
   }
   if (!Number.isFinite(minY)) {
     minY = 0;
     maxY = 400;
+    minX = CABLE_LAYOUT.leftX;
+    maxX = layoutWidth - CABLE_LAYOUT.leftX;
   }
   const bounds = {
     centerX: layoutWidth / 2,
@@ -361,6 +373,8 @@ function sideDragBounds(
     layoutWidth,
     minY,
     maxY,
+    minX,
+    maxX,
   };
   logSideDrag("sideDragBounds", {
     phase: "bounds",
@@ -368,6 +382,8 @@ function sideDragBounds(
       layoutWidth: bounds.layoutWidth,
       minY: bounds.minY,
       maxY: bounds.maxY,
+      minX: bounds.minX,
+      maxX: bounds.maxX,
       centerY: bounds.centerY,
     },
     nodeCount: nodes.filter((n) => n.type === "cable").length,
@@ -414,6 +430,9 @@ function WorkflowCanvasInner() {
   const fitViewRequestRef = useRef(0);
   const fitViewHandledRef = useRef(0);
   const [fitViewTick, setFitViewTick] = useState(0);
+  const hasInitialFitRef = useRef(false);
+  const isInteractingRef = useRef(false);
+  const pendingFitAfterInteractionRef = useRef(false);
   /** Set when the user drags a cable column outward beyond the content width. */
   const userExpandedLayoutRef = useRef(false);
   const [nodes, setNodes, onNodesChange] = useNodesState(emptyNodes);
@@ -501,6 +520,16 @@ function WorkflowCanvasInner() {
   const sideDragBoundsAtDragStartRef = useRef<ReturnType<
     typeof sideDragBounds
   > | null>(null);
+  const quadDragCacheEdgesRef = useRef<Edge[] | null>(null);
+
+  const endCanvasInteraction = useCallback(() => {
+    isInteractingRef.current = false;
+    if (pendingFitAfterInteractionRef.current) {
+      pendingFitAfterInteractionRef.current = false;
+      fitViewRequestRef.current += 1;
+      setFitViewTick((tick) => tick + 1);
+    }
+  }, []);
 
   collapseRef.current = collapseFullButtSplices;
   calloutsVisibleRef.current = calloutsVisible;
@@ -700,6 +729,70 @@ function WorkflowCanvasInner() {
         return;
       }
 
+      const baseCandidate = candidateFromOverrides(graph, existing);
+      if (!baseCandidate) return;
+
+      const positions = {
+        ...(existing.positions ?? {}),
+        ...positionsFromNodes(getNodes().filter((n) => n.type === "cable")),
+        [draggedNode.id]: draggedNode.position,
+      };
+      const callouts = getNodes().filter((n) => n.type === "cableCallout");
+      const layoutMode = deriveLayoutMode(baseCandidate);
+
+      if (layoutMode === "horizontal") {
+        const { nodes: nextNodes, edges: nextEdges } = syncNodesEngineDragLayout({
+          graph,
+          overrides: {
+            reportKey,
+            collapseFullButtSplices: collapseRef.current,
+            positions,
+            existingEdgeIds: existing.existingEdgeIds,
+            cableSides: existing.cableSides,
+            autoAdjustEnabled: autoAdjustRef.current,
+            tubeOverrides: existing.tubeOverrides,
+            fanoutOverrides: existing.fanoutOverrides,
+            legOverrides: existing.legOverrides,
+            locks: existing.locks,
+            routingEngine: existing.routingEngine,
+            gridLocks: existing.gridLocks,
+            gridRoutes: existing.gridRoutes,
+            optimizedLayoutCandidate: existing.optimizedLayoutCandidate,
+            layoutMode: existing.layoutMode,
+            layoutExpansion: existing.layoutExpansion,
+          },
+          layoutWidth: layoutWidthRef.current,
+          positions,
+          draggedNode,
+          dragCacheEdges: quadDragCacheEdgesRef.current ?? getEdges(),
+          priorGridRoutes: gridRoutesDragRef.current ?? undefined,
+          preservedNodes: callouts,
+        });
+        setNodes(nextNodes);
+        setEdges(nextEdges);
+        return;
+      }
+
+      if (layoutMode === "quad") {
+        const { nodes: nextNodes, edges: nextEdges } = syncQuadCandidateDragLayout({
+          graph,
+          overrides: {
+            ...existing,
+            reportKey,
+            collapseFullButtSplices: collapseRef.current,
+            positions,
+            autoAdjustEnabled: autoAdjustRef.current,
+          },
+          positions,
+          draggedNode,
+          dragCacheEdges: quadDragCacheEdgesRef.current ?? getEdges(),
+          preservedNodes: callouts,
+        });
+        setNodes(nextNodes);
+        setEdges(nextEdges);
+        return;
+      }
+
       const commit = applyCableSideDragCommit({
         graph,
         overrides: existing,
@@ -718,15 +811,12 @@ function WorkflowCanvasInner() {
       if (commit.layoutMode !== layoutModeRef.current) {
         layoutModeRef.current = commit.layoutMode;
         setLayoutModeState(commit.layoutMode);
-        fitViewRequestRef.current += 1;
-        setFitViewTick((tick) => tick + 1);
       }
 
-      const callouts = getNodes().filter((n) => n.type === "cableCallout");
       setNodes([...commit.nodes, ...callouts]);
       setEdges(commit.edges);
     },
-    [getNodes, setEdges, setNodes],
+    [getNodes, getEdges, setEdges, setNodes],
   );
 
   const syncCandidateCableDrag = useCallback(
@@ -755,6 +845,12 @@ function WorkflowCanvasInner() {
         ...positionsFromNodes(getNodes().filter((n) => n.type === "cable")),
         [draggedNode.id]: draggedNode.position,
       };
+      const visualId = visualCableIdFromNodeId(draggedNode.id);
+      const { visualCables } = buildVisualCablesForLayout(graph);
+      const rerouteConnectionIds =
+        visualId != null
+          ? rerouteConnectionIdsForVisualCableDrag(visualCables, visualId)
+          : undefined;
 
       const { nodes: nextNodes, edges: nextEdges } = buildReactFlowGraph(
         graph,
@@ -768,13 +864,17 @@ function WorkflowCanvasInner() {
           autoAdjustEnabled: autoAdjustRef.current,
         },
         layoutWidthRef.current,
-        { dragSync: true },
+        {
+          dragSync: true,
+          dragCacheEdges: quadDragCacheEdgesRef.current ?? getEdges(),
+          rerouteConnectionIds,
+        },
       );
       const callouts = getNodes().filter((n) => n.type === "cableCallout");
       setNodes([...nextNodes, ...callouts]);
       setEdges(nextEdges);
     },
-    [getNodes, setEdges, setNodes],
+    [getEdges, getNodes, setEdges, setNodes],
   );
 
   const refreshDragRouting = useCallback(
@@ -825,13 +925,21 @@ function WorkflowCanvasInner() {
   useEffect(() => {
     const requestId = fitViewRequestRef.current;
     if (requestId === 0 || requestId === fitViewHandledRef.current) return;
-    if (!nodesInitialized || nodes.length === 0) return;
+    if (!nodesInitialized) return;
+
+    if (isInteractingRef.current) {
+      pendingFitAfterInteractionRef.current = true;
+      return;
+    }
 
     const stage = stageRef.current;
     if (!stage) return;
 
+    const currentNodes = getNodes();
+    if (currentNodes.length === 0) return;
+
     const bounds =
-      getNodesBounds(nodes) ?? boundsFromFlowNodes(nodes);
+      getNodesBounds(currentNodes) ?? boundsFromFlowNodes(currentNodes);
     if (!bounds || bounds.width <= 0 || bounds.height <= 0) return;
 
     fitViewHandledRef.current = requestId;
@@ -845,7 +953,7 @@ function WorkflowCanvasInner() {
     );
 
     void setViewport(viewport, { duration: 0 });
-  }, [nodesInitialized, nodes, setViewport, fitViewTick]);
+  }, [nodesInitialized, getNodes, getNodesBounds, setViewport, fitViewTick]);
 
   /** Refit viewport after async layout swap once React Flow has measured new nodes. */
   const scheduleFitViewAfterLayout = useCallback(() => {
@@ -1081,6 +1189,7 @@ function WorkflowCanvasInner() {
       stageWidthRef.current = width;
       if (Math.abs(width - prevStageWidth) < STAGE_WIDTH_DELTA_PX) return;
       if (!graphRef.current) return;
+      if (isInteractingRef.current) return;
 
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
@@ -1098,12 +1207,14 @@ function WorkflowCanvasInner() {
     };
   }, []);
 
-  /** Fit diagram to stage once nodes are measured (e.g. after import). */
+  /** Fit diagram to stage once after first measured nodes (e.g. after import). */
   useEffect(() => {
+    if (hasInitialFitRef.current) return;
     if (!nodesInitialized || nodes.length === 0) return;
     const stage = stageRef.current;
     if (!stage || stage.clientWidth <= 0 || stage.clientHeight <= 0) return;
 
+    hasInitialFitRef.current = true;
     fitViewRequestRef.current += 1;
     setFitViewTick((tick) => tick + 1);
   }, [nodesInitialized, nodes.length]);
@@ -1125,6 +1236,9 @@ function WorkflowCanvasInner() {
     ) => {
       reportKeyRef.current = reportKey;
       graphRef.current = graph;
+      hasInitialFitRef.current = false;
+      fitViewRequestRef.current = 0;
+      fitViewHandledRef.current = 0;
       setMapHeader({
         location: graph.report.header.location,
         spliceLabel: graph.report.header.spliceNumber ?? graph.report.header.name,
@@ -2164,6 +2278,7 @@ function WorkflowCanvasInner() {
 
   const onNodeDragStart: OnNodeDrag<Node> = useCallback(
     (_, node) => {
+      isInteractingRef.current = true;
       if (!autoAdjustRef.current && node.type === "fiberAnchor") {
         manualAdjustEngine.onFiberAnchorDragStart(
           _ as React.MouseEvent,
@@ -2172,6 +2287,7 @@ function WorkflowCanvasInner() {
         return;
       }
       if (node.type !== "cable") return;
+      quadDragCacheEdgesRef.current = getEdges();
       const graph = graphRef.current;
       const reportKey = reportKeyRef.current;
       if (graph && reportKey && useCandidateSideDrag(reportKey, graph)) {
@@ -2279,6 +2395,24 @@ function WorkflowCanvasInner() {
         } else {
           const yBounds = { topY: dragBounds.minY, bottomY: dragBounds.maxY };
           finalY = resolveCableDragStopY(node.position.y, newSide, yBounds);
+          const maxTubes =
+            Math.max(
+              1,
+              ...buildVisualCablesForLayout(graph).visualCables.map(
+                (vc) => vc.tubes.length,
+              ),
+            );
+          const nodeWidth = estimatedCableNodeWidth(maxTubes);
+          const stackBounds: CableStackXBounds = {
+            minX: dragBounds.minX,
+            maxX: dragBounds.maxX - nodeWidth,
+          };
+          const autoStackX = node.position.x;
+          finalX = resolveCableDragStopStackX(
+            node.position.x,
+            autoStackX,
+            stackBounds,
+          );
         }
 
         if (
@@ -2289,6 +2423,24 @@ function WorkflowCanvasInner() {
           finalY = Math.min(
             Math.max(finalY, dragBounds.minY),
             dragBounds.maxY - nodeHeight,
+          );
+        }
+
+        if (
+          !sideChanged &&
+          (currentSide === "top" || currentSide === "bottom")
+        ) {
+          const maxTubes =
+            Math.max(
+              1,
+              ...buildVisualCablesForLayout(graph).visualCables.map(
+                (vc) => vc.tubes.length,
+              ),
+            );
+          const nodeWidth = estimatedCableNodeWidth(maxTubes);
+          finalX = Math.min(
+            Math.max(finalX, dragBounds.minX),
+            dragBounds.maxX - nodeWidth,
           );
         }
 
@@ -2342,16 +2494,10 @@ function WorkflowCanvasInner() {
           ? deriveLayoutMode(baseCandidate)
           : layoutModeRef.current;
         const stackCoord = stackCoordForSide(newSide, { x: finalX, y: finalY });
-        const entersOrInQuad =
-          prevLayoutMode === "quad" ||
-          newSide === "top" ||
-          newSide === "bottom";
-        const positionsForSeed = entersOrInQuad
-          ? {}
-          : {
-              ...(existing?.positions ?? {}),
-              [node.id]: { x: finalX, y: finalY },
-            };
+        const positionsForSeed = {
+          ...(existing?.positions ?? {}),
+          [node.id]: { x: finalX, y: finalY },
+        };
         const seedCandidate = prepareSideDragSeedCandidate(
           graph,
           existing,
@@ -2436,8 +2582,11 @@ function WorkflowCanvasInner() {
           requestAnimationFrame(() =>
             updateSpliceRoutingNodeInternals(merged, updateNodeInternals),
           );
-          requestDiagramFitView();
+          if (result.sideChanged) {
+            requestDiagramFitView();
+          }
           sideDragBoundsAtDragStartRef.current = null;
+          quadDragCacheEdgesRef.current = null;
         };
 
         if (
@@ -2854,14 +3003,17 @@ function WorkflowCanvasInner() {
         }
       }
       } finally {
+        endCanvasInteraction();
         if (node.type === "cable") {
           gridRoutesDragRef.current = null;
           sideDragBoundsAtDragStartRef.current = null;
+          quadDragCacheEdgesRef.current = null;
         }
       }
     },
     [
       edges,
+      endCanvasInteraction,
       getEdges,
       getNodes,
       manualAdjustEngine,

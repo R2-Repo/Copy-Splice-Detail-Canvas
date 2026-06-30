@@ -201,7 +201,7 @@ describe("moveCableInCandidate", () => {
 });
 
 describe("resolveSideDragCablePosition", () => {
-  it("uses built placement when flipping to top", () => {
+  it("keeps drag X when flipping to top", () => {
     expect(
       resolveSideDragCablePosition(
         "top",
@@ -209,7 +209,18 @@ describe("resolveSideDragCablePosition", () => {
         { x: 515, y: 472 },
         { x: 500, y: 72 },
       ),
-    ).toEqual({ x: 500, y: 72 });
+    ).toEqual({ x: 515, y: 72 });
+  });
+
+  it("keeps drag X when flipping to bottom", () => {
+    expect(
+      resolveSideDragCablePosition(
+        "bottom",
+        true,
+        { x: 420, y: 680 },
+        { x: 400, y: 700 },
+      ),
+    ).toEqual({ x: 420, y: 700 });
   });
 
   it("uses built X when flipping to right", () => {
@@ -456,15 +467,15 @@ describe("applyCableSideDragCommit", () => {
     );
     const topCable = cables.find((n) => (n.data as { quadSide?: string }).quadSide === "top")!;
     expect(topCable.position.y).toBeLessThan(200);
+    expect(topCable.position.x).toBe(400);
+    expect(
+      commit!.overrides.positions?.[`cable-${leftVc.id}`]?.x,
+    ).toBe(400);
     for (const n of cables) {
       if ((n.data as { quadSide?: string }).quadSide === "right") {
         expect(n.position.x).toBeGreaterThan(600);
         expect(n.position.x).toBeLessThan(1100);
       }
-    }
-    for (const pos of Object.values(commit!.overrides.positions ?? {})) {
-      expect(pos.x).not.toBe(997);
-      expect(pos.x).not.toBe(115);
     }
   });
 

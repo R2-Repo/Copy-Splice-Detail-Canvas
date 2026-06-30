@@ -48,6 +48,36 @@ function horizontalProxySide(side: QuadSide): "left" | "right" {
   return side === "right" ? "right" : "left";
 }
 
+type CachedQuadRoute = {
+  leftPath: string;
+  rightPath: string;
+  spliceX: number;
+  spliceY: number;
+};
+
+function cachedQuadRouteFromEdges(
+  edges: Edge[],
+  connectionId: string,
+): CachedQuadRoute | undefined {
+  const left = edges.find((e) => e.id === `splice-left-${connectionId}`);
+  if (!left?.data || typeof left.data !== "object") return undefined;
+  const data = left.data as Record<string, unknown>;
+  if (
+    typeof data.leftPath !== "string" ||
+    typeof data.rightPath !== "string" ||
+    typeof data.spliceX !== "number" ||
+    typeof data.spliceY !== "number"
+  ) {
+    return undefined;
+  }
+  return {
+    leftPath: data.leftPath,
+    rightPath: data.rightPath,
+    spliceX: data.spliceX,
+    spliceY: data.spliceY,
+  };
+}
+
 /**
  * Additive 4-side layout pipeline. Reuses the existing slim-cable + fiberAnchor
  * + splicePoint render contract and the precomputed SpliceEdge path data, so no
@@ -64,6 +94,8 @@ export function buildQuadReactFlowGraph(
     stageWidth?: number;
     skipTubeAutoAlign?: boolean;
     dragSync?: boolean;
+    rerouteConnectionIds?: string[];
+    dragCacheEdges?: import("@xyflow/react").Edge[];
     /** Search harness — stack order per side (cable name keys). */
     fixedQuadStackOrder?: Partial<Record<QuadSide, string[]>>;
   },
@@ -229,14 +261,26 @@ export function buildQuadReactFlowGraph(
   const frontiers = computeQuadFrontiers(frontierAnchors, { width, height });
   const router = createQuadRouter(frontiers, { x: centerX, y: centerY });
 
+  const dragSync = _buildOptions?.dragSync === true;
+  const rerouteSet = new Set(_buildOptions?.rerouteConnectionIds ?? []);
+  const priorEdges = _buildOptions?.dragCacheEdges ?? [];
+
   for (const plan of routePlans) {
     const { conn, vcAId, vcBId, sCenter, tCenter, sourceColor, targetColor } =
       plan;
 
-    const routed = router.route(
-      { x: sCenter.x, y: sCenter.y, side: sideOf(vcAId) },
-      { x: tCenter.x, y: tCenter.y, side: sideOf(vcBId) },
-    );
+    const connId = conn.id;
+    const cached =
+      dragSync && priorEdges.length > 0 && !rerouteSet.has(connId)
+        ? cachedQuadRouteFromEdges(priorEdges, connId)
+        : undefined;
+
+    const routed = cached
+      ? cached
+      : router.route(
+          { x: sCenter.x, y: sCenter.y, side: sideOf(vcAId) },
+          { x: tCenter.x, y: tCenter.y, side: sideOf(vcBId) },
+        );
 
     const spliceId = `splicePoint-${conn.id}`;
 
