@@ -79,30 +79,48 @@ describe("mergeLayoutOverrides", () => {
     expect(merged.fanoutOverrides?.["vc-right|RD"]).toEqual({ shiftY: -4 });
   });
 
-  it("preserves locks on a partial patch and replaces when provided", () => {
+  it("preserves tube locks on a partial patch and replaces when provided", () => {
     saveLayoutOverrides({
       reportKey: "report-locks",
       layoutVersion: LAYOUT_OVERRIDE_VERSION,
       positions: {},
       locks: {
-        cables: { "vc-left": true },
         tubeGroups: { "vc-left|BL": true },
       },
     });
 
-    // Partial patch (no locks) keeps stored locks.
     const kept = mergeLayoutOverrides("report-locks", {
       autoAdjustEnabled: false,
     });
-    expect(kept.locks?.cables).toEqual({ "vc-left": true });
     expect(kept.locks?.tubeGroups).toEqual({ "vc-left|BL": true });
 
-    // Provided locks fully replace (so a removed key actually unlocks).
     const replaced = mergeLayoutOverrides("report-locks", {
-      locks: { cables: {}, tubeGroups: { "vc-left|BL": true } },
+      locks: { tubeGroups: {} },
     });
-    expect(replaced.locks?.cables).toEqual({});
-    expect(replaced.locks?.tubeGroups).toEqual({ "vc-left|BL": true });
+    expect(replaced.locks?.tubeGroups).toEqual({});
+  });
+
+  it("strips legacy cable locks on load and merge", () => {
+    localStorage.setItem(
+      "report-legacy-locks",
+      JSON.stringify({
+        reportKey: "report-legacy-locks",
+        layoutVersion: LAYOUT_OVERRIDE_VERSION,
+        positions: {},
+        locks: { cables: { "vc-left": true }, tubeGroups: { "vc-left|BL": true } },
+        gridLocks: {
+          segments: [],
+          dots: [],
+          cables: ["vc-left"],
+          tubeGroups: ["vc-left|BL"],
+        },
+      }),
+    );
+
+    const loaded = loadLayoutOverrides("report-legacy-locks");
+    expect(loaded?.locks?.tubeGroups).toEqual({ "vc-left|BL": true });
+    expect(loaded?.locks).not.toHaveProperty("cables");
+    expect(loaded?.gridLocks).not.toHaveProperty("cables");
   });
 
   it("explicit empty override maps clear stored manual data", () => {

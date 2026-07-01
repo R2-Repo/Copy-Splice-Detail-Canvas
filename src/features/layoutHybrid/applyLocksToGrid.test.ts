@@ -14,7 +14,6 @@ describe("unlockHybridItem", () => {
         gridLocks: {
           segments: [],
           dots: ["conn-1"],
-          cables: [],
           tubeGroups: [],
         },
       },
@@ -38,7 +37,6 @@ describe("unlockHybridItem", () => {
         gridLocks: {
           segments: [],
           dots: ["conn-2"],
-          cables: [],
           tubeGroups: [],
         },
       },

@@ -520,6 +520,8 @@ function WorkflowCanvasInner() {
   const sideDragBoundsAtDragStartRef = useRef<ReturnType<
     typeof sideDragBounds
   > | null>(null);
+  /** Cable X at drag start — separates stack fine tuning from T/B intent. */
+  const sideDragStartXRef = useRef<number | null>(null);
   const quadDragCacheEdgesRef = useRef<Edge[] | null>(null);
 
   const endCanvasInteraction = useCallback(() => {
@@ -715,6 +717,7 @@ function WorkflowCanvasInner() {
         draggedNode.position.y,
         dragBounds,
         currentSide,
+        { dragStartX: sideDragStartXRef.current ?? undefined },
       );
 
       // Side-flip preview corrupts React Flow drag coords — commit on drag-stop only.
@@ -2135,6 +2138,7 @@ function WorkflowCanvasInner() {
           ? loadLayoutOverrides(reportKeyRef.current) ?? undefined
           : undefined,
       ) === "grid",
+    fiberDragEnabled: !!meta,
     nodes,
     edges,
     graph: graphRef.current,
@@ -2279,7 +2283,7 @@ function WorkflowCanvasInner() {
   const onNodeDragStart: OnNodeDrag<Node> = useCallback(
     (_, node) => {
       isInteractingRef.current = true;
-      if (!autoAdjustRef.current && node.type === "fiberAnchor") {
+      if (node.type === "fiberAnchor") {
         manualAdjustEngine.onFiberAnchorDragStart(
           _ as React.MouseEvent,
           node,
@@ -2295,6 +2299,7 @@ function WorkflowCanvasInner() {
           layoutWidthRef.current,
           getNodes(),
         );
+        sideDragStartXRef.current = node.position.x;
       }
       if (reportKey && useGridRoutingEngine(loadLayoutOverrides(reportKey) ?? undefined)) {
         gridRoutesDragRef.current = gridRoutesFromEdges(
@@ -2348,6 +2353,7 @@ function WorkflowCanvasInner() {
           node.position.y,
           dragBounds,
           currentSide,
+          { dragStartX: sideDragStartXRef.current ?? undefined },
         );
         const sideChanged = currentSide !== newSide;
         const manualMode = !autoAdjustRef.current;
@@ -2462,25 +2468,12 @@ function WorkflowCanvasInner() {
             [node.id]: { x: finalX, y: finalY },
           };
           const layoutMode = layoutModeRef.current;
-          if (autoAdjustRef.current) {
-            saveLayoutOverrides(
-              onEditLock(
-                mergeLayoutOverrides(reportKey, {
-                  layoutMode,
-                  positions: finalPositions,
-                }),
-                "cable",
-                { cableId: visualId, position: { x: finalX, y: finalY } },
-              ),
-            );
-          } else {
-            saveLayoutOverrides(
-              mergeLayoutOverrides(reportKey, {
-                layoutMode,
-                positions: finalPositions,
-              }),
-            );
-          }
+          saveLayoutOverrides(
+            mergeLayoutOverrides(reportKey, {
+              layoutMode,
+              positions: finalPositions,
+            }),
+          );
           layoutWidthRef.current = layoutWidth;
           refreshDragRouting({
             ...node,
@@ -2586,6 +2579,7 @@ function WorkflowCanvasInner() {
             requestDiagramFitView();
           }
           sideDragBoundsAtDragStartRef.current = null;
+          sideDragStartXRef.current = null;
           quadDragCacheEdgesRef.current = null;
         };
 
@@ -2602,6 +2596,7 @@ function WorkflowCanvasInner() {
             existing,
             visualId,
             newSide,
+            seedCandidate,
           );
 
           setLayoutSearchProgress(
@@ -2639,7 +2634,7 @@ function WorkflowCanvasInner() {
 
             if (!winner) {
               setConfigErrorBanner(
-                "Could not reroute cleanly; try re-import or unlock cables.",
+                "Could not reroute cleanly; try re-import.",
               );
             } else {
               setConfigErrorBanner(null);
@@ -2660,6 +2655,7 @@ function WorkflowCanvasInner() {
             });
             if (!optimized) {
               sideDragBoundsAtDragStartRef.current = null;
+              sideDragStartXRef.current = null;
               return;
             }
             applySideDragCommit(optimized);
@@ -2681,10 +2677,15 @@ function WorkflowCanvasInner() {
         });
         if (!commit) {
           sideDragBoundsAtDragStartRef.current = null;
+          sideDragStartXRef.current = null;
           return;
         }
 
         applySideDragCommit(commit);
+        return;
+      }
+      if (node.type === "fiberAnchor") {
+        manualAdjustEngine.onNodeDragStop(_, node, nodes);
         return;
       }
       if (layoutModeRef.current === "quad") {
@@ -2703,13 +2704,7 @@ function WorkflowCanvasInner() {
             );
           }
           refreshDragRouting(node);
-        } else {
-          persistLayout(nodes, edges);
         }
-        return;
-      }
-      if (!autoAdjustRef.current && node.type === "fiberAnchor") {
-        manualAdjustEngine.onNodeDragStop(_, node, nodes);
         return;
       }
       if (node.type === "cableCallout") {
@@ -2964,14 +2959,7 @@ function WorkflowCanvasInner() {
           gridLocks: sideChanged ? undefined : existing?.gridLocks,
           gridRoutes: sideChanged ? undefined : existing?.gridRoutes,
         });
-        saveLayoutOverrides(
-          !manualMode
-            ? onEditLock(baseOverrides, "cable", {
-                cableId: visualId,
-                position: { x: finalX, y: finalY },
-              })
-            : baseOverrides,
-        );
+        saveLayoutOverrides(baseOverrides);
         layoutWidthRef.current = layoutWidth;
         if (manualMode) {
           const touched = new Set<string>();
@@ -3007,6 +2995,7 @@ function WorkflowCanvasInner() {
         if (node.type === "cable") {
           gridRoutesDragRef.current = null;
           sideDragBoundsAtDragStartRef.current = null;
+          sideDragStartXRef.current = null;
           quadDragCacheEdgesRef.current = null;
         }
       }
@@ -3030,7 +3019,7 @@ function WorkflowCanvasInner() {
 
   const onNodeDrag: OnNodeDrag<Node> = useCallback(
     (_, node) => {
-      if (!autoAdjustRef.current && node.type === "fiberAnchor") {
+      if (node.type === "fiberAnchor") {
         manualAdjustEngine.onNodeDrag(_, node, nodes);
         return;
       }
@@ -3435,59 +3424,6 @@ function WorkflowCanvasInner() {
     null,
   );
 
-  const toggleCableLock = useCallback(
-    (visualCableId: string) => {
-      const reportKey = reportKeyRef.current;
-      if (!reportKey) return;
-      const existing = loadLayoutOverrides(reportKey);
-      const cables = { ...(existing?.locks?.cables ?? {}) };
-      const wasLocked = Boolean(cables[visualCableId]);
-      if (wasLocked) delete cables[visualCableId];
-      else cables[visualCableId] = true;
-
-      const cableNode = getNodes().find(
-        (n) => n.type === "cable" && n.id === `cable-${visualCableId}`,
-      );
-      const position = cableNode?.position;
-
-      const base = mergeLayoutOverrides(reportKey, {
-        positions: positionsFromNodes(
-          getNodes().filter((n) => n.type === "cable"),
-        ),
-        existingEdgeIds: existingIdsFromEdges(getEdges()),
-        collapseFullButtSplices: collapseRef.current,
-        layoutWidth: layoutWidthRef.current,
-        locks: { ...existing?.locks, cables },
-        routingEngine: existing?.routingEngine,
-        gridLocks: existing?.gridLocks,
-        gridRoutes: existing?.gridRoutes,
-      });
-
-      saveLayoutOverrides(
-        wasLocked
-          ? unlockHybridItem(base, "cable", visualCableId)
-          : position
-            ? onEditLock(base, "cable", {
-                cableId: visualCableId,
-                position,
-              })
-            : base,
-      );
-      setNodes((current) =>
-        current.map((n) =>
-          n.type === "cable" && n.id === `cable-${visualCableId}`
-            ? {
-                ...n,
-                draggable: wasLocked,
-                data: { ...(n.data as CableNodeData), locked: !wasLocked },
-              }
-            : n,
-        ),
-      );
-    },
-    [getEdges, getNodes, setNodes],
-  );
-
   const toggleTubeGroupLock = useCallback(
     (visualCableId: string, tubeColor: string) => {
       const reportKey = reportKeyRef.current;
@@ -3569,7 +3505,6 @@ function WorkflowCanvasInner() {
     (target: ContextMenuTarget): ContextMenuItem[] => {
       const reportKey = reportKeyRef.current;
       const overrides = reportKey ? loadLayoutOverrides(reportKey) : undefined;
-      const locks = overrides?.locks;
       if (target.kind === "fusionDot") {
         const locked =
           overrides?.gridLocks?.dots?.includes(target.connectionId) ?? false;
@@ -3581,21 +3516,12 @@ function WorkflowCanvasInner() {
           },
         ];
       }
-      if (target.kind === "cable") {
-        const locked = Boolean(locks?.cables?.[target.visualCableId]);
-        return [
-          {
-            id: "lock-cable",
-            label: locked ? "Unlock cable position" : "Lock cable position",
-            onSelect: () => toggleCableLock(target.visualCableId),
-          },
-        ];
-      }
+      if (target.kind !== "tubeGroup") return [];
       const key = tubeKeyFor(
         target.visualCableId,
         target.tubeColor as TubeColorCode,
       );
-      const locked = Boolean(locks?.tubeGroups?.[key]);
+      const locked = Boolean(overrides?.locks?.tubeGroups?.[key]);
       return [
         {
           id: "lock-tube",
@@ -3605,7 +3531,7 @@ function WorkflowCanvasInner() {
         },
       ];
     },
-    [toggleCableLock, toggleFusionDotLock, toggleTubeGroupLock],
+    [toggleFusionDotLock, toggleTubeGroupLock],
   );
 
   const openContextMenu = useCallback(
@@ -3625,18 +3551,10 @@ function WorkflowCanvasInner() {
   );
 
   const onNodeContextMenu = useCallback(
-    (event: React.MouseEvent, node: Node) => {
-      if (node.type !== "cable") return;
-      event.preventDefault();
-      const visualId = visualCableIdFromNodeId(node.id);
-      if (!visualId) return;
-      openContextMenu(
-        { kind: "cable", visualCableId: visualId },
-        event.clientX,
-        event.clientY,
-      );
+    (_event: React.MouseEvent, _node: Node) => {
+      // Cable body has no lock actions; tube labels open their own menu in CableNode.
     },
-    [openContextMenu],
+    [],
   );
 
   const gridHybrid = useMemo(() => {
@@ -3757,7 +3675,7 @@ function WorkflowCanvasInner() {
         <div className="workflow-canvas__toolbar-center">
           <span className="workflow-canvas__hint">
             {autoAdjustEnabled
-              ? "Drag cables, tube tips ↕, stem ↔, fiber handles; shift+drag for bundle. Edits lock in place."
+              ? "Drag cables freely; tube/fiber edits lock in place."
               : "Manual: tube tips ↕, stem ↔, fiber anchors ↕, legs ↔; shift+click or marquee for groups"}
           </span>
           {configErrorBanner ? (

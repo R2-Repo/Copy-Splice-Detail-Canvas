@@ -3,7 +3,7 @@ import type { Node } from "@xyflow/react";
 
 import type { LayoutOverrides } from "@/types/splice";
 
-import { onEditLock, clearAllHybridLocks, unlockHybridItem } from "./onEditLock";
+import { clearAllHybridLocks, unlockHybridItem } from "./onEditLock";
 
 export type UseLayoutHybridOptions = {
   overrides: LayoutOverrides | undefined;
@@ -12,8 +12,8 @@ export type UseLayoutHybridOptions = {
 };
 
 /**
- * Always-on auto layout with lock-on-edit (SDC-UX-001).
- * Replaces the Auto/Manual toggle — manual edits become locked constraints.
+ * Always-on auto layout (SDC-UX-001).
+ * Tube, leg, and fusion-dot edits lock in place; cable drags save position only.
  */
 export function useLayoutHybrid(options: UseLayoutHybridOptions) {
   const overridesRef = useRef(options.overrides);
@@ -32,13 +32,14 @@ export function useLayoutHybrid(options: UseLayoutHybridOptions) {
 
   const onCableDragStop = useCallback(
     (node: Node, position: { x: number; y: number }) => {
-      const cableId = node.id.replace(/^cable-/, "");
       const base = overridesRef.current ?? {
         reportKey: options.reportKey,
         positions: {},
       };
-      const next = onEditLock(base, "cable", { cableId, position });
-      options.onOverridesChange(next);
+      options.onOverridesChange({
+        ...base,
+        positions: { ...base.positions, [node.id]: position },
+      });
     },
     [options],
   );
@@ -52,7 +53,7 @@ export function useLayoutHybrid(options: UseLayoutHybridOptions) {
   }, [options]);
 
   const onUnlockItem = useCallback(
-    (kind: "cable" | "tubeGroup" | "segment" | "fusionDot", key: string) => {
+    (kind: "tubeGroup" | "segment" | "fusionDot", key: string) => {
       const base = overridesRef.current ?? {
         reportKey: options.reportKey,
         positions: {},

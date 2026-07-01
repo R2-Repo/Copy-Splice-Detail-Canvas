@@ -7,39 +7,6 @@ export type HybridLockPatch = {
   gridLocks?: LayoutOverrides["gridLocks"];
 };
 
-function visualCableIdFromKey(cableId: string): string {
-  return cableId.replace(/^cable-/, "");
-}
-
-/** React Flow node id used in `LayoutOverrides.positions`. */
-function cableNodePositionKey(cableId: string): string {
-  return `cable-${visualCableIdFromKey(cableId)}`;
-}
-
-/** Merge a cable position lock after user drag. */
-export function lockCablePosition(
-  overrides: LayoutOverrides,
-  cableId: string,
-  position: { x: number; y: number },
-): LayoutOverrides {
-  const visualId = visualCableIdFromKey(cableId);
-  const nodeId = cableNodePositionKey(cableId);
-  return {
-    ...overrides,
-    positions: { ...overrides.positions, [nodeId]: position },
-    locks: {
-      ...overrides.locks,
-      cables: { ...overrides.locks?.cables, [visualId]: true },
-    },
-    gridLocks: {
-      segments: overrides.gridLocks?.segments ?? [],
-      dots: overrides.gridLocks?.dots ?? [],
-      cables: [...new Set([...(overrides.gridLocks?.cables ?? []), visualId])],
-      tubeGroups: overrides.gridLocks?.tubeGroups ?? [],
-    },
-  };
-}
-
 /** Lock a tube/fan-out group after manual edit. */
 export function lockTubeGroup(
   overrides: LayoutOverrides,
@@ -54,7 +21,6 @@ export function lockTubeGroup(
     gridLocks: {
       segments: overrides.gridLocks?.segments ?? [],
       dots: overrides.gridLocks?.dots ?? [],
-      cables: overrides.gridLocks?.cables ?? [],
       tubeGroups: [
         ...new Set([...(overrides.gridLocks?.tubeGroups ?? []), tubeKey]),
       ],
@@ -70,9 +36,10 @@ export function lockGridSegments(
   return {
     ...overrides,
     gridLocks: {
-      segments: [...new Set([...(overrides.gridLocks?.segments ?? []), ...segmentIds])],
+      segments: [
+        ...new Set([...(overrides.gridLocks?.segments ?? []), ...segmentIds]),
+      ],
       dots: overrides.gridLocks?.dots ?? [],
-      cables: overrides.gridLocks?.cables ?? [],
       tubeGroups: overrides.gridLocks?.tubeGroups ?? [],
     },
   };
@@ -103,26 +70,12 @@ export function clearAllHybridLocks(
   };
 }
 
-/** Unlock one cable, tube group, leg segment, or fusion-dot lock. */
+/** Unlock one tube group, leg segment, or fusion-dot lock. */
 export function unlockHybridItem(
   overrides: LayoutOverrides,
-  kind: "cable" | "tubeGroup" | "segment" | "fusionDot",
+  kind: "tubeGroup" | "segment" | "fusionDot",
   key: string,
 ): LayoutOverrides {
-  if (kind === "cable") {
-    const cables = { ...overrides.locks?.cables };
-    delete cables[key];
-    return {
-      ...overrides,
-      locks: { ...overrides.locks, cables },
-      gridLocks: overrides.gridLocks
-        ? {
-            ...overrides.gridLocks,
-            cables: overrides.gridLocks.cables.filter((id) => id !== key),
-          }
-        : undefined,
-    };
-  }
   if (kind === "tubeGroup") {
     const tubeGroups = { ...overrides.locks?.tubeGroups };
     delete tubeGroups[key as TubeOverrideKey];
@@ -169,4 +122,29 @@ export function unlockHybridItem(
         }
       : undefined,
   };
+}
+
+/** Drop legacy cable lock keys from stored overrides. */
+export function stripLegacyCableLocks(
+  overrides: LayoutOverrides,
+): LayoutOverrides {
+  let next = overrides;
+  const legacyLocks = overrides.locks as
+    | (LayoutOverrides["locks"] & { cables?: Record<string, true> })
+    | undefined;
+  if (legacyLocks?.cables) {
+    const { cables: _cables, ...restLocks } = legacyLocks;
+    next = {
+      ...next,
+      locks: Object.keys(restLocks).length > 0 ? restLocks : undefined,
+    };
+  }
+  const legacyGrid = overrides.gridLocks as
+    | (NonNullable<LayoutOverrides["gridLocks"]> & { cables?: string[] })
+    | undefined;
+  if (legacyGrid && legacyGrid.cables?.length) {
+    const { cables: _cables, ...restGridLocks } = legacyGrid;
+    next = { ...next, gridLocks: restGridLocks };
+  }
+  return next;
 }

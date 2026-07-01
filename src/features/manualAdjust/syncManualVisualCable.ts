@@ -6,6 +6,12 @@ import { SPLICE_LANE_SEP } from "@/features/diagram/cableLayoutMetrics";
 import type { ConnectionGraph } from "@/types/splice";
 import { buildVisualCablesForLayout } from "@/features/diagram/visualCables";
 import {
+  isQuadVerticalCableData,
+  quadFiberAnchorNodePosition,
+  quadFiberHandleCenterForCable,
+} from "@/features/diagram/quad/quadManualAdjust";
+
+import {
   buildHandleCoordsCache,
   fiberAnchorNodePosition,
   handleCoordsForConnection,
@@ -205,11 +211,14 @@ export function syncManualVisualCable(
       : t.fibers.map((f) => f.connectionId),
   );
 
+  const quadVertical = isQuadVerticalCableData(cableData);
   const anchorPositions = new Map<string, { x: number; y: number }>();
   for (const connectionId of connectionIds) {
     anchorPositions.set(
       `fiberAnchor-${visualCableId}::${connectionId}`,
-      fiberAnchorNodePosition(connectionId, vc, cableNode, ANCHOR_DOT),
+      quadVertical
+        ? quadFiberAnchorNodePosition(connectionId, vcRaw, cableNode, ANCHOR_DOT)
+        : fiberAnchorNodePosition(connectionId, vc, cableNode, ANCHOR_DOT),
     );
   }
 
@@ -253,6 +262,16 @@ export function syncManualVisualCable(
     const pinsSource = handles.sourceVisualCableId === visualCableId;
     const pinsTarget = handles.targetVisualCableId === visualCableId;
     if (!pinsSource && !pinsTarget) continue;
+
+    if (quadVertical) {
+      const quadHandle = quadFiberHandleCenterForCable(
+        connectionId,
+        vcRaw,
+        cableNode,
+      );
+      if (pinsSource) handles.source = quadHandle;
+      if (pinsTarget) handles.target = quadHandle;
+    }
 
     const data = (leftEdge.data ?? {}) as SpliceLaneData;
 

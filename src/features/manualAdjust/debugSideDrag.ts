@@ -21,6 +21,8 @@ export type SideDragLogContext = {
   resolved?: { x: number; y: number };
   nodeCount?: number;
   note?: string;
+  canCommitTopBottom?: boolean;
+  dragStartX?: number;
 };
 
 export function logSideDrag(label: string, ctx: SideDragLogContext): void {

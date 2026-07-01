@@ -26,6 +26,7 @@ import {
   candidateFromOverrides,
   detectSideFromDragPosition,
   detectSideFromEdgeProximity,
+  lockedSidesForSideDrag,
   moveCableInCandidate,
   resolveSideDragCablePosition,
   stackCoordForSide,
@@ -66,13 +67,16 @@ describe("detectSideFromEdgeProximity", () => {
     minY: 0,
     maxY: 800,
   };
+  const LEFT_START = { dragStartX: 40 };
 
   it("keeps current side when not near any canvas edge", () => {
     expect(
-      detectSideFromEdgeProximity(400, 400, EDGE_BOUNDS, "left"),
+      detectSideFromEdgeProximity(400, 400, EDGE_BOUNDS, "left", LEFT_START),
     ).toBe("left");
     expect(
-      detectSideFromEdgeProximity(600, 400, EDGE_BOUNDS, "right"),
+      detectSideFromEdgeProximity(600, 400, EDGE_BOUNDS, "right", {
+        dragStartX: 1020,
+      }),
     ).toBe("right");
   });
 
@@ -84,54 +88,101 @@ describe("detectSideFromEdgeProximity", () => {
       detectSideFromEdgeProximity(1020, 400, EDGE_BOUNDS, "left"),
     ).toBe("right");
     expect(
-      detectSideFromEdgeProximity(530, 30, EDGE_BOUNDS, "left"),
+      detectSideFromEdgeProximity(530, 30, EDGE_BOUNDS, "left", {
+        dragStartX: 40,
+      }),
     ).toBe("top");
     expect(
-      detectSideFromEdgeProximity(530, 770, EDGE_BOUNDS, "left"),
+      detectSideFromEdgeProximity(530, 770, EDGE_BOUNDS, "left", {
+        dragStartX: 40,
+      }),
     ).toBe("bottom");
   });
 
-  it("promotes left-column cable to bottom when dragged down (not blocked by left edge)", () => {
+  it("keeps side-column cable on left/right for pure vertical and fine-tune drags", () => {
+    for (const y of [30, 90, 400, 710, 770]) {
+      expect(
+        detectSideFromEdgeProximity(40, y, EDGE_BOUNDS, "left", LEFT_START),
+      ).toBe("left");
+    }
     expect(
-      detectSideFromEdgeProximity(40, 770, EDGE_BOUNDS, "left"),
-    ).toBe("bottom");
-    expect(
-      detectSideFromEdgeProximity(40, 730, EDGE_BOUNDS, "left"),
-    ).toBe("bottom");
-    expect(
-      detectSideFromEdgeProximity(40, 710, EDGE_BOUNDS, "left"),
+      detectSideFromEdgeProximity(200, 30, EDGE_BOUNDS, "left", LEFT_START),
     ).toBe("left");
+    expect(
+      detectSideFromEdgeProximity(120, 120, EDGE_BOUNDS, "left", LEFT_START),
+    ).toBe("left");
+    for (const y of [30, 400, 770]) {
+      expect(
+        detectSideFromEdgeProximity(1020, y, EDGE_BOUNDS, "right", {
+          dragStartX: 1020,
+        }),
+      ).toBe("right");
+    }
+    expect(
+      detectSideFromEdgeProximity(900, 120, EDGE_BOUNDS, "right", {
+        dragStartX: 1020,
+      }),
+    ).toBe("right");
   });
 
-  it("promotes left-column cable to top when dragged up (not blocked by left edge)", () => {
+  it("promotes to top/bottom only after deliberate move toward center", () => {
     expect(
-      detectSideFromEdgeProximity(40, 30, EDGE_BOUNDS, "left"),
+      detectSideFromEdgeProximity(530, 30, EDGE_BOUNDS, "left", {
+        dragStartX: 40,
+      }),
     ).toBe("top");
     expect(
-      detectSideFromEdgeProximity(40, 70, EDGE_BOUNDS, "left"),
+      detectSideFromEdgeProximity(530, 770, EDGE_BOUNDS, "left", {
+        dragStartX: 40,
+      }),
+    ).toBe("bottom");
+    expect(
+      detectSideFromEdgeProximity(450, 30, EDGE_BOUNDS, "left", {
+        dragStartX: 40,
+      }),
     ).toBe("top");
     expect(
-      detectSideFromEdgeProximity(40, 90, EDGE_BOUNDS, "left"),
+      detectSideFromEdgeProximity(600, 770, EDGE_BOUNDS, "right", {
+        dragStartX: 1020,
+      }),
+    ).toBe("bottom");
+  });
+
+  it("does not promote L/R stack reorder near minY/maxY in the side column", () => {
+    const stack = { ...EDGE_BOUNDS, minY: 72, maxY: 688 };
+    expect(
+      detectSideFromEdgeProximity(40, 82, stack, "left", LEFT_START),
     ).toBe("left");
+    expect(
+      detectSideFromEdgeProximity(1020, 678, stack, "right", {
+        dragStartX: 1020,
+      }),
+    ).toBe("right");
+  });
+
+  it("does not promote on narrow layouts when still fine-tuning the side column", () => {
+    const narrow = { ...EDGE_BOUNDS, layoutWidth: 500, centerX: 250 };
+    expect(
+      detectSideFromEdgeProximity(40, 120, narrow, "left", { dragStartX: 40 }),
+    ).toBe("left");
+    expect(
+      detectSideFromEdgeProximity(40, 30, narrow, "left", { dragStartX: 40 }),
+    ).toBe("left");
+    expect(
+      detectSideFromEdgeProximity(420, 30, narrow, "left", { dragStartX: 40 }),
+    ).toBe("top");
   });
 
   it("bottom detection fails when maxY follows the dragged cable (moving target)", () => {
     const frozen = { ...EDGE_BOUNDS, minY: 72, maxY: 688 };
-    expect(detectSideFromEdgeProximity(40, 650, frozen, "left")).toBe(
-      "bottom",
-    );
+    expect(
+      detectSideFromEdgeProximity(530, 650, frozen, "left", { dragStartX: 40 }),
+    ).toBe("bottom");
 
     const moving = { ...EDGE_BOUNDS, minY: 72, maxY: 810 };
-    expect(detectSideFromEdgeProximity(40, 650, moving, "left")).toBe("left");
-  });
-
-  it("does not promote to top/bottom on a small diagonal nudge from center", () => {
     expect(
-      detectSideFromEdgeProximity(120, 120, EDGE_BOUNDS, "left"),
+      detectSideFromEdgeProximity(530, 650, moving, "left", { dragStartX: 40 }),
     ).toBe("left");
-    expect(
-      detectSideFromEdgeProximity(900, 120, EDGE_BOUNDS, "right"),
-    ).toBe("right");
   });
 });
 
@@ -280,47 +331,10 @@ describe("applyCableSideDragCommit", () => {
     expect(commit!.overrides.optimizedLayoutCandidate?.cableSides[cableKey]).toBe(
       "right",
     );
-    expect(commit!.overrides.locks?.cables?.[vc.id]).toBe(true);
 
     const cableNode = commit!.nodes.find((n) => n.id === `cable-${vc.id}`);
     expect(cableNode).toBeDefined();
     expect((cableNode!.data as { side: string }).side).toBe("right");
-  });
-
-  it("blocks side change when cable is locked", () => {
-    const graph = buildConnectionGraph(
-      parseBentleyCsv(readContractCsv("CSV Splice Detail Example #2.csv")),
-    );
-    const snapshot = loadSearchCandidateSnapshot("example-2");
-    const candidate = toLayoutCandidate(snapshot!);
-    const cableKey = Object.keys(candidate.cableSides)[0]!;
-    const { visualCables } = buildVisualCablesForLayout(graph);
-    const vc = visualCables.find((c) => c.cable === cableKey)!;
-
-    const overrides: LayoutOverrides = {
-      reportKey: "locked-cable",
-      positions: { [`cable-${vc.id}`]: { x: 80, y: 40 } },
-      optimizedLayoutCandidate: snapshot,
-      locks: { cables: { [vc.id]: true } },
-    };
-
-    const commit = applyCableSideDragCommit({
-      graph,
-      overrides,
-      visualId: vc.id,
-      nodeId: `cable-${vc.id}`,
-      position: { x: 980, y: 40 },
-      newSide: "right",
-      bounds: { centerX: candidate.layoutWidth / 2, centerY: 400 },
-      collapseFullButtSplices: false,
-      autoAdjustEnabled: true,
-    });
-
-    expect(commit!.sideChanged).toBe(false);
-    expect(commit!.warnings.some((w) => w.includes("locked"))).toBe(true);
-    expect(commit!.candidate.cableSides[cableKey]).toBe(
-      candidate.cableSides[cableKey],
-    );
   });
 
   it("switches to quad layoutMode when cable moves to top", () => {
@@ -477,6 +491,12 @@ describe("applyCableSideDragCommit", () => {
         expect(n.position.x).toBeLessThan(1100);
       }
     }
+    for (const vc of visualCables) {
+      if (vc.id === leftVc.id) continue;
+      expect(
+        commit!.overrides.positions?.[`cable-${vc.id}`],
+      ).toBeUndefined();
+    }
   });
 
   it("promotes L/R-only import to quad when first cable moves to top", () => {
@@ -560,7 +580,7 @@ describe("applyCableSideDragCommit", () => {
     expect(backLeft!.overrides.quadCableSides).toBeUndefined();
   });
 
-  it("preview commit does not write cable locks", () => {
+  it("preview commit persists side change without extra lock state", () => {
     const graph = buildConnectionGraph(
       parseBentleyCsv(readContractCsv("CSV Splice Detail Example #2.csv")),
     );
@@ -590,10 +610,10 @@ describe("applyCableSideDragCommit", () => {
     });
 
     expect(commit!.sideChanged).toBe(true);
-    expect(commit!.overrides.locks?.cables?.[vc.id]).toBeUndefined();
+    expect(commit!.overrides.locks).toBeUndefined();
   });
 
-  it("manual mode commit skips cable lock", () => {
+  it("manual mode commit persists position without locks", () => {
     const graph = buildConnectionGraph(
       parseBentleyCsv(readContractCsv("CSV Splice Detail Example #2.csv")),
     );
@@ -623,7 +643,8 @@ describe("applyCableSideDragCommit", () => {
     });
 
     expect(commit!.sideChanged).toBe(true);
-    expect(commit!.overrides.locks?.cables?.[vc.id]).toBeUndefined();
+    expect(commit!.overrides.locks).toBeUndefined();
+    expect(commit!.overrides.positions[`cable-${vc.id}`]).toBeDefined();
   });
 
   it("bottom cable to top stays on canvas (not stale bottom Y)", () => {
@@ -741,6 +762,48 @@ describe("applyCableSideDragCommit", () => {
       expect(node.position.y).toBeLessThan(900);
       expect(node.position.x).toBeGreaterThanOrEqual(0);
       expect(node.position.x).toBeLessThan(1200);
+    }
+  });
+});
+
+describe("lockedSidesForSideDrag", () => {
+  it("locks every cable side so re-optimize cannot flip unrelated cables", () => {
+    const graph = buildConnectionGraph(
+      parseBentleyCsv(readContractCsv("CSV Splice Detail Example #2.csv")),
+    );
+    const snapshot = loadSearchCandidateSnapshot("example-2");
+    const candidate = toLayoutCandidate(snapshot!);
+    const { visualCables } = buildVisualCablesForLayout(graph);
+    const leftVc = visualCables.find((v) => v.side === "left")!;
+    const cableKey = cableNameKey(leftVc.cable);
+    const seed = moveCableInCandidate(
+      candidate,
+      cableKey,
+      "top",
+      400,
+      visualCables,
+      {},
+    );
+
+    const locked = lockedSidesForSideDrag(
+      graph,
+      {
+        reportKey: "example-2",
+        positions: {},
+        optimizedLayoutCandidate: snapshot,
+      },
+      leftVc.id,
+      "top",
+      seed,
+    );
+
+    expect(Object.keys(locked).sort()).toEqual(
+      Object.keys(candidate.cableSides).sort(),
+    );
+    expect(locked[cableKey]).toBe("top");
+    for (const [key, side] of Object.entries(candidate.cableSides)) {
+      if (key === cableKey) continue;
+      expect(locked[key]).toBe(side);
     }
   });
 });

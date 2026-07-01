@@ -53,7 +53,6 @@ export type GridRoute = {
 export type GridLocks = {
   segments: string[];
   dots: string[];
-  cables: string[];
   tubeGroups: string[];
 };
 

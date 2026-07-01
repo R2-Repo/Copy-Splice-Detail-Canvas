@@ -7,7 +7,6 @@ import {
   buildVisualCablesForLayout,
   type VisualCable,
 } from "@/features/diagram/visualCables";
-import { onEditLock } from "@/features/layoutHybrid/onEditLock";
 import { buildCanvasFromCandidate } from "@/features/layoutSearch/candidateToGraph";
 import {
   candidateToCableSidesRecord,
@@ -44,6 +43,50 @@ export type SideDragEdgeBounds = SideDragBounds & {
 /** Drag-stop gate — cable must be within this distance of a canvas edge to change sides. */
 export const SIDE_DRAG_EDGE_THRESHOLD_PX = 80;
 
+/** Extra vertical reach for top/bottom commits (easier target than L/R flip). */
+export const SIDE_DRAG_VERTICAL_EDGE_THRESHOLD_PX = 110;
+
+/** Horizontal nudge from drag-start X that still counts as side-stack fine tuning. */
+export const SIDE_DRAG_FINE_TUNE_SLACK_PX = 180;
+
+/**
+ * Outer edge of each L/R column — side cables fine-tune inside this band without
+ * top/bottom flips, regardless of vertical travel.
+ */
+export function sideDragSideColumnOuterXPx(
+  layoutWidth: number,
+  override?: number,
+): number {
+  return override ?? Math.max(220, Math.round(layoutWidth * 0.38));
+}
+
+/**
+ * True when an L/R cable may commit to top/bottom. Requires leaving the side
+ * column AND moving toward diagram center beyond fine-tune slack from drag start.
+ */
+export function allowTopBottomFromSideDrag(
+  x: number,
+  layoutWidth: number,
+  currentSide: LayoutSide,
+  dragStartX?: number,
+  options?: { sideColumnOuterXPx?: number; fineTuneSlackPx?: number },
+): boolean {
+  if (currentSide !== "left" && currentSide !== "right") return true;
+
+  const outerX = sideDragSideColumnOuterXPx(layoutWidth, options?.sideColumnOuterXPx);
+  const slack = options?.fineTuneSlackPx ?? SIDE_DRAG_FINE_TUNE_SLACK_PX;
+
+  if (currentSide === "left") {
+    if (x <= outerX) return false;
+    if (dragStartX !== undefined && x <= dragStartX + slack) return false;
+    return true;
+  }
+
+  if (x >= layoutWidth - outerX) return false;
+  if (dragStartX !== undefined && x >= dragStartX - slack) return false;
+  return true;
+}
+
 export function effectiveCableSide(data: CableNodeData): LayoutSide {
   return data.quadSide ?? data.side;
 }
@@ -54,19 +97,47 @@ export function detectSideFromEdgeProximity(
   y: number,
   bounds: SideDragEdgeBounds,
   currentSide: LayoutSide,
-  options?: { allowVertical?: boolean; thresholdPx?: number },
+  options?: {
+    allowVertical?: boolean;
+    thresholdPx?: number;
+    verticalThresholdPx?: number;
+    sideColumnOuterXPx?: number;
+    fineTuneSlackPx?: number;
+    /** Cable X when the drag started — enables fine-tune vs intentional T/B. */
+    dragStartX?: number;
+  },
 ): LayoutSide {
   const threshold = options?.thresholdPx ?? SIDE_DRAG_EDGE_THRESHOLD_PX;
+  const verticalThreshold =
+    options?.verticalThresholdPx ?? SIDE_DRAG_VERTICAL_EDGE_THRESHOLD_PX;
   const allowVertical = options?.allowVertical !== false;
+  const canCommitTopBottom = allowTopBottomFromSideDrag(
+    x,
+    bounds.layoutWidth,
+    currentSide,
+    options?.dragStartX,
+    {
+      sideColumnOuterXPx: options?.sideColumnOuterXPx,
+      fineTuneSlackPx: options?.fineTuneSlackPx,
+    },
+  );
 
-  type EdgeCandidate = { side: LayoutSide; dist: number };
+  type EdgeCandidate = { side: LayoutSide; dist: number; threshold: number };
   const candidates: EdgeCandidate[] = [
-    { side: "left", dist: x },
-    { side: "right", dist: bounds.layoutWidth - x },
+    { side: "left", dist: x, threshold },
+    { side: "right", dist: bounds.layoutWidth - x, threshold },
   ];
-  if (allowVertical) {
-    candidates.push({ side: "top", dist: Math.max(0, y - bounds.minY) });
-    candidates.push({ side: "bottom", dist: Math.max(0, bounds.maxY - y) });
+  if (allowVertical && canCommitTopBottom) {
+    candidates.push({
+      side: "top",
+      dist: Math.max(0, y - bounds.minY),
+      threshold: verticalThreshold,
+    });
+    candidates.push({
+      side: "bottom",
+      dist: Math.max(0, bounds.maxY - y),
+      threshold: verticalThreshold,
+    });
   }
 
   // Ignore the current side — a cable already on left stays ~24px from the left
@@ -77,7 +148,8 @@ export function detectSideFromEdgeProximity(
   const nearest = eligible.reduce((best, c) =>
     c.dist < best.dist ? c : best,
   );
-  const nextSide = nearest.dist <= threshold ? nearest.side : currentSide;
+  const nextSide =
+    nearest.dist <= nearest.threshold ? nearest.side : currentSide;
 
   logSideDrag("detectSideFromEdgeProximity", {
     phase: "detect",
@@ -90,8 +162,11 @@ export function detectSideFromEdgeProximity(
       minY: bounds.minY,
       maxY: bounds.maxY,
       threshold,
+      verticalThreshold,
       nearestDist: nearest.dist,
     },
+    canCommitTopBottom,
+    dragStartX: options?.dragStartX,
     note:
       nextSide !== currentSide
         ? `nearest=${nearest.side} dist=${nearest.dist.toFixed(0)}`
@@ -241,13 +316,8 @@ export function warningsForSideDragLocks(
   visualId: string,
 ): string[] {
   const warnings: string[] = [];
-  const lockedCables = overrides.locks?.cables ?? {};
   const lockedTubes = overrides.locks?.tubeGroups ?? {};
   const gridLocks = overrides.gridLocks;
-
-  if (lockedCables[visualId]) {
-    warnings.push("Cable position is locked; unlock before moving to another side.");
-  }
 
   const lockedTubeOnCable = Object.keys(lockedTubes).filter((key) =>
     key.startsWith(`${visualId}|`),
@@ -284,33 +354,34 @@ export function needsReoptimizeAfterSideDrag(
   return false;
 }
 
-/** Lock dragged cable to new side; preserve sides of user-locked partner cables. */
+/** Pin every cable to its current side during re-optimize; only the dragged cable may change. */
 export function lockedSidesForSideDrag(
   graph: ConnectionGraph,
   overrides: LayoutOverrides,
   visualId: string,
   newSide: LayoutSide,
+  seedCandidate?: LayoutCandidate,
 ): Record<string, LayoutSide> {
+  if (seedCandidate) {
+    return { ...seedCandidate.cableSides };
+  }
+
+  const baseCandidate = candidateFromOverrides(graph, overrides);
+  if (baseCandidate) {
+    const locked = { ...baseCandidate.cableSides };
+    const { visualCables } = buildVisualCablesForLayout(graph);
+    const vc = visualCables.find((c) => c.id === visualId);
+    if (vc) {
+      locked[cableNameKey(vc.cable)] = newSide;
+    }
+    return locked;
+  }
+
   const { visualCables } = buildVisualCablesForLayout(graph);
   const vc = visualCables.find((c) => c.id === visualId);
   if (!vc) return {};
 
-  const candidate = candidateFromOverrides(graph, overrides);
-  const locked: Record<string, LayoutSide> = {
-    [cableNameKey(vc.cable)]: newSide,
-  };
-
-  const lockedCables = overrides.locks?.cables ?? {};
-  for (const [vid, isLocked] of Object.entries(lockedCables)) {
-    if (!isLocked || vid === visualId) continue;
-    const other = visualCables.find((c) => c.id === vid);
-    if (!other) continue;
-    const key = cableNameKey(other.cable);
-    const side = candidate?.cableSides[key];
-    if (side) locked[key] = side;
-  }
-
-  return locked;
+  return { [cableNameKey(vc.cable)]: newSide };
 }
 
 /** Build seed candidate after moveCableInCandidate for re-optimize input. */
@@ -384,19 +455,6 @@ export function applyCableSideDragCommit(
   const sideChanged = prevSide !== args.newSide;
   const warnings = warningsForSideDragLocks(args.overrides, args.visualId);
 
-  if (args.overrides.locks?.cables?.[args.visualId] && sideChanged) {
-    return {
-      nodes: [],
-      edges: [],
-      overrides: args.overrides,
-      layoutWidth: baseCandidate.layoutWidth,
-      layoutMode: deriveLayoutMode(baseCandidate),
-      sideChanged: false,
-      warnings,
-      candidate: baseCandidate,
-    };
-  }
-
   const stackCoord = stackCoordForSide(args.newSide, args.position);
   let positionsForBuild = { ...args.overrides.positions };
   if (sideChanged) {
@@ -418,6 +476,17 @@ export function applyCableSideDragCommit(
         )
       : baseCandidate);
 
+  const layoutMode = deriveLayoutMode(candidate);
+  // Stale L/R drag coords fight quad auto-placement and strand attachment.
+  if (sideChanged && layoutMode === "quad") {
+    for (const other of visualCables) {
+      const otherId = `cable-${other.id}`;
+      if (otherId !== args.nodeId) {
+        delete positionsForBuild[otherId];
+      }
+    }
+  }
+
   const flippedConnIds = sideChanged
     ? rerouteConnectionIdsForVisualCableDrag(visualCables, args.visualId)
     : [];
@@ -426,7 +495,6 @@ export function applyCableSideDragCommit(
     flippedConnIds,
   );
 
-  const layoutMode = deriveLayoutMode(candidate);
   const mergedOverrides: LayoutOverrides = {
     ...args.overrides,
     layoutWidth: candidate.layoutWidth,
@@ -486,17 +554,7 @@ export function applyCableSideDragCommit(
   };
 
   let nextOverrides = { ...mergedOverrides, positions: persistedPositions };
-  if (!args.preview && args.autoAdjustEnabled) {
-    nextOverrides = onEditLock(nextOverrides, "cable", {
-      cableId: args.visualId,
-      position: resolvedPosition,
-    });
-    nextOverrides = {
-      ...nextOverrides,
-      positions: { ...nextOverrides.positions, [args.nodeId]: resolvedPosition },
-      optimizedLayoutCandidate: candidate,
-    };
-  } else if (!args.preview) {
+  if (!args.preview) {
     nextOverrides = {
       ...nextOverrides,
       positions: { ...nextOverrides.positions, [args.nodeId]: resolvedPosition },

@@ -88,6 +88,7 @@ describe("reoptimizeAfterSideDrag", () => {
       },
       leftVc.id,
       "top",
+      seed,
     );
 
     const winner = await reoptimizeAfterSideDrag(graph, seed, locked, {
@@ -96,6 +97,13 @@ describe("reoptimizeAfterSideDrag", () => {
     });
     expect(winner).not.toBeNull();
     expect(deriveLayoutMode(winner!)).toBe("quad");
+    for (const [key, side] of Object.entries(initial.best.cableSides)) {
+      if (key === cableKey) {
+        expect(winner!.cableSides[key]).toBe("top");
+      } else {
+        expect(winner!.cableSides[key]).toBe(side);
+      }
+    }
 
     const before = buildCanvasFromCandidate(graph, initial.best, {
       reportKey: "before",

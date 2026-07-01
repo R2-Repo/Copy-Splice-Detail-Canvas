@@ -30,8 +30,6 @@ export type CableNodeData = {
   slim?: boolean;
   /** Show buffer-tube manual drag handles (manual adjust mode). */
   manualAdjustEnabled?: boolean;
-  /** User-locked whole cable: position/side frozen, node not draggable. */
-  locked?: boolean;
   /** Tube colors whose fan-out group is locked (tip handle disabled, badge shown). */
   lockedTubes?: string[];
 };

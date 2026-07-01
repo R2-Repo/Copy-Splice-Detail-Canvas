@@ -19,7 +19,6 @@ import { tubeKeyFor } from "./tubeRowShift";
 import { parseBentleyCsv } from "@/features/import/parseBentleyCsv";
 import { gridRoutesFromEdges } from "@/features/grid/gridDragCache";
 import { onEditLock } from "@/features/layoutHybrid/onEditLock";
-import { lockCablePosition } from "@/features/layoutHybrid/applyLocksToGrid";
 import { LAYOUT_OVERRIDE_VERSION } from "@/types/splice";
 
 const legacyExamples = join(
@@ -175,34 +174,6 @@ describe("layout determinism", () => {
     expect(fullRoutingSnapshot(first.edges)).toEqual(
       fullRoutingSnapshot(second.edges),
     );
-  });
-
-  it("locked cable position survives identical rebuilds", () => {
-    const graph = graphFromExample2();
-    const base = buildReactFlowGraph(graph);
-    const leftCable = base.nodes.find(
-      (n) =>
-        n.type === "cable" && (n.data as { side: string }).side === "left",
-    )!;
-    const visualCableId = leftCable.id.replace(/^cable-/, "");
-    const lockedPos = {
-      x: leftCable.position.x + 36,
-      y: leftCable.position.y + 12,
-    };
-    const overrides = lockCablePosition(
-      { reportKey: "survival", positions: {}, autoAdjustEnabled: true },
-      visualCableId,
-      lockedPos,
-    );
-
-    const first = buildReactFlowGraph(graph, overrides);
-    const second = buildReactFlowGraph(graph, overrides);
-    const firstCable = first.nodes.find((n) => n.id === leftCable.id)!;
-    const secondCable = second.nodes.find((n) => n.id === leftCable.id)!;
-
-    expect(firstCable.position).toEqual(secondCable.position);
-    expect(firstCable.position.x).toBeCloseTo(lockedPos.x, 0);
-    expect(firstCable.position.y).toBeCloseTo(lockedPos.y, 0);
   });
 
   it("fusion-dot lock + dotShiftX survives identical rebuilds", () => {

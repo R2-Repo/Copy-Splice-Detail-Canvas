@@ -47,24 +47,6 @@ export const sdcUx001: SdcRule = {
       }
     }
 
-    if (gridLocks?.cables?.length && ctx.overrides?.positions) {
-      for (const cableId of gridLocks.cables) {
-        const nodeId = `cable-${cableId}`;
-        if (
-          !(nodeId in ctx.overrides.positions) &&
-          !(cableId in ctx.overrides.positions)
-        ) {
-          return [
-            warn(
-              "SDC-UX-001",
-              `Grid-locked cable ${cableId} has no saved position`,
-              [cableId],
-            ),
-          ];
-        }
-      }
-    }
-
     if (gridLocks?.tubeGroups?.length && locks?.tubeGroups) {
       for (const tubeKey of gridLocks.tubeGroups) {
         if (!locks.tubeGroups[tubeKey as keyof typeof locks.tubeGroups]) {
@@ -93,24 +75,6 @@ export const sdcUx001: SdcRule = {
               "SDC-UX-001",
               `Grid fusion-dot lock ${dotId} has negligible dotShiftX`,
               [dotId],
-            ),
-          ];
-        }
-      }
-    }
-
-    if (locks?.cables && ctx.overrides?.positions) {
-      for (const cableId of Object.keys(locks.cables)) {
-        const nodeId = `cable-${cableId}`;
-        if (
-          !(nodeId in ctx.overrides.positions) &&
-          !(cableId in ctx.overrides.positions)
-        ) {
-          return [
-            warn(
-              "SDC-UX-001",
-              `Locked cable ${cableId} has no saved position`,
-              [cableId],
             ),
           ];
         }

@@ -184,8 +184,6 @@ export type LayoutCalloutRecord = {
  * tiers (legs, dots, buffer tubes) extend this shape without a version bump.
  */
 export type DiagramLocks = {
-  /** Locked whole cable nodes, keyed by visual cable id (no `cable-` prefix). */
-  cables?: Record<string, true>;
   /** Locked per-tube fan-out groups, keyed by `${visualCableId}|${tubeColor}`. */
   tubeGroups?: Record<TubeOverrideKey, true>;
 };
@@ -258,11 +256,10 @@ export type LayoutOverrides = {
       segmentIds: string[];
     }
   >;
-  /** Grid-mode locked segments, dots, cables, and tube groups. */
+  /** Grid-mode locked segments, dots, and tube groups. */
   gridLocks?: {
     segments: string[];
     dots: string[];
-    cables: string[];
     tubeGroups: string[];
   };
   /** Routing-first auto layout: winning search candidate snapshot. */

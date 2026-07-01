@@ -148,7 +148,6 @@ function buildCableNode(
     diagramScale: number;
     sideStemAlign: ReturnType<typeof computeSideStemAlignment>;
     manualAdjustEnabled?: boolean;
-    locked?: boolean;
     lockedTubes?: string[];
   },
 ): Node {
@@ -182,13 +181,12 @@ function buildCableNode(
       spliceNumber: graph.report.header.spliceNumber,
       collapsedTubes: options.collapsedTubes,
       manualAdjustEnabled: options.manualAdjustEnabled,
-      locked: options.locked,
       lockedTubes:
         options.lockedTubes && options.lockedTubes.length > 0
           ? options.lockedTubes
           : undefined,
     } satisfies CableNodeData,
-    draggable: !options.locked,
+    draggable: true,
   };
 }
 
@@ -282,17 +280,6 @@ export function buildReactFlowGraph(
     refreshRowLayout: buildOptions?.refreshRowLayout,
   });
 
-  // User-locked whole cables: pin to their saved coordinates (x + y), overriding
-  // any refresh pass, so they stay frozen across auto/manual + other moves.
-  const lockedCableIds = new Set<string>(
-    Object.keys(overrides?.locks?.cables ?? {}),
-  );
-  for (const vcId of lockedCableIds) {
-    const saved =
-      overrides?.positions?.[`cable-${vcId}`] ?? overrides?.positions?.[vcId];
-    if (saved) positions[`cable-${vcId}`] = { x: saved.x, y: saved.y };
-  }
-
   const autoAdjustOn = overrides?.autoAdjustEnabled !== false;
 
   if (buildOptions?.dragSync !== true && autoAdjustOn) {
@@ -301,7 +288,6 @@ export function buildReactFlowGraph(
       placement,
       positions,
       diagramScale,
-      lockedCableIds,
     );
   }
 
@@ -393,7 +379,6 @@ export function buildReactFlowGraph(
     return buildCableNode(vc, pos, graph, {
       ...nodeBuildOptions,
       collapsedTubes,
-      locked: lockedCableIds.has(vc.id),
       lockedTubes: lockedTubesByVc.get(vc.id),
     });
   });

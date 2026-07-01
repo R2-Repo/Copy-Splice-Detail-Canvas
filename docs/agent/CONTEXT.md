@@ -4,7 +4,11 @@
 
 ## Focus (2026-06-30)
 
-**Quad drag UX + viewport stability** — viewport no longer refits during drag/manual adjust; one-shot import fit; deferred fit after side flip only. Same-side cable drag uses lightweight engine/quad sync (`dragSync` honors prior splice paths). Top/bottom placement parity: stack-axis X snap/clamp, keep drag X on T/B flip, preserve partner saved positions.
+**Top/bottom fiber drag (hybrid)** — fiber handle drag commits `tubeOverrides.visualShiftY` on all sides; quad T/B uses canvas-X delta + `quadFiberHandleCenter` repin.
+
+**Cable drag without locking** — fiber cables no longer auto-lock or offer manual lock; position still saved in overrides. Tube/fiber/leg/fusion-dot locks unchanged.
+
+**Quad drag UX + viewport stability** — viewport no longer refits during drag/manual adjust; one-shot import fit; deferred fit after side flip only.
 
 **4-side cable drag (connected reroute)** — post-import side drag runs constrained layout re-search on T/B or quad transitions; L↔R stays local. Drag-release shows “Adjusting layout…” overlay; winner co-tunes partner sides/stacks.
 
@@ -18,7 +22,7 @@
 
 - Smart manual adjustment (SDC-UX-001)
 - PDF export polish
-- Manual QA: import example-2 + Left-SP-3254.5 side drag; confirm viewport stable + T/B horizontal stickiness
+- Manual QA: import example-2 — side drag to top/bottom + fiber handle drag stickiness; Left-SP-3254.5 side drag
 - Dev deep-search: `npm run sdc:sidecar -- deep-search …` or `npm run sdc:verify`
 
 ## Branch

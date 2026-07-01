@@ -33,7 +33,7 @@ describe("applyHybridFusionDotLocks", () => {
       reportKey: "hybrid-dot",
       positions: {},
       autoAdjustEnabled: true,
-      gridLocks: { segments: [], dots: ["conn-a"], cables: [], tubeGroups: [] },
+      gridLocks: { segments: [], dots: ["conn-a"], tubeGroups: [] },
       legOverrides: { "conn-a": { dotShiftX: 24 } },
     };
     const [out] = applyHybridFusionDotLocks([edge], overrides, undefined, undefined);

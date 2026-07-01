@@ -2,30 +2,29 @@
 
 ## Last session (2026-06-30)
 
-**Quad drag UX + viewport stability**
+**Top/bottom fiber drag commit (hybrid)**
 
 ### Shipped
 
-- **Viewport** — `isInteractingRef` defers fit during drag; one-shot initial fit per diagram load; fit effect decoupled from per-frame `nodes` churn; ResizeObserver skipped while interacting; fit only on side flip commit
-- **Live drag perf** — `buildQuadReactFlowGraph` honors `dragSync` + cached splice paths; `syncQuadCandidateDragLayout` for candidate quad path; horizontal candidate drag routes through `syncNodesEngineDragLayout`
-- **Top/bottom placement** — `resolveCableDragStopStackX`; T/B drag-stop X/Y snap + clamp; `resolveSideDragCablePosition` keeps drag X on T/B flip; partner positions preserved on quad entry; reoptimize seed includes user drop coords
-- **Tests** — `cableLayoutMetrics`, `cableSideDrag`, `buildQuadReactFlowGraph` dragSync cache
+- **Fiber drag always wired** — no longer gated on legacy manual/auto toggle; `fiberDragEnabled: !!meta` on adjust engine
+- **Quad drag-stop fix** — fiber anchor release runs tube-override commit before quad catch-all (no stale `persistLayout` on anchors)
+- **Quad repin math** — `quadManualAdjust.ts`: `quadFiberAnchorNodePosition`, `fanShiftDeltaFromFiberDrag` (top: −ΔX, bottom: +ΔX); used in `syncManualVisualCable` + `useManualAdjustEngine`
+- **Tests** — `quadManualAdjust.test.ts`, `quadFiberDragCommit.test.ts` (top + bottom repin after tube shift)
 
 ### Manual QA
 
-1. Import **Left-SP-3254.5.csv** — drag cables on all sides; no zoom fighting during drag
-2. Top/bottom — drag horizontally; position sticks on release + reload
-3. Import **example-2** — L↔R flip smooth; viewport stable during same-side Y drag
+1. Import **example-2** — drag a cable to **top**, wait for layout adjust
+2. Drag a fiber handle along the cable — release → stays, legs follow
+3. Repeat for **bottom**
+4. Reload — tube shift persists
 
 ### Gate
 
-- `npm run smoke` pass
+- `npm run check` + `npm run build` pass
+- `test:fast`: 402 pass; 2 pre-existing Windows path failures in `layoutContractCsvPaths.test.ts`
 
 ---
 
 ## Previous session (2026-06-30)
 
-**4-side cable drag — connected reroute**
-
-- `reoptimizeAfterSideDrag.ts`, async T/B/quad commit, “Adjusting layout…” overlay
-- See git log for full detail
+**Remove fiber cable locking** — see git log.

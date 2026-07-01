@@ -31,7 +31,7 @@ describe("SDC-UX-001", () => {
       overrides: {
         reportKey: "test",
         positions: {},
-        gridLocks: { segments: [segId], dots: [], cables: [], tubeGroups: [] },
+        gridLocks: { segments: [segId], dots: [], tubeGroups: [] },
       },
     });
 
@@ -47,7 +47,6 @@ describe("SDC-UX-001", () => {
         gridLocks: {
           segments: [],
           dots: [],
-          cables: [],
           tubeGroups: ["vc-left|BL"],
         },
         locks: { tubeGroups: {} },

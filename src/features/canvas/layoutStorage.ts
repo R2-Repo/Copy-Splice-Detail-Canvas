@@ -3,6 +3,7 @@ import {
   type LayoutOverrides,
 } from "@/types/splice";
 import { normalizeLayoutOverridesOnLoad } from "@/features/manualAdjust/connectionOverrides";
+import { stripLegacyCableLocks } from "@/features/layoutHybrid/applyLocksToGrid";
 
 export function loadLayoutOverrides(
   reportKey: string,
@@ -12,7 +13,7 @@ export function loadLayoutOverrides(
     if (!raw) return undefined;
     const parsed = JSON.parse(raw) as LayoutOverrides;
     if (parsed.layoutVersion !== LAYOUT_OVERRIDE_VERSION) return undefined;
-    return normalizeLayoutOverridesOnLoad(parsed);
+    return normalizeLayoutOverridesOnLoad(stripLegacyCableLocks(parsed));
   } catch {
     return undefined;
   }
@@ -20,7 +21,10 @@ export function loadLayoutOverrides(
 
 export function saveLayoutOverrides(overrides: LayoutOverrides): void {
   try {
-    localStorage.setItem(overrides.reportKey, JSON.stringify(overrides));
+    localStorage.setItem(
+      overrides.reportKey,
+      JSON.stringify(stripLegacyCableLocks(overrides)),
+    );
   } catch {
     /* quota / private mode */
   }
@@ -84,7 +88,7 @@ export function mergeLayoutOverrides(
   patch: Partial<LayoutOverrides>,
 ): LayoutOverrides {
   const existing = loadLayoutOverrides(reportKey);
-  return {
+  const merged: LayoutOverrides = {
     reportKey,
     layoutVersion: LAYOUT_OVERRIDE_VERSION,
     positions: patch.positions ?? existing?.positions ?? {},
@@ -133,4 +137,5 @@ export function mergeLayoutOverrides(
     optimizedLayoutCandidate:
       patch.optimizedLayoutCandidate ?? existing?.optimizedLayoutCandidate,
   };
+  return stripLegacyCableLocks(merged);
 }

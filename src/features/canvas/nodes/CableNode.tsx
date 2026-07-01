@@ -176,11 +176,6 @@ export function CableNode({ id, data, positionAbsoluteY }: NodeProps) {
             <span className="cable-node__smfo">{d.smfoLabel}</span>
           ) : null}
           <span className="cable-node__label">{d.label}</span>
-          {d.locked ? (
-            <span className="cable-node__lock-badge" aria-label="Cable locked">
-              <LockGlyph size={11} />
-            </span>
-          ) : null}
         </div>
       </div>
 
